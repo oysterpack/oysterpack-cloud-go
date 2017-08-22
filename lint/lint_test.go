@@ -12,20 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package oysterpack_cloud_go
+package lint
 
 import (
 	"testing"
-	"fmt"
+	"github.com/surullabs/lint"
 )
 
-type Foo int
+func TestLint(t *testing.T) {
+	err := lint.Default.Check("../oysterpack/...")
 
-type Bar int
+	ignored := lint.RegexpMatch(
+		`_test`, // Ignore lint errors from test files
+	)
+	err = lint.Skip(err, ignored)
 
-func TestTypeConversion(t *testing.T) {
-	var foo Foo = 1
-	var bar Bar = 2
-	var fooBar Foo = Foo(bar)
-	fmt.Println(foo,bar,fooBar)
+	if err != nil {
+		t.Fatalf("lint failures:\n%v\n", err)
+	}
 }
