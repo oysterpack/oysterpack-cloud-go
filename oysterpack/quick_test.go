@@ -16,16 +16,57 @@ package oysterpack_test
 
 import (
 	"testing"
-	"fmt"
+	"github.com/rs/zerolog/log"
+	"sync"
 )
 
-type Foo int
+func TestEchoService(t *testing.T) {
+	StartService(EchoService)
+	req := NewEchoRequest("CIAO MUNDO !!!")
+	Echo <- req
+	log.Info().Msgf("response : %v\n", <-req.ReplyTo)
+	StopServices()
+	ServicesWaitGroup.Wait()
+}
 
-type Bar int
+var Stop = make(chan struct{})
 
-func TestTypeConversion(t *testing.T) {
-	var foo Foo = 1
-	var bar Bar = 2
-	fooBar := Foo(bar)
-	fmt.Println(foo,bar,fooBar)
+var Echo = make(chan *EchoRequest)
+
+var ServicesWaitGroup sync.WaitGroup
+
+func StartService(service func(stop <-chan struct{})) {
+	ServicesWaitGroup.Add(1)
+	go service(Stop)
+}
+
+func StopServices() {
+	close(Stop)
+}
+
+func EchoService(stop <-chan struct{}) {
+	log.Info().Msg("EchoService : Running")
+	for {
+		select {
+		case <-stop:
+			log.Info().Msg("EchoService : Stop")
+			ServicesWaitGroup.Done()
+			return
+		case req := <-Echo :
+			log.Info().Msgf("EchoService: echo(%v)\n", req.Msg)
+			go func() { req.ReplyTo <- req.Msg }()
+		}
+	}
+}
+
+type EchoRequest struct {
+	Msg     interface{}
+	ReplyTo chan interface{}
+}
+
+func NewEchoRequest(msg interface{}) *EchoRequest {
+	return &EchoRequest{
+		msg,
+		make(chan interface{}),
+	}
 }

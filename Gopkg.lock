@@ -2,6 +2,12 @@
 
 
 [[projects]]
+  name = "github.com/rs/zerolog"
+  packages = [".","internal/json","log"]
+  revision = "2ed2f2c974489526d10329dae76d0f175684109a"
+  version = "v1.2.2"
+
+[[projects]]
   branch = "master"
   name = "github.com/surullabs/lint"
   packages = [".","checkers","errcheck","gofmt","golint","gosimple","gostaticcheck","govet"]
@@ -40,6 +46,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "56f3afcb9e441f02e2c0f5a7073e16191519decbd2e5916d09d0dc3c022acbf2"
+  inputs-digest = "f83755aedaaa2ecddffb9f2947bdaea43a8d420c2f26c966dddb25d0fcc6d646"
   solver-name = "gps-cdcl"
   solver-version = 1

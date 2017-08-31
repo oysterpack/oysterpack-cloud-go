@@ -17,6 +17,7 @@ package lint
 import (
 	"testing"
 	"github.com/surullabs/lint"
+	"log"
 )
 
 func TestLint(t *testing.T) {

@@ -40,3 +40,9 @@
   
 ## Containers
 - [Lean and Mean Docker containers](https://go.libhunt.com/project/docker-slim)
+
+## Tools
+- git gui : [git-cola](http://git-cola.github.io/index.html)
+- [lint](https://www.timeferret.com/lint)
+  - integrated via **lint/lint_test.go**
+    - all code underneath the **oysterpack** package will be linted - excluding test files
