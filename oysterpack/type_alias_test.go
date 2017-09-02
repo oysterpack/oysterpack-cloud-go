@@ -12,22 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package lint
+package oysterpack_test
 
-import (
-	"github.com/surullabs/lint"
-	"testing"
-)
-
-func TestLint(t *testing.T) {
-	err := lint.Default.Check("../oysterpack/...")
-
-	//ignored := lint.RegexpMatch(
-	//	`_test`, // Ignore lint errors from test files
-	//)
-	//err = lint.Skip(err, ignored)
-
-	if err != nil {
-		t.Fatalf("lint failures:\n%v\n", err)
-	}
-}
+// lint does not yet support type aliases - a new feature starting with go 1.9
+// lint will report errors because it fails to parse the file
+// once this issue is fixed, then this test file can be deleted
+type FooInt = int

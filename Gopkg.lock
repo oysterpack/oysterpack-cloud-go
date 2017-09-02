@@ -11,13 +11,13 @@
   branch = "master"
   name = "github.com/surullabs/lint"
   packages = [".","checkers","errcheck","gofmt","golint","gosimple","gostaticcheck","govet"]
-  revision = "0d756cead89e06c7937925629a8a7ae9b8082046"
+  revision = "4defd083b89f8b68eddec61d248b056de273d28f"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/tools"
   packages = ["go/ast/astutil","go/buildutil","go/loader","go/types/typeutil"]
-  revision = "1807494da808122833b9bd8e3e5fa179ef237d41"
+  revision = "2d19ab38faf14664c76088411c21bf4fafea960b"
 
 [[projects]]
   branch = "master"
@@ -46,6 +46,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "f83755aedaaa2ecddffb9f2947bdaea43a8d420c2f26c966dddb25d0fcc6d646"
+  inputs-digest = "566d44bc83d3dcaafb9a1f94690ba0c6a47f23142cc48b4f75b582e121209477"
   solver-name = "gps-cdcl"
   solver-version = 1

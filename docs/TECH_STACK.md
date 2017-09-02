@@ -33,6 +33,7 @@
 ### Search
 - [solr](https://lucene.apache.org/solr/)
   - [banana](https://github.com/lucidworks/banana)
+- [bleve](http://www.blevesearch.com/)
   
 ## Security
 - [Let's Encrypt](https://letsencrypt.org/)
