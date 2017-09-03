@@ -16,15 +16,12 @@ package service_test
 
 import (
 	"github.com/oysterpack/oysterpack.go/oysterpack/service"
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
-	"os"
 	"sort"
 	"sync"
 	"testing"
 )
 
-var logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout})
+
 
 func TestState_New(t *testing.T) {
 	for i := 0; i <= int(service.Failed); i++ {
@@ -137,6 +134,26 @@ func TestState_ValidTransition(t *testing.T) {
 		}
 	}
 
+	for state, validTransitions := range validTransitions {
+		if state.ValidTransition(state) {
+			t.Errorf("A self transition is not a valid state : %v", state)
+		}
+		invalidState := service.State(service.Failed + 1)
+		if state.ValidTransition(invalidState) {
+			t.Errorf("%v -> %v should be an invalid transition",state,invalidState)
+		}
+		invalidState = service.State(service.New - 1)
+		if state.ValidTransition(invalidState) {
+			t.Errorf("%v -> %v should be an invalid transition",state,invalidState)
+		}
+
+		for _, to := range validTransitions {
+			if !state.ValidTransition(to) {
+				t.Errorf("%v -> %v should be a valid transition",state,to)
+			}
+		}
+	}
+
 	panicked := false
 	wait := sync.WaitGroup{}
 	wait.Add(1)
@@ -183,6 +200,18 @@ func TestStates_Equals(t *testing.T) {
 	}
 
 	states1 = service.States{service.New, service.Starting, service.Running}
+	states2 = service.States{service.New, service.Starting}
+	if states1.Equals(states2) {
+		t.Errorf("Should not be equal: %v %v", states1, states2)
+	}
+
+	states1 = service.States{service.New, service.Starting, service.Running}
+	states2 = service.States{service.New, service.Starting, service.Terminated}
+	if states1.Equals(states2) {
+		t.Errorf("Should not be equal: %v %v", states1, states2)
+	}
+
+	states1 = service.States{service.New, service.Starting, service.Running}
 	states2 = service.States{service.New, service.Running, service.Starting}
 	if !states1.Equals(states2) {
 		t.Errorf("Should be equal: %v %v", states1, states2)
@@ -193,5 +222,22 @@ func TestStates_Equals(t *testing.T) {
 	sort.Reverse(states2)
 	if !states1.Equals(states2) {
 		t.Errorf("Should be equal: %v %v", states1, states2)
+	}
+}
+
+func TestState_String(t *testing.T) {
+	states := map[service.State]string{
+		service.New : "New",
+		service.Starting : "Starting",
+		service.Running : "Running",
+		service.Stopping : "Stopping",
+		service.Terminated : "Terminated",
+		service.Failed : "Failed",
+	}
+
+	for state, s := range states {
+		if state.String() != s {
+			t.Errorf("%v != %v",state,s)
+		}
 	}
 }

@@ -17,6 +17,7 @@ package service
 import (
 	"github.com/oysterpack/oysterpack.go/oysterpack/internal/utils"
 	"reflect"
+	"time"
 )
 
 type Service interface {
@@ -30,7 +31,7 @@ type Context struct {
 }
 
 type LifeCycle struct {
-	state ServiceState
+	ServiceState
 
 	// OPTIONAL : StartUp is invoked when transitioning from New -> Starting
 	// After StartUp is complete, if the service has a RunAsync, then it is invoked.
@@ -52,23 +53,25 @@ type LifeCycle struct {
 	StopAsync func()
 }
 
-// State returns the current State and when it transitioned into the State
+// State returns the current State
 func (c *LifeCycle) State() State {
-	state, _ := c.state.State()
+	state, _ := c.ServiceState.State()
 	return state
 }
 
 func (c *LifeCycle) FailureCause() error {
-	return c.state.FailureCause()
+	return c.ServiceState.FailureCause()
 }
 
-func (c *LifeCycle) AwaitState(stateWaitedFor State) error {
+// AwaitState blocks until the desired state is reached
+// If the desired state has past, then a PastStateError is returned
+func (c *LifeCycle) AwaitState(desiredState State) error {
 	matches := func(currentState State) (bool, error) {
 		switch {
-		case currentState == stateWaitedFor:
+		case currentState == desiredState:
 			return true, nil
-		case currentState > stateWaitedFor:
-			return false, &IllegalStateError{currentState}
+		case currentState > desiredState:
+			return false, &PastStateError{Past : desiredState, Current: currentState}
 		default:
 			return false, nil
 		}
@@ -79,15 +82,14 @@ func (c *LifeCycle) AwaitState(stateWaitedFor State) error {
 	} else if reachedState {
 		return nil
 	}
-	l := c.state.NewStateChangeListener()
+	l := c.ServiceState.NewStateChangeListener()
 	// in case the service started matches in the meantime, seed the channel with the current state
 	go func() {
 		// ignore panics caused by sending on a closed channel
 		// the channel might be closed if the service failed
 		defer utils.IgnorePanic()
-		if stateChangeChann := c.state.stateChangeChannel(l); stateChangeChann != nil {
-			state, _ := c.state.State()
-			stateChangeChann <- state
+		if stateChangeChann := c.ServiceState.stateChangeChannel(l); stateChangeChann != nil {
+			stateChangeChann <- c.State()
 		}
 	}()
 	for state := range l {
@@ -106,6 +108,15 @@ func (c *LifeCycle) AwaitRunning() error {
 	return c.AwaitState(Running)
 }
 
+// Waits for the Service to terminate, i.e., reach the Terminated or Failed state
+// if the service terminates in a Failed state, then the service failure cause is returned
 func (c *LifeCycle) AwaitTerminated() error {
-	return c.AwaitState(Terminated)
+	if err := c.AwaitState(Terminated); err != nil {
+		return c.failureCause
+	}
+	return nil
+}
+
+type StopTrigger struct {
+	Timestamp time.Time
 }
