@@ -16,14 +16,14 @@ package service
 
 import (
 	"fmt"
+	"github.com/oysterpack/oysterpack.go/oysterpack/internal/utils"
+	"sort"
 	"sync"
 	"time"
-
-	"github.com/oysterpack/oysterpack.go/oysterpack/internal/utils"
 )
 
 // State is a simple hight-level summary of where the LifeCycle is in its lifecycle
-type State uint
+type State int
 
 // Possible State values
 // Normal service life cycle : New -> Starting -> Running -> Stopping -> Terminated
@@ -62,6 +62,33 @@ func (s State) Stopped() bool {
 	return s == Terminated || s == Failed
 }
 
+func (s State) ValidTransitions() (states States) {
+	switch s {
+	case New:
+		states = []State{Starting, Terminated}
+	case Starting:
+		states = []State{Running, Stopping, Terminated, Failed}
+	case Running:
+		states = []State{Stopping, Terminated, Failed}
+	case Stopping:
+		states = []State{Terminated, Failed}
+	case Terminated:
+	case Failed:
+	default:
+		panic(fmt.Sprintf("Unknown State : %v", s))
+	}
+	return
+}
+
+func (s State) ValidTransition(to State) bool {
+	for _, validState := range s.ValidTransitions() {
+		if validState == to {
+			return true
+		}
+	}
+	return false
+}
+
 func (s State) String() string {
 	switch s {
 	case New:
@@ -77,8 +104,38 @@ func (s State) String() string {
 	case Failed:
 		return "Failed"
 	default:
-		panic(fmt.Sprintf("UNKNOWN STATE : %v", s))
+		panic(fmt.Sprintf("UNKNOWN STATE : %d", s))
 	}
+}
+
+// States implements sort.Interface
+type States []State
+
+func (a States) Len() int           { return len(a) }
+func (a States) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a States) Less(i, j int) bool { return a[i] < a[j] }
+
+var AllStates States = []State{New, Starting, Running, Stopping, Terminated, Failed}
+
+func (a States) Equals(b States) bool {
+	if a == nil && b == nil {
+		return true
+	}
+
+	if len(a) != len(b) {
+		return false
+	}
+
+	sort.Sort(a)
+	sort.Sort(b)
+
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+
+	return true
 }
 
 // Used to listen for service state changes
@@ -123,7 +180,7 @@ func (s *ServiceState) SetState(state State) (bool, error) {
 	if s.state == state {
 		return false, nil
 	}
-	if state > s.state {
+	if s.state.ValidTransition(state) {
 		s.state = state
 		s.timestamp = time.Now()
 		if state == Failed {

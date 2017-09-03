@@ -1,6 +1,6 @@
 # How to run test code coverage
 
-    go test -mode=count -coverprofile=cover.out     
+    go test -covermode=count -coverprofile=cover.out     
     go tool cover -html cover.out
 
 # How to run benchmarks
