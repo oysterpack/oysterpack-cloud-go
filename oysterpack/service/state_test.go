@@ -21,8 +21,6 @@ import (
 	"testing"
 )
 
-
-
 func TestState_New(t *testing.T) {
 	for i := 0; i <= int(service.Failed); i++ {
 		if state := service.State(i); state == service.New {
@@ -140,16 +138,16 @@ func TestState_ValidTransition(t *testing.T) {
 		}
 		invalidState := service.State(service.Failed + 1)
 		if state.ValidTransition(invalidState) {
-			t.Errorf("%v -> %v should be an invalid transition",state,invalidState)
+			t.Errorf("%v -> %v should be an invalid transition", state, invalidState)
 		}
 		invalidState = service.State(service.New - 1)
 		if state.ValidTransition(invalidState) {
-			t.Errorf("%v -> %v should be an invalid transition",state,invalidState)
+			t.Errorf("%v -> %v should be an invalid transition", state, invalidState)
 		}
 
 		for _, to := range validTransitions {
 			if !state.ValidTransition(to) {
-				t.Errorf("%v -> %v should be a valid transition",state,to)
+				t.Errorf("%v -> %v should be a valid transition", state, to)
 			}
 		}
 	}
@@ -227,17 +225,17 @@ func TestStates_Equals(t *testing.T) {
 
 func TestState_String(t *testing.T) {
 	states := map[service.State]string{
-		service.New : "New",
-		service.Starting : "Starting",
-		service.Running : "Running",
-		service.Stopping : "Stopping",
-		service.Terminated : "Terminated",
-		service.Failed : "Failed",
+		service.New:        "New",
+		service.Starting:   "Starting",
+		service.Running:    "Running",
+		service.Stopping:   "Stopping",
+		service.Terminated: "Terminated",
+		service.Failed:     "Failed",
 	}
 
 	for state, s := range states {
 		if state.String() != s {
-			t.Errorf("%v != %v",state,s)
+			t.Errorf("%v != %v", state, s)
 		}
 	}
 }

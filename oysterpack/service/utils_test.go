@@ -21,4 +21,3 @@ import (
 )
 
 var logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout})
-

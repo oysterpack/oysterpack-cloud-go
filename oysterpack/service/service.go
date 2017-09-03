@@ -71,7 +71,7 @@ func (c *LifeCycle) AwaitState(desiredState State) error {
 		case currentState == desiredState:
 			return true, nil
 		case currentState > desiredState:
-			return false, &PastStateError{Past : desiredState, Current: currentState}
+			return false, &PastStateError{Past: desiredState, Current: currentState}
 		default:
 			return false, nil
 		}
@@ -83,10 +83,10 @@ func (c *LifeCycle) AwaitState(desiredState State) error {
 		return nil
 	}
 	l := c.ServiceState.NewStateChangeListener()
-	// in case the service started matches in the meantime, seed the channel with the current state
+	// in case the service started matches in the meantime, seed the messages with the current state
 	go func() {
-		// ignore panics caused by sending on a closed channel
-		// the channel might be closed if the service failed
+		// ignore panics caused by sending on a closed messages
+		// the messages might be closed if the service failed
 		defer utils.IgnorePanic()
 		if stateChangeChann := c.ServiceState.stateChangeChannel(l); stateChangeChann != nil {
 			stateChangeChann <- c.State()

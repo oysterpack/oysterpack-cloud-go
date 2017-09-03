@@ -15,23 +15,23 @@
 package service
 
 import (
+	"fmt"
+	"github.com/oysterpack/oysterpack.go/oysterpack/internal/utils"
 	"sync"
 	"time"
-	"github.com/oysterpack/oysterpack.go/oysterpack/internal/utils"
-	"fmt"
 )
 
-// StateChangeListener is a channel used to listen for service state changes.
-// After a terminal state is reached, then the channel is closed.
+// StateChangeListener is a messages used to listen for service state changes.
+// After a terminal state is reached, then the messages is closed.
 type StateChangeListener <-chan State
 
 // StateChangeListeners is a slice of StateChangeListener(s)
 type StateChangeListeners []chan State
 
-// ServiceState is used to manage the service's state in a concurrent safe manner.
+// ServiceState is used to manage the service's state.
 // Use NewServiceState to construct new ServiceState instances
+// NOTE: ServiceState is not concurrent safe
 type ServiceState struct {
-	lock         sync.RWMutex
 	state        State
 	failureCause error
 	timestamp    time.Time
@@ -49,15 +49,13 @@ func NewServiceState() *ServiceState {
 }
 
 func (s *ServiceState) String() string {
-	if (s.failureCause != nil) {
-		return fmt.Sprintf("State : %v, Timestamp : %v, FailureCause : %v", s.state, s.timestamp, s.failureCause)
+	if s.failureCause != nil {
+		return fmt.Sprintf("State : %v, Timestamp : %v, len(StateChangeListeners) : %v, FailureCause : %v", s.state, s.timestamp, len(s.stateChangeListeners), s.failureCause)
 	}
-	return fmt.Sprintf("State:%v, Timestamp:%v", s.state, s.timestamp)
+	return fmt.Sprintf("State : %v, Timestamp : %v, len(StateChangeListeners) : %v", s.state, s.timestamp, len(s.stateChangeListeners))
 }
 
 func (s *ServiceState) State() (State, time.Time) {
-	s.lock.RLock()
-	defer s.lock.RUnlock()
 	return s.state, s.timestamp
 }
 
@@ -65,8 +63,6 @@ func (s *ServiceState) State() (State, time.Time) {
 // Returns nil if the service has no error.
 // NOTE: If the service has a FaiureCause, then the State must be Failed
 func (s *ServiceState) FailureCause() error {
-	s.lock.RLock()
-	defer s.lock.RUnlock()
 	return s.failureCause
 }
 
@@ -74,8 +70,6 @@ func (s *ServiceState) FailureCause() error {
 // If an illegal state transition is attempted, then the state is not changed and an error is returned.
 // If a valid state transition is requested, then the timestamp is updated and true is returned with no error.
 func (s *ServiceState) SetState(state State) (bool, error) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
 	if s.state == state {
 		return false, nil
 	}
@@ -85,7 +79,7 @@ func (s *ServiceState) SetState(state State) (bool, error) {
 		if state == Failed && s.failureCause == nil {
 			s.failureCause = UnknownFailureCause{}
 		}
-		go s.notifyStateChangeListeners(state)
+		s.notifyStateChangeListeners(state)
 		return true, nil
 	}
 
@@ -97,9 +91,6 @@ func (s *ServiceState) SetState(state State) (bool, error) {
 // If the current state is already Failed, then the failure cause will be updated if err is not nil, but state change
 // listeners will not be notified.
 func (s *ServiceState) Failed(err error) bool {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-
 	setFailureCause := func() {
 		if err != nil {
 			s.failureCause = err
@@ -118,7 +109,7 @@ func (s *ServiceState) Failed(err error) bool {
 		s.state = state
 		s.timestamp = time.Now()
 		setFailureCause()
-		go s.notifyStateChangeListeners(state)
+		s.notifyStateChangeListeners(state)
 		return true
 	}
 	return false
@@ -140,11 +131,9 @@ func (s *ServiceState) Terminated() (bool, error) {
 	return s.SetState(Terminated)
 }
 
-// NewStateChangeListener returns a channel that clients can use to monitor the service lifecyle.
-// After the service has reached a terminal state, then the channel will be closed
+// NewStateChangeListener returns a messages that clients can use to monitor the service lifecyle.
+// After the service has reached a terminal state, then the messages will be closed
 func (s *ServiceState) NewStateChangeListener() StateChangeListener {
-	s.lock.Lock()
-	defer s.lock.Unlock()
 	l := make(chan State)
 	if s.state.Stopped() {
 		go func() {
@@ -161,8 +150,6 @@ func (s *ServiceState) NewStateChangeListener() StateChangeListener {
 func (s *ServiceState) deleteStateChangeListener(l chan State) {
 	closeQuietly(l)
 
-	s.lock.Lock()
-	defer s.lock.Unlock()
 	for i, v := range s.stateChangeListeners {
 		if l == v {
 			s.stateChangeListeners[i] = s.stateChangeListeners[len(s.stateChangeListeners)-1]
@@ -172,15 +159,14 @@ func (s *ServiceState) deleteStateChangeListener(l chan State) {
 	}
 }
 
-// Ignores panic if the channel is already closed
+// Ignores panic if the messages is already closed
 func closeQuietly(c chan State) {
 	defer utils.IgnorePanic()
 	close(c)
 }
 
+// stateChangeChannel looks up the StateChangeListener channel. If it is not found, then nil is returned.
 func (s *ServiceState) stateChangeChannel(l StateChangeListener) chan State {
-	s.lock.RLock()
-	defer s.lock.RUnlock()
 	for _, v := range s.stateChangeListeners {
 		if l == v {
 			return v
@@ -190,39 +176,31 @@ func (s *ServiceState) stateChangeChannel(l StateChangeListener) chan State {
 }
 
 // Each StateChangeListener is notified async, i.e., concurrently.
-// However, this func will block until all listeners are notified, i.e., the State is sent on the channel.
 func (s *ServiceState) notifyStateChangeListeners(state State) {
-	logger.Debug().Msgf("notifyStateChangeListeners : %v : %v",s, state)
 	if state.Stopped() {
-		s.lock.Lock()
-		defer s.lock.Unlock()
 		waitGroup := sync.WaitGroup{}
 		for _, l := range s.stateChangeListeners {
 			waitGroup.Add(1)
 			go func(l chan State) {
 				defer func() {
-					// ignore panics caused by sending on a closed channel
+					// ignore panics caused by sending on a closed messages
 					recover()
 					waitGroup.Done()
 				}()
 
 				l <- state
-				if state.Stopped() {
-					go s.deleteStateChangeListener(l)
-				}
+				s.deleteStateChangeListener(l)
 			}(l)
 		}
 		waitGroup.Wait()
 		s.stateChangeListeners = nil
 	} else {
-		s.lock.RLock()
-		defer s.lock.RUnlock()
 		waitGroup := sync.WaitGroup{}
 		for _, l := range s.stateChangeListeners {
 			waitGroup.Add(1)
 			go func(l chan State) {
 				defer func() {
-					// ignore panics caused by sending on a closed channel
+					// ignore panics caused by sending on a closed messages
 					if p := recover(); p != nil {
 						go s.deleteStateChangeListener(l)
 					}

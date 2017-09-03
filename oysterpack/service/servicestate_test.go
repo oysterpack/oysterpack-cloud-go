@@ -15,10 +15,10 @@
 package service_test
 
 import (
-	"testing"
 	"github.com/oysterpack/oysterpack.go/oysterpack/service"
-	"time"
 	"sync"
+	"testing"
+	"time"
 )
 
 func TestServiceState_NewServiceState(t *testing.T) {
@@ -60,59 +60,8 @@ func TestServiceState_SetState(t *testing.T) {
 
 }
 
-func TestServiceState_SetState_Concurrent(t *testing.T) {
+func TestNewServiceState_SetState_Failed(t *testing.T) {
 	serviceState := service.NewServiceState()
-
-	stateByTimestamps := sync.Map{}
-	counter := 0
-	count := func() func(key interface{}, value interface{}) bool {
-		counter = 0
-		return func(key interface{}, value interface{}) bool {
-			counter ++
-			return true
-		}
-	}
-
-	const concurrency = 100
-	wait := sync.WaitGroup{}
-	setState := func(state service.State) func() {
-		return func() {
-			defer wait.Done()
-			serviceState.SetState(state)
-			state, ts := serviceState.State()
-			stateByTimestamps.Store(ts, state)
-		}
-	}
-	checkState := func(expectedCount int) func() {
-		return func() {
-			state, ts := serviceState.State()
-			if v, ok := stateByTimestamps.Load(ts); !ok || v != state {
-				t.Errorf("state timestamp was not found : (%v,%v) : %v, %v", state, ts, v, ok)
-			}
-			stateByTimestamps.Range(count())
-			if counter != expectedCount {
-				t.Errorf("The expected number of timestamps should be %v but was : %v", expectedCount, counter)
-			}
-		}
-	}
-
-	setStateConcurrent := func(state service.State, expectedCount int) func() {
-		return func() {
-			wait.Add(concurrency)
-			for i := 0; i < concurrency; i++ {
-				go setState(state)()
-			}
-			wait.Wait()
-			checkState(expectedCount)()
-		}
-	}
-
-	setStateConcurrent(service.Starting, 1)()
-	setStateConcurrent(service.Running, 2)()
-	setStateConcurrent(service.Stopping, 3)()
-	setStateConcurrent(service.Terminated, 4)()
-
-	serviceState = service.NewServiceState()
 	serviceState.SetState(service.Starting)
 	serviceState.SetState(service.Failed)
 	if err := serviceState.FailureCause(); err == nil {
@@ -123,7 +72,6 @@ func TestServiceState_SetState_Concurrent(t *testing.T) {
 		default:
 			t.Errorf("FailureCause should be UnknownFailureCause but was : %T", err)
 		}
-
 	}
 }
 
@@ -241,7 +189,10 @@ func TestServiceState_NewStateChangeListener(t *testing.T) {
 
 func TestServiceState_NewStateChangeListener_NonBlocking(t *testing.T) {
 	serviceState := service.NewServiceState()
+
+	logger.Info().Msgf("before creating new state change listener : %v", serviceState)
 	l := serviceState.NewStateChangeListener()
+	logger.Info().Msgf("after creating new state change listener : %v", serviceState)
 
 	stateChanges := []service.State{}
 	lClosed := sync.WaitGroup{}
@@ -253,7 +204,7 @@ func TestServiceState_NewStateChangeListener_NonBlocking(t *testing.T) {
 		}()
 		for state := range l {
 			stateChanges = append(stateChanges, state)
-			logger.Info().Msgf("State changed to : %v", state)
+			logger.Info().Msgf("State changed to : %v :: %v", state, serviceState)
 		}
 	}()
 
@@ -265,11 +216,19 @@ func TestServiceState_NewStateChangeListener_NonBlocking(t *testing.T) {
 	lClosed.Wait()
 
 	logger.Info().Msgf("stateChanges : %v", stateChanges)
+	logger.Info().Msgf("after terminated : %v", serviceState)
 
 	if len(stateChanges) != 4 {
 		t.Errorf("Expected 4 State transitions but got %d : %v", len(stateChanges), stateChanges)
 	}
 	if stateChanges[0] != service.Starting {
 		t.Errorf("Expected state[0] to be Starting but was : %v", stateChanges[0])
+	}
+
+	l = serviceState.NewStateChangeListener()
+	for state := range l {
+		if state != service.Terminated {
+			t.Errorf("Expected state to be Terminated, but was %v", state)
+		}
 	}
 }

@@ -134,7 +134,3 @@ func (a States) Equals(b States) bool {
 
 	return true
 }
-
-
-
-
