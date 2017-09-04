@@ -14,7 +14,9 @@
 
 package service
 
-import "fmt"
+import (
+	"fmt"
+)
 
 // InvalidStateTransition indicates an invalid transition was attempted
 type InvalidStateTransition struct {
@@ -29,10 +31,14 @@ func (e *InvalidStateTransition) Error() string {
 // IllegalStateError indicates we are in an illegal state
 type IllegalStateError struct {
 	State
+	Message string
 }
 
 func (e *IllegalStateError) Error() string {
-	return e.State.String()
+	if e.Message == "" {
+		return e.State.String()
+	}
+	return fmt.Sprintf("%v : %v", e.State, e.Message)
 }
 
 // UnknownFailureCause indicates that the service is in a Failed state, but the failure cause is unknown.
@@ -50,4 +56,14 @@ type PastStateError struct {
 
 func (e *PastStateError) Error() string {
 	return fmt.Sprintf("Current state (%v) is past state (%v)", e.Current, e.Past)
+}
+
+type ServiceError struct {
+	// State in which the error occurred
+	State
+	Err error
+}
+
+func (e *ServiceError) Error() string {
+	return fmt.Sprintf("%v : %v", e.State, e.Err)
 }

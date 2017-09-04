@@ -17,20 +17,11 @@ package service
 import (
 	"fmt"
 	"github.com/oysterpack/oysterpack.go/oysterpack/internal/utils"
-	"sync"
 	"time"
 )
 
-// StateChangeListener is a messages used to listen for service state changes.
-// After a terminal state is reached, then the messages is closed.
-type StateChangeListener <-chan State
-
-// StateChangeListeners is a slice of StateChangeListener(s)
-type StateChangeListeners []chan State
-
 // ServiceState is used to manage the service's state.
 // Use NewServiceState to construct new ServiceState instances
-// NOTE: ServiceState is not concurrent safe
 type ServiceState struct {
 	state        State
 	failureCause error
@@ -38,7 +29,7 @@ type ServiceState struct {
 
 	// registered listeners for state changes
 	// once the service is stopped, the listeners are cleared
-	stateChangeListeners StateChangeListeners
+	stateChangeListeners []chan State
 }
 
 // NewServiceState initializes that state timestamp to now
@@ -134,29 +125,35 @@ func (s *ServiceState) Terminated() (bool, error) {
 // NewStateChangeListener returns a messages that clients can use to monitor the service lifecyle.
 // After the service has reached a terminal state, then the messages will be closed
 func (s *ServiceState) NewStateChangeListener() StateChangeListener {
-	l := make(chan State)
+	// There should be at most 4 state transitions
+	// We want to ensure the state changes are sent, i.e., not blocked, even if there are no listeners actively receiving on the channel
+	c := make(chan State, 4)
 	if s.state.Stopped() {
 		go func() {
-			l <- s.state
-			closeQuietly(l)
+			c <- s.state
+			closeQuietly(c)
 		}()
 
 	} else {
-		s.stateChangeListeners = append(s.stateChangeListeners, l)
+		s.stateChangeListeners = append(s.stateChangeListeners, c)
 	}
-	return l
+	return StateChangeListener{c, s}
 }
 
-func (s *ServiceState) deleteStateChangeListener(l chan State) {
-	closeQuietly(l)
-
+// deleteStateChangeListener closes the listener channel and removes it from its maintained list of StateChangeListener(s)
+// All messages on the channel will be drained.
+// Returns true if the listener channel existed and was deleted.
+// Returns false if the listener channel is not currently owned by this ServiceState.
+func (s *ServiceState) deleteStateChangeListener(l chan State) bool {
 	for i, v := range s.stateChangeListeners {
 		if l == v {
+			closeQuietly(l)
 			s.stateChangeListeners[i] = s.stateChangeListeners[len(s.stateChangeListeners)-1]
 			s.stateChangeListeners = s.stateChangeListeners[:len(s.stateChangeListeners)-1]
-			return
+			return true
 		}
 	}
+	return false
 }
 
 // Ignores panic if the messages is already closed
@@ -168,47 +165,74 @@ func closeQuietly(c chan State) {
 // stateChangeChannel looks up the StateChangeListener channel. If it is not found, then nil is returned.
 func (s *ServiceState) stateChangeChannel(l StateChangeListener) chan State {
 	for _, v := range s.stateChangeListeners {
-		if l == v {
+		if l.c == v {
 			return v
 		}
 	}
 	return nil
 }
 
+func (s *ServiceState) ContainsStateChangeListener(l StateChangeListener) bool {
+	if l.s != s {
+		return false
+	}
+
+	return s.stateChangeChannel(l) != nil
+}
+
 // Each StateChangeListener is notified async, i.e., concurrently.
 func (s *ServiceState) notifyStateChangeListeners(state State) {
 	if state.Stopped() {
-		waitGroup := sync.WaitGroup{}
 		for _, l := range s.stateChangeListeners {
-			waitGroup.Add(1)
-			go func(l chan State) {
+			func(l chan State) {
 				defer func() {
-					// ignore panics caused by sending on a closed messages
+					// ignore panics caused by sending on a closed channel
 					recover()
-					waitGroup.Done()
+					s.deleteStateChangeListener(l)
 				}()
 
 				l <- state
-				s.deleteStateChangeListener(l)
 			}(l)
 		}
-		waitGroup.Wait()
 		s.stateChangeListeners = nil
 	} else {
-		waitGroup := sync.WaitGroup{}
 		for _, l := range s.stateChangeListeners {
-			waitGroup.Add(1)
-			go func(l chan State) {
+			func(l chan State) {
 				defer func() {
-					// ignore panics caused by sending on a closed messages
+					// ignore panics caused by sending on a closed channel
 					if p := recover(); p != nil {
 						go s.deleteStateChangeListener(l)
 					}
-					waitGroup.Done()
 				}()
 				l <- state
 			}(l)
 		}
-		waitGroup.Wait()
+	}
+}
+
+// StateChangeListener contains a channel used to listen for service state changes.
+// After a terminal state is reached, then the channel is closed.
+// If one listens on a closed (cancelled) channel, then the 'New' State will be returned because New == 0, which is the default int value.
+// The 'New' state will never be delivered on an active channel because the StateChangeListener is created after the service.
+// NOTE: a StateChangeListener must be created using ServiceState.NewStateChangeListener()
+type StateChangeListener struct {
+	c chan State
+	// owns the listener channel
+	s *ServiceState
+}
+
+func (a *StateChangeListener) Channel() <-chan State {
+	return a.c
+}
+
+// Cancel deletes itself from the ServiceState that created it, which will also close the channel
+// Any messages on the channel will be drained
+func (a *StateChangeListener) Cancel() {
+	if !a.s.deleteStateChangeListener(a.c) {
+		// the ServiceState reported that it did not own the channel
+		// To be safe on the safe side, manually close the channel in case there are goroutines blocked on receiving from this channel
+		closeQuietly(a.c)
+	}
+	for range a.c {
 	}
 }

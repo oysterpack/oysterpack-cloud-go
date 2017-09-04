@@ -33,6 +33,18 @@ func (f Foo) String() string {
 	return "Foo"
 }
 
+func TestClosingBufferedChannel(t *testing.T) {
+	c := make(chan int, 10)
+	for i := 0; i < 10; i++ {
+		c <- i
+	}
+	close(c)
+	t.Log("closed channel")
+	for i := 0; i <= 11; i++ {
+		t.Logf("receiving on closed channel [%d]: %v", i, <-c)
+	}
+}
+
 func TestClosingClosedChannel(t *testing.T) {
 	defer func() {
 		if p := recover(); p == nil {
@@ -157,5 +169,12 @@ func NewEchoRequest(msg interface{}) *EchoRequest {
 	return &EchoRequest{
 		msg,
 		make(chan interface{}),
+	}
+}
+
+func TestNegativeDuration(t *testing.T) {
+	var d time.Duration = -1
+	if d < 0 {
+		t.Log("negative durations are allowed")
 	}
 }

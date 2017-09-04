@@ -30,6 +30,9 @@
 ### NewSQL
 - [CockroachDB](https://www.cockroachlabs.com/)
 
+### Distributed Key Value Store
+- [etcd](https://coreos.com/etcd)
+
 ### Search
 - [solr](https://lucene.apache.org/solr/)
   - [banana](https://github.com/lucidworks/banana)

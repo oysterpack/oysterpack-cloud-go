@@ -109,7 +109,7 @@ func TestServiceState_Failed(t *testing.T) {
 	}
 
 	_, stateTS = serviceState.State()
-	if serviceState.Failed(&service.IllegalStateError{service.Failed}) {
+	if serviceState.Failed(&service.IllegalStateError{State: service.Failed}) {
 		t.Error("The state should not have been updated because it should already be Failed")
 	}
 	if state, ts := serviceState.State(); state != service.Failed || !ts.Equal(stateTS) {
@@ -135,6 +135,8 @@ func TestServiceState_NewStateChangeListener(t *testing.T) {
 	stateChanges := []service.State{}
 	lClosed := sync.WaitGroup{}
 	lClosed.Add(1)
+
+	// wait for each state change notification to be received before transitioning to the next state
 	starting, running, stopping, terminated := sync.WaitGroup{}, sync.WaitGroup{}, sync.WaitGroup{}, sync.WaitGroup{}
 	starting.Add(1)
 	running.Add(1)
@@ -145,7 +147,7 @@ func TestServiceState_NewStateChangeListener(t *testing.T) {
 			lClosed.Done()
 			logger.Info().Msgf("StateChangeListener channel is closed : %v", serviceState)
 		}()
-		for state := range l {
+		for state := range l.Channel() {
 			stateChanges = append(stateChanges, state)
 			logger.Info().Msgf("State changed to : %v", state)
 			switch state {
@@ -202,7 +204,7 @@ func TestServiceState_NewStateChangeListener_NonBlocking(t *testing.T) {
 			lClosed.Done()
 			logger.Info().Msgf("StateChangeListener channel is closed : %v", serviceState)
 		}()
-		for state := range l {
+		for state := range l.Channel() {
 			stateChanges = append(stateChanges, state)
 			logger.Info().Msgf("State changed to : %v :: %v", state, serviceState)
 		}
@@ -226,9 +228,37 @@ func TestServiceState_NewStateChangeListener_NonBlocking(t *testing.T) {
 	}
 
 	l = serviceState.NewStateChangeListener()
-	for state := range l {
+	for state := range l.Channel() {
 		if state != service.Terminated {
 			t.Errorf("Expected state to be Terminated, but was %v", state)
 		}
+	}
+}
+
+func TestStateChangeListener_Cancel(t *testing.T) {
+	serviceState := service.NewServiceState()
+	l := serviceState.NewStateChangeListener()
+	if !serviceState.ContainsStateChangeListener(l) {
+		t.Error("ServiceState should have contained the StateChangeListener")
+	}
+	l.Cancel()
+	if serviceState.ContainsStateChangeListener(l) {
+		t.Error("ServiceState should not contain the StateChangeListener because it was cancelled")
+	}
+	// Cancelling again should be ok
+	l.Cancel()
+
+	l = serviceState.NewStateChangeListener()
+	if !serviceState.ContainsStateChangeListener(l) {
+		t.Error("ServiceState should have contained the StateChangeListener")
+	}
+	serviceState2 := service.NewServiceState()
+	if serviceState2.ContainsStateChangeListener(l) {
+		t.Error("ServiceState should not contain the StateChangeListener because it was created by a different ServiceState")
+	}
+
+	serviceState.Terminated()
+	if serviceState.ContainsStateChangeListener(l) {
+		t.Error("ServiceState should not contain the StateChangeListener because the ServiceState reached a terminal state")
 	}
 }

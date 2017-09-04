@@ -20,6 +20,14 @@ import (
 	"time"
 )
 
+// TODO: metrics
+// TODO: healthchecks
+// TODO: events
+// TODO: alarms
+// TODO: config (JSON)
+// TODO: readiness probe
+// TODO: liveliness probe
+// TODO: devops
 type Service interface {
 	Context() Context
 }
@@ -31,41 +39,29 @@ type Context struct {
 }
 
 type LifeCycle struct {
-	ServiceState
+	serviceState ServiceState
 
-	// OPTIONAL : StartUp is invoked when transitioning from New -> Starting
-	// After StartUp is complete, if the service has a RunAsync, then it is invoked.
-	// Once the RunAsync.Run has started, then the service is transitioned to Running.
-	// If the service has no RunAsync func, then the service is transitioned to Running.
-	// A stopped service may not be restarted.
-	StartAsync func()
+	stopTriggered bool
+	stopTrigger   chan struct{}
 
-	// OPTIONAL : Run the service. This func is invoked async after StartUp completes.
-	// Use cases :
-	// 1. services that run as servers in the background
-	// 2. services that run periodic tasks in the background
-	Run func()
-
-	// OPTIONAL : StopAsync function is run async
-	// If the service is starting or running, this initiates service shutdown and returns immediately.
-	// If the service is new, it is terminated without having been started nor stopped.
-	// If the service has already been stopped, this method returns immediately without taking action.
-	StopAsync func()
+	init    func() error
+	run     func(StopTrigger) error
+	destroy func() error
 }
 
 // State returns the current State
-func (c *LifeCycle) State() State {
-	state, _ := c.ServiceState.State()
+func (svc *LifeCycle) State() State {
+	state, _ := svc.serviceState.State()
 	return state
 }
 
-func (c *LifeCycle) FailureCause() error {
-	return c.ServiceState.FailureCause()
+func (svc *LifeCycle) FailureCause() error {
+	return svc.serviceState.FailureCause()
 }
 
-// AwaitState blocks until the desired state is reached
+// awaitState blocks until the desired state is reached
 // If the desired state has past, then a PastStateError is returned
-func (c *LifeCycle) AwaitState(desiredState State) error {
+func (svc *LifeCycle) awaitState(desiredState State, wait time.Duration) error {
 	matches := func(currentState State) (bool, error) {
 		switch {
 		case currentState == desiredState:
@@ -77,22 +73,34 @@ func (c *LifeCycle) AwaitState(desiredState State) error {
 		}
 	}
 
-	if reachedState, err := matches(c.State()); err != nil {
+	if reachedState, err := matches(svc.State()); err != nil {
 		return err
 	} else if reachedState {
 		return nil
 	}
-	l := c.ServiceState.NewStateChangeListener()
+	l := svc.serviceState.NewStateChangeListener()
+	if wait > 0 {
+		timer := time.NewTimer(wait)
+		go func() {
+			l.Cancel()
+		}()
+		defer func() {
+			timer.Stop()
+			l.Cancel()
+		}()
+	} else {
+		defer l.Cancel()
+	}
 	// in case the service started matches in the meantime, seed the messages with the current state
 	go func() {
 		// ignore panics caused by sending on a closed messages
 		// the messages might be closed if the service failed
 		defer utils.IgnorePanic()
-		if stateChangeChann := c.ServiceState.stateChangeChannel(l); stateChangeChann != nil {
-			stateChangeChann <- c.State()
+		if stateChangeChann := svc.serviceState.stateChangeChannel(l); stateChangeChann != nil {
+			stateChangeChann <- svc.State()
 		}
 	}()
-	for state := range l {
+	for state := range l.Channel() {
 		if reachedState, err := matches(state); err != nil {
 			return err
 		} else if reachedState {
@@ -100,23 +108,70 @@ func (c *LifeCycle) AwaitState(desiredState State) error {
 		}
 	}
 
-	return c.FailureCause()
+	return svc.FailureCause()
 }
 
 // Waits for the Service to reach the running state
-func (c *LifeCycle) AwaitRunning() error {
-	return c.AwaitState(Running)
+func (svc *LifeCycle) AwaitRunning(wait time.Duration) error {
+	return svc.awaitState(Running, wait)
 }
 
 // Waits for the Service to terminate, i.e., reach the Terminated or Failed state
 // if the service terminates in a Failed state, then the service failure cause is returned
-func (c *LifeCycle) AwaitTerminated() error {
-	if err := c.AwaitState(Terminated); err != nil {
-		return c.failureCause
+func (svc *LifeCycle) AwaitTerminated(wait time.Duration) error {
+	if err := svc.awaitState(Terminated, wait); err != nil {
+		return svc.serviceState.failureCause
 	}
 	return nil
 }
 
-type StopTrigger struct {
-	Timestamp time.Time
+// If the service state is 'New', this initiates service startup and returns immediately.
+// Returns an IllegalStateError if the service state is not 'New'.
+// A stopped service may not be restarted.
+func (svc *LifeCycle) StartAsync() error {
+	if svc.serviceState.state.New() {
+		go func() {
+			svc.stopTrigger = make(chan struct{})
+			svc.serviceState.Starting()
+			if err := svc.init(); err != nil {
+				svc.destroy()
+				svc.serviceState.Failed(&ServiceError{State: Starting, Err: err})
+				return
+			}
+			svc.serviceState.Running()
+			if err := svc.run(svc.stopTrigger); err != nil {
+				svc.destroy()
+				svc.serviceState.Failed(&ServiceError{State: Running, Err: err})
+				return
+			}
+			svc.serviceState.Stopping()
+			if err := svc.destroy(); err != nil {
+				svc.serviceState.Failed(&ServiceError{State: Stopping, Err: err})
+				return
+			}
+			svc.serviceState.Terminated()
+		}()
+		return nil
+	}
+	return &IllegalStateError{
+		State:   svc.serviceState.state,
+		Message: "A service can only be started in the 'New' state",
+	}
 }
+
+// If the service is starting or running, this initiates service shutdown and returns immediately.
+// If the service is new, it is terminated without having been started nor stopped.
+// If the service has already been stopped, this method returns immediately without taking action.
+func (svc *LifeCycle) StopAsyc() {
+	if svc.serviceState.state.Stopped() {
+		return
+	}
+	if svc.serviceState.state.New() {
+		svc.serviceState.Terminated()
+		return
+	}
+	svc.stopTriggered = true
+	close(svc.stopTrigger)
+}
+
+type StopTrigger <-chan struct{}
