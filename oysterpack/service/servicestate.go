@@ -129,11 +129,8 @@ func (s *ServiceState) NewStateChangeListener() StateChangeListener {
 	// We want to ensure the state changes are sent, i.e., not blocked, even if there are no listeners actively receiving on the channel
 	c := make(chan State, 4)
 	if s.state.Stopped() {
-		go func() {
-			c <- s.state
-			closeQuietly(c)
-		}()
-
+		c <- s.state
+		close(c)
 	} else {
 		s.stateChangeListeners = append(s.stateChangeListeners, c)
 	}
@@ -147,7 +144,7 @@ func (s *ServiceState) NewStateChangeListener() StateChangeListener {
 func (s *ServiceState) deleteStateChangeListener(l chan State) bool {
 	for i, v := range s.stateChangeListeners {
 		if l == v {
-			closeQuietly(l)
+			closeStateChanQuietly(l)
 			s.stateChangeListeners[i] = s.stateChangeListeners[len(s.stateChangeListeners)-1]
 			s.stateChangeListeners = s.stateChangeListeners[:len(s.stateChangeListeners)-1]
 			return true
@@ -156,8 +153,8 @@ func (s *ServiceState) deleteStateChangeListener(l chan State) bool {
 	return false
 }
 
-// Ignores panic if the messages is already closed
-func closeQuietly(c chan State) {
+// Ignores panic if the channel is already closed
+func closeStateChanQuietly(c chan State) {
 	defer utils.IgnorePanic()
 	close(c)
 }
@@ -201,7 +198,7 @@ func (s *ServiceState) notifyStateChangeListeners(state State) {
 				defer func() {
 					// ignore panics caused by sending on a closed channel
 					if p := recover(); p != nil {
-						go s.deleteStateChangeListener(l)
+						s.deleteStateChangeListener(l)
 					}
 				}()
 				l <- state
@@ -231,7 +228,7 @@ func (a *StateChangeListener) Cancel() {
 	if !a.s.deleteStateChangeListener(a.c) {
 		// the ServiceState reported that it did not own the channel
 		// To be safe on the safe side, manually close the channel in case there are goroutines blocked on receiving from this channel
-		closeQuietly(a.c)
+		closeStateChanQuietly(a.c)
 	}
 	for range a.c {
 	}

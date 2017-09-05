@@ -19,12 +19,12 @@ import (
 	"sort"
 )
 
-// State is a simple hight-level summary of where the LifeCycle is in its lifecycle
+// State is a simple hight-level summary of where the Server is in its lifecycle
 type State int
 
 // Possible State values
 // Normal service life cycle : New -> Starting -> Running -> Stopping -> Terminated
-// If the service fails while starting, running, or stopping, then it goes into state LifeCycle.State.FAILED.
+// If the service fails while starting, running, or stopping, then it goes into state Server.State.FAILED.
 // A stopped service may not be restarted.
 // The ordering of the State enum is defined such that if there is a state transition from A -> B then A < B.
 const (

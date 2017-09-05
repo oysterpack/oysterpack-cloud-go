@@ -12,31 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package service provides support to build production quality services from a DevOps perspective.
+// A service's operational aspects are critical for long term success. Hacking in operational support aspects at the end
+// is a recipe for failure.
 package service
-
-import (
-	"reflect"
-)
-
-type Service interface {
-	Context() Context
-}
-
-// TODO: lifecycle
-// TODO: dependencies
-// TODO: metrics
-// TODO: healthchecks
-// TODO: logging
-// TODO: events
-// TODO: alarms
-// TODO: config (JSON)
-// TODO: readiness probe
-// TODO: liveliness probe
-// TODO: devops
-// TODO: security
-// TODO: gRPC - frontend
-type Context struct {
-	reflect.Type
-
-	Server
-}
