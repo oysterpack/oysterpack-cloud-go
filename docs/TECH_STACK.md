@@ -33,6 +33,9 @@
 ### Distributed Key Value Store
 - [etcd](https://coreos.com/etcd)
 
+### Graph DB
+- [dgraph](https://dgraph.io/)
+
 ### Search
 - [solr](https://lucene.apache.org/solr/)
   - [banana](https://github.com/lucidworks/banana)
@@ -40,7 +43,7 @@
   
 ## Security
 - [Let's Encrypt](https://letsencrypt.org/)
-  - [acmetool][https://github.com/hlandau/acme]
+  - [acmetool](https://github.com/hlandau/acme)
   
 ## Containers
 - [Lean and Mean Docker containers](https://go.libhunt.com/project/docker-slim)
