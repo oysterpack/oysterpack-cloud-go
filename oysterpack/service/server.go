@@ -15,7 +15,6 @@
 package service
 
 import (
-	"fmt"
 	"github.com/oysterpack/oysterpack.go/oysterpack/internal/utils"
 	"time"
 )
@@ -50,7 +49,19 @@ type Init func() error
 
 // Run is responsible to responding to a message on the StopTrigger channel.
 // When a message is received from the StopTrigger, then the Run function should stop running ASAP.
-type Run func(StopTrigger) error
+type Run func(*RunContext) error
+
+type RunContext struct {
+	server *Server
+}
+
+func (ctx *RunContext) StopTriggered() bool {
+	return ctx.server.stopTriggered
+}
+
+func (ctx *RunContext) StopTrigger() StopTrigger {
+	return ctx.server.stopTrigger
+}
 
 type Destroy func() error
 
@@ -65,7 +76,7 @@ func NewServer(init Init, run Run, destroy Destroy) *Server {
 		init = func() (err error) {
 			defer func() {
 				if p := recover(); p != nil {
-					err = fmt.Errorf("init panic : %v", p)
+					err = &PanicError{Panic: p, Message: "Server.init()"}
 				}
 			}()
 			return _init()
@@ -73,19 +84,19 @@ func NewServer(init Init, run Run, destroy Destroy) *Server {
 	}
 
 	if run == nil {
-		run = func(stopTrigger StopTrigger) error {
-			<-stopTrigger
+		run = func(ctx *RunContext) error {
+			<-ctx.StopTrigger()
 			return nil
 		}
 	} else {
 		_run := run
-		run = func(stopTrigger StopTrigger) (err error) {
+		run = func(ctx *RunContext) (err error) {
 			defer func() {
 				if p := recover(); p != nil {
-					err = fmt.Errorf("run panic :%v", p)
+					err = &PanicError{Panic: p, Message: "Server.run()"}
 				}
 			}()
-			return _run(stopTrigger)
+			return _run(ctx)
 		}
 	}
 
@@ -96,7 +107,7 @@ func NewServer(init Init, run Run, destroy Destroy) *Server {
 		destroy = func() (err error) {
 			defer func() {
 				if p := recover(); p != nil {
-					err = fmt.Errorf("destroy panic :%v", p)
+					err = &PanicError{Panic: p, Message: "Server.destroy()"}
 				}
 			}()
 			return _destroy()
@@ -201,7 +212,10 @@ func (svc *Server) StartAsync() error {
 				return
 			}
 			svc.serviceState.Running()
-			if err := svc.run(svc.stopTrigger); err != nil {
+			runCtx := &RunContext{
+				server: svc,
+			}
+			if err := svc.run(runCtx); err != nil {
 				svc.destroy()
 				svc.serviceState.Failed(&ServiceError{State: Running, Err: err})
 				return

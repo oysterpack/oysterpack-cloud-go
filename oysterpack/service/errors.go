@@ -67,3 +67,15 @@ type ServiceError struct {
 func (e *ServiceError) Error() string {
 	return fmt.Sprintf("%v : %v", e.State, e.Err)
 }
+
+type PanicError struct {
+	Panic   interface{}
+	Message string
+}
+
+func (e *PanicError) Error() string {
+	if e.Message != "" {
+		return fmt.Sprintf(" panic: %v : %v", e.Panic, e.Message)
+	}
+	return fmt.Sprintf("panic: %v", e.Panic)
+}

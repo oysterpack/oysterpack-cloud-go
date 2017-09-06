@@ -49,11 +49,11 @@ func TestNewServer_WithNonNilLifeCycleFunctions(t *testing.T) {
 		t.Log("init")
 		return nil
 	}
-	var run service.Run = func(stopTrigger service.StopTrigger) error {
+	var run service.Run = func(ctx *service.RunContext) error {
 		t.Log("running")
 		for {
 			select {
-			case <-stopTrigger:
+			case <-ctx.StopTrigger():
 				t.Log("stop triggered")
 				return nil
 			}
@@ -88,11 +88,11 @@ func TestNewServer_InitPanics(t *testing.T) {
 		panic("Init is panicking")
 		return nil
 	}
-	var run service.Run = func(stopTrigger service.StopTrigger) error {
+	var run service.Run = func(ctx *service.RunContext) error {
 		t.Log("running")
 		for {
 			select {
-			case <-stopTrigger:
+			case <-ctx.StopTrigger():
 				t.Log("stop triggered")
 				return nil
 			}
@@ -144,7 +144,7 @@ func TestNewServer_RunPanics(t *testing.T) {
 		t.Log("init")
 		return nil
 	}
-	var run service.Run = func(stopTrigger service.StopTrigger) error {
+	var run service.Run = func(ctx *service.RunContext) error {
 		panic("Run is panicking")
 	}
 	var destroy service.Destroy = func() error {
@@ -193,11 +193,11 @@ func TestNewServer_DestroyPanics(t *testing.T) {
 		t.Log("init")
 		return nil
 	}
-	var run service.Run = func(stopTrigger service.StopTrigger) error {
+	var run service.Run = func(ctx *service.RunContext) error {
 		t.Log("running")
 		for {
 			select {
-			case <-stopTrigger:
+			case <-ctx.StopTrigger():
 				t.Log("stop triggered")
 				return nil
 			}
@@ -224,6 +224,7 @@ func TestNewServer_DestroyPanics(t *testing.T) {
 	if !server.State().Failed() {
 		t.Errorf("Server state should be 'Terminated', but instead was : %q", server.State())
 	}
+	t.Log(server.FailureCause())
 }
 
 // startServer waits up to 3 seconds for the server to start - checking every second
