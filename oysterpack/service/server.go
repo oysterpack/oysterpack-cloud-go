@@ -15,13 +15,25 @@
 package service
 
 import (
+	"fmt"
 	"github.com/oysterpack/oysterpack.go/oysterpack/internal/utils"
 	"time"
 )
 
-// Server represents the service backend.
+// Server represents the service backend. The server runs in its own goroutine.
 // The server has a life cycle linked to its ServiceState.
 // It must be created using NewServer
+//
+// Servers must be designed to be concurrent, but also concurrent safe.
+// The solution is to design the server as a message processing server leveraging channels and goroutines.
+// There would be a channel for each type of message a server can handle. Goroutines are leveraged for concurrent message processing.
+// The design pattern is for the backend server Run function to process messages sent via channels.
+// The Run function should be designed to multiplex on channels - the StopTrigger channel and a channel for each type of
+// message that the server can handle.
+//
+// Each service will live in its own package. The service will be defined by the functions that are exposed by the package.
+// Functions relay messages to the server backend via messages. If a reply is required, then the message will have a reply channel.
+//
 type Server struct {
 	serviceState *ServiceState
 
@@ -44,19 +56,53 @@ type Destroy func() error
 
 // NewServer creates and returns a new Server instance in the 'New' state
 // All server life cycle functions are optional.
+// Any panics that occur in the supplied functions are converted to errors.
 func NewServer(init Init, run Run, destroy Destroy) *Server {
 	if init == nil {
 		init = func() error { return nil }
+	} else {
+		_init := init
+		init = func() (err error) {
+			defer func() {
+				if p := recover(); p != nil {
+					err = fmt.Errorf("init panic : %v", p)
+				}
+			}()
+			return _init()
+		}
 	}
+
 	if run == nil {
 		run = func(stopTrigger StopTrigger) error {
 			<-stopTrigger
 			return nil
 		}
+	} else {
+		_run := run
+		run = func(stopTrigger StopTrigger) (err error) {
+			defer func() {
+				if p := recover(); p != nil {
+					err = fmt.Errorf("run panic :%v", p)
+				}
+			}()
+			return _run(stopTrigger)
+		}
 	}
+
 	if destroy == nil {
 		destroy = func() error { return nil }
+	} else {
+		_destroy := destroy
+		destroy = func() (err error) {
+			defer func() {
+				if p := recover(); p != nil {
+					err = fmt.Errorf("destroy panic :%v", p)
+				}
+			}()
+			return _destroy()
+		}
 	}
+
 	return &Server{
 		serviceState: NewServiceState(),
 		init:         init,
@@ -83,6 +129,9 @@ func (svc *Server) awaitState(desiredState State, wait time.Duration) error {
 		case currentState == desiredState:
 			return true, nil
 		case currentState > desiredState:
+			if svc.State().Failed() {
+				return false, svc.FailureCause()
+			}
 			return false, &PastStateError{Past: desiredState, Current: currentState}
 		default:
 			return false, nil
@@ -96,10 +145,7 @@ func (svc *Server) awaitState(desiredState State, wait time.Duration) error {
 	}
 	l := svc.serviceState.NewStateChangeListener()
 	if wait > 0 {
-		timer := time.NewTimer(wait)
-		go func() {
-			l.Cancel()
-		}()
+		timer := time.AfterFunc(wait, l.Cancel)
 		defer func() {
 			timer.Stop()
 			l.Cancel()
@@ -188,6 +234,10 @@ func (svc *Server) StopAsyc() {
 	}
 	svc.stopTriggered = true
 	close(svc.stopTrigger)
+}
+
+func (svc *Server) StopTriggered() bool {
+	return svc.stopTriggered
 }
 
 type StopTrigger <-chan struct{}

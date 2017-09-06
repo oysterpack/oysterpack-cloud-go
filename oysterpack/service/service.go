@@ -24,10 +24,10 @@ type Service interface {
 
 // TODO: lifecycle
 // TODO: dependencies
+// TODO: events
+// TODO: logging
 // TODO: metrics
 // TODO: healthchecks
-// TODO: logging
-// TODO: events
 // TODO: alarms
 // TODO: config (JSON)
 // TODO: readiness probe

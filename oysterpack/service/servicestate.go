@@ -17,12 +17,16 @@ package service
 import (
 	"fmt"
 	"github.com/oysterpack/oysterpack.go/oysterpack/internal/utils"
+	"sync"
 	"time"
 )
 
 // ServiceState is used to manage the service's state.
 // Use NewServiceState to construct new ServiceState instances
 type ServiceState struct {
+	// the mutex is needed to ensure that the ServiceState is consistently accessed and modified in memory from
+	// multiple goroutines, which potentially may be running on different processors with its own local cache of main memeory
+	mutex        sync.Mutex
 	state        State
 	failureCause error
 	timestamp    time.Time
@@ -47,6 +51,8 @@ func (s *ServiceState) String() string {
 }
 
 func (s *ServiceState) State() (State, time.Time) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 	return s.state, s.timestamp
 }
 
@@ -54,6 +60,8 @@ func (s *ServiceState) State() (State, time.Time) {
 // Returns nil if the service has no error.
 // NOTE: If the service has a FaiureCause, then the State must be Failed
 func (s *ServiceState) FailureCause() error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 	return s.failureCause
 }
 
@@ -61,6 +69,8 @@ func (s *ServiceState) FailureCause() error {
 // If an illegal state transition is attempted, then the state is not changed and an error is returned.
 // If a valid state transition is requested, then the timestamp is updated and true is returned with no error.
 func (s *ServiceState) SetState(state State) (bool, error) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 	if s.state == state {
 		return false, nil
 	}
@@ -82,6 +92,8 @@ func (s *ServiceState) SetState(state State) (bool, error) {
 // If the current state is already Failed, then the failure cause will be updated if err is not nil, but state change
 // listeners will not be notified.
 func (s *ServiceState) Failed(err error) bool {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 	setFailureCause := func() {
 		if err != nil {
 			s.failureCause = err
@@ -125,6 +137,8 @@ func (s *ServiceState) Terminated() (bool, error) {
 // NewStateChangeListener returns a messages that clients can use to monitor the service lifecyle.
 // After the service has reached a terminal state, then the messages will be closed
 func (s *ServiceState) NewStateChangeListener() StateChangeListener {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 	// There should be at most 4 state transitions
 	// We want to ensure the state changes are sent, i.e., not blocked, even if there are no listeners actively receiving on the channel
 	c := make(chan State, 4)
@@ -145,12 +159,31 @@ func (s *ServiceState) deleteStateChangeListener(l chan State) bool {
 	for i, v := range s.stateChangeListeners {
 		if l == v {
 			closeStateChanQuietly(l)
-			s.stateChangeListeners[i] = s.stateChangeListeners[len(s.stateChangeListeners)-1]
-			s.stateChangeListeners = s.stateChangeListeners[:len(s.stateChangeListeners)-1]
+			func() {
+				defer func() {
+					if p := recover(); p != nil {
+						// because ServiceState.stateChangeListeners is not thread-safe, it is possible that the slice was concurrently updated
+						// this should be a rare event, and if it happens, simply retry
+						s.deleteStateChangeListener(l)
+					}
+				}()
+				s.stateChangeListeners[i] = s.stateChangeListeners[len(s.stateChangeListeners)-1]
+				// in order to prevent memory leaks, i.e., to enable the channel at the last index to be garbage collected, it must be set to nil
+				s.stateChangeListeners[len(s.stateChangeListeners)-1] = nil
+				s.stateChangeListeners = s.stateChangeListeners[:len(s.stateChangeListeners)-1]
+			}()
 			return true
 		}
 	}
 	return false
+}
+
+func (s *ServiceState) deleteAllStateChangeListeners() {
+	temp := make([]chan State, len(s.stateChangeListeners))
+	copy(temp, s.stateChangeListeners)
+	for _, l := range temp {
+		s.deleteStateChangeListener(l)
+	}
 }
 
 // Ignores panic if the channel is already closed
@@ -185,24 +218,28 @@ func (s *ServiceState) notifyStateChangeListeners(state State) {
 				defer func() {
 					// ignore panics caused by sending on a closed channel
 					recover()
-					s.deleteStateChangeListener(l)
 				}()
 
 				l <- state
 			}(l)
 		}
-		s.stateChangeListeners = nil
+		s.deleteAllStateChangeListeners()
 	} else {
+		var closedChannels []chan State
 		for _, l := range s.stateChangeListeners {
 			func(l chan State) {
 				defer func() {
 					// ignore panics caused by sending on a closed channel
+					// this should normally never happen
 					if p := recover(); p != nil {
-						s.deleteStateChangeListener(l)
+						closedChannels = append(closedChannels, l)
 					}
 				}()
 				l <- state
 			}(l)
+		}
+		for _, l := range closedChannels {
+			s.deleteStateChangeListener(l)
 		}
 	}
 }
@@ -225,6 +262,8 @@ func (a *StateChangeListener) Channel() <-chan State {
 // Cancel deletes itself from the ServiceState that created it, which will also close the channel
 // Any messages on the channel will be drained
 func (a *StateChangeListener) Cancel() {
+	a.s.mutex.Lock()
+	defer a.s.mutex.Unlock()
 	if !a.s.deleteStateChangeListener(a.c) {
 		// the ServiceState reported that it did not own the channel
 		// To be safe on the safe side, manually close the channel in case there are goroutines blocked on receiving from this channel
