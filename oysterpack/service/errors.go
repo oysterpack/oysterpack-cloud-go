@@ -58,6 +58,7 @@ func (e *PastStateError) Error() string {
 	return fmt.Sprintf("Current state (%v) is past state (%v)", e.Current, e.Past)
 }
 
+// ServiceError contains the error and the state the service was in when the error occurred
 type ServiceError struct {
 	// State in which the error occurred
 	State
@@ -68,6 +69,7 @@ func (e *ServiceError) Error() string {
 	return fmt.Sprintf("%v : %v", e.State, e.Err)
 }
 
+// PanicError is used to wrap any trapped panics along with a supplemental error message about the context of the panic
 type PanicError struct {
 	Panic   interface{}
 	Message string

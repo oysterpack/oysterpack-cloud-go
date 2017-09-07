@@ -50,6 +50,7 @@ func (s *ServiceState) String() string {
 	return fmt.Sprintf("State : %v, Timestamp : %v, len(StateChangeListeners) : %v", s.state, s.timestamp, len(s.stateChangeListeners))
 }
 
+// State returns the current State and when it transitioned to the State
 func (s *ServiceState) State() (State, time.Time) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
@@ -65,6 +66,7 @@ func (s *ServiceState) FailureCause() error {
 	return s.failureCause
 }
 
+// SetState transitions to the specified State only if it is allowed, and records the timestamp.
 // If the current state matches the new desired state, then false is returned.
 // If an illegal state transition is attempted, then the state is not changed and an error is returned.
 // If a valid state transition is requested, then the timestamp is updated and true is returned with no error.
@@ -118,18 +120,22 @@ func (s *ServiceState) Failed(err error) bool {
 	return false
 }
 
+// Starting transitions to Starting or returns an InvalidStateTransition error if it is not a legal transition
 func (s *ServiceState) Starting() (bool, error) {
 	return s.SetState(Starting)
 }
 
+// Running transitions to Running or returns an InvalidStateTransition error if it is not a legal transition
 func (s *ServiceState) Running() (bool, error) {
 	return s.SetState(Running)
 }
 
+// Stopping transitions to Stopping or returns an InvalidStateTransition error if it is not a legal transition
 func (s *ServiceState) Stopping() (bool, error) {
 	return s.SetState(Stopping)
 }
 
+// Terminated transitions to Terminated or returns an InvalidStateTransition error if it is not a legal transition
 func (s *ServiceState) Terminated() (bool, error) {
 	return s.SetState(Terminated)
 }
@@ -202,6 +208,7 @@ func (s *ServiceState) stateChangeChannel(l StateChangeListener) chan State {
 	return nil
 }
 
+// ContainsStateChangeListener returns true if the specified StateChangeListener is registered
 func (s *ServiceState) ContainsStateChangeListener(l StateChangeListener) bool {
 	if l.s != s {
 		return false
@@ -255,6 +262,7 @@ type StateChangeListener struct {
 	s *ServiceState
 }
 
+// Channel returns the channel that listener should listen on
 func (a *StateChangeListener) Channel() <-chan State {
 	return a.c
 }

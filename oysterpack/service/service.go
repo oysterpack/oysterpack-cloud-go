@@ -20,19 +20,31 @@ import (
 	"time"
 )
 
+// Service represents an object with an operational state, with methods to start and stop.
 // The service runs in its own goroutine.
 // The service has a life cycle linked to its ServiceState.
 // It must be created using NewService
 //
-// Servers must be designed to be concurrent, but also concurrent safe.
+// Services must be designed to be concurrent, but also concurrent safe.
 // The solution is to design the service as a message processing service leveraging channels and goroutines.
 // There would be a channel for each type of message a service can handle. Goroutines are leveraged for concurrent message processing.
 // The design pattern is for the backend service Run function to process messages sent via channels.
 // The Run function should be designed to multiplex on channels - the StopTrigger channel and a channel for each type of
 // message that the service can handle.
 //
-// Each service will live in its own package. The service will be defined by the functions that are exposed by the package.
 // Functions relay messages to the service backend via messages. If a reply is required, then the message will have a reply channel.
+//
+// Design Options"
+// 1. The package represents the service. Each service will live in its own package. The service will be defined by the
+// functions that are exposed by the package.
+// 2. A struct that implements ServiceComposite encapsulates the service's state and behaivor
+//
+// 		type ConfigService struct {
+// 			svc service.Service
+//
+//			// service specific state
+// 		}
+//
 //
 // TODO: dependencies
 // TODO: events
@@ -52,6 +64,12 @@ type Service struct {
 	lifeCycle
 }
 
+// ServiceComposite
+type ServiceComposite interface {
+	Service() Service
+}
+
+// LifeCycle encapsulates the service lifecycle, including the service's backend functions, i.e., Init, Run, Destroy
 type lifeCycle struct {
 	serviceState *ServiceState
 
@@ -64,28 +82,35 @@ type lifeCycle struct {
 	destroy Destroy
 }
 
+// Context represents the service context that is exposed to the Init and Destroy funcs
 type Context struct {
 	service *Service
 }
 
+// Init is a function that is used to initialize the service during startup
 type Init func(*Context) error
 
 // Run is responsible to responding to a message on the StopTrigger channel.
 // When a message is received from the StopTrigger, then the Run function should stop running ASAP.
 type Run func(*RunContext) error
 
+// RunContext represents the service context that is exposed to the Run func
 type RunContext struct {
 	service *Service
 }
 
+// StopTriggered returns true if the service was triggered to stop
 func (ctx *RunContext) StopTriggered() bool {
 	return ctx.service.stopTriggered
 }
 
+// StopTrigger returns the channel that the Run func should use to listen on for the stop trigger.
+// Closing the channel will signal that service has been triggered to stop.
 func (ctx *RunContext) StopTrigger() StopTrigger {
 	return ctx.service.stopTrigger
 }
 
+// Destroy is a function that is used to perform any cleanup during service shutdown.
 type Destroy func(*Context) error
 
 // NewService creates and returns a new Service instance in the 'New' state
@@ -153,6 +178,8 @@ func (svc *Service) State() State {
 	return state
 }
 
+// FailureCause returns the error that caused the service to fail.
+// The service State should be Failed.
 func (svc *Service) FailureCause() error {
 	return svc.serviceState.FailureCause()
 }
@@ -210,12 +237,12 @@ func (svc *Service) awaitState(desiredState State, wait time.Duration) error {
 	return svc.FailureCause()
 }
 
-// Waits for the Service to reach the running state
+// AwaitRunning waits for the Service to reach the running state
 func (svc *Service) AwaitRunning(wait time.Duration) error {
 	return svc.awaitState(Running, wait)
 }
 
-// Waits for the Service to terminate, i.e., reach the Terminated or Failed state
+// AwaitTerminated waits for the Service to terminate, i.e., reach the Terminated or Failed state
 // if the service terminates in a Failed state, then the service failure cause is returned
 func (svc *Service) AwaitTerminated(wait time.Duration) error {
 	if err := svc.awaitState(Terminated, wait); err != nil {
@@ -224,26 +251,27 @@ func (svc *Service) AwaitTerminated(wait time.Duration) error {
 	return nil
 }
 
-// If the service state is 'New', this initiates service startup and returns immediately.
+// StartAsync initiates service startup.
+// If the service state is 'New', this initiates startup and returns immediately.
 // Returns an IllegalStateError if the service state is not 'New'.
 // A stopped service may not be restarted.
 func (svc *Service) StartAsync() error {
 	if svc.serviceState.state.New() {
 		go func() {
 			svc.stopTrigger = make(chan struct{})
-			svc.serviceState.Starting()
 			ctx := &Context{
 				service: svc,
 			}
+			svc.serviceState.Starting()
 			if err := svc.init(ctx); err != nil {
 				svc.destroy(ctx)
 				svc.serviceState.Failed(&ServiceError{State: Starting, Err: err})
 				return
 			}
-			svc.serviceState.Running()
 			runCtx := &RunContext{
 				service: svc,
 			}
+			svc.serviceState.Running()
 			if err := svc.run(runCtx); err != nil {
 				svc.destroy(ctx)
 				svc.serviceState.Failed(&ServiceError{State: Running, Err: err})
@@ -264,6 +292,7 @@ func (svc *Service) StartAsync() error {
 	}
 }
 
+// StopAsyc initiates service shutdown.
 // If the service is starting or running, this initiates service shutdown and returns immediately.
 // If the service is new, it is terminated without having been started nor stopped.
 // If the service has already been stopped, this method returns immediately without taking action.
@@ -279,8 +308,16 @@ func (svc *Service) StopAsyc() {
 	close(svc.stopTrigger)
 }
 
+// StopTriggered returns true if the service was triggered to stop.
 func (svc *Service) StopTriggered() bool {
 	return svc.stopTriggered
 }
 
+// Interface returns the service interface which defines the service functionality
+func (svc *Service) Interface() reflect.Type {
+	return svc.serviceInterface
+}
+
+// StopTrigger is used to notify the service to stop.
+// Closing the channel is the stop signal
 type StopTrigger <-chan struct{}

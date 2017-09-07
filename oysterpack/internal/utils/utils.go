@@ -14,4 +14,6 @@
 
 package utils
 
+// IgnorePanic simply calls recover()
+// It is intended to use in defer() functions to explicitly specify the intent.
 func IgnorePanic() { recover() }

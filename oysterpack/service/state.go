@@ -42,16 +42,22 @@ const (
 	Failed
 )
 
+// New returns true of the State is New
 func (s State) New() bool { return s == New }
 
+// Starting returns true of the State is Starting
 func (s State) Starting() bool { return s == Starting }
 
+// Running returns true of the State is Running
 func (s State) Running() bool { return s == Running }
 
+// Stopping returns true of the State is Stopping
 func (s State) Stopping() bool { return s == Stopping }
 
+// Terminated returns true of the State is Terminated
 func (s State) Terminated() bool { return s == Terminated }
 
+// Failed returns true of the State is Failed
 func (s State) Failed() bool { return s == Failed }
 
 // Stopped returns true if the serivce is Terminated or Failed
@@ -59,6 +65,7 @@ func (s State) Stopped() bool {
 	return s == Terminated || s == Failed
 }
 
+// ValidTransitions returns the permitted State(s) that the current State is able to transition to
 func (s State) ValidTransitions() (states States) {
 	switch s {
 	case New:
@@ -77,6 +84,7 @@ func (s State) ValidTransitions() (states States) {
 	return
 }
 
+// ValidTransition returns true is the state transition is permitted
 func (s State) ValidTransition(to State) bool {
 	for _, validState := range s.ValidTransitions() {
 		if validState == to {
@@ -112,8 +120,10 @@ func (a States) Len() int           { return len(a) }
 func (a States) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a States) Less(i, j int) bool { return a[i] < a[j] }
 
+// AllStates contains all possible states in sorted order, i.e. from New to Failed
 var AllStates States = []State{New, Starting, Running, Stopping, Terminated, Failed}
 
+// Equals returns true if the to State slices contain the same set of State(s) regardless of order
 func (a States) Equals(b States) bool {
 	if a == nil && b == nil {
 		return true

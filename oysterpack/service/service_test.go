@@ -58,9 +58,8 @@ func TestNewService_WithNilLifeCycleFunctions(t *testing.T) {
 	if !server.StopTriggered() {
 		t.Errorf("StopTriggered should be true")
 	}
-	if stopService(server, t) {
-		t.Error("The service should already be stopped")
-	}
+	t.Log("stopping a stopped service should cause no issues")
+	stopService(server, t)
 
 	if _, err := startService(server, t); err == nil {
 		t.Error("Starting a stopped service should fail.")
@@ -72,8 +71,14 @@ func TestNewService_WithNilLifeCycleFunctions(t *testing.T) {
 			t.Errorf("Expected error type is *service.IllegalStateError, but was %T", err)
 		}
 	}
+}
 
-	server = service.NewService(init, run, destroy)
+func TestNewService_StoppingNewService(t *testing.T) {
+	var init service.Init = nil
+	var run service.Run = nil
+	var destroy service.Destroy = nil
+
+	server := service.NewService(init, run, destroy)
 	if !stopService(server, t) {
 		t.Error("The service should have stopped")
 	}
@@ -149,7 +154,6 @@ func TestNewService_WithNonNilLifeCycleFunctions(t *testing.T) {
 func TestNewService_InitPanics(t *testing.T) {
 	var init service.Init = func(ctx *service.Context) error {
 		panic("Init is panicking")
-		return nil
 	}
 	var run service.Run = func(ctx *service.RunContext) error {
 		t.Log("running")
@@ -229,12 +233,23 @@ func TestNewService_RunPanics(t *testing.T) {
 		expectedError := err.(*service.ServiceError)
 		t.Logf("expected error : %v", expectedError)
 	} else {
-		if started {
-			t.Errorf("Expected server to fail to start")
-		}
+		// retry - there is a possible timing issue where the state was set to Running right before the Run func panics
+		if started, err := startService(server, t); !started && err != nil {
+			switch err.(type) {
+			case *service.ServiceError:
+			default:
+				t.Errorf("Expected a service.ServiceError to be returned, but was %T : %v", err, err)
+			}
+			expectedError := err.(*service.ServiceError)
+			t.Logf("expected error : %v", expectedError)
+		} else {
+			if started {
+				t.Errorf("Expected server to fail to start")
+			}
 
-		if err == nil {
-			t.Errorf("Expected a service.ServiceError to be returned")
+			if err == nil {
+				t.Errorf("Expected a service.ServiceError to be returned")
+			}
 		}
 	}
 
@@ -322,4 +337,8 @@ func stopService(server *service.Service, t *testing.T) bool {
 		t.Logf("Waiting for server to run for %d sec ...", i)
 	}
 	return false
+}
+
+type ConfigService struct {
+	svc service.Service
 }
