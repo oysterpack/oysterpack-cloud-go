@@ -16,8 +16,10 @@ package service
 
 import (
 	"github.com/oysterpack/oysterpack.go/oysterpack/internal/utils"
+	"github.com/oysterpack/oysterpack.go/oysterpack/logging"
 	"reflect"
 	"time"
+	"fmt"
 )
 
 // Service represents an object with an operational state, with methods to start and stop.
@@ -52,6 +54,9 @@ import (
 // TODO: metrics
 // TODO: healthchecks
 // TODO: alarms
+// TODO: error / panic logging
+// TODO: error / panic handling
+// TODO: supervision / restart policy
 // TODO: config (JSON)
 // TODO: readiness probe
 // TODO: liveliness probe
@@ -113,10 +118,26 @@ func (ctx *RunContext) StopTrigger() StopTrigger {
 // Destroy is a function that is used to perform any cleanup during service shutdown.
 type Destroy func(*Context) error
 
-// NewService creates and returns a new Service instance in the 'New' state
+// NewService creates and returns a new Service instance in the 'New' state.
+//
+// serviceInterface:
+// - must be an interface which defines the service's interface
+// - if nil or not an interface, then the method panics
 // All service life cycle functions are optional.
 // Any panic that occur in the supplied functions is converted to a PanicError.
-func NewService(init Init, run Run, destroy Destroy) *Service {
+func NewService(serviceInterface reflect.Type, init Init, run Run, destroy Destroy) *Service {
+	if serviceInterface == nil {
+		panic("serviceInterface is required")
+	}
+	switch serviceInterface.Kind() {
+	case reflect.Interface:
+	default:
+		if kind := serviceInterface.Elem().Kind(); kind != reflect.Interface {
+			panic(fmt.Sprintf("serviceInterface (%T) must be an interface, but was a %v",serviceInterface, kind))
+		}
+		serviceInterface = serviceInterface.Elem()
+	}
+
 	if init == nil {
 		init = func(ctx *Context) error { return nil }
 	} else {
@@ -162,7 +183,9 @@ func NewService(init Init, run Run, destroy Destroy) *Service {
 		}
 	}
 
+	logger.Info().Str(logging.FUNC,"NewService").Str("serviceInterface",serviceInterface.String()).Msg("")
 	return &Service{
+		serviceInterface: serviceInterface,
 		lifeCycle: lifeCycle{
 			serviceState: NewServiceState(),
 			init:         init,

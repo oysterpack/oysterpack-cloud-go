@@ -69,15 +69,16 @@ func (e *ServiceError) Error() string {
 	return fmt.Sprintf("%v : %v", e.State, e.Err)
 }
 
-// PanicError is used to wrap any trapped panics along with a supplemental error message about the context of the panic
+// PanicError is used to wrap any trapped panics along with a supplemental info about the context of the panic
 type PanicError struct {
 	Panic   interface{}
+	// additional info
 	Message string
 }
 
 func (e *PanicError) Error() string {
 	if e.Message != "" {
-		return fmt.Sprintf(" panic: %v : %v", e.Panic, e.Message)
+		return fmt.Sprintf("panic: %v : %v", e.Panic, e.Message)
 	}
 	return fmt.Sprintf("panic: %v", e.Panic)
 }

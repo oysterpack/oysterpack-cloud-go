@@ -12,11 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package service
+package logging
 
 import (
-	"github.com/oysterpack/oysterpack.go/oysterpack/logging"
+	"github.com/rs/zerolog/log"
+	"github.com/rs/zerolog"
 )
 
-var logger = logging.NewLogger("github.com/oysterpack/oysterpack.go/oysterpack/service")
+// logger fields
+const (
+	PACKAGE = "pkg"
+	TYPE = "type"
+	FUNC = "func"
+)
 
+func NewLogger(pkgPath string) zerolog.Logger {
+	return log.With().Str(PACKAGE,pkgPath).Logger()
+}

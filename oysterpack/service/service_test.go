@@ -18,14 +18,20 @@ import (
 	"github.com/oysterpack/oysterpack.go/oysterpack/service"
 	"testing"
 	"time"
+	"reflect"
 )
+
+type FooService interface{}
+type Foo struct{}
+
+var foo FooService = Foo{}
 
 func TestNewService_WithNilLifeCycleFunctions(t *testing.T) {
 	var init service.Init = nil
 	var run service.Run = nil
 	var destroy service.Destroy = nil
 
-	server := service.NewService(init, run, destroy)
+	server := service.NewService(reflect.TypeOf(&foo), init, run, destroy)
 	if !server.State().New() {
 		t.Errorf("Service state should be 'New', but instead was : %q", server.State())
 	}
@@ -78,7 +84,7 @@ func TestNewService_StoppingNewService(t *testing.T) {
 	var run service.Run = nil
 	var destroy service.Destroy = nil
 
-	server := service.NewService(init, run, destroy)
+	server := service.NewService(reflect.TypeOf(&foo), init, run, destroy)
 	if !stopService(server, t) {
 		t.Error("The service should have stopped")
 	}
@@ -96,7 +102,7 @@ func TestNewService_AwaitBlocking(t *testing.T) {
 	var run service.Run = nil
 	var destroy service.Destroy = nil
 
-	server := service.NewService(init, run, destroy)
+	server := service.NewService(reflect.TypeOf(&foo), init, run, destroy)
 	server.StartAsync()
 	server.AwaitRunning(0)
 	if !server.State().Running() {
@@ -132,7 +138,7 @@ func TestNewService_WithNonNilLifeCycleFunctions(t *testing.T) {
 		return nil
 	}
 
-	server := service.NewService(init, run, destroy)
+	server := service.NewService(reflect.TypeOf(&foo), init, run, destroy)
 	if !server.State().New() {
 		t.Errorf("Service state should be 'New', but instead was : %q", server.State())
 	}
@@ -170,7 +176,7 @@ func TestNewService_InitPanics(t *testing.T) {
 		return nil
 	}
 
-	server := service.NewService(init, run, destroy)
+	server := service.NewService(reflect.TypeOf(&foo), init, run, destroy)
 	if !server.State().New() {
 		t.Errorf("Service state should be 'New', but instead was : %q", server.State())
 	}
@@ -219,7 +225,7 @@ func TestNewService_RunPanics(t *testing.T) {
 		return nil
 	}
 
-	server := service.NewService(init, run, destroy)
+	server := service.NewService(reflect.TypeOf(&foo), init, run, destroy)
 	if !server.State().New() {
 		t.Errorf("Service state should be 'New', but instead was : %q", server.State())
 	}
@@ -285,7 +291,7 @@ func TestNewService_DestroyPanics(t *testing.T) {
 		panic("Destroy is panicking")
 	}
 
-	server := service.NewService(init, run, destroy)
+	server := service.NewService(reflect.TypeOf(&foo), init, run, destroy)
 	if !server.State().New() {
 		t.Errorf("Service state should be 'New', but instead was : %q", server.State())
 	}
