@@ -26,6 +26,7 @@ import (
 
 // STOP_TRIGGERED event gets triggered when a running service is triggered to stop
 var STOP_TRIGGERED = &logging.Event{0, "STOP_TRIGGERED"}
+
 // STATE_CHANGED event occurs each time the service transitions between states
 var STATE_CHANGED = &logging.Event{1, "STATE_CHANGED"}
 
