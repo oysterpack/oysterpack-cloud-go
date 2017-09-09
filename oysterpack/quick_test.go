@@ -179,11 +179,3 @@ func TestNegativeDuration(t *testing.T) {
 		t.Log("negative durations are allowed")
 	}
 }
-
-func TestRangeOnNilSlice(t *testing.T) {
-	slice := []int{1, 2, 3}
-	for i, v := range slice {
-		t.Log(i, v)
-		slice = nil
-	}
-}

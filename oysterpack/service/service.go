@@ -24,30 +24,27 @@ import (
 	"time"
 )
 
-// STOP_TRIGGERED event gets triggered when a running service is triggered to stop
-var STOP_TRIGGERED = &logging.Event{0, "STOP_TRIGGERED"}
-
-// STATE_CHANGED event occurs each time the service transitions between states
-var STATE_CHANGED = &logging.Event{1, "STATE_CHANGED"}
-
-// Service represents an object with an operational state, with methods to start and stop.
-// The service runs in its own goroutine.
-// The service has a life cycle linked to its ServiceState.
-// It must be created using NewService
+// Service represents an object with an operational state.
 //
-// Services must be designed to be concurrent, but also concurrent safe.
-// The solution is to design the service as a message processing service leveraging channels and goroutines.
-// There would be a channel for each type of message a service can handle. Goroutines are leveraged for concurrent message processing.
-// The design pattern is for the backend service Run function to process messages sent via channels.
-// The Run function should be designed to multiplex on channels - the StopTrigger channel and a channel for each type of
-// message that the service can handle.
+// Features
+// ========
+// 1. Services have a lifecycle defined by its Init, Run, and Destroy functions
+// - the service lifecyle state is maintained via ServiceState
+// - each state transition is logged as a STATE_CHANGED event
+// - services must be created using NewService
+// - when shut down is triggered the STOP_TRIGGERED event is logged
+// 2. Services run in their own separate goroutine
+// 3. Each service has their own logger.
 //
-// Functions relay messages to the service backend via messages. If a reply is required, then the message will have a reply channel.
+// Services must be designed to be concurrency safe. The solution is to design the service as a message processing service
+// leveraging channels and goroutines. There are several approaches :
+// 1. one channel per service function - the service would use a select within an infinite for loop to process messages sent via channels
+// 2. one channel per service - the service would use a type switch to map message handlers to messages
+// 3. a hybrid of the above approaches
 //
-// Design Options"
-// 1. The package represents the service. Each service will live in its own package. The service will be defined by the
-// functions that are exposed by the package.
-// 2. A struct that implements ServiceComposite encapsulates the service's state and behavior
+// NOTE: If a reply is required, then the message will have a reply channel.
+//
+// The recommended approach is for the service implementation to implement the ServiceComposite interface :
 //
 // 		type ConfigService struct {
 // 			svc service.Service
@@ -193,15 +190,9 @@ func NewService(serviceInterface commons.InterfaceType, init Init, run Run, dest
 		}
 	}
 
-	svcLog := logger.With().
-		Dict(logging.SERVICE, zerolog.Dict().
-			Str(logging.PACKAGE, serviceInterface.PkgPath()).
-			Str(logging.TYPE, serviceInterface.Name())).
-		Logger()
+	svcLog := logger.With().Dict(logging.SERVICE, logging.ServiceDict(serviceInterface)).Logger()
+	svcLog.Info().Str(logging.FUNC, "NewService").Msg("")
 
-	svcLog.Info().
-		Str(logging.FUNC, "NewService").
-		Msg("")
 	return &Service{
 		serviceInterface: serviceInterface,
 		lifeCycle: lifeCycle{
@@ -366,10 +357,7 @@ func (svc *Service) StopAsyc() {
 		return
 	}
 	close(svc.stopTrigger)
-	svc.Logger.Info().
-		Str(logging.FUNC, FUNC).
-		Dict(logging.EVENT, STOP_TRIGGERED.Dict()).
-		Msg("")
+	svc.Logger.Info().Str(logging.FUNC, FUNC).Dict(logging.EVENT, STOP_TRIGGERED.Dict()).Msg("")
 }
 
 // StopTriggered returns true if the service was triggered to stop.

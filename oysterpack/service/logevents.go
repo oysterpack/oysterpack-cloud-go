@@ -12,7 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package service provides support to build production quality services. If a service cannot be supported by DevOps, then
-// it's not ready for production. A service's operational aspects are critical for long term success. Hacking in operational support aspects at the end
-// is a recipe for failure.
 package service
+
+import "github.com/oysterpack/oysterpack.go/oysterpack/logging"
+
+// STOP_TRIGGERED event gets triggered when a running service is triggered to stop
+var STOP_TRIGGERED = &logging.Event{0, "STOP_TRIGGERED"}
+
+// STATE_CHANGED event occurs each time the service transitions between states
+var STATE_CHANGED = &logging.Event{1, "STATE_CHANGED"}

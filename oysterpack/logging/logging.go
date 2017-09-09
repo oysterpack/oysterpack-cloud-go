@@ -110,3 +110,10 @@ func (e *Event) Dict() *zerolog.Event {
 		Int("id", e.Id).
 		Str("code", e.Code)
 }
+
+// ServiceDict returns a standard zerolog dictionary for service interface type
+func ServiceDict(service commons.InterfaceType) *zerolog.Event {
+	return zerolog.Dict().
+		Str(PACKAGE, service.PkgPath()).
+		Str(TYPE, service.Name())
+}
