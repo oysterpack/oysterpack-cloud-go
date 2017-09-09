@@ -70,6 +70,7 @@ func init() {
 // Level is the logging level
 type Level string
 
+// log levels
 const (
 	DEBUG Level = "debug"
 	INFO  Level = "info"
@@ -84,15 +85,10 @@ type LogEvent struct {
 	Level   Level               `json:"level"`
 	Package commons.PackagePath `json:"pkg"`
 	Type    string              `json:"type,omitempty"`
+	Func    string              `json:"func,omitempty"`
 	Event   *Event              `json:"event,omitempty"`
 	Service string              `json:"svc,omitempty"`
 	State   string              `json:"state,omitempty"`
-}
-
-// Event represents some event
-type Event struct {
-	Id   string `json:"id"`
-	Code string `json:"code"`
 }
 
 func (e *LogEvent) String() string {
@@ -101,3 +97,18 @@ func (e *LogEvent) String() string {
 	}
 	return fmt.Sprint(*e)
 }
+
+// Event represents some event
+type Event struct {
+	Id   int    `json:"id"`
+	Code string `json:"code"`
+}
+
+// Dict converts the Event to a zerolog sub dictionary
+func (e *Event) Dict() *zerolog.Event  {
+	return zerolog.Dict().
+		Int("id", e.Id).
+		Str("code", e.Code)
+}
+
+

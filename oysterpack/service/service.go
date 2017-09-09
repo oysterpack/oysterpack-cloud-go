@@ -24,23 +24,8 @@ import (
 	"time"
 )
 
-type Event int
-
-const (
-	STOP_TRIGGERED = Event(iota)
-	STATE_CHANGED
-)
-
-func (e Event) Code() string {
-	switch e {
-	case STOP_TRIGGERED:
-		return "STOP_TRIGGERED"
-	case STATE_CHANGED:
-		return "STATE_CHANGED"
-	default:
-		return "UNKNOWN"
-	}
-}
+var STOP_TRIGGERED = &logging.Event{0, "STOP_TRIGGERED"}
+var STATE_CHANGED = &logging.Event{1, "STATE_CHANGED"}
 
 // Service represents an object with an operational state, with methods to start and stop.
 // The service runs in its own goroutine.
@@ -344,9 +329,7 @@ func (svc *Service) StartAsync() error {
 			l := svc.lifeCycle.serviceState.NewStateChangeListener()
 			for stateChange := range l.Channel() {
 				svc.Logger.Info().
-					Dict(logging.EVENT, zerolog.Dict().
-						Int(logging.ID, int(STATE_CHANGED)).
-						Str(logging.CODE, STATE_CHANGED.Code())).
+					Dict(logging.EVENT, STATE_CHANGED.Dict()).
 					Str(logging.STATE, stateChange.String()).
 					Msg("")
 			}
@@ -382,9 +365,7 @@ func (svc *Service) StopAsyc() {
 	close(svc.stopTrigger)
 	svc.Logger.Info().
 		Str(logging.FUNC, FUNC).
-		Dict(logging.EVENT, zerolog.Dict().
-			Int(logging.ID, int(STOP_TRIGGERED)).
-			Str(logging.CODE, STOP_TRIGGERED.Code())).
+		Dict(logging.EVENT, STOP_TRIGGERED.Dict()).
 		Msg("")
 }
 

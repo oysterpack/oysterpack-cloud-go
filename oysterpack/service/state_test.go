@@ -159,7 +159,7 @@ func TestState_ValidTransition(t *testing.T) {
 		defer func() {
 			if p := recover(); p != nil {
 				panicked = true
-				logger.Info().Msgf("%v", p)
+				t.Logf("%v", p)
 			}
 			wait.Done()
 		}()

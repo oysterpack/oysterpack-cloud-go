@@ -31,12 +31,13 @@ func TestNewPackageLogger(t *testing.T) {
 	now := time.Now()
 	t.Logf("now = %v", now.Format(zerolog.TimeFieldFormat))
 
+	event := logging.Event{0,"RUNNING"}
 	logger := logging.NewPackageLogger(A{})
-	logger.Info().Msg("")
+	logger.Info().Dict(logging.EVENT,event.Dict()).Msg("")
 
 	var buf bytes.Buffer
 	logger = logger.Output(io.Writer(&buf))
-	logger.Info().Msg("")
+	logger.Info().Dict(logging.EVENT,event.Dict()).Msg("")
 	t.Log(buf.String())
 
 	logEvent := &logging.LogEvent{}
@@ -50,6 +51,9 @@ func TestNewPackageLogger(t *testing.T) {
 	}
 	if logEvent.Package != commons.ObjectPackage(A{}) {
 		t.Errorf("Package was not parsed correctly : %v", logEvent.Package)
+	}
+	if *logEvent.Event != event {
+		t.Errorf("Event was not parsed correctly : %v", logEvent.Package)
 	}
 }
 

@@ -22,6 +22,7 @@ import (
 // PackagePath represents a go package path
 type PackagePath string
 
+// NoPackage represents the "" package, which is for predeclared types and unnamed types
 const NoPackage PackagePath = ""
 
 // TypeName represents a go type name

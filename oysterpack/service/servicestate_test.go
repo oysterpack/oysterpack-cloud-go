@@ -24,7 +24,7 @@ import (
 func TestServiceState_NewServiceState(t *testing.T) {
 	now := time.Now()
 	serviceState := service.NewServiceState()
-	logger.Info().Msg(serviceState.String())
+	t.Log(serviceState.String())
 	if state, ts := serviceState.State(); state != service.New {
 		t.Errorf("A new ServiceState should initially be in a New State, but it was : %v", state)
 		if ts.Before(now) {
@@ -36,10 +36,10 @@ func TestServiceState_NewServiceState(t *testing.T) {
 func TestServiceState_SetState(t *testing.T) {
 	serviceState := service.NewServiceState()
 	state1, ts1 := serviceState.State()
-	logger.Info().Str("state", state1.String()).Str("ts", ts1.String()).Msg("state1")
+	t.Logf("state1: %v, ts: %v", state1, ts1)
 	serviceState.SetState(service.Starting)
 	state2, ts2 := serviceState.State()
-	logger.Info().Str("state", state2.String()).Str("ts", ts2.String()).Msg("state2")
+	t.Logf("state2: %v, ts: %v", state2, ts2)
 	if state2 != service.Starting {
 		t.Errorf("State should have changed to Starting but is : %v", state2)
 	}
@@ -122,7 +122,7 @@ func TestServiceState_Failed(t *testing.T) {
 	}
 	switch serviceState.FailureCause().(type) {
 	case *service.IllegalStateError:
-		logger.Info().Msgf("%v", serviceState)
+		t.Logf("%v", serviceState)
 	default:
 		t.Errorf("The FailureCause type should have been IllegalStateError but was %T", serviceState.FailureCause())
 	}
@@ -145,11 +145,11 @@ func TestServiceState_NewStateChangeListener(t *testing.T) {
 	go func() {
 		defer func() {
 			lClosed.Done()
-			logger.Info().Msgf("StateChangeListener channel is closed : %v", serviceState)
+			t.Logf("StateChangeListener channel is closed : %v", serviceState)
 		}()
 		for state := range l.Channel() {
 			stateChanges = append(stateChanges, state)
-			logger.Info().Msgf("State changed to : %v", state)
+			t.Logf("State changed to : %v", state)
 			switch state {
 			case service.Starting:
 				starting.Done()
@@ -179,7 +179,7 @@ func TestServiceState_NewStateChangeListener(t *testing.T) {
 
 	lClosed.Wait()
 
-	logger.Info().Msgf("stateChanges : %v", stateChanges)
+	t.Logf("stateChanges : %v", stateChanges)
 
 	if len(stateChanges) != 4 {
 		t.Errorf("Expected 4 State transitions but got %d : %v", len(stateChanges), stateChanges)
@@ -192,9 +192,9 @@ func TestServiceState_NewStateChangeListener(t *testing.T) {
 func TestServiceState_NewStateChangeListener_NonBlocking(t *testing.T) {
 	serviceState := service.NewServiceState()
 
-	logger.Info().Msgf("before creating new state change listener : %v", serviceState)
+	t.Logf("before creating new state change listener : %v", serviceState)
 	l := serviceState.NewStateChangeListener()
-	logger.Info().Msgf("after creating new state change listener : %v", serviceState)
+	t.Logf("after creating new state change listener : %v", serviceState)
 
 	stateChanges := []service.State{}
 	lClosed := sync.WaitGroup{}
@@ -202,11 +202,11 @@ func TestServiceState_NewStateChangeListener_NonBlocking(t *testing.T) {
 	go func() {
 		defer func() {
 			lClosed.Done()
-			logger.Info().Msgf("StateChangeListener channel is closed : %v", serviceState)
+			t.Logf("StateChangeListener channel is closed : %v", serviceState)
 		}()
 		for state := range l.Channel() {
 			stateChanges = append(stateChanges, state)
-			logger.Info().Msgf("State changed to : %v :: %v", state, serviceState)
+			t.Logf("State changed to : %v :: %v", state, serviceState)
 		}
 	}()
 
@@ -217,8 +217,8 @@ func TestServiceState_NewStateChangeListener_NonBlocking(t *testing.T) {
 
 	lClosed.Wait()
 
-	logger.Info().Msgf("stateChanges : %v", stateChanges)
-	logger.Info().Msgf("after terminated : %v", serviceState)
+	t.Logf("stateChanges : %v", stateChanges)
+	t.Logf("after terminated : %v", serviceState)
 
 	if len(stateChanges) != 4 {
 		t.Errorf("Expected 4 State transitions but got %d : %v", len(stateChanges), stateChanges)
