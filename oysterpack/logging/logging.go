@@ -15,11 +15,11 @@
 package logging
 
 import (
-	"fmt"
 	"github.com/oysterpack/oysterpack.go/oysterpack/commons"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"reflect"
+	"time"
 )
 
 // logger fields
@@ -32,24 +32,34 @@ const (
 	EVENT   = "event"
 	ID      = "id"
 	CODE    = "code"
+	STATE   = "state"
 )
 
-// NewLogger returns a new logger with name=pkg/type
-// where pkg is o's package path and type is o's type name
+// NewTypeLogger returns a new logger with pkg={pkg}, type={type}
+// where {pkg} is o's package path and {type} is o's type name
 // o must be a struct - the pattern is to use an empty struct
-func NewLogger(o interface{}) zerolog.Logger {
+func NewTypeLogger(o interface{}) zerolog.Logger {
 	if t, err := commons.Struct(reflect.TypeOf(o)); err != nil {
-		panic("NewLogger can only be created for a struct")
+		panic("NewTypeLogger can only be created for a struct")
 	} else {
-		return log.With().Str(NAME, fmt.Sprintf("%v/%v", commons.TypePackage(t), t.Name())).Logger()
+		return log.With().
+			Str(PACKAGE, string(commons.TypePackage(t))).
+			Str(TYPE, string(commons.TypePackage(t))).
+			Logger()
 	}
-
 }
 
+// NewPackageLogger returns a new logger with pkg={pkg}
+// where {pkg} is o's package path
+// o must be a struct - the pattern is to use an empty struct
 func NewPackageLogger(o interface{}) zerolog.Logger {
 	if t, err := commons.Struct(reflect.TypeOf(o)); err != nil {
 		panic("NewPackageLogger can only be created for a struct")
 	} else {
 		return log.With().Str(PACKAGE, string(commons.TypePackage(t))).Logger()
 	}
+}
+
+func init() {
+	zerolog.TimeFieldFormat = time.RFC3339Nano
 }

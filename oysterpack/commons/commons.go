@@ -57,6 +57,9 @@ func Interface(t reflect.Type) (InterfaceType, error) {
 	}
 }
 
+// Struct will check that t is either an struct or an struct pointer.
+// If it is an struct pointer, then the struct that is pointed to is returned.
+// If it is not an struct, then an error is returned describing the actual type.
 func Struct(t reflect.Type) (StructType, error) {
 	switch t.Kind() {
 	case reflect.Struct:

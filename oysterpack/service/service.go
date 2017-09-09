@@ -28,12 +28,15 @@ type Event int
 
 const (
 	STOP_TRIGGERED = Event(iota)
+	STATE_CHANGED
 )
 
 func (e Event) Code() string {
 	switch e {
 	case STOP_TRIGGERED:
 		return "STOP_TRIGGERED"
+	case STATE_CHANGED:
+		return "STATE_CHANGED"
 	default:
 		return "UNKNOWN"
 	}
@@ -336,7 +339,20 @@ func (svc *Service) StartAsync() error {
 			}
 			svc.serviceState.Terminated()
 		}()
+		// log state changes
+		go func() {
+			l := svc.lifeCycle.serviceState.NewStateChangeListener()
+			for stateChange := range l.Channel() {
+				svc.Logger.Info().
+					Dict(logging.EVENT, zerolog.Dict().
+						Int(logging.ID, int(STATE_CHANGED)).
+						Str(logging.CODE, STATE_CHANGED.Code())).
+					Str(logging.STATE, stateChange.String()).
+					Msg("")
+			}
+		}()
 		svc.Logger.Info().Str(logging.FUNC, FUNC).Msg("")
+
 		return nil
 	}
 	err := &IllegalStateError{
