@@ -71,7 +71,7 @@ func (e *ServiceError) Error() string {
 
 // PanicError is used to wrap any trapped panics along with a supplemental info about the context of the panic
 type PanicError struct {
-	Panic   interface{}
+	Panic interface{}
 	// additional info
 	Message string
 }

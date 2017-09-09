@@ -16,9 +16,9 @@ package service_test
 
 import (
 	"github.com/oysterpack/oysterpack.go/oysterpack/service"
+	"reflect"
 	"testing"
 	"time"
-	"reflect"
 )
 
 type FooService interface{}

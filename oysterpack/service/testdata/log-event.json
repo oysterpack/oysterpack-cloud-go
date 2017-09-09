@@ -1,0 +1,11 @@
+{
+  "time": "2017-09-08T20:18:44-04:00",
+  "level": "info",
+  "pkg": "github.com/oysterpack/oysterpack.go/oysterpack/service",
+  "svc": {
+    "pkg": "github.com/oysterpack/oysterpack.go/oysterpack/service_test",
+    "type": "FooService"
+  },
+  "func": "StopAsyc",
+  "message": "service is already stopped"
+}

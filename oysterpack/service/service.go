@@ -15,12 +15,29 @@
 package service
 
 import (
+	"fmt"
+	"github.com/oysterpack/oysterpack.go/oysterpack/commons"
 	"github.com/oysterpack/oysterpack.go/oysterpack/internal/utils"
 	"github.com/oysterpack/oysterpack.go/oysterpack/logging"
+	"github.com/rs/zerolog"
 	"reflect"
 	"time"
-	"fmt"
 )
+
+type Event int
+
+const (
+	STOP_TRIGGERED = Event(iota)
+)
+
+func (e Event) Code() string {
+	switch e {
+	case STOP_TRIGGERED:
+		return "STOP_TRIGGERED"
+	default:
+		return "UNKNOWN"
+	}
+}
 
 // Service represents an object with an operational state, with methods to start and stop.
 // The service runs in its own goroutine.
@@ -64,9 +81,11 @@ import (
 // TODO: security
 // TODO: gRPC - frontend
 type Service struct {
-	serviceInterface reflect.Type
+	serviceInterface commons.InterfaceType
 
 	lifeCycle
+
+	zerolog.Logger
 }
 
 // ServiceComposite
@@ -125,7 +144,7 @@ type Destroy func(*Context) error
 // - if nil or not an interface, then the method panics
 // All service life cycle functions are optional.
 // Any panic that occur in the supplied functions is converted to a PanicError.
-func NewService(serviceInterface reflect.Type, init Init, run Run, destroy Destroy) *Service {
+func NewService(serviceInterface commons.InterfaceType, init Init, run Run, destroy Destroy) *Service {
 	if serviceInterface == nil {
 		panic("serviceInterface is required")
 	}
@@ -133,7 +152,7 @@ func NewService(serviceInterface reflect.Type, init Init, run Run, destroy Destr
 	case reflect.Interface:
 	default:
 		if kind := serviceInterface.Elem().Kind(); kind != reflect.Interface {
-			panic(fmt.Sprintf("serviceInterface (%T) must be an interface, but was a %v",serviceInterface, kind))
+			panic(fmt.Sprintf("serviceInterface (%T) must be an interface, but was a %v", serviceInterface, kind))
 		}
 		serviceInterface = serviceInterface.Elem()
 	}
@@ -183,7 +202,15 @@ func NewService(serviceInterface reflect.Type, init Init, run Run, destroy Destr
 		}
 	}
 
-	logger.Info().Str(logging.FUNC,"NewService").Str("serviceInterface",serviceInterface.String()).Msg("")
+	svcLog := logger.With().
+		Dict(logging.SERVICE, zerolog.Dict().
+			Str(logging.PACKAGE, serviceInterface.PkgPath()).
+			Str(logging.TYPE, serviceInterface.Name())).
+		Logger()
+
+	svcLog.Info().
+		Str(logging.FUNC, "NewService").
+		Msg("")
 	return &Service{
 		serviceInterface: serviceInterface,
 		lifeCycle: lifeCycle{
@@ -192,6 +219,7 @@ func NewService(serviceInterface reflect.Type, init Init, run Run, destroy Destr
 			run:          run,
 			destroy:      destroy,
 		},
+		Logger: svcLog,
 	}
 }
 
@@ -279,6 +307,7 @@ func (svc *Service) AwaitTerminated(wait time.Duration) error {
 // Returns an IllegalStateError if the service state is not 'New'.
 // A stopped service may not be restarted.
 func (svc *Service) StartAsync() error {
+	const FUNC = "StartAsync"
 	if svc.serviceState.state.New() {
 		go func() {
 			svc.stopTrigger = make(chan struct{})
@@ -307,12 +336,15 @@ func (svc *Service) StartAsync() error {
 			}
 			svc.serviceState.Terminated()
 		}()
+		svc.Logger.Info().Str(logging.FUNC, FUNC).Msg("")
 		return nil
 	}
-	return &IllegalStateError{
+	err := &IllegalStateError{
 		State:   svc.serviceState.state,
 		Message: "A service can only be started in the 'New' state",
 	}
+	svc.Logger.Info().Str(logging.FUNC, FUNC).Err(err).Msg("")
+	return err
 }
 
 // StopAsyc initiates service shutdown.
@@ -320,15 +352,24 @@ func (svc *Service) StartAsync() error {
 // If the service is new, it is terminated without having been started nor stopped.
 // If the service has already been stopped, this method returns immediately without taking action.
 func (svc *Service) StopAsyc() {
+	const FUNC = "StopAsyc"
 	if svc.serviceState.state.Stopped() {
+		svc.Logger.Info().Str(logging.FUNC, FUNC).Msg("service is already stopped")
 		return
 	}
 	svc.stopTriggered = true
 	if svc.serviceState.state.New() {
 		svc.serviceState.Terminated()
+		svc.Logger.Info().Str(logging.FUNC, FUNC).Msg("service was never started")
 		return
 	}
 	close(svc.stopTrigger)
+	svc.Logger.Info().
+		Str(logging.FUNC, FUNC).
+		Dict(logging.EVENT, zerolog.Dict().
+			Int(logging.ID, int(STOP_TRIGGERED)).
+			Str(logging.CODE, STOP_TRIGGERED.Code())).
+		Msg("")
 }
 
 // StopTriggered returns true if the service was triggered to stop.

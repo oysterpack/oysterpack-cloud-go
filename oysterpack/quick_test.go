@@ -82,8 +82,8 @@ func TestClosingBlockedChannelOnSend(t *testing.T) {
 
 func TestReflect(t *testing.T) {
 	var foo fmt.Stringer = fmt.Stringer(Foo{})
-	log.Info().Msgf("reflect.TypeOf(foo) = %s, Kind = %v", reflect.TypeOf(foo),reflect.TypeOf(foo).Kind())
-	log.Info().Msgf("reflect.TypeOf(&foo).Elem() = %s, Kind() = %v", reflect.TypeOf(&foo).Elem(),reflect.TypeOf(&foo).Elem().Kind())
+	log.Info().Msgf("reflect.TypeOf(foo) = %s, Kind = %v", reflect.TypeOf(foo), reflect.TypeOf(foo).Kind())
+	log.Info().Msgf("reflect.TypeOf(&foo).Elem() = %s, Kind() = %v", reflect.TypeOf(&foo).Elem(), reflect.TypeOf(&foo).Elem().Kind())
 	log.Info().Msgf("TypeOf(&foo).Elem() == TypeOf(&foo).Elem() is %v", reflect.TypeOf(&foo).Elem() == reflect.TypeOf(&foo).Elem())
 	log.Info().Msgf("ValueOf(&foo) = %s", reflect.ValueOf(&foo))
 }

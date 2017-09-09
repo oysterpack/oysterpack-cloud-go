@@ -18,5 +18,4 @@ import (
 	"github.com/oysterpack/oysterpack.go/oysterpack/logging"
 )
 
-var logger = logging.NewLogger("github.com/oysterpack/oysterpack.go/oysterpack/service")
-
+var logger = logging.NewPackageLogger(Service{})

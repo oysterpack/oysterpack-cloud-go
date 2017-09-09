@@ -15,17 +15,41 @@
 package logging
 
 import (
-	"github.com/rs/zerolog/log"
+	"fmt"
+	"github.com/oysterpack/oysterpack.go/oysterpack/commons"
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
+	"reflect"
 )
 
 // logger fields
 const (
 	PACKAGE = "pkg"
-	TYPE = "type"
-	FUNC = "func"
+	TYPE    = "type"
+	FUNC    = "func"
+	SERVICE = "svc"
+	NAME    = "name"
+	EVENT   = "event"
+	ID      = "id"
+	CODE    = "code"
 )
 
-func NewLogger(pkgPath string) zerolog.Logger {
-	return log.With().Str(PACKAGE,pkgPath).Logger()
+// NewLogger returns a new logger with name=pkg/type
+// where pkg is o's package path and type is o's type name
+// o must be a struct - the pattern is to use an empty struct
+func NewLogger(o interface{}) zerolog.Logger {
+	if t, err := commons.Struct(reflect.TypeOf(o)); err != nil {
+		panic("NewLogger can only be created for a struct")
+	} else {
+		return log.With().Str(NAME, fmt.Sprintf("%v/%v", commons.TypePackage(t), t.Name())).Logger()
+	}
+
+}
+
+func NewPackageLogger(o interface{}) zerolog.Logger {
+	if t, err := commons.Struct(reflect.TypeOf(o)); err != nil {
+		panic("NewPackageLogger can only be created for a struct")
+	} else {
+		return log.With().Str(PACKAGE, string(commons.TypePackage(t))).Logger()
+	}
 }
