@@ -22,18 +22,27 @@ import (
 // PackagePath represents a go package path
 type PackagePath string
 
+const NoPackage PackagePath = ""
+
 // TypeName represents a go type name
 type TypeName string
 
+// InterfaceType is a type for an interface
 type InterfaceType reflect.Type
 
+// StructType is a type for a struct
 type StructType reflect.Type
 
 // ObjectPackage returns the package the the specified object belongs to
+// It only supports named types or pointers to named types.
+// If the type was predeclared (string, error) or unnamed (*T, struct{}, []int),
+// then the package path will be the empty string.
 func ObjectPackage(o interface{}) PackagePath {
 	return TypePackage(reflect.TypeOf(o))
 }
 
+// TypePackage returns the package path that the type belongs to
+// If the type is a pointer, then it returns the package for the pointer's element type
 func TypePackage(t reflect.Type) PackagePath {
 	switch {
 	case t.Kind() == reflect.Ptr:
@@ -55,6 +64,12 @@ func Interface(t reflect.Type) (InterfaceType, error) {
 	default:
 		return nil, fmt.Errorf("not an interface (package: %v, name: %v, kind: %v)", t.PkgPath(), t.Name(), t.Kind())
 	}
+}
+
+// ObjectInterface returns the extracted interface for the object reference.
+// Note: that o must be a pointer.
+func ObjectInterface(ptr interface{}) (InterfaceType, error) {
+	return Interface(reflect.TypeOf(ptr))
 }
 
 // Struct will check that t is either an struct or an struct pointer.

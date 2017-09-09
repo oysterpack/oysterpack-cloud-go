@@ -15,6 +15,8 @@
 package logging
 
 import (
+	"encoding/json"
+	"fmt"
 	"github.com/oysterpack/oysterpack.go/oysterpack/commons"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -28,7 +30,6 @@ const (
 	TYPE    = "type"
 	FUNC    = "func"
 	SERVICE = "svc"
-	NAME    = "name"
 	EVENT   = "event"
 	ID      = "id"
 	CODE    = "code"
@@ -44,22 +45,59 @@ func NewTypeLogger(o interface{}) zerolog.Logger {
 	} else {
 		return log.With().
 			Str(PACKAGE, string(commons.TypePackage(t))).
-			Str(TYPE, string(commons.TypePackage(t))).
+			Str(TYPE, t.Name()).
 			Logger()
 	}
 }
 
 // NewPackageLogger returns a new logger with pkg={pkg}
 // where {pkg} is o's package path
-// o must be a struct - the pattern is to use an empty struct
+// o must be for a named type because the package path can only be obtained for named types
 func NewPackageLogger(o interface{}) zerolog.Logger {
-	if t, err := commons.Struct(reflect.TypeOf(o)); err != nil {
-		panic("NewPackageLogger can only be created for a struct")
-	} else {
-		return log.With().Str(PACKAGE, string(commons.TypePackage(t))).Logger()
+	if commons.ObjectPackage(o) == commons.NoPackage {
+		panic("only objects for named types are supported")
 	}
+	return log.With().
+		Str(PACKAGE, string(commons.ObjectPackage(o))).
+		Logger()
 }
 
 func init() {
+	// log with nanosecond precision time
 	zerolog.TimeFieldFormat = time.RFC3339Nano
+}
+
+// Level is the logging level
+type Level string
+
+const (
+	DEBUG Level = "debug"
+	INFO  Level = "info"
+	WARN  Level = "warn"
+	ERROR Level = "error"
+	FATAL Level = "fatal"
+)
+
+// LogEvent contains the common fields for log events
+type LogEvent struct {
+	Time    time.Time           `json:"time"`
+	Level   Level               `json:"level"`
+	Package commons.PackagePath `json:"pkg"`
+	Type    string              `json:"type,omitempty"`
+	Event   *Event              `json:"event,omitempty"`
+	Service string              `json:"svc,omitempty"`
+	State   string              `json:"state,omitempty"`
+}
+
+// Event represents some event
+type Event struct {
+	Id   string `json:"id"`
+	Code string `json:"code"`
+}
+
+func (e *LogEvent) String() string {
+	if bytes, err := json.Marshal(*e); err == nil {
+		return string(bytes)
+	}
+	return fmt.Sprint(*e)
 }

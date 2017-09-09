@@ -1,11 +1,125 @@
-{
-  "time": "2017-09-08T20:18:44-04:00",
-  "level": "info",
-  "pkg": "github.com/oysterpack/oysterpack.go/oysterpack/service",
-  "svc": {
-    "pkg": "github.com/oysterpack/oysterpack.go/oysterpack/service_test",
-    "type": "FooService"
+[
+  {
+    "time": "2017-09-08T21:14:38.403737478-04:00",
+    "level": "info",
+    "pkg": "github.com/oysterpack/oysterpack.go/oysterpack/service",
+    "svc": {
+      "pkg": "github.com/oysterpack/oysterpack.go/oysterpack/service_test",
+      "type": "FooService"
+    },
+    "func": "NewService"
   },
-  "func": "StopAsyc",
-  "message": "service is already stopped"
-}
+  {
+    "time": "2017-09-08T21:14:38.403836377-04:00",
+    "level": "info",
+    "pkg": "github.com/oysterpack/oysterpack.go/oysterpack/service",
+    "svc": {
+      "pkg": "github.com/oysterpack/oysterpack.go/oysterpack/service_test",
+      "type": "FooService"
+    },
+    "func": "StartAsync"
+  },
+  {
+    "time": "2017-09-08T21:14:38.403932194-04:00",
+    "level": "info",
+    "pkg": "github.com/oysterpack/oysterpack.go/oysterpack/service",
+    "svc": {
+      "pkg": "github.com/oysterpack/oysterpack.go/oysterpack/service_test",
+      "type": "FooService"
+    },
+    "event": {
+      "id": 1,
+      "code": "STATE_CHANGED"
+    },
+    "state": "Starting"
+  },
+  {
+    "time": "2017-09-08T21:14:38.403946057-04:00",
+    "level": "info",
+    "pkg": "github.com/oysterpack/oysterpack.go/oysterpack/service",
+    "svc": {
+      "pkg": "github.com/oysterpack/oysterpack.go/oysterpack/service_test",
+      "type": "FooService"
+    },
+    "event": {
+      "id": 1,
+      "code": "STATE_CHANGED"
+    },
+    "state": "Running"
+  },
+  {
+    "time": "2017-09-08T21:14:38.403930431-04:00",
+    "level": "info",
+    "pkg": "github.com/oysterpack/oysterpack.go/oysterpack/service",
+    "svc": {
+      "pkg": "github.com/oysterpack/oysterpack.go/oysterpack/service_test",
+      "type": "FooService"
+    },
+    "func": "StartAsync",
+    "error": "Running : A service can only be started in the 'New' state"
+  },
+  {
+    "time": "2017-09-08T21:14:38.40398801-04:00",
+    "level": "info",
+    "pkg": "github.com/oysterpack/oysterpack.go/oysterpack/service",
+    "svc": {
+      "pkg": "github.com/oysterpack/oysterpack.go/oysterpack/service_test",
+      "type": "FooService"
+    },
+    "func": "StopAsyc",
+    "event": {
+      "id": 0,
+      "code": "STOP_TRIGGERED"
+    }
+  },
+  {
+    "time": "2017-09-08T21:14:38.404024561-04:00",
+    "level": "info",
+    "pkg": "github.com/oysterpack/oysterpack.go/oysterpack/service",
+    "svc": {
+      "pkg": "github.com/oysterpack/oysterpack.go/oysterpack/service_test",
+      "type": "FooService"
+    },
+    "func": "StopAsyc",
+    "message": "service is already stopped"
+  },
+  {
+    "time": "2017-09-08T21:14:38.404032818-04:00",
+    "level": "info",
+    "pkg": "github.com/oysterpack/oysterpack.go/oysterpack/service",
+    "svc": {
+      "pkg": "github.com/oysterpack/oysterpack.go/oysterpack/service_test",
+      "type": "FooService"
+    },
+    "func": "StartAsync",
+    "error": "Terminated : A service can only be started in the 'New' state"
+  },
+  {
+    "time": "2017-09-08T21:14:38.404047779-04:00",
+    "level": "info",
+    "pkg": "github.com/oysterpack/oysterpack.go/oysterpack/service",
+    "svc": {
+      "pkg": "github.com/oysterpack/oysterpack.go/oysterpack/service_test",
+      "type": "FooService"
+    },
+    "event": {
+      "id": 1,
+      "code": "STATE_CHANGED"
+    },
+    "state": "Stopping"
+  },
+  {
+    "time": "2017-09-08T21:14:38.404061859-04:00",
+    "level": "info",
+    "pkg": "github.com/oysterpack/oysterpack.go/oysterpack/service",
+    "svc": {
+      "pkg": "github.com/oysterpack/oysterpack.go/oysterpack/service_test",
+      "type": "FooService"
+    },
+    "event": {
+      "id": 1,
+      "code": "STATE_CHANGED"
+    },
+    "state": "Terminated"
+  }
+]
