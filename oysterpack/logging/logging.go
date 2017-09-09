@@ -105,10 +105,8 @@ type Event struct {
 }
 
 // Dict converts the Event to a zerolog sub dictionary
-func (e *Event) Dict() *zerolog.Event  {
+func (e *Event) Dict() *zerolog.Event {
 	return zerolog.Dict().
 		Int("id", e.Id).
 		Str("code", e.Code)
 }
-
-

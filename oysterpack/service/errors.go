@@ -44,7 +44,7 @@ func (e *IllegalStateError) Error() string {
 // UnknownFailureCause indicates that the service is in a Failed state, but the failure cause is unknown.
 type UnknownFailureCause struct{}
 
-func (_ UnknownFailureCause) Error() string {
+func (e UnknownFailureCause) Error() string {
 	return "UnknownFailureCause"
 }
 
