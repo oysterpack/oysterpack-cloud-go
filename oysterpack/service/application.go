@@ -60,8 +60,8 @@ type Application interface {
 type ServiceClient interface {
 	Service() *Service
 
-	// the service must bind to the client channels
-	SetService(service *Service)
+	// restarts the service backend
+	RestartService()
 }
 
 // ServiceConstructor is a service factory function that will construct a new Service instance and return a pointer to it.
@@ -228,7 +228,7 @@ func (a *ApplicationContext) destroy(ctx *Context) error {
 	}
 	for _, v := range a.services {
 		for {
-			v.Service().AwaitTerminated(5 * time.Second)
+			v.Service().AwaitStopped(5 * time.Second)
 			if v.Service().State().Stopped() {
 				break
 			}

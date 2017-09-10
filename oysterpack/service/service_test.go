@@ -109,7 +109,7 @@ func TestNewService_AwaitBlocking(t *testing.T) {
 		t.Errorf("Service state should be 'Running', but instead was : %q", server.State())
 	}
 	server.StopAsyc()
-	server.AwaitTerminated(0)
+	server.AwaitStopped(0)
 	if !server.State().Terminated() {
 		t.Errorf("Service state should be 'Terminated', but instead was : %q", server.State())
 	}
@@ -336,7 +336,7 @@ func startService(server *service.Service, t *testing.T) (bool, error) {
 func stopService(server *service.Service, t *testing.T) bool {
 	server.StopAsyc()
 	for i := 1; i <= 3; i++ {
-		server.AwaitTerminated(time.Second)
+		server.AwaitStopped(time.Second)
 		if server.State().Stopped() {
 			return true
 		}

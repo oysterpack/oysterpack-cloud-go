@@ -16,62 +16,95 @@ package service
 
 import (
 	"github.com/oysterpack/oysterpack.go/oysterpack/commons"
+	"sync"
 	"testing"
 )
 
-func TestApplication_MapWithTypeKey(t *testing.T) {
-	type A interface{}
-	type B interface{}
-
-	var a A = "a"
-	var b B = "b"
-	interfaceA, _ := commons.ObjectInterface(&a)
-	interfaceB, _ := commons.ObjectInterface(&b)
-
-	m := make(map[commons.InterfaceType]interface{})
-	m[interfaceA] = a
-	m[interfaceB] = b
-	t.Logf("len(m) = %d", len(m))
-	if len(m) != 2 {
-		t.Error("invalid map size")
-	}
-
-	if m[interfaceA] != "a" {
-		t.Error("a was not found")
-	}
-
-	if m[interfaceB] != "b" {
-		t.Error("b was not found")
+func TestApplicationContext_RegisterService(t *testing.T) {
+	app := NewApplicationContext()
+	app.service.StartAsync()
+	app.service.AwaitUntilRunning()
+	defer app.service.Stop()
+	serviceClient := app.RegisterService(EchoServiceConstructor)
+	if err := serviceClient.Service().AwaitUntilRunning(); err != nil {
+		t.Error(err)
+	} else {
+		if !serviceClient.Service().State().Running() {
+			t.Error("service should be running")
+		}
+		echoService := serviceClient.(EchoService)
+		t.Logf("echo : %v", echoService.Echo("CIAO MUNDO !!!"))
+		app.service.Stop()
+		if !serviceClient.Service().State().Stopped() {
+			t.Error("service should be stopped")
+		}
 	}
 }
 
-type Foo interface {
-	F()
+type EchoService interface {
+	Echo(msg interface{}) interface{}
 }
 
-type Bar interface {
-	B()
+type EchoServiceClient struct {
+	serviceMutex sync.RWMutex
+	service      *Service
+
+	echo chan *EchoRequest
 }
 
-type FooImpl struct{}
+type EchoRequest struct {
+	Message interface{}
+	ReplyTo chan interface{}
+}
 
-func (a *FooImpl) F() {}
+func NewEchoRequest(msg interface{}) *EchoRequest {
+	return &EchoRequest{msg, make(chan interface{}, 1)}
+}
 
-func (a *FooImpl) B() {}
+func (a *EchoServiceClient) Echo(msg interface{}) interface{} {
+	req := NewEchoRequest(msg)
+	a.echo <- req
+	return <-req.ReplyTo
+}
 
-func TestApplication_TypeSwitch(t *testing.T) {
-	var foo Foo = &FooImpl{}
-	switch foo := foo.(type) {
-	case Foo:
-		t.Logf("Foo : %T", foo)
-		foo.F()
-	case Bar:
-		t.Logf("Bar : %T", foo)
-		foo.B()
-	default:
-		t.Errorf("%T", foo)
+func (a *EchoServiceClient) Service() *Service {
+	a.serviceMutex.RLock()
+	defer a.serviceMutex.RUnlock()
+	return a.service
+}
+
+func (a *EchoServiceClient) RestartService() {
+	a.serviceMutex.Lock()
+	defer a.serviceMutex.Unlock()
+	if a.service != nil {
+		a.service.StopAsyc()
+		a.service.AwaitUntilStopped()
 	}
+	a.service = a.newService()
+	a.service.StartAsync()
+}
 
-	bar := foo.(Bar)
-	t.Logf("converted Foo to Bar : %T", bar)
+func (a *EchoServiceClient) run(ctx *RunContext) error {
+	for {
+		select {
+		case req := <-a.echo:
+			req.ReplyTo <- req.Message
+		case <-ctx.StopTrigger():
+			return nil
+		}
+	}
+}
+
+func (a *EchoServiceClient) newService() *Service {
+	var service EchoService = a
+	serviceInterface, _ := commons.ObjectInterface(&service)
+	return NewService(serviceInterface, nil, a.run, nil)
+}
+
+func EchoServiceConstructor() ServiceClient {
+	serviceClient := &EchoServiceClient{
+		echo: make(chan *EchoRequest),
+	}
+	serviceClient.service = serviceClient.newService()
+	return serviceClient
 }

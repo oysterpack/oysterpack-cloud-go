@@ -186,7 +186,7 @@ func NewService(serviceInterface commons.InterfaceType, init Init, run Run, dest
 	}
 
 	svcLog := logger.With().Dict(logging.SERVICE, logging.ServiceDict(serviceInterface)).Logger()
-	svcLog.Info().Str(logging.FUNC, "NewServer").Msg("")
+	svcLog.Info().Str(logging.FUNC, "NewService").Msg("")
 
 	return &Service{
 		serviceInterface: serviceInterface,
@@ -270,13 +270,45 @@ func (svc *Service) AwaitRunning(wait time.Duration) error {
 	return svc.awaitState(Running, wait)
 }
 
-// AwaitTerminated waits for the Service to terminate, i.e., reach the Terminated or Failed state
+// AwaitRunning waits for the Service to reach the running state
+func (svc *Service) AwaitUntilRunning() error {
+	i := 0
+	for {
+		if err := svc.AwaitRunning(10 * time.Second); err != nil {
+			return err
+		}
+		if svc.State().Running() {
+			return nil
+		}
+		i++
+		svc.Logger.Info().Str(logging.FUNC, "AwaitUntilRunning").Int("i", i).Msg("")
+	}
+}
+
+// AwaitStopped waits for the Service to terminate, i.e., reach the Terminated or Failed state
 // if the service terminates in a Failed state, then the service failure cause is returned
-func (svc *Service) AwaitTerminated(wait time.Duration) error {
+func (svc *Service) AwaitStopped(wait time.Duration) error {
 	if err := svc.awaitState(Terminated, wait); err != nil {
 		return svc.serviceState.failureCause
 	}
 	return nil
+}
+
+// AwaitUntilStopped waits until the service is stopped
+// If the service failed, then the failure cause is returned
+func (svc *Service) AwaitUntilStopped() error {
+	if svc.State().Stopped() {
+		return svc.FailureCause()
+	}
+	i := 0
+	for {
+		svc.AwaitStopped(10 * time.Second)
+		if svc.State().Stopped() {
+			return svc.FailureCause()
+		}
+		i++
+		svc.Logger.Info().Str(logging.FUNC, "AwaitUntilStopped").Int("i", i).Msg("")
+	}
 }
 
 // StartAsync initiates service startup.
@@ -353,6 +385,15 @@ func (svc *Service) StopAsyc() {
 	}
 	close(svc.stopTrigger)
 	svc.Logger.Info().Str(logging.FUNC, FUNC).Dict(logging.EVENT, STOP_TRIGGERED.Dict()).Msg("")
+}
+
+// Stop invokes StopAsync() followed by AwaitUntilStopped()
+func (svc *Service) Stop() {
+	if svc.State().Stopped() {
+		return
+	}
+	svc.StopAsyc()
+	svc.AwaitUntilStopped()
 }
 
 // StopTriggered returns true if the service was triggered to stop.
