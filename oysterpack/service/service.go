@@ -31,7 +31,7 @@ import (
 // 1. Services have a lifecycle defined by its Init, Run, and Destroy functions
 // - the service lifecyle state is maintained via ServiceState
 // - each state transition is logged as a STATE_CHANGED event
-// - services must be created using NewService
+// - services must be created using NewService()
 // - when shut down is triggered the STOP_TRIGGERED event is logged
 // 2. Services run in their own separate goroutine
 // 3. Each service has their own logger.
@@ -44,7 +44,7 @@ import (
 //
 // NOTE: If a reply is required, then the message will have a reply channel.
 //
-// The recommended approach is for the service implementation to implement the ServiceComposite interface :
+// The recommended approach is for the service implementation to implement the ClientServer interface :
 //
 // 		type ConfigService struct {
 // 			svc service.Service
@@ -57,7 +57,7 @@ import (
 // TODO: events
 // TODO: logging
 // TODO: metrics
-// TODO: healthchecks
+// TODO: health checks
 // TODO: alarms
 // TODO: error / panic logging
 // TODO: error / panic handling
@@ -74,11 +74,6 @@ type Service struct {
 	lifeCycle
 
 	zerolog.Logger
-}
-
-// ServiceComposite represents an object that is treated as a service - it adds Service functionality via composition
-type ServiceComposite interface {
-	Service() Service
 }
 
 // LifeCycle encapsulates the service lifecycle, including the service's backend functions, i.e., Init, Run, Destroy
@@ -125,7 +120,7 @@ func (ctx *RunContext) StopTrigger() StopTrigger {
 // Destroy is a function that is used to perform any cleanup during service shutdown.
 type Destroy func(*Context) error
 
-// NewService creates and returns a new Service instance in the 'New' state.
+// NewServer creates and returns a new Service instance in the 'New' state.
 //
 // serviceInterface:
 // - must be an interface which defines the service's interface
@@ -191,7 +186,7 @@ func NewService(serviceInterface commons.InterfaceType, init Init, run Run, dest
 	}
 
 	svcLog := logger.With().Dict(logging.SERVICE, logging.ServiceDict(serviceInterface)).Logger()
-	svcLog.Info().Str(logging.FUNC, "NewService").Msg("")
+	svcLog.Info().Str(logging.FUNC, "NewServer").Msg("")
 
 	return &Service{
 		serviceInterface: serviceInterface,
@@ -368,6 +363,10 @@ func (svc *Service) StopTriggered() bool {
 // Interface returns the service interface which defines the service functionality
 func (svc *Service) Interface() reflect.Type {
 	return svc.serviceInterface
+}
+
+func (svc *Service) String() string {
+	return fmt.Sprintf("Service : %v.%v", svc.serviceInterface.PkgPath(), svc.serviceInterface.Name())
 }
 
 // StopTrigger is used to notify the service to stop.

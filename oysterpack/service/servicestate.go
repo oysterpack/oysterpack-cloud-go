@@ -277,6 +277,7 @@ func (a *StateChangeListener) Cancel() {
 		// To be safe on the safe side, manually close the channel in case there are goroutines blocked on receiving from this channel
 		closeStateChanQuietly(a.c)
 	}
+	// drain the channel
 	for range a.c {
 	}
 }

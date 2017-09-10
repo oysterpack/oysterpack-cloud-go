@@ -82,3 +82,11 @@ func (e *PanicError) Error() string {
 	}
 	return fmt.Sprintf("panic: %v", e.Panic)
 }
+
+type ServiceNotFoundError struct {
+	ServiceKey
+}
+
+func (e *ServiceNotFoundError) Error() string {
+	return fmt.Sprintf("Service not found : %v.%v", e.ServiceKey.Package(), e.ServiceKey.Type())
+}
