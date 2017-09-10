@@ -22,6 +22,7 @@ import (
 	"sync"
 	"syscall"
 	"time"
+	"reflect"
 )
 
 // App is a global variable
@@ -119,6 +120,10 @@ type ApplicationContext struct {
 	service *Service
 }
 
+func (a *ApplicationContext) Service() *Service {
+	return a.service
+}
+
 // NewApplicationContext returns a new ApplicationContext
 func NewApplicationContext() *ApplicationContext {
 	app := &ApplicationContext{
@@ -184,11 +189,15 @@ func (a *ApplicationContext) ServiceKeys() []ServiceKey {
 }
 
 // RegisterService will register the service and start it, if it is not already registered.
-// returns the new registered service or nil if a service with the same interface was already registered
+// Returns the new registered service or nil if a service with the same interface was already registered.
+// If the ServiceClient type is not assignable to the Service
 func (a *ApplicationContext) RegisterService(newService ServiceConstructor) ServiceClient {
 	a.mutex.Lock()
 	defer a.mutex.Unlock()
 	service := newService()
+	if !reflect.TypeOf(service).AssignableTo(service.Service().serviceInterface) {
+		panic(fmt.Sprintf("%T is not assignable to %v",reflect.TypeOf(service), service.Service().serviceInterface))
+	}
 	if _, exists := a.services[service.Service().serviceInterface]; !exists {
 		a.services[service.Service().serviceInterface] = &RegisteredService{NewService: newService, ServiceClient: service}
 		service.Service().StartAsync()

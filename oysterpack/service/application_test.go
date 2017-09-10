@@ -12,19 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package service
+package service_test
 
 import (
 	"github.com/oysterpack/oysterpack.go/oysterpack/commons"
+	"github.com/oysterpack/oysterpack.go/oysterpack/service"
 	"sync"
 	"testing"
 )
 
 func TestApplicationContext_RegisterService(t *testing.T) {
-	app := NewApplicationContext()
-	app.service.StartAsync()
-	app.service.AwaitUntilRunning()
-	defer app.service.Stop()
+	app := service.NewApplicationContext()
+	app.Service().StartAsync()
+	app.Service().AwaitUntilRunning()
+	defer app.Service().Stop()
 	serviceClient := app.RegisterService(EchoServiceConstructor)
 	if err := serviceClient.Service().AwaitUntilRunning(); err != nil {
 		t.Error(err)
@@ -34,7 +35,7 @@ func TestApplicationContext_RegisterService(t *testing.T) {
 		}
 		echoService := serviceClient.(EchoService)
 		t.Logf("echo : %v", echoService.Echo("CIAO MUNDO !!!"))
-		app.service.Stop()
+		app.Service().Stop()
 		if !serviceClient.Service().State().Stopped() {
 			t.Error("service should be stopped")
 		}
@@ -47,7 +48,7 @@ type EchoService interface {
 
 type EchoServiceClient struct {
 	serviceMutex sync.RWMutex
-	service      *Service
+	service      *service.Service
 
 	echo chan *EchoRequest
 }
@@ -67,7 +68,7 @@ func (a *EchoServiceClient) Echo(msg interface{}) interface{} {
 	return <-req.ReplyTo
 }
 
-func (a *EchoServiceClient) Service() *Service {
+func (a *EchoServiceClient) Service() *service.Service {
 	a.serviceMutex.RLock()
 	defer a.serviceMutex.RUnlock()
 	return a.service
@@ -84,7 +85,7 @@ func (a *EchoServiceClient) RestartService() {
 	a.service.StartAsync()
 }
 
-func (a *EchoServiceClient) run(ctx *RunContext) error {
+func (a *EchoServiceClient) run(ctx *service.RunContext) error {
 	for {
 		select {
 		case req := <-a.echo:
@@ -95,13 +96,13 @@ func (a *EchoServiceClient) run(ctx *RunContext) error {
 	}
 }
 
-func (a *EchoServiceClient) newService() *Service {
-	var service EchoService = a
-	serviceInterface, _ := commons.ObjectInterface(&service)
-	return NewService(serviceInterface, nil, a.run, nil)
+func (a *EchoServiceClient) newService() *service.Service {
+	var svc EchoService = a
+	serviceInterface, _ := commons.ObjectInterface(&svc)
+	return service.NewService(serviceInterface, nil, a.run, nil)
 }
 
-func EchoServiceConstructor() ServiceClient {
+func EchoServiceConstructor() service.ServiceClient {
 	serviceClient := &EchoServiceClient{
 		echo: make(chan *EchoRequest),
 	}
