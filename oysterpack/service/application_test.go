@@ -150,6 +150,7 @@ func (a *EchoServiceClient) newService() *service.Service {
 	return service.NewService(serviceInterface, nil, a.run, nil)
 }
 
+// Service Run func
 func (a *EchoServiceClient) run(ctx *service.RunContext) error {
 	for {
 		select {

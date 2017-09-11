@@ -88,5 +88,5 @@ type ServiceNotFoundError struct {
 }
 
 func (e *ServiceNotFoundError) Error() string {
-	return fmt.Sprintf("Service not found : %v.%v", e.ServiceKey.Package(), e.ServiceKey.Type())
+	return fmt.Sprintf("Service not found : %v.%v", e.ServiceKey.PackagePath, e.ServiceKey.TypeName)
 }

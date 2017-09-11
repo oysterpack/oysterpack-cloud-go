@@ -29,28 +29,9 @@ import (
 // It is used to register services application wide, i.e., process wide
 var App Application = NewApplicationContext()
 
+// Application is a service interface. It's functionality is defined by the interfaces it composes.
 type Application interface {
-	// LookupServiceByType looks up a service via its service interface.
-	// If exists is true, then the service was found.
-	ServiceByType(serviceInterface commons.InterfaceType) ServiceClient
-
-	ServiceByKey(key ServiceKey) ServiceClient
-
-	Services() []ServiceClient
-
-	// ServiceInterfaces returns the service interfaces for all registered services
-	ServiceInterfaces() []commons.InterfaceType
-
-	// ServiceKeys returns the ServiceKey(s) for all registered services
-	ServiceKeys() []ServiceKey
-
-	// RegisterService will create a new instance of the service using the supplied service constructor.
-	// It will then register the service and start it async.
-	// If a service with the same service interface is already registered, then the service will not be started and nill will be returned.
-	// The ServiceClientConstructor is retained until the service is unregistered for the purpose of restarting the service using a new instance.
-	RegisterService(newService ServiceClientConstructor) ServiceClient
-
-	UnRegisterService(service *Service) bool
+	ServiceRegistry
 }
 
 // ServiceClient uses a client-server model.
@@ -59,6 +40,7 @@ type Application interface {
 // The client and server instances are decoupled using channels to communicate. The client owns the channels.
 //
 // For restart functionality, RestartableService can be leveraged.
+// The ServiceClient must implement the service interface.
 type ServiceClient interface {
 	Service() *Service
 
@@ -71,20 +53,12 @@ type ServiceClient interface {
 type ServiceClientConstructor func() ServiceClient
 
 type ServiceKey struct {
-	packagePath commons.PackagePath
-	typeName    commons.TypeName
+	commons.PackagePath
+	commons.TypeName
 }
 
 func (s *ServiceKey) String() string {
-	return fmt.Sprintf("%v.%v", s.packagePath, s.typeName)
-}
-
-func (k *ServiceKey) Package() commons.PackagePath {
-	return k.packagePath
-}
-
-func (k *ServiceKey) Type() commons.TypeName {
-	return k.typeName
+	return fmt.Sprintf("%v.%v", s.PackagePath, s.TypeName)
 }
 
 type ApplicationServiceState struct {
@@ -92,10 +66,10 @@ type ApplicationServiceState struct {
 	State
 }
 
-func InterfaceTypeToServiceKey(serviceInterface commons.InterfaceType) ServiceKey {
-	return ServiceKey{
-		packagePath: commons.PackagePath(serviceInterface.PkgPath()),
-		typeName:    commons.TypeName(serviceInterface.Name()),
+func InterfaceTypeToServiceKey(serviceInterface commons.InterfaceType) *ServiceKey {
+	return &ServiceKey{
+		commons.PackagePath(serviceInterface.PkgPath()),
+		commons.TypeName(serviceInterface.Name()),
 	}
 }
 
@@ -147,11 +121,11 @@ func (a *ApplicationContext) ServiceByType(serviceInterface commons.InterfaceTyp
 	return nil
 }
 
-func (a *ApplicationContext) ServiceByKey(serviceKey ServiceKey) ServiceClient {
+func (a *ApplicationContext) ServiceByKey(serviceKey *ServiceKey) ServiceClient {
 	a.mutex.RLock()
 	defer a.mutex.RUnlock()
 	for _, s := range a.services {
-		if InterfaceTypeToServiceKey(s.Service().serviceInterface) == serviceKey {
+		if *InterfaceTypeToServiceKey(s.Service().serviceInterface) == *serviceKey {
 			return s
 		}
 	}
@@ -179,10 +153,10 @@ func (a *ApplicationContext) ServiceInterfaces() []commons.InterfaceType {
 	return interfaces
 }
 
-func (a *ApplicationContext) ServiceKeys() []ServiceKey {
+func (a *ApplicationContext) ServiceKeys() []*ServiceKey {
 	a.mutex.RLock()
 	defer a.mutex.RUnlock()
-	interfaces := make([]ServiceKey, len(a.services))
+	interfaces := make([]*ServiceKey, len(a.services))
 	for _, v := range a.ServiceInterfaces() {
 		interfaces = append(interfaces, InterfaceTypeToServiceKey(v))
 	}

@@ -16,6 +16,7 @@ package service
 
 import "github.com/oysterpack/oysterpack.go/oysterpack/commons"
 
+// TODO: Add to Application interface
 type ServiceManager interface {
 	// Stop and start the service
 	// returns ServiceNotFoundError if the service is not registered
