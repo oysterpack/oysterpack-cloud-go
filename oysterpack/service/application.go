@@ -52,6 +52,8 @@ type ServiceClient interface {
 // The returned service will be in a New state.
 type ServiceClientConstructor func() ServiceClient
 
+// ServiceKey represents the service interface.
+// It can be used to lookup a service.
 type ServiceKey struct {
 	commons.PackagePath
 	commons.TypeName
@@ -61,11 +63,7 @@ func (s *ServiceKey) String() string {
 	return fmt.Sprintf("%v.%v", s.PackagePath, s.TypeName)
 }
 
-type ApplicationServiceState struct {
-	ServiceKey
-	State
-}
-
+// InterfaceTypeToServiceKey converts an interface type to a ServiceKey
 func InterfaceTypeToServiceKey(serviceInterface commons.InterfaceType) *ServiceKey {
 	return &ServiceKey{
 		commons.PackagePath(serviceInterface.PkgPath()),
@@ -73,7 +71,7 @@ func InterfaceTypeToServiceKey(serviceInterface commons.InterfaceType) *ServiceK
 	}
 }
 
-type RegisteredService struct {
+type registeredService struct {
 	NewService ServiceClientConstructor
 	ServiceClient
 }
@@ -89,12 +87,13 @@ type RegisteredService struct {
 type ApplicationContext struct {
 	mutex sync.RWMutex
 	// once a service is stopped, it will be removed from this map
-	services map[commons.InterfaceType]*RegisteredService
+	services map[commons.InterfaceType]*registeredService
 
 	// ApplicationContext can be managed itself as a service
 	service *Service
 }
 
+// Service() returns the Application Service
 func (a *ApplicationContext) Service() *Service {
 	return a.service
 }
@@ -102,7 +101,7 @@ func (a *ApplicationContext) Service() *Service {
 // NewApplicationContext returns a new ApplicationContext
 func NewApplicationContext() *ApplicationContext {
 	app := &ApplicationContext{
-		services: make(map[commons.InterfaceType]*RegisteredService),
+		services: make(map[commons.InterfaceType]*registeredService),
 	}
 	var service Application = app
 	serviceInterface, _ := commons.ObjectInterface(&service)
@@ -121,6 +120,8 @@ func (a *ApplicationContext) ServiceByType(serviceInterface commons.InterfaceTyp
 	return nil
 }
 
+// ServiceByKey looks up a service by ServiceKey and returns the registered ServiceClient.
+// If the service is not found, then nil is returned.
 func (a *ApplicationContext) ServiceByKey(serviceKey *ServiceKey) ServiceClient {
 	a.mutex.RLock()
 	defer a.mutex.RUnlock()
@@ -132,6 +133,7 @@ func (a *ApplicationContext) ServiceByKey(serviceKey *ServiceKey) ServiceClient 
 	return nil
 }
 
+// Services returns all registered services
 func (a *ApplicationContext) Services() []ServiceClient {
 	a.mutex.RLock()
 	defer a.mutex.RUnlock()
@@ -153,6 +155,7 @@ func (a *ApplicationContext) ServiceInterfaces() []commons.InterfaceType {
 	return interfaces
 }
 
+// ServiceKeys returns ServiceKey(s) for all registered services
 func (a *ApplicationContext) ServiceKeys() []*ServiceKey {
 	a.mutex.RLock()
 	defer a.mutex.RUnlock()
@@ -174,7 +177,7 @@ func (a *ApplicationContext) RegisterService(newService ServiceClientConstructor
 		panic(fmt.Sprintf("%T is not assignable to %v", reflect.TypeOf(service), service.Service().serviceInterface))
 	}
 	if _, exists := a.services[service.Service().serviceInterface]; !exists {
-		a.services[service.Service().serviceInterface] = &RegisteredService{NewService: newService, ServiceClient: service}
+		a.services[service.Service().serviceInterface] = &registeredService{NewService: newService, ServiceClient: service}
 		service.Service().StartAsync()
 		return service
 	}

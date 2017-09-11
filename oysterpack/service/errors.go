@@ -83,6 +83,7 @@ func (e *PanicError) Error() string {
 	return fmt.Sprintf("panic: %v", e.Panic)
 }
 
+// ServiceNotFoundError occurs when the service is unknown.
 type ServiceNotFoundError struct {
 	ServiceKey
 }

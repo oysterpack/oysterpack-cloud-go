@@ -120,7 +120,7 @@ func (ctx *RunContext) StopTrigger() StopTrigger {
 // Destroy is a function that is used to perform any cleanup during service shutdown.
 type Destroy func(*Context) error
 
-// NewServer creates and returns a new Service instance in the 'New' state.
+// NewService creates and returns a new Service instance in the 'New' state.
 //
 // serviceInterface:
 // - must be an interface which defines the service's interface
@@ -270,7 +270,7 @@ func (svc *Service) AwaitRunning(wait time.Duration) error {
 	return svc.awaitState(Running, wait)
 }
 
-// AwaitRunning waits for the Service to reach the running state
+// AwaitUntilRunning waits for the Service to reach the running state
 func (svc *Service) AwaitUntilRunning() error {
 	i := 0
 	for {
