@@ -93,7 +93,7 @@ type ApplicationContext struct {
 	service *Service
 }
 
-// Service() returns the Application Service
+// Service returns the Application Service
 func (a *ApplicationContext) Service() *Service {
 	return a.service
 }
