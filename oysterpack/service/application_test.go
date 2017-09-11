@@ -28,84 +28,144 @@ func TestApplicationContext_RegisterService(t *testing.T) {
 	defer app.Service().Stop()
 	serviceClient := app.RegisterService(EchoServiceConstructor)
 	if err := serviceClient.Service().AwaitUntilRunning(); err != nil {
-		t.Error(err)
-	} else {
-		if !serviceClient.Service().State().Running() {
-			t.Error("service should be running")
-		}
-		echoService := serviceClient.(EchoService)
-		t.Logf("echo : %v", echoService.Echo("CIAO MUNDO !!!"))
-		app.Service().Stop()
-		if !serviceClient.Service().State().Stopped() {
-			t.Error("service should be stopped")
-		}
+		t.Fatal(err)
 	}
+	if !serviceClient.Service().State().Running() {
+		t.Fatal("service should be running")
+	}
+	echoService := serviceClient.(EchoService)
+	message := "CIAO MUNDO !!!"
+	if response := echoService.Echo(message); response != message {
+		t.Errorf("echo : return unexpected response : %v", response)
+	}
+
+	app.Service().Stop()
+	if !serviceClient.Service().State().Stopped() {
+		t.Error("service should be stopped")
+	}
+	serviceClient.RestartService()
+	serviceClient.Service().AwaitUntilRunning()
+	if response := echoService.Echo(message); response != message {
+		t.Errorf("echo : return unexpected response : %v", response)
+	}
+
+	serviceClient.Service().Stop()
+	t.Log("service is stopped")
+	runningWaitGroup := sync.WaitGroup{}
+	runningWaitGroup.Add(1)
+	echoWaitGroup := sync.WaitGroup{}
+	echoWaitGroup.Add(1)
+	go func() {
+		t.Log("invoking echo while service is stopped")
+		runningWaitGroup.Done()
+		t.Logf("echo after service restarted : %v", echoService.Echo(message))
+		echoWaitGroup.Done()
+	}()
+	runningWaitGroup.Wait()
+	serviceClient.RestartService()
+	t.Log("service is being restarted ...")
+	echoWaitGroup.Wait()
 }
 
+type SimpleEchoService struct{}
+
+func (a *SimpleEchoService) Echo(msg interface{}) interface{} {
+	return msg
+}
+
+func TestApplicationContext_RegisterService_ServiceClientNotAssignableToServiceInterface(t *testing.T) {
+	app := service.NewApplicationContext()
+	app.Service().StartAsync()
+	app.Service().AwaitUntilRunning()
+	defer app.Service().Stop()
+
+	type InvalidEchoServiceClient struct {
+		// embedded service
+		*service.RestartableService
+	}
+
+	func() {
+		defer func() {
+			if p := recover(); p != nil {
+				t.Logf("panic was expected : [%v]", p)
+			} else {
+				t.Errorf("Application.RegisterService should have panicked")
+			}
+		}()
+
+		app.RegisterService(func() service.ServiceClient {
+			return &InvalidEchoServiceClient{
+				RestartableService: service.NewRestartableService(func() *service.Service {
+					var svc EchoService = &SimpleEchoService{}
+					serviceInterface, _ := commons.ObjectInterface(&svc)
+					return service.NewService(serviceInterface, nil, nil, nil)
+				}),
+			}
+		})
+	}()
+
+}
+
+// EchoService defines the Service interface
 type EchoService interface {
 	Echo(msg interface{}) interface{}
 }
 
+// EchoServiceClient is the EchoService implementation
 type EchoServiceClient struct {
-	serviceMutex sync.RWMutex
-	service      *service.Service
+	// embedded service
+	*service.RestartableService
 
+	// service channels
 	echo chan *EchoRequest
 }
+
+////////// service messages //////////////////
 
 type EchoRequest struct {
 	Message interface{}
 	ReplyTo chan interface{}
 }
 
+// message constructor
 func NewEchoRequest(msg interface{}) *EchoRequest {
 	return &EchoRequest{msg, make(chan interface{}, 1)}
 }
 
+////////// service methods //////////////////
+
+// Echo
 func (a *EchoServiceClient) Echo(msg interface{}) interface{} {
 	req := NewEchoRequest(msg)
 	a.echo <- req
 	return <-req.ReplyTo
 }
 
-func (a *EchoServiceClient) Service() *service.Service {
-	a.serviceMutex.RLock()
-	defer a.serviceMutex.RUnlock()
-	return a.service
-}
+////////// service constructor //////////////////
 
-func (a *EchoServiceClient) RestartService() {
-	a.serviceMutex.Lock()
-	defer a.serviceMutex.Unlock()
-	if a.service != nil {
-		a.service.StopAsyc()
-		a.service.AwaitUntilStopped()
-	}
-	a.service = a.newService()
-	a.service.StartAsync()
-}
-
-func (a *EchoServiceClient) run(ctx *service.RunContext) error {
-	for {
-		select {
-		case req := <-a.echo:
-			req.ReplyTo <- req.Message
-		case <-ctx.StopTrigger():
-			return nil
-		}
-	}
-}
-
+// ServiceConstructor
 func (a *EchoServiceClient) newService() *service.Service {
 	var svc EchoService = a
 	serviceInterface, _ := commons.ObjectInterface(&svc)
 	return service.NewService(serviceInterface, nil, a.run, nil)
 }
 
+func (a *EchoServiceClient) run(ctx *service.RunContext) error {
+	for {
+		select {
+		case req := <-a.echo:
+			go func() { req.ReplyTo <- req.Message }()
+		case <-ctx.StopTrigger():
+			return nil
+		}
+	}
+}
+
+// EchoServiceConstructor is the ServiceClientConstructor
 func EchoServiceConstructor() service.ServiceClient {
 	serviceClient := &EchoServiceClient{
 		echo: make(chan *EchoRequest),
 	}
-	serviceClient.service = serviceClient.newService()
+	serviceClient.RestartableService = service.NewRestartableService(serviceClient.newService)
 	return serviceClient
 }

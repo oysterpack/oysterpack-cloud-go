@@ -239,24 +239,15 @@ func TestNewService_RunPanics(t *testing.T) {
 		expectedError := err.(*service.ServiceError)
 		t.Logf("expected error : %v", expectedError)
 	} else {
-		// retry - there is a possible timing issue where the state was set to Running right before the Run func panics
-		if started, err := startService(server, t); !started && err != nil {
-			switch err.(type) {
-			case *service.ServiceError:
-			default:
-				t.Errorf("Expected a service.ServiceError to be returned, but was %T : %v", err, err)
-			}
-			expectedError := err.(*service.ServiceError)
-			t.Logf("expected error : %v", expectedError)
-		} else {
-			if started {
-				t.Errorf("Expected server to fail to start")
-			}
-
-			if err == nil {
-				t.Errorf("Expected a service.ServiceError to be returned")
-			}
+		// there is a possible timing issue where the state was set to Running right before the Run func panics
+		server.AwaitUntilStopped()
+		switch server.FailureCause().(type) {
+		case *service.ServiceError:
+		default:
+			t.Errorf("Expected a service.ServiceError to be returned, but was %T : %v", err, err)
 		}
+		expectedError := err.(*service.ServiceError)
+		t.Logf("expected error : %v", expectedError)
 	}
 
 	if !server.State().Failed() {
@@ -309,6 +300,58 @@ func TestNewService_DestroyPanics(t *testing.T) {
 		t.Errorf("Service state should be 'Terminated', but instead was : %q", server.State())
 	}
 	t.Log(server.FailureCause())
+}
+
+func TestRestartableService_RestartService(t *testing.T) {
+	var init service.Init = nil
+	var run service.Run = nil
+	var destroy service.Destroy = nil
+
+	service := service.NewRestartableService(func() *service.Service {
+		return service.NewService(reflect.TypeOf(&foo), init, run, destroy)
+	})
+
+	if !service.Service().State().New() {
+		t.Fatalf("service state should be New, but is %q", service.Service().State())
+	}
+	if service.RestartCount() != 0 {
+		t.Fatalf("restart count should be 0, but is %d", service.RestartCount())
+	}
+
+	service.Service().StartAsync()
+	service.Service().AwaitUntilRunning()
+	if !service.Service().State().Running() {
+		t.Fatalf("service state should be Running, but is %q", service.Service().State())
+	}
+	service1 := service.Service()
+	service.RestartService()
+	service.Service().AwaitUntilRunning()
+	t.Logf("service state after restarting : %q", service.Service().State())
+	if !service.Service().State().Running() {
+		t.Fatalf("service state should be Running, but is %q", service.Service().State())
+	}
+	if service.RestartCount() != 1 {
+		t.Fatalf("restart count should be 1, but is %d", service.RestartCount())
+	}
+	if service1 == service.Service() {
+		t.Fatal("A new service instance should have been created")
+	}
+	service.Service().Stop()
+	if !service.Service().State().Stopped() {
+		t.Fatalf("service state should be stopped, but is %q", service.Service().State())
+	}
+	service1 = service.Service()
+	service.RestartService()
+	if service1 == service.Service() {
+		t.Fatal("A new service instance should have been created")
+	}
+	service.Service().AwaitUntilRunning()
+	if !service.Service().State().Running() {
+		t.Fatalf("service state should be Running, but is %q", service.Service().State())
+	}
+	if service.RestartCount() != 2 {
+		t.Fatalf("restart count should be 2, but is %d", service.RestartCount())
+	}
 }
 
 // startService waits up to 3 seconds for the server to start - checking every second

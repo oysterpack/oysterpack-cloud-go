@@ -19,10 +19,10 @@ import (
 	"github.com/oysterpack/oysterpack.go/oysterpack/commons"
 	"os"
 	"os/signal"
+	"reflect"
 	"sync"
 	"syscall"
 	"time"
-	"reflect"
 )
 
 // App is a global variable
@@ -47,8 +47,8 @@ type Application interface {
 	// RegisterService will create a new instance of the service using the supplied service constructor.
 	// It will then register the service and start it async.
 	// If a service with the same service interface is already registered, then the service will not be started and nill will be returned.
-	// The ServiceConstructor is retained until the service is unregistered for the purpose of restarting the service using a new instance.
-	RegisterService(newService ServiceConstructor) ServiceClient
+	// The ServiceClientConstructor is retained until the service is unregistered for the purpose of restarting the service using a new instance.
+	RegisterService(newService ServiceClientConstructor) ServiceClient
 
 	UnRegisterService(service *Service) bool
 }
@@ -56,8 +56,9 @@ type Application interface {
 // ServiceClient uses a client-server model.
 // The client instance is stable and is a singleton. The backend service instance is not stable - meaning the instance may change.
 // For example, the backend service may be restarted, which means a new service instance will be created.
-// The client and server instances are decoupled using channels to communicate.
-// The client owns the channels.
+// The client and server instances are decoupled using channels to communicate. The client owns the channels.
+//
+// For restart functionality, RestartableService can be leveraged.
 type ServiceClient interface {
 	Service() *Service
 
@@ -65,9 +66,9 @@ type ServiceClient interface {
 	RestartService()
 }
 
-// ServiceConstructor is a service factory function that will construct a new Service instance and return a pointer to it.
+// ServiceClientConstructor is a service factory function that will construct a new Service instance and return a pointer to it.
 // The returned service will be in a New state.
-type ServiceConstructor func() ServiceClient
+type ServiceClientConstructor func() ServiceClient
 
 type ServiceKey struct {
 	packagePath commons.PackagePath
@@ -99,7 +100,7 @@ func InterfaceTypeToServiceKey(serviceInterface commons.InterfaceType) ServiceKe
 }
 
 type RegisteredService struct {
-	NewService ServiceConstructor
+	NewService ServiceClientConstructor
 	ServiceClient
 }
 
@@ -190,13 +191,13 @@ func (a *ApplicationContext) ServiceKeys() []ServiceKey {
 
 // RegisterService will register the service and start it, if it is not already registered.
 // Returns the new registered service or nil if a service with the same interface was already registered.
-// If the ServiceClient type is not assignable to the Service
-func (a *ApplicationContext) RegisterService(newService ServiceConstructor) ServiceClient {
+// A panic occurs if the ServiceClient type is not assignable to the Service.
+func (a *ApplicationContext) RegisterService(newService ServiceClientConstructor) ServiceClient {
 	a.mutex.Lock()
 	defer a.mutex.Unlock()
 	service := newService()
 	if !reflect.TypeOf(service).AssignableTo(service.Service().serviceInterface) {
-		panic(fmt.Sprintf("%T is not assignable to %v",reflect.TypeOf(service), service.Service().serviceInterface))
+		panic(fmt.Sprintf("%T is not assignable to %v", reflect.TypeOf(service), service.Service().serviceInterface))
 	}
 	if _, exists := a.services[service.Service().serviceInterface]; !exists {
 		a.services[service.Service().serviceInterface] = &RegisteredService{NewService: newService, ServiceClient: service}

@@ -21,6 +21,7 @@ import (
 	"github.com/oysterpack/oysterpack.go/oysterpack/logging"
 	"github.com/rs/zerolog"
 	"reflect"
+	"sync"
 	"time"
 )
 
@@ -413,3 +414,51 @@ func (svc *Service) String() string {
 // StopTrigger is used to notify the service to stop.
 // Closing the channel is the stop signal
 type StopTrigger <-chan struct{}
+
+// ServiceConstructor returns a new instance of a Service in the New state
+type ServiceConstructor func() *Service
+
+// RestartableService manages provides support to "restart" the service.
+// The service is not really restarted because it is illegal to start a service that has been stopped.
+// Instead a new instance of the service is created (via the provided ServiceConstructor) and then started
+// New instances should be created using NewRestartableService()
+type RestartableService struct {
+	serviceMutex sync.RWMutex
+	service      *Service
+	restartCount int
+
+	NewService ServiceConstructor
+}
+
+// Service returns the managed service instance
+func (a *RestartableService) Service() *Service {
+	a.serviceMutex.RLock()
+	defer a.serviceMutex.RUnlock()
+	return a.service
+}
+
+// RestartService
+func (a *RestartableService) RestartService() {
+	a.serviceMutex.Lock()
+	defer a.serviceMutex.Unlock()
+	if a.service != nil {
+		a.service.StopAsyc()
+		a.service.AwaitUntilStopped()
+	}
+	a.service = a.NewService()
+	a.service.StartAsync()
+	a.restartCount++
+}
+
+// RestartCount returns the number of times the service has been restarted
+func (a *RestartableService) RestartCount() int {
+	return a.restartCount
+}
+
+// NewRestartableService is used to creata new NewRestartableService instance.
+func NewRestartableService(newService ServiceConstructor) *RestartableService {
+	return &RestartableService{
+		service:    newService(),
+		NewService: newService,
+	}
+}
