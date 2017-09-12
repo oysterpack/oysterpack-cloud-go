@@ -79,7 +79,7 @@ func (a *ApplicationContext) ServiceByType(serviceInterface commons.InterfaceTyp
 	a.mutex.RLock()
 	defer a.mutex.RUnlock()
 	if s, exists := a.services[serviceInterface]; exists {
-		return s
+		return s.ServiceClient
 	}
 	return nil
 }
@@ -91,7 +91,7 @@ func (a *ApplicationContext) ServiceByKey(serviceKey *ServiceKey) ServiceClient 
 	defer a.mutex.RUnlock()
 	for _, s := range a.services {
 		if *InterfaceTypeToServiceKey(s.Service().serviceInterface) == *serviceKey {
-			return s
+			return s.ServiceClient
 		}
 	}
 	return nil
@@ -103,7 +103,7 @@ func (a *ApplicationContext) Services() []ServiceClient {
 	defer a.mutex.RUnlock()
 	var services []ServiceClient
 	for _, s := range a.services {
-		services = append(services, s)
+		services = append(services, s.ServiceClient)
 	}
 	return services
 }
@@ -112,18 +112,22 @@ func (a *ApplicationContext) Services() []ServiceClient {
 func (a *ApplicationContext) ServiceInterfaces() []commons.InterfaceType {
 	a.mutex.RLock()
 	defer a.mutex.RUnlock()
-	interfaces := make([]commons.InterfaceType, len(a.services))
-	for k := range a.services {
+	interfaces := []commons.InterfaceType{}
+	for k, _ := range a.services {
 		interfaces = append(interfaces, k)
 	}
 	return interfaces
+}
+
+func (a *ApplicationContext) ServiceCount() int {
+	return len(a.services)
 }
 
 // ServiceKeys returns ServiceKey(s) for all registered services
 func (a *ApplicationContext) ServiceKeys() []*ServiceKey {
 	a.mutex.RLock()
 	defer a.mutex.RUnlock()
-	interfaces := make([]*ServiceKey, len(a.services))
+	interfaces := []*ServiceKey{}
 	for _, v := range a.ServiceInterfaces() {
 		interfaces = append(interfaces, InterfaceTypeToServiceKey(v))
 	}

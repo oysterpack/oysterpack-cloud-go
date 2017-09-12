@@ -215,7 +215,7 @@ func (svc *Service) FailureCause() error {
 // awaitState blocks until the desired state is reached
 // If the wait duration <= 0, then this method blocks until the desired state is reached.
 // If the desired state has past, then a PastStateError is returned
-func (svc *Service) awaitState(desiredState State, wait time.Duration) error {
+func (svc *Service) awaitState(desiredState State, timeout time.Duration) error {
 	matches := func(currentState State) (bool, error) {
 		switch {
 		case currentState == desiredState:
@@ -235,9 +235,10 @@ func (svc *Service) awaitState(desiredState State, wait time.Duration) error {
 	} else if reachedState {
 		return nil
 	}
+
 	l := svc.serviceState.NewStateChangeListener()
-	if wait > 0 {
-		timer := time.AfterFunc(wait, l.Cancel)
+	if timeout > 0 {
+		timer := time.AfterFunc(timeout, l.Cancel)
 		defer func() {
 			timer.Stop()
 			l.Cancel()

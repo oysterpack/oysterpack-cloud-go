@@ -39,14 +39,47 @@ func TestApplicationContext_RegisterService(t *testing.T) {
 		t.Errorf("echo : return unexpected response : %v", response)
 	}
 
+	serviceClients := []service.ServiceClient{
+		serviceClient,
+		app.ServiceByType(EchoServiceInterface),
+		app.ServiceByKey(service.InterfaceTypeToServiceKey(EchoServiceInterface)),
+	}
+
+	for i, client := range serviceClients {
+		if client == nil {
+			t.Errorf("%d : the service client should not be nil - it was registered", i)
+		}
+		t.Logf("%d : %v", i, client.(EchoService).Echo(message))
+
+		// check that all service clients point to the same service
+		if i < len(serviceClients)-1 {
+			if serviceClients[i].Service() != serviceClients[i+1].Service() {
+				t.Errorf("each service client should point to the same backend service instance: %d != %d", i, i+1)
+			}
+		}
+	}
+
 	app.Service().Stop()
-	if !serviceClient.Service().State().Stopped() {
-		t.Error("service should be stopped")
+	for i, client := range serviceClients {
+		if !client.Service().State().Stopped() {
+			t.Error("service should be stopped : %d", i)
+		}
 	}
 	serviceClient.RestartService()
 	serviceClient.Service().AwaitUntilRunning()
-	if response := echoService.Echo(message); response != message {
-		t.Errorf("echo : return unexpected response : %v", response)
+	for i, client := range serviceClients {
+		if !client.Service().State().Running() {
+			t.Error("service should be running : %d", i)
+		} else {
+			t.Logf("%d : %v", i, client.(EchoService).Echo(message))
+		}
+
+		// check that all service clients point to the same service
+		if i < len(serviceClients)-1 {
+			if serviceClients[i].Service() != serviceClients[i+1].Service() {
+				t.Errorf("each service client should point to the same backend service instance: %d != %d", i, i+1)
+			}
+		}
 	}
 
 	serviceClient.Service().Stop()
@@ -58,7 +91,9 @@ func TestApplicationContext_RegisterService(t *testing.T) {
 	go func() {
 		t.Log("invoking echo while service is stopped")
 		runningWaitGroup.Done()
-		t.Logf("echo after service restarted : %v", echoService.Echo(message))
+		for i, client := range serviceClients {
+			t.Logf("echo after service restarted : %d : %v", i, client.(EchoService).Echo(message))
+		}
 		echoWaitGroup.Done()
 	}()
 	runningWaitGroup.Wait()
@@ -106,67 +141,90 @@ func TestApplicationContext_RegisterService_ServiceClientNotAssignableToServiceI
 
 }
 
-// EchoService defines the Service interface
-type EchoService interface {
-	Echo(msg interface{}) interface{}
-}
+func TestApplicationContext_ServiceByType_NotRegistered(t *testing.T) {
+	app := service.NewApplicationContext()
+	app.Service().StartAsync()
+	app.Service().AwaitUntilRunning()
+	defer app.Service().Stop()
 
-// EchoServiceClient is the EchoService implementation
-type EchoServiceClient struct {
-	// embedded service
-	*service.RestartableService
+	if app.ServiceByType(EchoServiceInterface) != nil {
+		t.Error("ERROR: no services are registered")
+	}
+	if app.ServiceByKey(service.InterfaceTypeToServiceKey(EchoServiceInterface)) != nil {
+		t.Error("ERROR: no services are registered")
+	}
 
-	// service channels
-	echo chan *EchoRequest
-}
+	app.RegisterService(EchoServiceConstructor)
 
-////////// service messages //////////////////
+	serviceClients := []service.ServiceClient{
+		app.ServiceByType(EchoServiceInterface),
+		app.ServiceByKey(service.InterfaceTypeToServiceKey(EchoServiceInterface)),
+	}
 
-type EchoRequest struct {
-	Message interface{}
-	ReplyTo chan interface{}
-}
-
-// message constructor
-func NewEchoRequest(msg interface{}) *EchoRequest {
-	return &EchoRequest{msg, make(chan interface{}, 1)}
-}
-
-////////// service methods //////////////////
-
-// Echo
-func (a *EchoServiceClient) Echo(msg interface{}) interface{} {
-	req := NewEchoRequest(msg)
-	a.echo <- req
-	return <-req.ReplyTo
-}
-
-////////// service constructor //////////////////
-
-// ServiceConstructor
-func (a *EchoServiceClient) newService() *service.Service {
-	var svc EchoService = a
-	serviceInterface, _ := commons.ObjectInterface(&svc)
-	return service.NewService(serviceInterface, nil, a.run, nil)
-}
-
-// Service Run func
-func (a *EchoServiceClient) run(ctx *service.RunContext) error {
-	for {
-		select {
-		case req := <-a.echo:
-			go func() { req.ReplyTo <- req.Message }()
-		case <-ctx.StopTrigger():
-			return nil
+	for i, client := range serviceClients {
+		if client == nil {
+			t.Errorf("ERROR: services is registered : %d", i)
 		}
+		client.(EchoService).Echo("OysterPack is your world.")
+	}
+
+	type Foo interface{}
+	type Bar struct{}
+	var foo Foo = &Bar{}
+	fooType, err := commons.ObjectInterface(&foo)
+	if err != nil {
+		t.Fatalf("Failed to get Foo type : %v", err)
+	}
+	if app.ServiceByType(fooType) != nil {
+		t.Error("ERROR: no Foo service is registered")
 	}
 }
 
-// EchoServiceConstructor is the ServiceClientConstructor
-func EchoServiceConstructor() service.ServiceClient {
-	serviceClient := &EchoServiceClient{
-		echo: make(chan *EchoRequest),
+func TestApplicationContext_ServiceInterfaces(t *testing.T) {
+	app := service.NewApplicationContext()
+	app.Service().StartAsync()
+	app.Service().AwaitUntilRunning()
+	defer app.Service().Stop()
+
+	serviceInterfaces := app.ServiceInterfaces()
+	if app.ServiceCount() != 0 {
+		t.Errorf("ERROR: there should be 0 services registered : %d : %v", len(serviceInterfaces), serviceInterfaces)
 	}
-	serviceClient.RestartableService = service.NewRestartableService(serviceClient.newService)
-	return serviceClient
+	if len(serviceInterfaces) != 0 {
+		t.Errorf("ERROR: there should be 0 services registered : %d : %d : %v", app.ServiceCount(), len(serviceInterfaces), serviceInterfaces)
+	}
+
+	echoService := app.RegisterService(EchoServiceConstructor).(EchoService)
+	serviceInterfaces = app.ServiceInterfaces()
+	if app.ServiceCount() != 1 {
+		t.Errorf("ERROR: there should be 1 services registered : %d : %v", len(serviceInterfaces), serviceInterfaces)
+	}
+	if len(serviceInterfaces) != 1 {
+		t.Errorf("ERROR: there should be 1 services registered : %d : %d : %v", app.ServiceCount(), len(serviceInterfaces), serviceInterfaces)
+	}
+	t.Logf("echo : %v", echoService.Echo("TestApplicationContext_ServiceInterfaces"))
+	heartbeatService := app.RegisterService(HeartbeatServiceConstructor).(HeartbeatService)
+	t.Logf("heartbeat ping : %v", heartbeatService.Ping())
+
+	serviceInterfaces = app.ServiceInterfaces()
+	if app.ServiceCount() != 2 {
+		t.Errorf("ERROR: there should be 2 services registered : %d : %v", len(serviceInterfaces), serviceInterfaces)
+	}
+	if len(serviceInterfaces) != 2 {
+		t.Errorf("ERROR: there should be 2 services registered : %d : %d : %v", app.ServiceCount(), len(serviceInterfaces), serviceInterfaces)
+	}
+
+	containsInterface := func(svcInterface commons.InterfaceType) bool {
+		for _, serviceInterface := range serviceInterfaces {
+			if serviceInterface == svcInterface {
+				return true
+			}
+		}
+		return false
+	}
+
+	if !containsInterface(HeartbeatServiceInterface) {
+		t.Error("ERROR: EchoService was not found")
+	}
+
 }

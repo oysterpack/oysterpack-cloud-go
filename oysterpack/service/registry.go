@@ -31,6 +31,8 @@ type ServiceRegistry interface {
 	// Services returns the list of registered services as ServiceClient(s)
 	Services() []ServiceClient
 
+	ServiceCount() int
+
 	// ServiceInterfaces returns the service interfaces for all registered services
 	ServiceInterfaces() []commons.InterfaceType
 
