@@ -75,7 +75,8 @@ func TestNewServiceState_SetState_Failed(t *testing.T) {
 	}
 }
 
-func TestServiceState_Failed(t *testing.T) {
+
+func TestServiceState_New2Fail(t *testing.T) {
 	serviceState := service.NewServiceState()
 	_, stateTS := serviceState.State()
 	serviceState.Failed(nil)
@@ -90,9 +91,12 @@ func TestServiceState_Failed(t *testing.T) {
 	if err := serviceState.FailureCause(); err != nil {
 		t.Errorf("FailureCayse should be nil, but was : %v", err)
 	}
+}
 
+func TestServiceState_Starting2Failed(t *testing.T) {
+	serviceState := service.NewServiceState()
 	serviceState.SetState(service.Starting)
-	_, stateTS = serviceState.State()
+	_, stateTS := serviceState.State()
 	serviceState.Failed(nil)
 	if state, ts := serviceState.State(); state != service.Failed || !ts.After(stateTS) {
 		if state != service.Failed {
@@ -107,8 +111,15 @@ func TestServiceState_Failed(t *testing.T) {
 	default:
 		t.Errorf("The FailureCause type should have been UnknownFailureCause but was %T", serviceState.FailureCause())
 	}
+}
 
+func TestServiceState_Failed2Failed(t *testing.T) {
+	serviceState := service.NewServiceState()
+	serviceState.SetState(service.Starting)
+	_, stateTS := serviceState.State()
+	serviceState.Failed(nil)
 	_, stateTS = serviceState.State()
+	// fail the service again
 	if serviceState.Failed(&service.IllegalStateError{State: service.Failed}) {
 		t.Error("The state should not have been updated because it should already be Failed")
 	}

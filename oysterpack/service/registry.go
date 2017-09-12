@@ -14,10 +14,13 @@
 
 package service
 
-import "github.com/oysterpack/oysterpack.go/oysterpack/commons"
+import (
+	"github.com/oysterpack/oysterpack.go/oysterpack/commons"
+	"fmt"
+)
 
 // ServiceRegistry is a service registry.
-// A Service register itself as a ServiceClient - via a ServiceClientConstructor.
+// A Service registers itself as a ServiceClient - via a ServiceClientConstructor.
 type ServiceRegistry interface {
 	// ServiceByType looks up a service and returns nil if the service is not founc.
 	ServiceByType(serviceInterface commons.InterfaceType) ServiceClient
@@ -44,4 +47,23 @@ type ServiceRegistry interface {
 	// UnRegisterService will unregister the service and returns false if no such service is registered.
 	// The service is simply unregistered, i.e., it is not stopped.
 	UnRegisterService(service *Service) bool
+}
+
+// ServiceKey represents the service interface.
+// It can be used to lookup a service.
+type ServiceKey struct {
+	commons.PackagePath
+	commons.TypeName
+}
+
+func (s *ServiceKey) String() string {
+	return fmt.Sprintf("%v.%v", s.PackagePath, s.TypeName)
+}
+
+// InterfaceTypeToServiceKey converts an interface type to a ServiceKey
+func InterfaceTypeToServiceKey(serviceInterface commons.InterfaceType) *ServiceKey {
+	return &ServiceKey{
+		commons.PackagePath(serviceInterface.PkgPath()),
+		commons.TypeName(serviceInterface.Name()),
+	}
 }

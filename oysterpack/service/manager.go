@@ -14,11 +14,16 @@
 
 package service
 
-import "github.com/oysterpack/oysterpack.go/oysterpack/commons"
+import (
+	"github.com/oysterpack/oysterpack.go/oysterpack/commons"
+	"time"
+)
 
 // ServiceManager is used to start/stop services
 // TODO: Add to Application interface
 type ServiceManager interface {
+	ServiceStates() []ApplicationServiceState
+
 	// Stop and start the service
 	// returns ServiceNotFoundError if the service is not registered
 	// returns ServiceError if the service restart failed
@@ -41,8 +46,9 @@ type ServiceManager interface {
 	StartServiceByKey(key ServiceKey) error
 }
 
-// ApplicationServiceState is used to specify a service's state
+// ApplicationServiceState contains the state for a registered application service at a point in time
 type ApplicationServiceState struct {
 	ServiceKey
 	State
+	time.Time
 }

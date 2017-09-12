@@ -34,43 +34,7 @@ type Application interface {
 	ServiceRegistry
 }
 
-// ServiceClient uses a client-server model.
-// The client instance is stable and is a singleton. The backend service instance is not stable - meaning the instance may change.
-// For example, the backend service may be restarted, which means a new service instance will be created.
-// The client and server instances are decoupled using channels to communicate. The client owns the channels.
-//
-// For restart functionality, RestartableService can be leveraged.
-// The ServiceClient must implement the service interface.
-type ServiceClient interface {
-	Service() *Service
-
-	// restarts the service backend
-	RestartService()
-}
-
-// ServiceClientConstructor is a service factory function that will construct a new Service instance and return a pointer to it.
-// The returned service will be in a New state.
-type ServiceClientConstructor func() ServiceClient
-
-// ServiceKey represents the service interface.
-// It can be used to lookup a service.
-type ServiceKey struct {
-	commons.PackagePath
-	commons.TypeName
-}
-
-func (s *ServiceKey) String() string {
-	return fmt.Sprintf("%v.%v", s.PackagePath, s.TypeName)
-}
-
-// InterfaceTypeToServiceKey converts an interface type to a ServiceKey
-func InterfaceTypeToServiceKey(serviceInterface commons.InterfaceType) *ServiceKey {
-	return &ServiceKey{
-		commons.PackagePath(serviceInterface.PkgPath()),
-		commons.TypeName(serviceInterface.Name()),
-	}
-}
-
+// ApplicationContext.services map entry type
 type registeredService struct {
 	NewService ServiceClientConstructor
 	ServiceClient
