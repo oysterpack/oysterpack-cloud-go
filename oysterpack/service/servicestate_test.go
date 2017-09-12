@@ -75,7 +75,6 @@ func TestNewServiceState_SetState_Failed(t *testing.T) {
 	}
 }
 
-
 func TestServiceState_New2Fail(t *testing.T) {
 	serviceState := service.NewServiceState()
 	_, stateTS := serviceState.State()

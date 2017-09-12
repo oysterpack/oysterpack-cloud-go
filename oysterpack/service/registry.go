@@ -15,8 +15,8 @@
 package service
 
 import (
-	"github.com/oysterpack/oysterpack.go/oysterpack/commons"
 	"fmt"
+	"github.com/oysterpack/oysterpack.go/oysterpack/commons"
 )
 
 // ServiceRegistry is a service registry.
