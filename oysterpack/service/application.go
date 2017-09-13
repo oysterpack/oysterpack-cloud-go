@@ -119,6 +119,7 @@ func (a *ApplicationContext) ServiceInterfaces() []commons.InterfaceType {
 	return interfaces
 }
 
+// ServiceCount returns the number of registered services
 func (a *ApplicationContext) ServiceCount() int {
 	return len(a.services)
 }

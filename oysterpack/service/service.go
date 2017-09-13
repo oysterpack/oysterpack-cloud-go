@@ -120,7 +120,7 @@ func (ctx *RunContext) StopTrigger() StopTrigger {
 // Destroy is a function that is used to perform any cleanup during service shutdown.
 type Destroy func(*Context) error
 
-// newService creates and returns a new Service instance in the 'New' state.
+// NewService creates and returns a new Service instance in the 'New' state.
 //
 // serviceInterface:
 // - must be an interface which defines the service's interface
@@ -418,6 +418,7 @@ type StopTrigger <-chan struct{}
 // ServiceConstructor returns a new instance of a Service in the New state
 type ServiceConstructor func() *Service
 
+// ServiceReference represents something that has a reference to a service.
 type ServiceReference interface {
 	Service() *Service
 }
