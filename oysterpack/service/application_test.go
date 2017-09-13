@@ -60,6 +60,22 @@ func TestApplicationContext_RegisterService(t *testing.T) {
 		}
 	}
 
+}
+
+func TestApplicationContext_ServiceClientIsStableReferenceAfterRestarting(t *testing.T) {
+	app := service.NewApplicationContext()
+	app.Service().StartAsync()
+	app.Service().AwaitUntilRunning()
+	defer app.Service().Stop()
+	serviceClient := app.RegisterService(EchoServiceClientConstructor)
+	message := "CIAO MUNDO !!!"
+
+	serviceClients := []service.ServiceClient{
+		serviceClient,
+		app.ServiceByType(EchoServiceInterface),
+		app.ServiceByKey(service.InterfaceTypeToServiceKey(EchoServiceInterface)),
+	}
+
 	app.Service().Stop()
 	for i, client := range serviceClients {
 		if !client.Service().State().Stopped() {
@@ -101,15 +117,41 @@ func TestApplicationContext_RegisterService(t *testing.T) {
 	serviceClient.Restart()
 	t.Log("service is being restarted ...")
 	echoWaitGroup.Wait()
+}
 
+func TestApplicationContext_UnRegisterService(t *testing.T) {
+	app := service.NewApplicationContext()
+	app.Service().StartAsync()
+	app.Service().AwaitUntilRunning()
+	defer app.Service().Stop()
+	serviceClient := app.RegisterService(EchoServiceClientConstructor)
 	if app.RegisterService(EchoServiceClientConstructor) != nil {
 		t.Errorf("nil should have been returned because the service is already registered")
+	}
+	if app.ServiceCount() != 1 {
+		t.Errorf("service count should be 1 , but was %d", app.ServiceCount())
 	}
 	if !app.UnRegisterService(serviceClient) {
 		t.Errorf("the service should have been unregistered")
 	}
+	if app.ServiceCount() != 0 {
+		t.Errorf("service count should be 0 , but was %d", app.ServiceCount())
+	}
 	if app.UnRegisterService(serviceClient) {
 		t.Errorf("the service should not be registered")
+	}
+	serviceClient2 := app.RegisterService(EchoServiceClientConstructor)
+	if serviceClient2 == nil {
+		t.Errorf("service should have been registered")
+	}
+	if serviceClient == serviceClient2 {
+		t.Errorf("A new ServiceClient instance should have been returned")
+	}
+	if serviceClient2 != app.ServiceByType(EchoServiceInterface) {
+		t.Errorf("the registered service client instance should be the same instance")
+	}
+	if serviceClient == app.ServiceByType(EchoServiceInterface) {
+		t.Errorf("the registered service client instance should be different")
 	}
 }
 
