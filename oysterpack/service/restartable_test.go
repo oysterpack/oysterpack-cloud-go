@@ -42,7 +42,7 @@ func TestRestartableService_RestartService(t *testing.T) {
 		t.Fatalf("service state should be Running, but is %q", service.Service().State())
 	}
 	service1 := service.Service()
-	service.RestartService()
+	service.Restart()
 	service.Service().AwaitUntilRunning()
 	t.Logf("service state after restarting : %q", service.Service().State())
 	if !service.Service().State().Running() {
@@ -59,7 +59,7 @@ func TestRestartableService_RestartService(t *testing.T) {
 		t.Fatalf("service state should be stopped, but is %q", service.Service().State())
 	}
 	service1 = service.Service()
-	service.RestartService()
+	service.Restart()
 	if service1 == service.Service() {
 		t.Fatal("A new service instance should have been created")
 	}

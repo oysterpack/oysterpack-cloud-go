@@ -87,8 +87,8 @@ func (a *EchoServiceClient) run(ctx *service.RunContext) error {
 	}
 }
 
-// EchoServiceConstructor is the ServiceClientConstructor
-func EchoServiceConstructor() service.ServiceClient {
+// EchoServiceClientConstructor is a ServiceClientConstructor
+func EchoServiceClientConstructor() service.ServiceClient {
 	serviceClient := &EchoServiceClient{
 		echo: make(chan *EchoRequest),
 	}
@@ -102,7 +102,7 @@ type HeartbeatService interface {
 	Ping() time.Duration
 }
 
-var HeartbeatServiceInterface commons.InterfaceType = echoServiceInterfaceType()
+var HeartbeatServiceInterface commons.InterfaceType = heartbeatServiceInterfaceType()
 
 func heartbeatServiceInterfaceType() commons.InterfaceType {
 	var prototype HeartbeatService = &HeartbeatServiceClient{}
@@ -147,7 +147,7 @@ func (a *HeartbeatServiceClient) newService() *service.Service {
 	return service.NewService(serviceInterface, nil, a.run, nil)
 }
 
-func HeartbeatServiceConstructor() service.ServiceClient {
+func HeartbeatServiceClientConstructor() service.ServiceClient {
 	serviceClient := &HeartbeatServiceClient{
 		pingChan: make(chan *PingRequest),
 	}

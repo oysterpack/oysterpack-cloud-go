@@ -16,44 +16,55 @@ package service
 
 import "sync"
 
-// RestartableService manages provides support to "restart" the service.
+// Restartable provides restart functionality
+type Restartable interface {
+	Restart()
+	RestartCount() int
+}
+
+// RestartableService implements the ServiceClient interface - it has a service reference that is restartable.
 // The service is not really restarted because it is illegal to start a service that has been stopped.
-// Instead a new instance of the service is created (via the provided ServiceConstructor) and then started
+// Instead a new instance of the service is created (via the provided ServiceConstructor) and then started.
 // New instances should be created using NewRestartableService()
 type RestartableService struct {
 	serviceMutex sync.RWMutex
 	service      *Service
 	restartCount int
 
-	NewService ServiceConstructor
+	// is used to create a new instance of the service each time the service is restarted
+	newService ServiceConstructor
 }
 
-// Service returns the managed service instance
+// Service returns the managed service instance.
+// When the service is restarted, a new service instance is created. This means the service pointer will point will change
+// each time the service is restarted.
 func (a *RestartableService) Service() *Service {
 	a.serviceMutex.RLock()
 	defer a.serviceMutex.RUnlock()
 	return a.service
 }
 
-// RestartService restarts the service. It performs the following steps:
+// Restart restarts the service. It performs the following steps:
 // 1. stops the service
 // 2. waits for the service to stop
 // 3. starts the service async
 // 4. increments the restart counter
-func (a *RestartableService) RestartService() {
+func (a *RestartableService) Restart() {
 	a.serviceMutex.Lock()
 	defer a.serviceMutex.Unlock()
 	if a.service != nil {
 		a.service.StopAsyc()
 		a.service.AwaitUntilStopped()
 	}
-	a.service = a.NewService()
+	a.service = a.newService()
 	a.service.StartAsync()
 	a.restartCount++
 }
 
 // RestartCount returns the number of times the service has been restarted
 func (a *RestartableService) RestartCount() int {
+	a.serviceMutex.RLock()
+	defer a.serviceMutex.RUnlock()
 	return a.restartCount
 }
 
@@ -61,6 +72,6 @@ func (a *RestartableService) RestartCount() int {
 func NewRestartableService(newService ServiceConstructor) *RestartableService {
 	return &RestartableService{
 		service:    newService(),
-		NewService: newService,
+		newService: newService,
 	}
 }

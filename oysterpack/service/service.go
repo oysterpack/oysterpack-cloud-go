@@ -31,7 +31,7 @@ import (
 // 1. Services have a lifecycle defined by its Init, Run, and Destroy functions
 // - the service lifecyle state is maintained via ServiceState
 // - each state transition is logged as a STATE_CHANGED event
-// - services must be created using NewService()
+// - services must be created using newService()
 // - when shut down is triggered the STOP_TRIGGERED event is logged
 // 2. Services run in their own separate goroutine
 // 3. Each service has their own logger.
@@ -120,7 +120,7 @@ func (ctx *RunContext) StopTrigger() StopTrigger {
 // Destroy is a function that is used to perform any cleanup during service shutdown.
 type Destroy func(*Context) error
 
-// NewService creates and returns a new Service instance in the 'New' state.
+// newService creates and returns a new Service instance in the 'New' state.
 //
 // serviceInterface:
 // - must be an interface which defines the service's interface
@@ -186,7 +186,7 @@ func NewService(serviceInterface commons.InterfaceType, init Init, run Run, dest
 	}
 
 	svcLog := logger.With().Dict(logging.SERVICE, logging.ServiceDict(serviceInterface)).Logger()
-	svcLog.Info().Str(logging.FUNC, "NewService").Msg("")
+	svcLog.Info().Str(logging.FUNC, "newService").Msg("")
 
 	return &Service{
 		serviceInterface: serviceInterface,
@@ -417,3 +417,7 @@ type StopTrigger <-chan struct{}
 
 // ServiceConstructor returns a new instance of a Service in the New state
 type ServiceConstructor func() *Service
+
+type ServiceReference interface {
+	Service() *Service
+}

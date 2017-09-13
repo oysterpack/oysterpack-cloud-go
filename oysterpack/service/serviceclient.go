@@ -14,20 +14,20 @@
 
 package service
 
-// ServiceClient represents the client interface. If follows the client-server model.
-// The client must implement the service interface - this is verified at runtime when registered with the Application.
+// ServiceClient represents the client interface. If follows the client-server design pattern.
+// The ServiceClient instance must implement the reference service interface - this is verified at runtime when registered with the Application.
 //
 // The client instance is stable, meaning when retrieved from the Application, the same instance is returned.
-// The backend service instance is not stable - meaning the instance may change. The backend service may be restarted,
-// which means a new service instance will be created. The client and server instances are decoupled using channels to
-// communicate. The client owns the channels.
+// The backend service instance is not stable - meaning the instance may change over time, i.e. when restarted.
 //
-// For restart functionality, RestartableService can be leveraged to simplify the implementation.
+// The client and server instances are decoupled using channels to communicate. Each service interface method should use
+// a typed channel to communicate with the "backend" service reference. The backend service's Run function becomes a message processor.
+//
+// Implementation : RestartableService
 type ServiceClient interface {
-	Service() *Service
+	ServiceReference
 
-	// restarts the service backend
-	RestartService()
+	Restartable
 }
 
 // ServiceClientConstructor is a service factory function that will construct a new Service instance and return a pointer to it.

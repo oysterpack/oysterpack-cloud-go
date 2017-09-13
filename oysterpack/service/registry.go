@@ -19,14 +19,14 @@ import (
 	"github.com/oysterpack/oysterpack.go/oysterpack/commons"
 )
 
-// ServiceRegistry is a service registry.
-// A Service registers itself as a ServiceClient - via a ServiceClientConstructor.
-type ServiceRegistry interface {
+// ServiceClientRegistry is a ServiceClient registry.
+// It is used to register/unregister ServiceClient(s) and lookup ServiceClient(s).
+type ServiceClientRegistry interface {
 	// ServiceByType looks up a service and returns nil if the service is not founc.
 	ServiceByType(serviceInterface commons.InterfaceType) ServiceClient
 
 	// ServiceByKey looks up a service and returns nil if the service is not founc.
-	ServiceByKey(key *ServiceKey) ServiceClient
+	ServiceByKey(key ServiceKey) ServiceClient
 
 	// Services returns the list of registered services as ServiceClient(s)
 	Services() []ServiceClient
@@ -37,7 +37,7 @@ type ServiceRegistry interface {
 	ServiceInterfaces() []commons.InterfaceType
 
 	// ServiceKeys returns the ServiceKey(s) for all registered services
-	ServiceKeys() []*ServiceKey
+	ServiceKeys() []ServiceKey
 
 	// RegisterService will create a new instance of the service using the supplied service constructor.
 	// The ServiceClient must implement the service interface - otherwise the method panics.
@@ -48,7 +48,7 @@ type ServiceRegistry interface {
 
 	// UnRegisterService will unregister the service and returns false if no such service is registered.
 	// The service is simply unregistered, i.e., it is not stopped.
-	UnRegisterService(service *Service) bool
+	UnRegisterService(service ServiceClient) bool
 }
 
 // ServiceKey represents the service interface.
@@ -63,8 +63,8 @@ func (s *ServiceKey) String() string {
 }
 
 // InterfaceTypeToServiceKey converts an interface type to a ServiceKey
-func InterfaceTypeToServiceKey(serviceInterface commons.InterfaceType) *ServiceKey {
-	return &ServiceKey{
+func InterfaceTypeToServiceKey(serviceInterface commons.InterfaceType) ServiceKey {
+	return ServiceKey{
 		commons.PackagePath(serviceInterface.PkgPath()),
 		commons.TypeName(serviceInterface.Name()),
 	}

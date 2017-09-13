@@ -31,7 +31,7 @@ var App Application = NewApplicationContext()
 
 // Application is a service interface. It's functionality is defined by the interfaces it composes.
 type Application interface {
-	ServiceRegistry
+	ServiceClientRegistry
 }
 
 // ApplicationContext.services map entry type
@@ -69,7 +69,7 @@ func NewApplicationContext() *ApplicationContext {
 	}
 	var service Application = app
 	serviceInterface, _ := commons.ObjectInterface(&service)
-	app.service = NewService(serviceInterface, nil, nil, app.destroy)
+	app.service = NewService(serviceInterface, nil, app.run, app.destroy)
 	return app
 }
 
@@ -86,11 +86,11 @@ func (a *ApplicationContext) ServiceByType(serviceInterface commons.InterfaceTyp
 
 // ServiceByKey looks up a service by ServiceKey and returns the registered ServiceClient.
 // If the service is not found, then nil is returned.
-func (a *ApplicationContext) ServiceByKey(serviceKey *ServiceKey) ServiceClient {
+func (a *ApplicationContext) ServiceByKey(serviceKey ServiceKey) ServiceClient {
 	a.mutex.RLock()
 	defer a.mutex.RUnlock()
 	for _, s := range a.services {
-		if *InterfaceTypeToServiceKey(s.Service().serviceInterface) == *serviceKey {
+		if InterfaceTypeToServiceKey(s.Service().serviceInterface) == serviceKey {
 			return s.ServiceClient
 		}
 	}
@@ -113,7 +113,7 @@ func (a *ApplicationContext) ServiceInterfaces() []commons.InterfaceType {
 	a.mutex.RLock()
 	defer a.mutex.RUnlock()
 	interfaces := []commons.InterfaceType{}
-	for k, _ := range a.services {
+	for k := range a.services {
 		interfaces = append(interfaces, k)
 	}
 	return interfaces
@@ -124,10 +124,10 @@ func (a *ApplicationContext) ServiceCount() int {
 }
 
 // ServiceKeys returns ServiceKey(s) for all registered services
-func (a *ApplicationContext) ServiceKeys() []*ServiceKey {
+func (a *ApplicationContext) ServiceKeys() []ServiceKey {
 	a.mutex.RLock()
 	defer a.mutex.RUnlock()
-	interfaces := []*ServiceKey{}
+	interfaces := []ServiceKey{}
 	for _, v := range a.ServiceInterfaces() {
 		interfaces = append(interfaces, InterfaceTypeToServiceKey(v))
 	}
@@ -154,11 +154,11 @@ func (a *ApplicationContext) RegisterService(newService ServiceClientConstructor
 
 // UnRegisterService unregisters the specified service.
 // The service is simply unregistered, i.e., it is not stopped.
-func (a *ApplicationContext) UnRegisterService(service *Service) bool {
+func (a *ApplicationContext) UnRegisterService(service ServiceClient) bool {
 	a.mutex.Lock()
 	defer a.mutex.Unlock()
-	if _, exists := a.services[service.serviceInterface]; exists {
-		delete(a.services, service.serviceInterface)
+	if _, exists := a.services[service.Service().serviceInterface]; exists {
+		delete(a.services, service.Service().serviceInterface)
 		return true
 	}
 	return false

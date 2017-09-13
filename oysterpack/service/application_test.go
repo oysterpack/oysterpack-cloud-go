@@ -17,6 +17,7 @@ package service_test
 import (
 	"github.com/oysterpack/oysterpack.go/oysterpack/commons"
 	"github.com/oysterpack/oysterpack.go/oysterpack/service"
+	"reflect"
 	"sync"
 	"testing"
 )
@@ -26,7 +27,7 @@ func TestApplicationContext_RegisterService(t *testing.T) {
 	app.Service().StartAsync()
 	app.Service().AwaitUntilRunning()
 	defer app.Service().Stop()
-	serviceClient := app.RegisterService(EchoServiceConstructor)
+	serviceClient := app.RegisterService(EchoServiceClientConstructor)
 	if err := serviceClient.Service().AwaitUntilRunning(); err != nil {
 		t.Fatal(err)
 	}
@@ -65,7 +66,7 @@ func TestApplicationContext_RegisterService(t *testing.T) {
 			t.Error("service should be stopped : %d", i)
 		}
 	}
-	serviceClient.RestartService()
+	serviceClient.Restart()
 	serviceClient.Service().AwaitUntilRunning()
 	for i, client := range serviceClients {
 		if !client.Service().State().Running() {
@@ -97,9 +98,19 @@ func TestApplicationContext_RegisterService(t *testing.T) {
 		echoWaitGroup.Done()
 	}()
 	runningWaitGroup.Wait()
-	serviceClient.RestartService()
+	serviceClient.Restart()
 	t.Log("service is being restarted ...")
 	echoWaitGroup.Wait()
+
+	if app.RegisterService(EchoServiceClientConstructor) != nil {
+		t.Errorf("nil should have been returned because the service is already registered")
+	}
+	if !app.UnRegisterService(serviceClient) {
+		t.Errorf("the service should have been unregistered")
+	}
+	if app.UnRegisterService(serviceClient) {
+		t.Errorf("the service should not be registered")
+	}
 }
 
 type SimpleEchoService struct{}
@@ -154,7 +165,7 @@ func TestApplicationContext_ServiceByType_NotRegistered(t *testing.T) {
 		t.Error("ERROR: no services are registered")
 	}
 
-	app.RegisterService(EchoServiceConstructor)
+	app.RegisterService(EchoServiceClientConstructor)
 
 	serviceClients := []service.ServiceClient{
 		app.ServiceByType(EchoServiceInterface),
@@ -194,7 +205,7 @@ func TestApplicationContext_ServiceInterfaces(t *testing.T) {
 		t.Errorf("ERROR: there should be 0 services registered : %d : %d : %v", app.ServiceCount(), len(serviceInterfaces), serviceInterfaces)
 	}
 
-	echoService := app.RegisterService(EchoServiceConstructor).(EchoService)
+	echoService := app.RegisterService(EchoServiceClientConstructor).(EchoService)
 	serviceInterfaces = app.ServiceInterfaces()
 	if app.ServiceCount() != 1 {
 		t.Errorf("ERROR: there should be 1 services registered : %d : %v", len(serviceInterfaces), serviceInterfaces)
@@ -203,10 +214,11 @@ func TestApplicationContext_ServiceInterfaces(t *testing.T) {
 		t.Errorf("ERROR: there should be 1 services registered : %d : %d : %v", app.ServiceCount(), len(serviceInterfaces), serviceInterfaces)
 	}
 	t.Logf("echo : %v", echoService.Echo("TestApplicationContext_ServiceInterfaces"))
-	heartbeatService := app.RegisterService(HeartbeatServiceConstructor).(HeartbeatService)
+	heartbeatService := app.RegisterService(HeartbeatServiceClientConstructor).(HeartbeatService)
 	t.Logf("heartbeat ping : %v", heartbeatService.Ping())
 
 	serviceInterfaces = app.ServiceInterfaces()
+	t.Logf("serviceInterfaces : %v", serviceInterfaces)
 	if app.ServiceCount() != 2 {
 		t.Errorf("ERROR: there should be 2 services registered : %d : %v", len(serviceInterfaces), serviceInterfaces)
 	}
@@ -224,7 +236,88 @@ func TestApplicationContext_ServiceInterfaces(t *testing.T) {
 	}
 
 	if !containsInterface(HeartbeatServiceInterface) {
-		t.Error("ERROR: EchoService was not found")
+		t.Error("ERROR: HeartbeatService was not found")
 	}
 
+	if !containsInterface(EchoServiceInterface) {
+		t.Error("ERROR: EchoService was not found")
+	}
+}
+
+func TestApplicationContext_Services(t *testing.T) {
+	app := service.NewApplicationContext()
+	app.Service().StartAsync()
+	app.Service().AwaitUntilRunning()
+	defer app.Service().Stop()
+
+	app.RegisterService(EchoServiceClientConstructor)
+	services := app.Services()
+	if len(services) != 1 {
+		t.Errorf("there should be 1 service registered : %v", services)
+	}
+
+	app.RegisterService(HeartbeatServiceClientConstructor)
+	services = app.Services()
+
+	if len(services) != 2 {
+		t.Errorf("ERROR: there should be 2 services registered : %v", services)
+	}
+
+	containsService := func(svcInterface commons.InterfaceType) bool {
+		for _, service := range services {
+			if reflect.TypeOf(service).AssignableTo(svcInterface) {
+				return true
+			}
+		}
+		return false
+	}
+
+	if !containsService(HeartbeatServiceInterface) {
+		t.Error("ERROR: HeartbeatService was not found")
+	}
+
+	if !containsService(EchoServiceInterface) {
+		t.Error("ERROR: EchoService was not found")
+	}
+}
+
+func TestApplicationContext_ServiceKeys(t *testing.T) {
+	app := service.NewApplicationContext()
+	app.Service().StartAsync()
+	app.Service().AwaitUntilRunning()
+	defer app.Service().Stop()
+
+	serviceKeys := app.ServiceKeys()
+	if len(serviceKeys) != 0 {
+		t.Errorf("ERROR: there should be 0 services registered : %d : %d : %v", app.ServiceCount(), len(serviceKeys), serviceKeys)
+	}
+
+	app.RegisterService(EchoServiceClientConstructor)
+	serviceKeys = app.ServiceKeys()
+	if len(serviceKeys) != 1 {
+		t.Errorf("ERROR: there should be 1 services registered : %v", serviceKeys)
+	}
+	app.RegisterService(HeartbeatServiceClientConstructor)
+	serviceKeys = app.ServiceKeys()
+	t.Logf("serviceKeys : %v", serviceKeys)
+	if len(serviceKeys) != 2 {
+		t.Errorf("ERROR: there should be 2 services registered : %d : %d : %v", app.ServiceCount(), len(serviceKeys), serviceKeys)
+	}
+
+	containsInterface := func(svcInterface commons.InterfaceType) bool {
+		for _, key := range serviceKeys {
+			if service.InterfaceTypeToServiceKey(svcInterface) == key {
+				return true
+			}
+		}
+		return false
+	}
+
+	if !containsInterface(HeartbeatServiceInterface) {
+		t.Error("ERROR: HeartbeatService was not found")
+	}
+
+	if !containsInterface(EchoServiceInterface) {
+		t.Error("ERROR: EchoService was not found")
+	}
 }
