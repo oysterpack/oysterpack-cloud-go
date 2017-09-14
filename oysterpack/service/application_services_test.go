@@ -72,7 +72,7 @@ func (a *EchoServiceClient) Echo(msg interface{}) interface{} {
 func (a *EchoServiceClient) newService() *service.Service {
 	var svc EchoService = a
 	serviceInterface, _ := commons.ObjectInterface(&svc)
-	return service.NewService(serviceInterface, nil, a.run, nil)
+	return service.NewService(service.NewServiceParams{ServiceInterface: serviceInterface, Run: a.run})
 }
 
 // Service Run func
@@ -144,7 +144,7 @@ func (a *HeartbeatServiceClient) run(ctx *service.RunContext) error {
 func (a *HeartbeatServiceClient) newService() *service.Service {
 	var svc HeartbeatService = a
 	serviceInterface, _ := commons.ObjectInterface(&svc)
-	return service.NewService(serviceInterface, nil, a.run, nil)
+	return service.NewService(service.NewServiceParams{ServiceInterface: serviceInterface, Run: a.run})
 }
 
 func HeartbeatServiceClientConstructor(application service.Application) service.ServiceClient {

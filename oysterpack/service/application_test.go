@@ -186,7 +186,7 @@ func TestApplicationContext_RegisterService_ServiceClientNotAssignableToServiceI
 				RestartableService: service.NewRestartableService(func() *service.Service {
 					var svc EchoService = &SimpleEchoService{}
 					serviceInterface, _ := commons.ObjectInterface(&svc)
-					return service.NewService(serviceInterface, nil, nil, nil)
+					return service.NewService(service.NewServiceParams{ServiceInterface: serviceInterface})
 				}),
 			}
 		})
@@ -377,7 +377,7 @@ func TestApplicationContext_ServiceByTypeAsync(t *testing.T) {
 		defer wait.Done()
 		serviceClient := <-serviceTicket.Channel()
 		echoService := serviceClient.(EchoService)
-		t.Log(echoService.Echo("service ticket has been fullfilled"))
+		t.Log(echoService.Echo("service ticket has been fulfilled"))
 	}()
 	if app.ServiceTicketCounts()[EchoServiceInterface] != 1 {
 		t.Errorf("There should be ticket in the queue for the EchoService : %d", app.ServiceTicketCounts()[EchoServiceInterface])
@@ -388,7 +388,7 @@ func TestApplicationContext_ServiceByTypeAsync(t *testing.T) {
 	serviceTicket = app.ServiceByTypeAsync(EchoServiceInterface)
 	serviceClient := <-serviceTicket.Channel()
 	echoService := serviceClient.(EchoService)
-	t.Log(echoService.Echo("service ticket has been fullfilled"))
+	t.Log(echoService.Echo("service ticket has been fulfilled"))
 
 	const count = 100
 	wait.Add(count)
@@ -397,7 +397,7 @@ func TestApplicationContext_ServiceByTypeAsync(t *testing.T) {
 			defer wait.Done()
 			serviceClient := <-serviceTicket.Channel()
 			echoService := serviceClient.(EchoService)
-			t.Logf("#%d : %s", index, echoService.Echo("service ticket has been fullfilled"))
+			t.Logf("#%d : %s", index, echoService.Echo("service ticket has been fulfilled"))
 		}(i, app.ServiceByTypeAsync(EchoServiceInterface))
 	}
 	wait.Wait()

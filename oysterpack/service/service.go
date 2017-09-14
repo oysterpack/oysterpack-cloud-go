@@ -79,6 +79,10 @@ type lifeCycle struct {
 	init    Init
 	run     Run
 	destroy Destroy
+
+	// for informational purposes
+	// can also be used to validate an application, i.e., are all service dependencies satisfied by the application
+	ServiceDependencies []commons.InterfaceType
 }
 
 // Context represents the service context that is exposed to the Init and Destroy funcs
@@ -112,6 +116,18 @@ func (ctx *RunContext) StopTrigger() StopTrigger {
 // Destroy is a function that is used to perform any cleanup during service shutdown.
 type Destroy func(*Context) error
 
+type NewServiceParams struct {
+	ServiceInterface commons.InterfaceType
+
+	Init
+	Run
+	Destroy
+
+	// for informational purposes
+	// can also be used to validate an application, i.e., are all service dependencies satisfied by the application
+	ServiceDependencies []commons.InterfaceType
+}
+
 // NewService creates and returns a new Service instance in the 'New' state.
 //
 // serviceInterface:
@@ -119,77 +135,103 @@ type Destroy func(*Context) error
 // - if nil or not an interface, then the method panics
 // All service life cycle functions are optional.
 // Any panic that occurs in the supplied functions is converted to a PanicError.
-func NewService(serviceInterface commons.InterfaceType, init Init, run Run, destroy Destroy) *Service {
-	if serviceInterface == nil {
-		panic("serviceInterface is required")
-	}
-	switch serviceInterface.Kind() {
-	case reflect.Interface:
-	default:
-		if kind := serviceInterface.Elem().Kind(); kind != reflect.Interface {
-			panic(fmt.Sprintf("serviceInterface (%T) must be an interface, but was a %v", serviceInterface, kind))
-		}
-		serviceInterface = serviceInterface.Elem()
-	}
+func NewService(params NewServiceParams) *Service {
+	serviceInterface := params.ServiceInterface
+	init := params.Init
+	run := params.Run
+	destroy := params.Destroy
 
-	if init == nil {
-		init = func(ctx *Context) error { return nil }
-	} else {
-		_init := init
-		init = func(ctx *Context) (err error) {
-			defer func() {
-				if p := recover(); p != nil {
-					err = &PanicError{Panic: p, Message: "Service.init()"}
-				}
-			}()
-			return _init(ctx)
+	checkServiceInterface := func() {
+		if serviceInterface == nil {
+			panic("serviceInterface is required")
+		}
+		switch serviceInterface.Kind() {
+		case reflect.Interface:
+		default:
+			if kind := serviceInterface.Elem().Kind(); kind != reflect.Interface {
+				panic(fmt.Sprintf("serviceInterface (%T) must be an interface, but was a %v", serviceInterface, kind))
+			}
+			serviceInterface = serviceInterface.Elem()
 		}
 	}
 
-	if run == nil {
-		run = func(ctx *RunContext) error {
-			<-ctx.StopTrigger()
-			return nil
-		}
-	} else {
-		_run := run
-		run = func(ctx *RunContext) (err error) {
-			defer func() {
-				if p := recover(); p != nil {
-					err = &PanicError{Panic: p, Message: "Service.run()"}
-				}
-			}()
-			return _run(ctx)
-		}
-	}
-
-	if destroy == nil {
-		destroy = func(ctx *Context) error { return nil }
-	} else {
-		_destroy := destroy
-		destroy = func(ctx *Context) (err error) {
-			defer func() {
-				if p := recover(); p != nil {
-					err = &PanicError{Panic: p, Message: "Service.destroy()"}
-				}
-			}()
-			return _destroy(ctx)
+	instrumentInit := func() {
+		if init == nil {
+			init = func(ctx *Context) error { return nil }
+		} else {
+			_init := init
+			init = func(ctx *Context) (err error) {
+				defer func() {
+					if p := recover(); p != nil {
+						err = &PanicError{Panic: p, Message: "Service.init()"}
+					}
+				}()
+				return _init(ctx)
+			}
 		}
 	}
 
-	svcLog := logger.With().Dict(logging.SERVICE, logging.InterfaceTypeDict(serviceInterface)).Logger()
-	svcLog.Info().Str(logging.FUNC, "newService").Msg("")
-
-	return &Service{
-		serviceInterface: serviceInterface,
-		lifeCycle: lifeCycle{
-			serviceState: NewServiceState(),
-			init:         init,
-			run:          run,
-			destroy:      destroy,
-		},
-		Logger: svcLog,
+	instrumentRun := func() {
+		if run == nil {
+			run = func(ctx *RunContext) error {
+				<-ctx.StopTrigger()
+				return nil
+			}
+		} else {
+			_run := run
+			run = func(ctx *RunContext) (err error) {
+				defer func() {
+					if p := recover(); p != nil {
+						err = &PanicError{Panic: p, Message: "Service.run()"}
+					}
+				}()
+				return _run(ctx)
+			}
+		}
 	}
+
+	instrumentDestroy := func() {
+		if destroy == nil {
+			destroy = func(ctx *Context) error { return nil }
+		} else {
+			_destroy := destroy
+			destroy = func(ctx *Context) (err error) {
+				defer func() {
+					if p := recover(); p != nil {
+						err = &PanicError{Panic: p, Message: "Service.destroy()"}
+					}
+				}()
+				return _destroy(ctx)
+			}
+		}
+	}
+
+	newService := func() *Service {
+		svcLog := logger.With().Dict(logging.SERVICE, logging.InterfaceTypeDict(serviceInterface)).Logger()
+		svcLog.Info().Str(logging.FUNC, "NewService").Msg("")
+
+		service := &Service{
+			serviceInterface: serviceInterface,
+			lifeCycle: lifeCycle{
+				serviceState: NewServiceState(),
+				init:         init,
+				run:          run,
+				destroy:      destroy,
+			},
+			Logger: svcLog,
+		}
+		if len(params.ServiceDependencies) > 0 {
+			service.ServiceDependencies = make([]commons.InterfaceType, len(params.ServiceDependencies))
+			copy(service.ServiceDependencies, params.ServiceDependencies)
+		}
+		return service
+	}
+
+	checkServiceInterface()
+	instrumentInit()
+	instrumentRun()
+	instrumentDestroy()
+	return newService()
 }
 
 // State returns the current State

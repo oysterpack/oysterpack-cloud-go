@@ -106,7 +106,7 @@ func NewApplicationContext() *ApplicationContext {
 	}
 	var service Application = app
 	serviceInterface, _ := commons.ObjectInterface(&service)
-	app.service = NewService(serviceInterface, nil, app.run, app.destroy)
+	app.service = NewService(NewServiceParams{ServiceInterface: serviceInterface, Run: app.run, Destroy: app.destroy})
 	return app
 }
 

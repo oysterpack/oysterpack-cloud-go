@@ -15,6 +15,7 @@
 package service_test
 
 import (
+	"github.com/oysterpack/oysterpack.go/oysterpack/commons"
 	"github.com/oysterpack/oysterpack.go/oysterpack/service"
 	"reflect"
 	"testing"
@@ -26,12 +27,13 @@ type Foo struct{}
 
 var foo FooService = Foo{}
 
-func TestNewService_WithNilLifeCycleFunctions(t *testing.T) {
-	var init service.Init = nil
-	var run service.Run = nil
-	var destroy service.Destroy = nil
+type BarService interface{}
+type Bar struct{}
 
-	server := service.NewService(reflect.TypeOf(&foo), init, run, destroy)
+var bar BarService = Bar{}
+
+func TestNewService_WithNilLifeCycleFunctions(t *testing.T) {
+	server := service.NewService(service.NewServiceParams{ServiceInterface: reflect.TypeOf(&foo)})
 	if !server.State().New() {
 		t.Errorf("Service state should be 'New', but instead was : %q", server.State())
 	}
@@ -80,11 +82,7 @@ func TestNewService_WithNilLifeCycleFunctions(t *testing.T) {
 }
 
 func TestNewService_StoppingNewService(t *testing.T) {
-	var init service.Init = nil
-	var run service.Run = nil
-	var destroy service.Destroy = nil
-
-	server := service.NewService(reflect.TypeOf(&foo), init, run, destroy)
+	server := service.NewService(service.NewServiceParams{ServiceInterface: reflect.TypeOf(&foo)})
 	if !stopService(server, t) {
 		t.Error("The service should have stopped")
 	}
@@ -98,11 +96,7 @@ func TestNewService_StoppingNewService(t *testing.T) {
 }
 
 func TestNewService_AwaitBlocking(t *testing.T) {
-	var init service.Init = nil
-	var run service.Run = nil
-	var destroy service.Destroy = nil
-
-	server := service.NewService(reflect.TypeOf(&foo), init, run, destroy)
+	server := service.NewService(service.NewServiceParams{ServiceInterface: reflect.TypeOf(&foo)})
 	server.StartAsync()
 	server.AwaitRunning(0)
 	if !server.State().Running() {
@@ -138,7 +132,7 @@ func TestNewService_WithNonNilLifeCycleFunctions(t *testing.T) {
 		return nil
 	}
 
-	server := service.NewService(reflect.TypeOf(&foo), init, run, destroy)
+	server := service.NewService(service.NewServiceParams{ServiceInterface: reflect.TypeOf(&foo), Init: init, Run: run, Destroy: destroy})
 	if !server.State().New() {
 		t.Errorf("Service state should be 'New', but instead was : %q", server.State())
 	}
@@ -176,7 +170,7 @@ func TestNewService_InitPanics(t *testing.T) {
 		return nil
 	}
 
-	server := service.NewService(reflect.TypeOf(&foo), init, run, destroy)
+	server := service.NewService(service.NewServiceParams{ServiceInterface: reflect.TypeOf(&foo), Init: init, Run: run, Destroy: destroy})
 	if !server.State().New() {
 		t.Errorf("Service state should be 'New', but instead was : %q", server.State())
 	}
@@ -225,7 +219,7 @@ func TestNewService_RunPanics(t *testing.T) {
 		return nil
 	}
 
-	server := service.NewService(reflect.TypeOf(&foo), init, run, destroy)
+	server := service.NewService(service.NewServiceParams{ServiceInterface: reflect.TypeOf(&foo), Init: init, Run: run, Destroy: destroy})
 	if !server.State().New() {
 		t.Errorf("Service state should be 'New', but instead was : %q", server.State())
 	}
@@ -281,7 +275,7 @@ func TestNewService_DestroyPanics(t *testing.T) {
 		panic("Destroy is panicking")
 	}
 
-	server := service.NewService(reflect.TypeOf(&foo), init, run, destroy)
+	server := service.NewService(service.NewServiceParams{ServiceInterface: reflect.TypeOf(&foo), Init: init, Run: run, Destroy: destroy})
 	if !server.State().New() {
 		t.Errorf("Service state should be 'New', but instead was : %q", server.State())
 	}
@@ -299,6 +293,23 @@ func TestNewService_DestroyPanics(t *testing.T) {
 		t.Errorf("Service state should be 'Terminated', but instead was : %q", server.State())
 	}
 	t.Log(server.FailureCause())
+}
+
+func TestService_ServiceDependencies(t *testing.T) {
+	serviceDependency, _ := commons.ObjectInterface(&bar)
+	service := service.NewService(service.NewServiceParams{ServiceInterface: reflect.TypeOf(&foo), ServiceDependencies: []commons.InterfaceType{serviceDependency}})
+	if len(service.ServiceDependencies) != 1 {
+		t.Errorf("Bar should have been added as a service dependency")
+	}
+	var barInterface commons.InterfaceType
+	for _, v := range service.ServiceDependencies {
+		if v == serviceDependency {
+			barInterface = v
+		}
+	}
+	if barInterface != serviceDependency {
+		t.Errorf("barInterface should == Bar, but was : %v", barInterface)
+	}
 }
 
 // startService waits up to 3 seconds for the server to start - checking every second
