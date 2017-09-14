@@ -26,9 +26,13 @@ import (
 	"time"
 )
 
-// App is a global variable
-// It is used to register services application wide, i.e., process wide
-var App Application = NewApplicationContext()
+var app Application = NewApplicationContext()
+
+// App exposes the Application globally. An Application instance is created automatically when this package is loaded.
+// Use cases:
+// 1. It can be used by package init functions to register services
+// 2. It can be used to integrate application services with third party libraries.
+func App() Application { return app }
 
 // Application is a service interface. It's functionality is defined by the interfaces it composes.
 type Application interface {
@@ -62,13 +66,14 @@ type ApplicationContext struct {
 	serviceTickets      []*ServiceTicket
 }
 
-// represents a ticket issued to a user waiting for a service
+// ServiceTicket represents a ticket issued to a user waiting for a service
 type ServiceTicket struct {
 	// the type of service the user is waiting for
 	commons.InterfaceType
 	// used to deliver the ServiceClient to the user
 	channel chan ServiceClient
 
+	// when the ticket was created
 	time.Time
 }
 
@@ -219,7 +224,7 @@ func (a *ApplicationContext) ServiceKeys() []ServiceKey {
 func (a *ApplicationContext) RegisterService(newService ServiceClientConstructor) ServiceClient {
 	a.mutex.Lock()
 	defer a.mutex.Unlock()
-	service := newService()
+	service := newService(a)
 	if !reflect.TypeOf(service).AssignableTo(service.Service().serviceInterface) {
 		panic(fmt.Sprintf("%T is not assignable to %v", reflect.TypeOf(service), service.Service().serviceInterface))
 	}

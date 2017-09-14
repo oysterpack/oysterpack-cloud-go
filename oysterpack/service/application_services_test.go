@@ -88,7 +88,7 @@ func (a *EchoServiceClient) run(ctx *service.RunContext) error {
 }
 
 // EchoServiceClientConstructor is a ServiceClientConstructor
-func EchoServiceClientConstructor() service.ServiceClient {
+func EchoServiceClientConstructor(application service.Application) service.ServiceClient {
 	serviceClient := &EchoServiceClient{
 		echo: make(chan *EchoRequest),
 	}
@@ -147,7 +147,7 @@ func (a *HeartbeatServiceClient) newService() *service.Service {
 	return service.NewService(serviceInterface, nil, a.run, nil)
 }
 
-func HeartbeatServiceClientConstructor() service.ServiceClient {
+func HeartbeatServiceClientConstructor(application service.Application) service.ServiceClient {
 	serviceClient := &HeartbeatServiceClient{
 		pingChan: make(chan *PingRequest),
 	}

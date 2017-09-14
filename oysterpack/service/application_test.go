@@ -181,7 +181,7 @@ func TestApplicationContext_RegisterService_ServiceClientNotAssignableToServiceI
 			}
 		}()
 
-		app.RegisterService(func() service.ServiceClient {
+		app.RegisterService(func(application service.Application) service.ServiceClient {
 			return &InvalidEchoServiceClient{
 				RestartableService: service.NewRestartableService(func() *service.Service {
 					var svc EchoService = &SimpleEchoService{}
