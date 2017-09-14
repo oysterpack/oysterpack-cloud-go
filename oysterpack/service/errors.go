@@ -110,6 +110,7 @@ func (e *ServiceDependenciesMissing) AddMissingDependency(dependency commons.Int
 	}
 }
 
+// Missing returns true if the service is missing the specified dependency
 func (e *ServiceDependenciesMissing) Missing(dependency commons.InterfaceType) bool {
 	for _, v := range e.ServiceDependencies {
 		if v == dependency {
@@ -119,6 +120,7 @@ func (e *ServiceDependenciesMissing) Missing(dependency commons.InterfaceType) b
 	return false
 }
 
+// HasMissing returns true if the service has any missing dependencies
 func (e *ServiceDependenciesMissing) HasMissing() bool {
 	return len(e.ServiceDependencies) > 0
 }

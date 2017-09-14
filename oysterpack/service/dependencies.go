@@ -14,6 +14,7 @@
 
 package service
 
+// ServiceDependencies provides functionality to get information about about service dependencies
 type ServiceDependencies interface {
 	CheckAllServiceDependencies() []*ServiceDependenciesMissing
 

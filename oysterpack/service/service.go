@@ -124,8 +124,8 @@ type NewServiceParams struct {
 	Run
 	Destroy
 
-	// for informational purposes
-	// can also be used to validate an application, i.e., are all service dependencies satisfied by the application
+	// ServiceDependencies returns the Service interfaces that this service depends on.
+	// It can be used to check if all service dependencies satisfied by the application.
 	ServiceDependencies []commons.InterfaceType
 }
 
