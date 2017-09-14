@@ -44,14 +44,6 @@ import (
 //
 // NOTE: If a reply is required, then the message will have a reply channel.
 //
-// The recommended approach is for the service implementation to implement the ClientServer interface :
-//
-// 		type ConfigService struct {
-// 			svc service.Service
-//
-//			// service specific state
-// 		}
-//
 //
 // TODO: dependencies
 // TODO: events
@@ -126,7 +118,7 @@ type Destroy func(*Context) error
 // - must be an interface which defines the service's interface
 // - if nil or not an interface, then the method panics
 // All service life cycle functions are optional.
-// Any panic that occur in the supplied functions is converted to a PanicError.
+// Any panic that occurs in the supplied functions is converted to a PanicError.
 func NewService(serviceInterface commons.InterfaceType, init Init, run Run, destroy Destroy) *Service {
 	if serviceInterface == nil {
 		panic("serviceInterface is required")
@@ -185,7 +177,7 @@ func NewService(serviceInterface commons.InterfaceType, init Init, run Run, dest
 		}
 	}
 
-	svcLog := logger.With().Dict(logging.SERVICE, logging.ServiceDict(serviceInterface)).Logger()
+	svcLog := logger.With().Dict(logging.SERVICE, logging.InterfaceTypeDict(serviceInterface)).Logger()
 	svcLog.Info().Str(logging.FUNC, "newService").Msg("")
 
 	return &Service{

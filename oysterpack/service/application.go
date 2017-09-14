@@ -17,6 +17,7 @@ package service
 import (
 	"fmt"
 	"github.com/oysterpack/oysterpack.go/oysterpack/commons"
+	"github.com/oysterpack/oysterpack.go/oysterpack/internal/utils"
 	"os"
 	"os/signal"
 	"reflect"
@@ -55,6 +56,37 @@ type ApplicationContext struct {
 
 	// ApplicationContext can be managed itself as a service
 	service *Service
+
+	// used to keep track of users who are waiting on services
+	serviceTicketsMutex sync.RWMutex
+	serviceTickets      []*ServiceTicket
+}
+
+// represents a ticket issued to a user waiting for a service
+type ServiceTicket struct {
+	// the type of service the user is waiting for
+	commons.InterfaceType
+	// used to deliver the ServiceClient to the user
+	channel chan ServiceClient
+
+	time.Time
+}
+
+// Channel used to wait for the ServiceClient
+// if nil is returned, then it means the channel was closed
+func (a *ServiceTicket) Channel() <-chan ServiceClient {
+	return a.channel
+}
+
+// ServiceTicketCounts returns the number of tickets that have been issued per service
+func (a *ApplicationContext) ServiceTicketCounts() map[commons.InterfaceType]int {
+	a.serviceTicketsMutex.RLock()
+	defer a.serviceTicketsMutex.RUnlock()
+	counts := make(map[commons.InterfaceType]int)
+	for _, ticket := range a.serviceTickets {
+		counts[ticket.InterfaceType]++
+	}
+	return counts
 }
 
 // Service returns the Application Service
@@ -82,6 +114,52 @@ func (a *ApplicationContext) ServiceByType(serviceInterface commons.InterfaceTyp
 		return s.ServiceClient
 	}
 	return nil
+}
+
+// ServiceByTypeAsync returns channel that will be used to send the ServiceClient, when one is available
+func (a *ApplicationContext) ServiceByTypeAsync(serviceInterface commons.InterfaceType) *ServiceTicket {
+	ticket := &ServiceTicket{serviceInterface, make(chan ServiceClient, 1), time.Now()}
+	serviceClient := a.ServiceByType(serviceInterface)
+	if serviceClient != nil {
+		ticket.channel <- serviceClient
+		close(ticket.channel)
+		return ticket
+	}
+
+	a.serviceTicketsMutex.Lock()
+	a.serviceTickets = append(a.serviceTickets, ticket)
+	a.serviceTicketsMutex.Unlock()
+
+	go a.checkServiceTickets()
+	return ticket
+}
+
+func (a *ApplicationContext) checkServiceTickets() {
+	a.serviceTicketsMutex.RLock()
+	defer a.serviceTicketsMutex.RUnlock()
+	for _, ticket := range a.serviceTickets {
+		serviceClient := a.ServiceByType(ticket.InterfaceType)
+		if serviceClient != nil {
+			go func(ticket *ServiceTicket) {
+				defer utils.IgnorePanic()
+				ticket.channel <- serviceClient
+				close(ticket.channel)
+			}(ticket)
+			go a.deleteServiceTicket(ticket)
+		}
+	}
+}
+
+func (a *ApplicationContext) deleteServiceTicket(ticket *ServiceTicket) {
+	a.serviceTicketsMutex.Lock()
+	defer a.serviceTicketsMutex.Unlock()
+	for i, elem := range a.serviceTickets {
+		if elem == ticket {
+			a.serviceTickets[i] = a.serviceTickets[len(a.serviceTickets)-1] // Replace it with the last one.
+			a.serviceTickets = a.serviceTickets[:len(a.serviceTickets)-1]
+			return
+		}
+	}
 }
 
 // ServiceByKey looks up a service by ServiceKey and returns the registered ServiceClient.
@@ -148,6 +226,7 @@ func (a *ApplicationContext) RegisterService(newService ServiceClientConstructor
 	if _, exists := a.services[service.Service().serviceInterface]; !exists {
 		a.services[service.Service().serviceInterface] = &registeredService{NewService: newService, ServiceClient: service}
 		service.Service().StartAsync()
+		go a.checkServiceTickets()
 		return service
 	}
 	return nil

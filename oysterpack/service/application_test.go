@@ -363,3 +363,42 @@ func TestApplicationContext_ServiceKeys(t *testing.T) {
 		t.Error("ERROR: EchoService was not found")
 	}
 }
+
+func TestApplicationContext_ServiceByTypeAsync(t *testing.T) {
+	app := service.NewApplicationContext()
+	app.Service().StartAsync()
+	app.Service().AwaitUntilRunning()
+	defer app.Service().Stop()
+
+	wait := sync.WaitGroup{}
+	serviceTicket := app.ServiceByTypeAsync(EchoServiceInterface)
+	wait.Add(1)
+	go func() {
+		defer wait.Done()
+		serviceClient := <-serviceTicket.Channel()
+		echoService := serviceClient.(EchoService)
+		t.Log(echoService.Echo("service ticket has been fullfilled"))
+	}()
+	if app.ServiceTicketCounts()[EchoServiceInterface] != 1 {
+		t.Errorf("There should be ticket in the queue for the EchoService : %d", app.ServiceTicketCounts()[EchoServiceInterface])
+	}
+	app.RegisterService(EchoServiceClientConstructor)
+	wait.Wait()
+
+	serviceTicket = app.ServiceByTypeAsync(EchoServiceInterface)
+	serviceClient := <-serviceTicket.Channel()
+	echoService := serviceClient.(EchoService)
+	t.Log(echoService.Echo("service ticket has been fullfilled"))
+
+	const count = 100
+	wait.Add(count)
+	for i := 0; i < count; i++ {
+		go func(index int, serviceTicket *service.ServiceTicket) {
+			defer wait.Done()
+			serviceClient := <-serviceTicket.Channel()
+			echoService := serviceClient.(EchoService)
+			t.Logf("#%d : %s", index, echoService.Echo("service ticket has been fullfilled"))
+		}(i, app.ServiceByTypeAsync(EchoServiceInterface))
+	}
+	wait.Wait()
+}
