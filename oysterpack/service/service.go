@@ -116,6 +116,7 @@ func (ctx *RunContext) StopTrigger() StopTrigger {
 // Destroy is a function that is used to perform any cleanup during service shutdown.
 type Destroy func(*Context) error
 
+// NewServiceParams is used by NewService to create a new service instance
 type NewServiceParams struct {
 	ServiceInterface commons.InterfaceType
 
@@ -352,54 +353,59 @@ func (svc *Service) AwaitUntilStopped() error {
 // A stopped service may not be restarted.
 func (svc *Service) StartAsync() error {
 	const FUNC = "StartAsync"
-	if svc.serviceState.state.New() {
-		go func() {
-			svc.stopTrigger = make(chan struct{})
-			ctx := &Context{
-				service: svc,
-			}
-			svc.serviceState.Starting()
-			if err := svc.init(ctx); err != nil {
-				svc.destroy(ctx)
-				svc.serviceState.Failed(&ServiceError{State: Starting, Err: err})
-				return
-			}
-			runCtx := &RunContext{
-				service: svc,
-			}
-			svc.serviceState.Running()
-			if err := svc.run(runCtx); err != nil {
-				svc.destroy(ctx)
-				svc.serviceState.Failed(&ServiceError{State: Running, Err: err})
-				return
-			}
-			svc.serviceState.Stopping()
-			if err := svc.destroy(ctx); err != nil {
-				svc.serviceState.Failed(&ServiceError{State: Stopping, Err: err})
-				return
-			}
-			svc.serviceState.Terminated()
-		}()
-		// log state changes
-		go func() {
-			l := svc.lifeCycle.serviceState.NewStateChangeListener()
-			for stateChange := range l.Channel() {
-				svc.Logger.Info().
-					Dict(logging.EVENT, STATE_CHANGED.Dict()).
-					Str(logging.STATE, stateChange.String()).
-					Msg("")
-			}
-		}()
-		svc.Logger.Info().Str(logging.FUNC, FUNC).Msg("")
 
-		return nil
+	if !svc.serviceState.state.New() {
+		err := &IllegalStateError{
+			State:   svc.serviceState.state,
+			Message: "A service can only be started in the 'New' state",
+		}
+		svc.Logger.Info().Str(logging.FUNC, FUNC).Err(err).Msg("")
+		return err
 	}
-	err := &IllegalStateError{
-		State:   svc.serviceState.state,
-		Message: "A service can only be started in the 'New' state",
-	}
-	svc.Logger.Info().Str(logging.FUNC, FUNC).Err(err).Msg("")
-	return err
+
+	// log state changes
+	go func() {
+		l := svc.lifeCycle.serviceState.NewStateChangeListener()
+		for stateChange := range l.Channel() {
+			svc.Logger.Info().
+				Dict(logging.EVENT, STATE_CHANGED.Dict()).
+				Str(logging.STATE, stateChange.String()).
+				Msg("")
+		}
+	}()
+
+	// start up the service
+	go func() {
+		svc.stopTrigger = make(chan struct{})
+		ctx := &Context{
+			service: svc,
+		}
+		svc.serviceState.Starting()
+		if err := svc.init(ctx); err != nil {
+			svc.destroy(ctx)
+			svc.serviceState.Failed(&ServiceError{State: Starting, Err: err})
+			return
+		}
+		runCtx := &RunContext{
+			service: svc,
+		}
+		svc.serviceState.Running()
+		if err := svc.run(runCtx); err != nil {
+			svc.destroy(ctx)
+			svc.serviceState.Failed(&ServiceError{State: Running, Err: err})
+			return
+		}
+		svc.serviceState.Stopping()
+		if err := svc.destroy(ctx); err != nil {
+			svc.serviceState.Failed(&ServiceError{State: Stopping, Err: err})
+			return
+		}
+		svc.serviceState.Terminated()
+	}()
+
+	svc.Logger.Info().Str(logging.FUNC, FUNC).Msg("")
+
+	return nil
 }
 
 // StopAsyc initiates service shutdown.

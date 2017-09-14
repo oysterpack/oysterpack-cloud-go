@@ -20,6 +20,7 @@ import (
 	"reflect"
 	"sync"
 	"testing"
+	"time"
 )
 
 func TestApplicationContext_RegisterService(t *testing.T) {
@@ -401,4 +402,62 @@ func TestApplicationContext_ServiceByTypeAsync(t *testing.T) {
 		}(i, app.ServiceByTypeAsync(EchoServiceInterface))
 	}
 	wait.Wait()
+}
+
+func TestApplicationContext_CheckAllServiceDependencies(t *testing.T) {
+	app := service.NewApplicationContext()
+	app.Service().StartAsync()
+	app.Service().AwaitUntilRunning()
+	defer app.Service().Stop()
+
+	app.RegisterService(EchoServiceClientConstructor)
+	app.RegisterService(HeartbeatServiceClientConstructor)
+
+	servicesMissingDependencies := app.CheckAllServiceDependencies()
+	if len(servicesMissingDependencies) > 0 {
+		t.Errorf("There should be no services missing dependencies : %v", servicesMissingDependencies)
+	}
+
+	bService := app.RegisterService(BServiceClientConstructor)
+
+	servicesMissingDependencies = app.CheckAllServiceDependencies()
+	t.Log(servicesMissingDependencies)
+	if len(servicesMissingDependencies) != 1 {
+		t.Errorf("BService should be missing AService dependency: %v", servicesMissingDependencies)
+	}
+
+	checkMissingDepencencyServiceA := func(err *service.ServiceDependenciesMissing) {
+		if err.ServiceInterface != bService.Service().Interface() {
+			t.Errorf("ServiceInterface should be: %v , but was %v", bService.Service().Interface(), err.ServiceInterface)
+		}
+		if len(err.ServiceDependencies) != 1 {
+			t.Errorf("There shold be i missing ServiceDependencies : %v", err.ServiceDependencies)
+		}
+		if err.ServiceDependencies[0] != AServiceInterface {
+			t.Errorf("Missing service dependency should be AService, but was : %v", err.ServiceDependencies[0])
+		}
+	}
+
+	for _, err := range servicesMissingDependencies {
+		checkMissingDepencencyServiceA(err)
+	}
+
+	err := app.CheckServiceDependencies(bService)
+	if err == nil {
+		t.Error("BService should be missing AService dependency")
+	}
+	checkMissingDepencencyServiceA(err)
+
+	bService.Service().AwaitRunning(time.Duration(5 * time.Millisecond))
+	if !bService.Service().State().Starting() {
+		t.Errorf("BService should be blocked while starting waiting on reference to A : %v", bService.Service().State())
+	}
+
+	app.RegisterService(AServiceClientConstructor)
+	bService.Service().AwaitUntilRunning()
+
+	servicesMissingDependencies = app.CheckAllServiceDependencies()
+	if len(servicesMissingDependencies) > 0 {
+		t.Errorf("There should be no services missing dependencies : %v", servicesMissingDependencies)
+	}
 }

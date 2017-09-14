@@ -70,9 +70,7 @@ func (a *EchoServiceClient) Echo(msg interface{}) interface{} {
 
 // ServiceConstructor
 func (a *EchoServiceClient) newService() *service.Service {
-	var svc EchoService = a
-	serviceInterface, _ := commons.ObjectInterface(&svc)
-	return service.NewService(service.NewServiceParams{ServiceInterface: serviceInterface, Run: a.run})
+	return service.NewService(service.NewServiceParams{ServiceInterface: EchoServiceInterface, Run: a.run})
 }
 
 // Service Run func
@@ -142,9 +140,7 @@ func (a *HeartbeatServiceClient) run(ctx *service.RunContext) error {
 }
 
 func (a *HeartbeatServiceClient) newService() *service.Service {
-	var svc HeartbeatService = a
-	serviceInterface, _ := commons.ObjectInterface(&svc)
-	return service.NewService(service.NewServiceParams{ServiceInterface: serviceInterface, Run: a.run})
+	return service.NewService(service.NewServiceParams{ServiceInterface: HeartbeatServiceInterface, Run: a.run})
 }
 
 func HeartbeatServiceClientConstructor(application service.Application) service.ServiceClient {
@@ -152,5 +148,69 @@ func HeartbeatServiceClientConstructor(application service.Application) service.
 		pingChan: make(chan *PingRequest),
 	}
 	serviceClient.RestartableService = service.NewRestartableService(serviceClient.newService)
+	return serviceClient
+}
+
+////////////////////////////
+
+type AService interface{}
+
+type AServiceClient struct {
+	*service.RestartableService
+}
+
+var AServiceInterface commons.InterfaceType = aServiceInterfaceType()
+
+func aServiceInterfaceType() commons.InterfaceType {
+	var prototype AService = &AServiceClient{}
+	t, err := commons.ObjectInterface(&prototype)
+	if err != nil {
+		panic(err)
+	}
+	return t
+}
+
+func AServiceClientConstructor(application service.Application) service.ServiceClient {
+	serviceClient := &AServiceClient{}
+	serviceClient.RestartableService = service.NewRestartableService(func() *service.Service {
+		return service.NewService(service.NewServiceParams{ServiceInterface: AServiceInterface})
+	})
+	return serviceClient
+}
+
+////////////////////////////////
+
+type BService interface{}
+
+type BServiceClient struct {
+	*service.RestartableService
+}
+
+var BServiceInterface commons.InterfaceType = bServiceInterfaceType()
+
+func bServiceInterfaceType() commons.InterfaceType {
+	var prototype BService = &BServiceClient{}
+	t, err := commons.ObjectInterface(&prototype)
+	if err != nil {
+		panic(err)
+	}
+	return t
+}
+
+func BServiceClientConstructor(app service.Application) service.ServiceClient {
+	serviceClient := &AServiceClient{}
+	serviceClient.RestartableService = service.NewRestartableService(func() *service.Service {
+
+		var init service.Init = func(ctx *service.Context) error {
+			<-app.ServiceByTypeAsync(AServiceInterface).Channel()
+			return nil
+		}
+
+		return service.NewService(service.NewServiceParams{
+			ServiceInterface:    BServiceInterface,
+			ServiceDependencies: []commons.InterfaceType{AServiceInterface},
+			Init:                init,
+		})
+	})
 	return serviceClient
 }

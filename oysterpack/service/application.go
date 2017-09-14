@@ -37,6 +37,8 @@ func App() Application { return app }
 // Application is a service interface. It's functionality is defined by the interfaces it composes.
 type Application interface {
 	ServiceClientRegistry
+
+	ServiceDependencies
 }
 
 // ApplicationContext.services map entry type
@@ -115,6 +117,10 @@ func NewApplicationContext() *ApplicationContext {
 func (a *ApplicationContext) ServiceByType(serviceInterface commons.InterfaceType) ServiceClient {
 	a.mutex.RLock()
 	defer a.mutex.RUnlock()
+	return a.serviceByType(serviceInterface)
+}
+
+func (a *ApplicationContext) serviceByType(serviceInterface commons.InterfaceType) ServiceClient {
 	if s, exists := a.services[serviceInterface]; exists {
 		return s.ServiceClient
 	}
@@ -274,6 +280,40 @@ func (a *ApplicationContext) destroy(ctx *Context) error {
 			}
 			v.Service().Logger.Warn().Msg("Waiting for service to stop")
 		}
+	}
+	return nil
+}
+
+// CheckAllServiceDependencies checks that are service dependencies are currently satisfied.
+func (a *ApplicationContext) CheckAllServiceDependencies() []*ServiceDependenciesMissing {
+	a.mutex.RLock()
+	defer a.mutex.RUnlock()
+	errors := []*ServiceDependenciesMissing{}
+	for _, serviceClient := range a.services {
+		if missingDependencies := a.checkServiceDependencies(serviceClient); missingDependencies != nil {
+			errors = append(errors, missingDependencies)
+		}
+	}
+	return errors
+}
+
+// CheckServiceDependencies checks that the service's dependencies are currently satisfied
+// nil is returned if there is no error
+func (a *ApplicationContext) CheckServiceDependencies(serviceClient ServiceClient) *ServiceDependenciesMissing {
+	a.mutex.RLock()
+	defer a.mutex.RUnlock()
+	return a.checkServiceDependencies(serviceClient)
+}
+
+func (a *ApplicationContext) checkServiceDependencies(serviceClient ServiceClient) *ServiceDependenciesMissing {
+	missingDependencies := &ServiceDependenciesMissing{ServiceInterface: serviceClient.Service().Interface()}
+	for _, dependency := range serviceClient.Service().ServiceDependencies {
+		if a.serviceByType(dependency) == nil {
+			missingDependencies.AddMissingDependency(dependency)
+		}
+	}
+	if missingDependencies.HasMissing() {
+		return missingDependencies
 	}
 	return nil
 }

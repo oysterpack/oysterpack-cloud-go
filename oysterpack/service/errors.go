@@ -16,6 +16,7 @@ package service
 
 import (
 	"fmt"
+	"github.com/oysterpack/oysterpack.go/oysterpack/commons"
 )
 
 // InvalidStateTransition indicates an invalid transition was attempted
@@ -90,4 +91,34 @@ type ServiceNotFoundError struct {
 
 func (e *ServiceNotFoundError) Error() string {
 	return fmt.Sprintf("Service not found : %v.%v", e.ServiceKey.PackagePath, e.ServiceKey.TypeName)
+}
+
+// ServiceDependenciesMissing indicates that a service's dependencies are missing at runtime
+type ServiceDependenciesMissing struct {
+	ServiceInterface    commons.InterfaceType
+	ServiceDependencies []commons.InterfaceType
+}
+
+func (e *ServiceDependenciesMissing) Error() string {
+	return fmt.Sprintf("Service dependencies are missing : %v -> %v", e.ServiceInterface, e.ServiceDependencies)
+}
+
+// AddMissingDependency will add the missing dependency, if it has not yet already been added
+func (e *ServiceDependenciesMissing) AddMissingDependency(dependency commons.InterfaceType) {
+	if !e.Missing(dependency) {
+		e.ServiceDependencies = append(e.ServiceDependencies, dependency)
+	}
+}
+
+func (e *ServiceDependenciesMissing) Missing(dependency commons.InterfaceType) bool {
+	for _, v := range e.ServiceDependencies {
+		if v == dependency {
+			return true
+		}
+	}
+	return false
+}
+
+func (e *ServiceDependenciesMissing) HasMissing() bool {
+	return len(e.ServiceDependencies) > 0
 }
