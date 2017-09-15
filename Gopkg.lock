@@ -4,48 +4,12 @@
 [[projects]]
   name = "github.com/rs/zerolog"
   packages = [".","internal/json","log"]
-  revision = "2ed2f2c974489526d10329dae76d0f175684109a"
-  version = "v1.2.2"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/surullabs/lint"
-  packages = [".","checkers","errcheck","gofmt","golint","gosimple","gostaticcheck","govet"]
-  revision = "4defd083b89f8b68eddec61d248b056de273d28f"
-
-[[projects]]
-  branch = "master"
-  name = "golang.org/x/tools"
-  packages = ["go/ast/astutil","go/buildutil","go/loader","go/types/typeutil"]
-  revision = "2d19ab38faf14664c76088411c21bf4fafea960b"
-
-[[projects]]
-  branch = "master"
-  name = "honnef.co/go/lint"
-  packages = ["."]
-  revision = "9ad746f5a7e0e84de969c026c26693d6b2f0af27"
-
-[[projects]]
-  branch = "master"
-  name = "honnef.co/go/simple"
-  packages = ["."]
-  revision = "f274a8b1cf664433daac541609e0dfb818a2a87c"
-
-[[projects]]
-  branch = "master"
-  name = "honnef.co/go/ssa"
-  packages = ["."]
-  revision = "1cf7f34afde4f3f9cb9f7b15f8f2727ebcaa179a"
-
-[[projects]]
-  branch = "master"
-  name = "honnef.co/go/staticcheck"
-  packages = [".","pure","vrp"]
-  revision = "b48330f1ed0dd7463407767da164e7f3ee43ad76"
+  revision = "3ac71fc58dbd43122668a912b755b0979ba9ce1f"
+  version = "v1.3.0"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "566d44bc83d3dcaafb9a1f94690ba0c6a47f23142cc48b4f75b582e121209477"
+  inputs-digest = "46b02f3be287d321c0ede6b06aa5e2e0566977834dfbbd0ff4d2424b85b546cd"
   solver-name = "gps-cdcl"
   solver-version = 1

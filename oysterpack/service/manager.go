@@ -15,8 +15,9 @@
 package service
 
 import (
-	"github.com/oysterpack/oysterpack.go/oysterpack/commons"
 	"time"
+
+	"github.com/oysterpack/oysterpack.go/oysterpack/commons"
 )
 
 // ServiceManager is used to start/stop services

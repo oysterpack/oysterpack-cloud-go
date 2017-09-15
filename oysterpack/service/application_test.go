@@ -15,12 +15,13 @@
 package service_test
 
 import (
-	"github.com/oysterpack/oysterpack.go/oysterpack/commons"
-	"github.com/oysterpack/oysterpack.go/oysterpack/service"
 	"reflect"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/oysterpack/oysterpack.go/oysterpack/commons"
+	"github.com/oysterpack/oysterpack.go/oysterpack/service"
 )
 
 func TestApplicationContext_RegisterService(t *testing.T) {
@@ -431,7 +432,7 @@ func TestApplicationContext_CheckAllServiceDependenciesRegistered(t *testing.T) 
 			t.Errorf("ServiceInterface should be: %v , but was %v", bService.Service().Interface(), err.ServiceInterface)
 		}
 		if len(err.Dependencies()) != 1 {
-			t.Errorf("There shold be i missing Dependencies : %v", err.Dependencies())
+			t.Errorf("There shold be i missing ServiceDependencies : %v", err.Dependencies())
 		}
 		if err.Dependencies()[0] != AServiceInterface {
 			t.Errorf("Missing service dependency should be AService, but was : %v", err.Dependencies()[0])
@@ -499,8 +500,9 @@ func TestApplicationContext_CheckAllServiceDependencies(t *testing.T) {
 	}
 
 	checkServiceADependencyErrors := func(err *service.ServiceDependencyErrors) {
+		t.Helper()
 		if len(err.Errors) != 2 {
-			t.Errorf("There shold be i missing Dependencies : %v", err.Errors)
+			t.Errorf("There shold be 2 missing ServiceDependencies : %v", err.Errors)
 		}
 		for _, dependencyError := range err.Errors {
 			switch e := dependencyError.(type) {
@@ -560,7 +562,7 @@ func TestApplicationContext_CheckAllServiceDependenciesRunning(t *testing.T) {
 			t.Errorf("ServiceInterface should be: %v , but was %v", bService.Service().Interface(), err.ServiceInterface)
 		}
 		if len(err.Dependencies()) != 1 {
-			t.Errorf("There shold be i missing Dependencies : %v", err.Dependencies())
+			t.Errorf("There shold be i missing ServiceDependencies : %v", err.Dependencies())
 		}
 		if err.Dependencies()[0] != AServiceInterface {
 			t.Errorf("Missing service dependency should be AService, but was : %v", err.Dependencies()[0])

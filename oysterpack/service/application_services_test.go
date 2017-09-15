@@ -15,9 +15,10 @@
 package service_test
 
 import (
+	"time"
+
 	"github.com/oysterpack/oysterpack.go/oysterpack/commons"
 	"github.com/oysterpack/oysterpack.go/oysterpack/service"
-	"time"
 )
 
 // EchoService defines the Service interface

@@ -15,10 +15,11 @@
 package service_test
 
 import (
-	"github.com/oysterpack/oysterpack.go/oysterpack/service"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/oysterpack/oysterpack.go/oysterpack/service"
 )
 
 func TestServiceState_NewServiceState(t *testing.T) {

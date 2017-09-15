@@ -16,9 +16,10 @@ package service
 
 import (
 	"fmt"
-	"github.com/oysterpack/oysterpack.go/oysterpack/internal/utils"
 	"sync"
 	"time"
+
+	"github.com/oysterpack/oysterpack.go/oysterpack/internal/utils"
 )
 
 // ServiceState is used to manage the service's state.

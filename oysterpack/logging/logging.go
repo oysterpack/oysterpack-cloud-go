@@ -17,11 +17,12 @@ package logging
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
+	"time"
+
 	"github.com/oysterpack/oysterpack.go/oysterpack/commons"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"reflect"
-	"time"
 )
 
 // logger fields

@@ -17,12 +17,13 @@ package logging_test
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/oysterpack/oysterpack.go/oysterpack/commons"
-	"github.com/oysterpack/oysterpack.go/oysterpack/logging"
-	"github.com/rs/zerolog"
 	"io"
 	"testing"
 	"time"
+
+	"github.com/oysterpack/oysterpack.go/oysterpack/commons"
+	"github.com/oysterpack/oysterpack.go/oysterpack/logging"
+	"github.com/rs/zerolog"
 )
 
 type A struct{}

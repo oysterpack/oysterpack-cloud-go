@@ -16,12 +16,13 @@ package service
 
 import (
 	"fmt"
+	"reflect"
+	"time"
+
 	"github.com/oysterpack/oysterpack.go/oysterpack/commons"
 	"github.com/oysterpack/oysterpack.go/oysterpack/internal/utils"
 	"github.com/oysterpack/oysterpack.go/oysterpack/logging"
 	"github.com/rs/zerolog"
-	"reflect"
-	"time"
 )
 
 // Service represents an object with an operational state.
@@ -124,7 +125,7 @@ type NewServiceParams struct {
 	Run
 	Destroy
 
-	// Dependencies returns the Service interfaces that this service depends on.
+	// ServiceDependencies returns the Service interfaces that this service depends on.
 	// It can be used to check if all service dependencies satisfied by the application.
 	ServiceDependencies []commons.InterfaceType
 }

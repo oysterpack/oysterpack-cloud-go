@@ -16,8 +16,9 @@ package service
 
 import (
 	"fmt"
-	"github.com/oysterpack/oysterpack.go/oysterpack/commons"
 	"strings"
+
+	"github.com/oysterpack/oysterpack.go/oysterpack/commons"
 )
 
 // InvalidStateTransition indicates an invalid transition was attempted

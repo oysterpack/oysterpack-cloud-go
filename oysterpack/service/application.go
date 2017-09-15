@@ -16,14 +16,15 @@ package service
 
 import (
 	"fmt"
-	"github.com/oysterpack/oysterpack.go/oysterpack/commons"
-	"github.com/oysterpack/oysterpack.go/oysterpack/internal/utils"
 	"os"
 	"os/signal"
 	"reflect"
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/oysterpack/oysterpack.go/oysterpack/commons"
+	"github.com/oysterpack/oysterpack.go/oysterpack/internal/utils"
 )
 
 var app Application = NewApplicationContext()
@@ -38,7 +39,7 @@ func App() Application { return app }
 type Application interface {
 	ServiceClientRegistry
 
-	Dependencies
+	ServiceDependencies
 }
 
 // ApplicationContext.services map entry type
@@ -386,6 +387,10 @@ func (a *ApplicationContext) CheckAllServiceDependencies() *ServiceDependencyErr
 func (a *ApplicationContext) CheckServiceDependencies(client ServiceClient) *ServiceDependencyErrors {
 	errors := []error{}
 	if err := a.CheckServiceDependenciesRegistered(client); err != nil {
+		errors = append(errors, err)
+	}
+
+	if err := a.CheckServiceDependenciesRunning(client); err != nil {
 		errors = append(errors, err)
 	}
 

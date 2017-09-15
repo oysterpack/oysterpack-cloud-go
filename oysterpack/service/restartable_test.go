@@ -15,9 +15,10 @@
 package service_test
 
 import (
-	"github.com/oysterpack/oysterpack.go/oysterpack/service"
 	"reflect"
 	"testing"
+
+	"github.com/oysterpack/oysterpack.go/oysterpack/service"
 )
 
 func TestRestartableService_RestartService(t *testing.T) {

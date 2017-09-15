@@ -15,9 +15,10 @@
 package commons_test
 
 import (
-	"github.com/oysterpack/oysterpack.go/oysterpack/commons"
 	"reflect"
 	"testing"
+
+	"github.com/oysterpack/oysterpack.go/oysterpack/commons"
 )
 
 var thisPackage = commons.PackagePath("github.com/oysterpack/oysterpack.go/oysterpack/commons_test")

@@ -15,11 +15,12 @@
 package service_test
 
 import (
-	"github.com/oysterpack/oysterpack.go/oysterpack/commons"
-	"github.com/oysterpack/oysterpack.go/oysterpack/service"
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/oysterpack/oysterpack.go/oysterpack/commons"
+	"github.com/oysterpack/oysterpack.go/oysterpack/service"
 )
 
 type FooService interface{}

@@ -16,13 +16,14 @@ package oysterpack_test
 
 import (
 	"fmt"
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 	"os"
 	"reflect"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 var logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout}).Level(zerolog.WarnLevel)
