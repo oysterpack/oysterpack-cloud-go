@@ -14,9 +14,11 @@
 
 package service
 
-// ServiceDependencies provides functionality to get information about about service dependencies
-type ServiceDependencies interface {
-	CheckAllServiceDependencies() []*ServiceDependenciesMissing
+// Dependencies provides functionality to get information about about service dependencies
+type Dependencies interface {
+	// CheckAllServiceDependencies checks that all dependencies for each service are available
+	CheckAllServiceDependencies() *ServiceDependencyErrors
 
-	CheckServiceDependencies(client ServiceClient) *ServiceDependenciesMissing
+	// CheckServiceDependencies checks that the service dependencies are available
+	CheckServiceDependencies(client ServiceClient) *ServiceDependencyErrors
 }

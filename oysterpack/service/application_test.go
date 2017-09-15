@@ -404,7 +404,7 @@ func TestApplicationContext_ServiceByTypeAsync(t *testing.T) {
 	wait.Wait()
 }
 
-func TestApplicationContext_CheckAllServiceDependencies(t *testing.T) {
+func TestApplicationContext_CheckAllServiceDependenciesRegistered(t *testing.T) {
 	app := service.NewApplicationContext()
 	app.Service().StartAsync()
 	app.Service().AwaitUntilRunning()
@@ -413,28 +413,28 @@ func TestApplicationContext_CheckAllServiceDependencies(t *testing.T) {
 	app.RegisterService(EchoServiceClientConstructor)
 	app.RegisterService(HeartbeatServiceClientConstructor)
 
-	servicesMissingDependencies := app.CheckAllServiceDependencies()
+	servicesMissingDependencies := app.CheckAllServiceDependenciesRegistered()
 	if len(servicesMissingDependencies) > 0 {
 		t.Errorf("There should be no services missing dependencies : %v", servicesMissingDependencies)
 	}
 
 	bService := app.RegisterService(BServiceClientConstructor)
 
-	servicesMissingDependencies = app.CheckAllServiceDependencies()
+	servicesMissingDependencies = app.CheckAllServiceDependenciesRegistered()
 	t.Log(servicesMissingDependencies)
 	if len(servicesMissingDependencies) != 1 {
 		t.Errorf("BService should be missing AService dependency: %v", servicesMissingDependencies)
 	}
 
 	checkMissingDepencencyServiceA := func(err *service.ServiceDependenciesMissing) {
-		if err.ServiceInterface != bService.Service().Interface() {
+		if err.ServiceInterface() != bService.Service().Interface() {
 			t.Errorf("ServiceInterface should be: %v , but was %v", bService.Service().Interface(), err.ServiceInterface)
 		}
-		if len(err.ServiceDependencies) != 1 {
-			t.Errorf("There shold be i missing ServiceDependencies : %v", err.ServiceDependencies)
+		if len(err.Dependencies()) != 1 {
+			t.Errorf("There shold be i missing Dependencies : %v", err.Dependencies())
 		}
-		if err.ServiceDependencies[0] != AServiceInterface {
-			t.Errorf("Missing service dependency should be AService, but was : %v", err.ServiceDependencies[0])
+		if err.Dependencies()[0] != AServiceInterface {
+			t.Errorf("Missing service dependency should be AService, but was : %v", err.Dependencies()[0])
 		}
 	}
 
@@ -442,7 +442,7 @@ func TestApplicationContext_CheckAllServiceDependencies(t *testing.T) {
 		checkMissingDepencencyServiceA(err)
 	}
 
-	err := app.CheckServiceDependencies(bService)
+	err := app.CheckServiceDependenciesRegistered(bService)
 	if err == nil {
 		t.Error("BService should be missing AService dependency")
 	}
@@ -456,8 +456,144 @@ func TestApplicationContext_CheckAllServiceDependencies(t *testing.T) {
 	app.RegisterService(AServiceClientConstructor)
 	bService.Service().AwaitUntilRunning()
 
-	servicesMissingDependencies = app.CheckAllServiceDependencies()
+	servicesMissingDependencies = app.CheckAllServiceDependenciesRegistered()
 	if len(servicesMissingDependencies) > 0 {
 		t.Errorf("There should be no services missing dependencies : %v", servicesMissingDependencies)
+	}
+}
+
+func TestApplicationContext_StopAppWhileWaitingForServiceDependencies(t *testing.T) {
+	app := service.NewApplicationContext()
+	app.Service().StartAsync()
+	app.Service().AwaitUntilRunning()
+
+	app.RegisterService(BServiceClientConstructor)
+	dependencyErrors := app.CheckAllServiceDependencies()
+	t.Log(dependencyErrors)
+	if len(dependencyErrors.Errors) == 0 {
+		t.Errorf("BService should be missing AService dependency: %v", dependencyErrors)
+	}
+
+	app.Service().Stop()
+}
+
+func TestApplicationContext_CheckAllServiceDependencies(t *testing.T) {
+	app := service.NewApplicationContext()
+	app.Service().StartAsync()
+	app.Service().AwaitUntilRunning()
+	defer app.Service().Stop()
+
+	app.RegisterService(EchoServiceClientConstructor)
+
+	dependencyErrors := app.CheckAllServiceDependencies()
+	if dependencyErrors != nil {
+		t.Errorf("There should be no services missing dependencies : %v", dependencyErrors)
+	}
+
+	bService := app.RegisterService(BServiceClientConstructor)
+
+	dependencyErrors = app.CheckAllServiceDependencies()
+	t.Log(dependencyErrors)
+	if len(dependencyErrors.Errors) != 2 {
+		t.Errorf("BService should be missing AService dependency - it should not be registered and thus not running: %v", dependencyErrors)
+	}
+
+	checkServiceADependencyErrors := func(err *service.ServiceDependencyErrors) {
+		if len(err.Errors) != 2 {
+			t.Errorf("There shold be i missing Dependencies : %v", err.Errors)
+		}
+		for _, dependencyError := range err.Errors {
+			switch e := dependencyError.(type) {
+			case *service.ServiceDependenciesMissing:
+				if !e.Missing(AServiceInterface) {
+					t.Error("AServiceShould not be registered")
+				}
+			case *service.ServiceDependenciesNotRunning:
+				if !e.NotRunning(AServiceInterface) {
+					t.Error("AServiceShould not be running")
+				}
+			default:
+				t.Errorf("Unexpected error type : %[0]T : %[0]v", err)
+			}
+		}
+	}
+
+	checkServiceADependencyErrors(dependencyErrors)
+	checkServiceADependencyErrors(app.CheckServiceDependencies(bService))
+
+	app.RegisterService(AServiceClientConstructor)
+	bService.Service().AwaitUntilRunning()
+
+	if dependencyErrors = app.CheckAllServiceDependencies(); dependencyErrors != nil {
+		t.Errorf("There should be no services dependency errors : %v", dependencyErrors)
+	}
+
+	if dependencyErrors := app.CheckServiceDependencies(bService); dependencyErrors != nil {
+		t.Errorf("There should be no services dependency errors : %v", dependencyErrors)
+	}
+}
+
+func TestApplicationContext_CheckAllServiceDependenciesRunning(t *testing.T) {
+	app := service.NewApplicationContext()
+	app.Service().StartAsync()
+	app.Service().AwaitUntilRunning()
+	defer app.Service().Stop()
+
+	app.RegisterService(EchoServiceClientConstructor)
+	app.RegisterService(HeartbeatServiceClientConstructor)
+
+	notRunning := app.CheckAllServiceDependenciesRunning()
+	if len(notRunning) > 0 {
+		t.Errorf("There should be no services missing dependencies : %v", notRunning)
+	}
+
+	bService := app.RegisterService(BServiceClientConstructor)
+
+	notRunning = app.CheckAllServiceDependenciesRunning()
+	t.Log(notRunning)
+	if len(notRunning) != 1 {
+		t.Errorf("BService should be missing AService dependency: %v", notRunning)
+	}
+
+	checkMissingDepencencyServiceA := func(err *service.ServiceDependenciesNotRunning) {
+		if err.ServiceInterface() != bService.Service().Interface() {
+			t.Errorf("ServiceInterface should be: %v , but was %v", bService.Service().Interface(), err.ServiceInterface)
+		}
+		if len(err.Dependencies()) != 1 {
+			t.Errorf("There shold be i missing Dependencies : %v", err.Dependencies())
+		}
+		if err.Dependencies()[0] != AServiceInterface {
+			t.Errorf("Missing service dependency should be AService, but was : %v", err.Dependencies()[0])
+		}
+	}
+
+	for _, err := range notRunning {
+		checkMissingDepencencyServiceA(err)
+	}
+
+	err := app.CheckServiceDependenciesRunning(bService)
+	if err == nil {
+		t.Error("BService should be missing AService dependency")
+	}
+	checkMissingDepencencyServiceA(err)
+
+	bService.Service().AwaitRunning(time.Duration(5 * time.Millisecond))
+	if !bService.Service().State().Starting() {
+		t.Errorf("BService should be blocked while starting waiting on reference to A : %v", bService.Service().State())
+	}
+
+	aService := app.RegisterService(AServiceClientConstructor)
+	bService.Service().AwaitUntilRunning()
+
+	notRunning = app.CheckAllServiceDependenciesRunning()
+	if len(notRunning) > 0 {
+		t.Errorf("There should be no services missing dependencies : %v", notRunning)
+	}
+
+	aService.Service().Stop()
+
+	notRunning = app.CheckAllServiceDependenciesRunning()
+	if len(notRunning) == 0 {
+		t.Errorf("AService should not be running : %v", notRunning)
 	}
 }

@@ -38,7 +38,7 @@ func App() Application { return app }
 type Application interface {
 	ServiceClientRegistry
 
-	ServiceDependencies
+	Dependencies
 }
 
 // ApplicationContext.services map entry type
@@ -173,6 +173,17 @@ func (a *ApplicationContext) deleteServiceTicket(ticket *ServiceTicket) {
 	}
 }
 
+func (a *ApplicationContext) closeAllServiceTickets() {
+	a.serviceTicketsMutex.RLock()
+	defer a.serviceTicketsMutex.RUnlock()
+	for _, ticket := range a.serviceTickets {
+		func(ticket *ServiceTicket) {
+			defer utils.IgnorePanic()
+			close(ticket.channel)
+		}(ticket)
+	}
+}
+
 // ServiceByKey looks up a service by ServiceKey and returns the registered ServiceClient.
 // If the service is not found, then nil is returned.
 func (a *ApplicationContext) ServiceByKey(serviceKey ServiceKey) ServiceClient {
@@ -269,6 +280,7 @@ func (a *ApplicationContext) run(ctx *RunContext) error {
 }
 
 func (a *ApplicationContext) destroy(ctx *Context) error {
+	a.closeAllServiceTickets()
 	for _, v := range a.services {
 		v.Service().StopAsyc()
 	}
@@ -284,13 +296,13 @@ func (a *ApplicationContext) destroy(ctx *Context) error {
 	return nil
 }
 
-// CheckAllServiceDependencies checks that are service dependencies are currently satisfied.
-func (a *ApplicationContext) CheckAllServiceDependencies() []*ServiceDependenciesMissing {
+// CheckAllServiceDependenciesRegistered checks that are service dependencies are currently satisfied.
+func (a *ApplicationContext) CheckAllServiceDependenciesRegistered() []*ServiceDependenciesMissing {
 	a.mutex.RLock()
 	defer a.mutex.RUnlock()
 	errors := []*ServiceDependenciesMissing{}
 	for _, serviceClient := range a.services {
-		if missingDependencies := a.checkServiceDependencies(serviceClient); missingDependencies != nil {
+		if missingDependencies := a.checkServiceDependenciesRegistered(serviceClient); missingDependencies != nil {
 			errors = append(errors, missingDependencies)
 		}
 	}
@@ -299,14 +311,14 @@ func (a *ApplicationContext) CheckAllServiceDependencies() []*ServiceDependencie
 
 // CheckServiceDependencies checks that the service's dependencies are currently satisfied
 // nil is returned if there is no error
-func (a *ApplicationContext) CheckServiceDependencies(serviceClient ServiceClient) *ServiceDependenciesMissing {
+func (a *ApplicationContext) CheckServiceDependenciesRegistered(serviceClient ServiceClient) *ServiceDependenciesMissing {
 	a.mutex.RLock()
 	defer a.mutex.RUnlock()
-	return a.checkServiceDependencies(serviceClient)
+	return a.checkServiceDependenciesRegistered(serviceClient)
 }
 
-func (a *ApplicationContext) checkServiceDependencies(serviceClient ServiceClient) *ServiceDependenciesMissing {
-	missingDependencies := &ServiceDependenciesMissing{ServiceInterface: serviceClient.Service().Interface()}
+func (a *ApplicationContext) checkServiceDependenciesRegistered(serviceClient ServiceClient) *ServiceDependenciesMissing {
+	missingDependencies := &ServiceDependenciesMissing{&serviceDependencies{serviceInterface: serviceClient.Service().Interface()}}
 	for _, dependency := range serviceClient.Service().ServiceDependencies {
 		if a.serviceByType(dependency) == nil {
 			missingDependencies.AddMissingDependency(dependency)
@@ -314,6 +326,71 @@ func (a *ApplicationContext) checkServiceDependencies(serviceClient ServiceClien
 	}
 	if missingDependencies.HasMissing() {
 		return missingDependencies
+	}
+	return nil
+}
+
+// CheckAllServiceDependenciesRunning checks that are service dependencies are currently satisfied.
+func (a *ApplicationContext) CheckAllServiceDependenciesRunning() []*ServiceDependenciesNotRunning {
+	a.mutex.RLock()
+	defer a.mutex.RUnlock()
+	errors := []*ServiceDependenciesNotRunning{}
+	for _, serviceClient := range a.services {
+		if notRunning := a.checkServiceDependenciesRunning(serviceClient); notRunning != nil {
+			errors = append(errors, notRunning)
+		}
+	}
+	return errors
+}
+
+// CheckServiceDependenciesRunning checks that the service's dependencies are currently satisfied
+// nil is returned if there is no error
+func (a *ApplicationContext) CheckServiceDependenciesRunning(serviceClient ServiceClient) *ServiceDependenciesNotRunning {
+	a.mutex.RLock()
+	defer a.mutex.RUnlock()
+	return a.checkServiceDependenciesRunning(serviceClient)
+}
+
+func (a *ApplicationContext) checkServiceDependenciesRunning(serviceClient ServiceClient) *ServiceDependenciesNotRunning {
+	notRunning := &ServiceDependenciesNotRunning{&serviceDependencies{serviceInterface: serviceClient.Service().Interface()}}
+	for _, dependency := range serviceClient.Service().ServiceDependencies {
+		if client := a.serviceByType(dependency); client == nil || !client.Service().State().Running() {
+			notRunning.AddDependencyNotRunning(dependency)
+		}
+	}
+	if notRunning.HasNotRunning() {
+		return notRunning
+	}
+	return nil
+}
+
+// CheckAllServiceDependencies checks that all dependencies for each service are available
+// nil is returned if there are no errors
+func (a *ApplicationContext) CheckAllServiceDependencies() *ServiceDependencyErrors {
+	errors := []error{}
+	for _, err := range a.CheckAllServiceDependenciesRegistered() {
+		errors = append(errors, err)
+	}
+
+	for _, err := range a.CheckAllServiceDependenciesRunning() {
+		errors = append(errors, err)
+	}
+
+	if len(errors) > 0 {
+		return &ServiceDependencyErrors{errors}
+	}
+	return nil
+}
+
+// CheckServiceDependencies checks that the service dependencies are available
+func (a *ApplicationContext) CheckServiceDependencies(client ServiceClient) *ServiceDependencyErrors {
+	errors := []error{}
+	if err := a.CheckServiceDependenciesRegistered(client); err != nil {
+		errors = append(errors, err)
+	}
+
+	if len(errors) > 0 {
+		return &ServiceDependencyErrors{errors}
 	}
 	return nil
 }

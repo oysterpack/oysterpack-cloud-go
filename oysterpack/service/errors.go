@@ -17,6 +17,7 @@ package service
 import (
 	"fmt"
 	"github.com/oysterpack/oysterpack.go/oysterpack/commons"
+	"strings"
 )
 
 // InvalidStateTransition indicates an invalid transition was attempted
@@ -93,26 +94,29 @@ func (e *ServiceNotFoundError) Error() string {
 	return fmt.Sprintf("Service not found : %v.%v", e.ServiceKey.PackagePath, e.ServiceKey.TypeName)
 }
 
-// ServiceDependenciesMissing indicates that a service's dependencies are missing at runtime
-type ServiceDependenciesMissing struct {
-	ServiceInterface    commons.InterfaceType
-	ServiceDependencies []commons.InterfaceType
+type serviceDependencies struct {
+	serviceInterface commons.InterfaceType
+	dependencies     []commons.InterfaceType
 }
 
-func (e *ServiceDependenciesMissing) Error() string {
-	return fmt.Sprintf("Service dependencies are missing : %v -> %v", e.ServiceInterface, e.ServiceDependencies)
+func (a *serviceDependencies) Dependencies() []commons.InterfaceType {
+	return a.dependencies
 }
 
-// AddMissingDependency will add the missing dependency, if it has not yet already been added
-func (e *ServiceDependenciesMissing) AddMissingDependency(dependency commons.InterfaceType) {
-	if !e.Missing(dependency) {
-		e.ServiceDependencies = append(e.ServiceDependencies, dependency)
+func (a *serviceDependencies) ServiceInterface() commons.InterfaceType {
+	return a.serviceInterface
+}
+
+// AddDependency will add the missing dependency, if it has not yet already been added
+func (a *serviceDependencies) addDependency(dependency commons.InterfaceType) {
+	if !a.contains(dependency) {
+		a.dependencies = append(a.dependencies, dependency)
 	}
 }
 
-// Missing returns true if the service is missing the specified dependency
-func (e *ServiceDependenciesMissing) Missing(dependency commons.InterfaceType) bool {
-	for _, v := range e.ServiceDependencies {
+// Contains returns true if the service dependency exists
+func (a *serviceDependencies) contains(dependency commons.InterfaceType) bool {
+	for _, v := range a.dependencies {
 		if v == dependency {
 			return true
 		}
@@ -120,7 +124,113 @@ func (e *ServiceDependenciesMissing) Missing(dependency commons.InterfaceType) b
 	return false
 }
 
+func (a *serviceDependencies) String() string {
+	return fmt.Sprintf("%v -> %v", a.ServiceInterface, a.dependencies)
+}
+
+// ServiceDependenciesMissing indicates that a service's dependencies are missing at runtime
+type ServiceDependenciesMissing struct {
+	*serviceDependencies
+}
+
+func (a *ServiceDependenciesMissing) Error() string {
+	return fmt.Sprintf("Service dependencies are missing : %v", a.serviceDependencies)
+}
+
+// AddMissingDependency will add the missing dependency, if it has not yet already been added
+func (a *ServiceDependenciesMissing) AddMissingDependency(dependency commons.InterfaceType) {
+	a.addDependency(dependency)
+}
+
+// Missing returns true if the service is missing the specified dependency
+func (a *ServiceDependenciesMissing) Missing(dependency commons.InterfaceType) bool {
+	return a.contains(dependency)
+}
+
 // HasMissing returns true if the service has any missing dependencies
-func (e *ServiceDependenciesMissing) HasMissing() bool {
-	return len(e.ServiceDependencies) > 0
+func (a *ServiceDependenciesMissing) HasMissing() bool {
+	return len(a.dependencies) > 0
+}
+
+// ServiceDependenciesNotRunning indicates that a service's dependencies are registered, but not running
+type ServiceDependenciesNotRunning struct {
+	*serviceDependencies
+}
+
+func (a *ServiceDependenciesNotRunning) Error() string {
+	return fmt.Sprintf("Service dependencies are not running : %v", a.serviceDependencies)
+}
+
+// AddDependencyNotRunning will add the missing dependency, if it has not yet already been added
+func (a *ServiceDependenciesNotRunning) AddDependencyNotRunning(dependency commons.InterfaceType) {
+	a.addDependency(dependency)
+}
+
+// NotRunning returns true if the service is missing the specified dependency
+func (a *ServiceDependenciesNotRunning) NotRunning(dependency commons.InterfaceType) bool {
+	return a.contains(dependency)
+}
+
+// HasNotRunning returns true if the service has any missing dependencies
+func (a *ServiceDependenciesNotRunning) HasNotRunning() bool {
+	return len(a.dependencies) > 0
+}
+
+// ServiceDependencyErrors aggregates service dependency related errors. The types of errors are :
+// 1. ServiceDependenciesMissing
+// 2. ServiceDependenciesNotRunning
+type ServiceDependencyErrors struct {
+	Errors []error
+}
+
+func (a *ServiceDependencyErrors) Error() string {
+	errorMessages := make([]string, len(a.Errors))
+	for i, v := range a.Errors {
+		errorMessages[i] = v.Error()
+	}
+	return fmt.Sprintf("Error count = %d : ", len(errorMessages), strings.Join(errorMessages, " | "))
+}
+
+func (a *ServiceDependencyErrors) HasErrors() bool {
+	return len(a.Errors) > 0
+}
+
+func (a *ServiceDependencyErrors) ServiceDependenciesMissingErrors() []*ServiceDependenciesMissing {
+	errors := []*ServiceDependenciesMissing{}
+	for _, err := range a.Errors {
+		switch e := err.(type) {
+		case *ServiceDependenciesMissing:
+			errors = append(errors, e)
+		}
+	}
+	return errors
+}
+
+func (a *ServiceDependencyErrors) ServiceDependenciesNotRunningErrors() []*ServiceDependenciesNotRunning {
+	errors := []*ServiceDependenciesNotRunning{}
+	for _, err := range a.Errors {
+		switch e := err.(type) {
+		case *ServiceDependenciesNotRunning:
+			errors = append(errors, e)
+		}
+	}
+	return errors
+}
+
+func (a *ServiceDependencyErrors) DependencyErrors(serviceInterface commons.InterfaceType) []error {
+	errors := []error{}
+
+	type GetServiceInterface interface {
+		ServiceInterface() commons.InterfaceType
+	}
+
+	for _, err := range a.Errors {
+		switch err.(type) {
+		case GetServiceInterface:
+			errors = append(errors, err)
+		default:
+			logger.Warn().Msgf("error does not implement GetServiceInterface : %v", err)
+		}
+	}
+	return errors
 }
