@@ -125,7 +125,7 @@ func (a *serviceDependencies) contains(dependency commons.InterfaceType) bool {
 }
 
 func (a *serviceDependencies) String() string {
-	return fmt.Sprintf("%v -> %v", a.ServiceInterface, a.dependencies)
+	return fmt.Sprintf("%v -> %v", a.ServiceInterface(), a.dependencies)
 }
 
 // ServiceDependenciesMissing indicates that a service's dependencies are missing at runtime
@@ -188,7 +188,7 @@ func (a *ServiceDependencyErrors) Error() string {
 	for i, v := range a.Errors {
 		errorMessages[i] = v.Error()
 	}
-	return fmt.Sprintf("Error count = %d : ", len(errorMessages), strings.Join(errorMessages, " | "))
+	return fmt.Sprintf("Error count = %d : %v", len(errorMessages), strings.Join(errorMessages, " | "))
 }
 
 // HasErrors returns true if there are any dependency related errors
