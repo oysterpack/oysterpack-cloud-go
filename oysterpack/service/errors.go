@@ -191,10 +191,12 @@ func (a *ServiceDependencyErrors) Error() string {
 	return fmt.Sprintf("Error count = %d : ", len(errorMessages), strings.Join(errorMessages, " | "))
 }
 
+// HasErrors returns true if there are any dependency related errors
 func (a *ServiceDependencyErrors) HasErrors() bool {
 	return len(a.Errors) > 0
 }
 
+// ServiceDependenciesMissingErrors returns any ServiceDependenciesMissing errors
 func (a *ServiceDependencyErrors) ServiceDependenciesMissingErrors() []*ServiceDependenciesMissing {
 	errors := []*ServiceDependenciesMissing{}
 	for _, err := range a.Errors {
@@ -206,6 +208,7 @@ func (a *ServiceDependencyErrors) ServiceDependenciesMissingErrors() []*ServiceD
 	return errors
 }
 
+// ServiceDependenciesNotRunningErrors returns any ServiceDependenciesNotRunning errors
 func (a *ServiceDependencyErrors) ServiceDependenciesNotRunningErrors() []*ServiceDependenciesNotRunning {
 	errors := []*ServiceDependenciesNotRunning{}
 	for _, err := range a.Errors {
@@ -217,6 +220,7 @@ func (a *ServiceDependencyErrors) ServiceDependenciesNotRunningErrors() []*Servi
 	return errors
 }
 
+// DependencyErrors returns any dependency errors for the specified service interface
 func (a *ServiceDependencyErrors) DependencyErrors(serviceInterface commons.InterfaceType) []error {
 	errors := []error{}
 

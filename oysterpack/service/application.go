@@ -309,7 +309,7 @@ func (a *ApplicationContext) CheckAllServiceDependenciesRegistered() []*ServiceD
 	return errors
 }
 
-// CheckServiceDependencies checks that the service's dependencies are currently satisfied
+// CheckServiceDependenciesRegistered checks that the service's dependencies are currently satisfied
 // nil is returned if there is no error
 func (a *ApplicationContext) CheckServiceDependenciesRegistered(serviceClient ServiceClient) *ServiceDependenciesMissing {
 	a.mutex.RLock()
