@@ -666,21 +666,9 @@ func TestApplication_StopRestartServices(t *testing.T) {
 	heartbeatService := app.RegisterService(HeartbeatServiceClientConstructor)
 	heartbeatService.Service().AwaitUntilRunning()
 
-	app.RestartAllServices()
-
-	for {
-		if echoService.RestartCount() == 1 && heartbeatService.RestartCount() == 1 {
-			break
-		}
-
-		t.Logf("Waiting for services to restart ...")
-		time.Sleep(1 * time.Millisecond)
-	}
-
 	app.RestartServiceByType(EchoServiceInterface)
-
 	for {
-		if echoService.RestartCount() == 2 && heartbeatService.RestartCount() == 1 {
+		if echoService.RestartCount() == 1 && heartbeatService.RestartCount() == 0 {
 			break
 		}
 
@@ -689,9 +677,8 @@ func TestApplication_StopRestartServices(t *testing.T) {
 	}
 
 	app.RestartServiceByKey(service.InterfaceTypeToServiceKey(HeartbeatServiceInterface))
-
 	for {
-		if echoService.RestartCount() == 2 && heartbeatService.RestartCount() == 2 {
+		if echoService.RestartCount() == 1 && heartbeatService.RestartCount() == 1 {
 			break
 		}
 
@@ -721,7 +708,42 @@ func TestApplication_StopRestartServices(t *testing.T) {
 	app.RestartAllServices()
 
 	for {
-		if echoService.RestartCount() == 3 && heartbeatService.RestartCount() == 3 {
+		if echoService.RestartCount() == 2 && heartbeatService.RestartCount() == 2 {
+			break
+		}
+
+		t.Logf("Waiting for services to restart ...")
+		time.Sleep(1 * time.Millisecond)
+	}
+}
+
+func TestApplication_RestartAllServices(t *testing.T) {
+	app := service.NewApplication(service.ApplicationSettings{})
+	app.Service().StartAsync()
+	app.Service().AwaitUntilRunning()
+	defer app.Service().Stop()
+
+	echoService := app.RegisterService(EchoServiceClientConstructor)
+	echoService.Service().AwaitUntilRunning()
+
+	heartbeatService := app.RegisterService(HeartbeatServiceClientConstructor)
+	heartbeatService.Service().AwaitUntilRunning()
+
+	app.RestartAllServices()
+
+	for {
+		if echoService.RestartCount() == 1 && heartbeatService.RestartCount() == 1 {
+			break
+		}
+
+		t.Logf("Waiting for services to restart ...")
+		time.Sleep(1 * time.Millisecond)
+	}
+
+	app.RestartAllServices()
+
+	for {
+		if echoService.RestartCount() == 2 && heartbeatService.RestartCount() == 2 {
 			break
 		}
 
