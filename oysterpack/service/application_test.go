@@ -660,36 +660,6 @@ func TestApplication_StopRestartServices(t *testing.T) {
 	app.Service().AwaitUntilRunning()
 	defer app.Service().Stop()
 
-	checkErrorTypeIsServiceNotFoundError := func(err error) {
-		t.Helper()
-		switch err.(type) {
-		case *service.ServiceNotFoundError:
-		default:
-			t.Errorf("ERROR: Expected ServiceNotFoundError, but was %v", err)
-		}
-	}
-
-	// should be ok to call when no services are registered
-	app.RestartAllServices()
-	app.RestartAllFailedServices()
-	app.StopAllServices()
-	if err := app.RestartServiceByType(EchoServiceInterface); err != nil {
-		checkErrorTypeIsServiceNotFoundError(err)
-	} else {
-		t.Error("ERROR: no services are registered")
-	}
-	app.RestartServiceByKey(service.InterfaceTypeToServiceKey(EchoServiceInterface))
-	if err := app.StopServiceByType(EchoServiceInterface); err != nil {
-		checkErrorTypeIsServiceNotFoundError(err)
-	} else {
-		t.Error("ERROR: no services are registered")
-	}
-	if err := app.StopServiceByKey(service.InterfaceTypeToServiceKey(EchoServiceInterface)); err != nil {
-		checkErrorTypeIsServiceNotFoundError(err)
-	} else {
-		t.Error("ERROR: no services are registered")
-	}
-
 	echoService := app.RegisterService(EchoServiceClientConstructor)
 	echoService.Service().AwaitUntilRunning()
 
@@ -757,6 +727,43 @@ func TestApplication_StopRestartServices(t *testing.T) {
 
 		t.Logf("Waiting for services to restart ...")
 		time.Sleep(1 * time.Millisecond)
+	}
+}
+
+func TestApplication_StopRestartServices_OnEmptyApp(t *testing.T) {
+	app := service.NewApplication(service.ApplicationSettings{})
+	app.Service().StartAsync()
+	app.Service().AwaitUntilRunning()
+	defer app.Service().Stop()
+
+	checkErrorTypeIsServiceNotFoundError := func(err error) {
+		t.Helper()
+		switch err.(type) {
+		case *service.ServiceNotFoundError:
+		default:
+			t.Errorf("ERROR: Expected ServiceNotFoundError, but was %v", err)
+		}
+	}
+
+	// should be ok to call when no services are registered
+	app.RestartAllServices()
+	app.RestartAllFailedServices()
+	app.StopAllServices()
+	if err := app.RestartServiceByType(EchoServiceInterface); err != nil {
+		checkErrorTypeIsServiceNotFoundError(err)
+	} else {
+		t.Error("ERROR: no services are registered")
+	}
+	app.RestartServiceByKey(service.InterfaceTypeToServiceKey(EchoServiceInterface))
+	if err := app.StopServiceByType(EchoServiceInterface); err != nil {
+		checkErrorTypeIsServiceNotFoundError(err)
+	} else {
+		t.Error("ERROR: no services are registered")
+	}
+	if err := app.StopServiceByKey(service.InterfaceTypeToServiceKey(EchoServiceInterface)); err != nil {
+		checkErrorTypeIsServiceNotFoundError(err)
+	} else {
+		t.Error("ERROR: no services are registered")
 	}
 }
 
