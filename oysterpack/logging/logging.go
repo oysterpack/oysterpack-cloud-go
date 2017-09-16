@@ -12,11 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package logging initializes zerolog and redirects golang's std global logger to zerolog's global logger
 package logging
 
 import (
 	"encoding/json"
 	"fmt"
+	stdlog "log"
 	"reflect"
 	"time"
 
@@ -66,6 +68,10 @@ func NewPackageLogger(o interface{}) zerolog.Logger {
 func init() {
 	// log with nanosecond precision time
 	zerolog.TimeFieldFormat = time.RFC3339Nano
+
+	// redirects
+	stdlog.SetFlags(0)
+	stdlog.SetOutput(log.Logger)
 }
 
 // Level is the logging level

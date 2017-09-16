@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
+	"log"
 	"testing"
 	"time"
 
@@ -108,4 +109,8 @@ func TestNewTypeLogger_ForUnnamedType(t *testing.T) {
 		}()
 		logging.NewTypeLogger(1)
 	}()
+}
+
+func TestStdLoggerToZeroLog(t *testing.T) {
+	log.Print("*** TestStdLoggerToZeroLog ***")
 }
