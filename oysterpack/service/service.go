@@ -19,8 +19,9 @@ import (
 	"reflect"
 	"time"
 
+	"io"
+
 	"github.com/oysterpack/oysterpack.go/oysterpack/commons"
-	"github.com/oysterpack/oysterpack.go/oysterpack/internal/utils"
 	"github.com/oysterpack/oysterpack.go/oysterpack/logging"
 	"github.com/rs/zerolog"
 )
@@ -37,13 +38,8 @@ import (
 // 2. Services run in their own separate goroutine
 // 3. Each service has their own logger.
 //
-// Services must be designed to be concurrency safe. The solution is to design the service as a message processing service
-// leveraging channels and goroutines. There are several approaches :
-// 1. one channel per service function - the service would use a select within an infinite for loop to process messages sent via channels
-// 2. one channel per service - the service would use a type switch to map message handlers to messages
-// 3. a hybrid of the above approaches
-//
-// NOTE: If a reply is required, then the message will have a reply channel.
+// Services must be designed to be thread safe. The solution is to design the service as a message processing service
+// leveraging channels and goroutines.
 //
 //
 // TODO: dependencies
@@ -117,17 +113,23 @@ func (ctx *RunContext) StopTrigger() StopTrigger {
 // Destroy is a function that is used to perform any cleanup during service shutdown.
 type Destroy func(*Context) error
 
-// NewServiceParams is used by NewService to create a new service instance
-type NewServiceParams struct {
+// ServiceSettings is used by NewService to create a new service instance
+type ServiceSettings struct {
+	// REQUIRED - represents the service interface from the client's perspective
+	// If the service has no direct client API, e.g., a network based service, then use an empty interface{}
 	ServiceInterface commons.InterfaceType
 
+	// OPTIONAL - service lifecycle functions
 	Init
 	Run
 	Destroy
 
-	// ServiceDependencies returns the Service interfaces that this service depends on.
+	// REQUIRED - ServiceDependencies returns the Service interfaces that this service depends on.
 	// It can be used to check if all service dependencies satisfied by the application.
 	ServiceDependencies []commons.InterfaceType
+
+	// OPTIONAL - used to specify an alternative writer for the service logger
+	LogOutput io.Writer
 }
 
 // NewService creates and returns a new Service instance in the 'New' state.
@@ -137,7 +139,7 @@ type NewServiceParams struct {
 // - if nil or not an interface, then the method panics
 // All service life cycle functions are optional.
 // Any panic that occurs in the supplied functions is converted to a PanicError.
-func NewService(params NewServiceParams) *Service {
+func NewService(params ServiceSettings) *Service {
 	serviceInterface := params.ServiceInterface
 	init := params.Init
 	run := params.Run
@@ -210,6 +212,9 @@ func NewService(params NewServiceParams) *Service {
 
 	newService := func() *Service {
 		svcLog := logger.With().Dict(logging.SERVICE, logging.InterfaceTypeDict(serviceInterface)).Logger()
+		if params.LogOutput != nil {
+			svcLog = svcLog.Output(params.LogOutput)
+		}
 		svcLog.Info().Str(logging.FUNC, "NewService").Msg("")
 
 		service := &Service{
@@ -286,7 +291,7 @@ func (svc *Service) awaitState(desiredState State, timeout time.Duration) error 
 	go func() {
 		// ignore panics caused by sending on a closed messages
 		// the messages might be closed if the service failed
-		defer utils.IgnorePanic()
+		defer commons.IgnorePanic()
 		if stateChangeChann := svc.serviceState.stateChangeChannel(l); stateChangeChann != nil {
 			stateChangeChann <- svc.State()
 		}

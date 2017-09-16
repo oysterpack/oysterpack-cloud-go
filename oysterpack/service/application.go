@@ -23,11 +23,12 @@ import (
 	"syscall"
 	"time"
 
+	"io"
+
 	"github.com/oysterpack/oysterpack.go/oysterpack/commons"
-	"github.com/oysterpack/oysterpack.go/oysterpack/internal/utils"
 )
 
-var app Application = NewApplicationContext()
+var app Application = NewApplicationContext(ApplicationSettings{})
 
 // App exposes the Application globally. An Application instance is created automatically when this package is loaded.
 // Use cases:
@@ -102,14 +103,23 @@ func (a *ApplicationContext) Service() *Service {
 	return a.service
 }
 
+type ApplicationSettings struct {
+	LogOutput io.Writer
+}
+
 // NewApplicationContext returns a new ApplicationContext
-func NewApplicationContext() *ApplicationContext {
+func NewApplicationContext(settings ApplicationSettings) *ApplicationContext {
 	app := &ApplicationContext{
 		services: make(map[commons.InterfaceType]*registeredService),
 	}
 	var service Application = app
 	serviceInterface, _ := commons.ObjectInterface(&service)
-	app.service = NewService(NewServiceParams{ServiceInterface: serviceInterface, Run: app.run, Destroy: app.destroy})
+	app.service = NewService(ServiceSettings{
+		ServiceInterface: serviceInterface,
+		Run:              app.run,
+		Destroy:          app.destroy,
+		LogOutput:        settings.LogOutput,
+	})
 	return app
 }
 
@@ -153,7 +163,7 @@ func (a *ApplicationContext) checkServiceTickets() {
 		serviceClient := a.ServiceByType(ticket.InterfaceType)
 		if serviceClient != nil {
 			go func(ticket *ServiceTicket) {
-				defer utils.IgnorePanic()
+				defer commons.IgnorePanic()
 				ticket.channel <- serviceClient
 				close(ticket.channel)
 			}(ticket)
@@ -179,7 +189,7 @@ func (a *ApplicationContext) closeAllServiceTickets() {
 	defer a.serviceTicketsMutex.RUnlock()
 	for _, ticket := range a.serviceTickets {
 		func(ticket *ServiceTicket) {
-			defer utils.IgnorePanic()
+			defer commons.IgnorePanic()
 			close(ticket.channel)
 		}(ticket)
 	}

@@ -71,7 +71,7 @@ func (a *EchoServiceClient) Echo(msg interface{}) interface{} {
 
 // ServiceConstructor
 func (a *EchoServiceClient) newService() *service.Service {
-	return service.NewService(service.NewServiceParams{ServiceInterface: EchoServiceInterface, Run: a.run})
+	return service.NewService(service.ServiceSettings{ServiceInterface: EchoServiceInterface, Run: a.run})
 }
 
 // Service Run func
@@ -141,7 +141,7 @@ func (a *HeartbeatServiceClient) run(ctx *service.RunContext) error {
 }
 
 func (a *HeartbeatServiceClient) newService() *service.Service {
-	return service.NewService(service.NewServiceParams{ServiceInterface: HeartbeatServiceInterface, Run: a.run})
+	return service.NewService(service.ServiceSettings{ServiceInterface: HeartbeatServiceInterface, Run: a.run})
 }
 
 func HeartbeatServiceClientConstructor(application service.Application) service.ServiceClient {
@@ -174,7 +174,7 @@ func aServiceInterfaceType() commons.InterfaceType {
 func AServiceClientConstructor(application service.Application) service.ServiceClient {
 	serviceClient := &AServiceClient{}
 	serviceClient.RestartableService = service.NewRestartableService(func() *service.Service {
-		return service.NewService(service.NewServiceParams{ServiceInterface: AServiceInterface})
+		return service.NewService(service.ServiceSettings{ServiceInterface: AServiceInterface})
 	})
 	return serviceClient
 }
@@ -207,7 +207,7 @@ func BServiceClientConstructor(app service.Application) service.ServiceClient {
 			return nil
 		}
 
-		return service.NewService(service.NewServiceParams{
+		return service.NewService(service.ServiceSettings{
 			ServiceInterface:    BServiceInterface,
 			ServiceDependencies: []commons.InterfaceType{AServiceInterface},
 			Init:                init,

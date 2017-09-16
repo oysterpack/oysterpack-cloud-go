@@ -25,7 +25,7 @@ import (
 )
 
 func TestApplicationContext_RegisterService(t *testing.T) {
-	app := service.NewApplicationContext()
+	app := service.NewApplicationContext(service.ApplicationSettings{})
 	app.Service().StartAsync()
 	app.Service().AwaitUntilRunning()
 	defer app.Service().Stop()
@@ -65,7 +65,7 @@ func TestApplicationContext_RegisterService(t *testing.T) {
 }
 
 func TestApplicationContext_ServiceClientIsStableReferenceAfterRestarting(t *testing.T) {
-	app := service.NewApplicationContext()
+	app := service.NewApplicationContext(service.ApplicationSettings{})
 	app.Service().StartAsync()
 	app.Service().AwaitUntilRunning()
 	defer app.Service().Stop()
@@ -122,7 +122,7 @@ func TestApplicationContext_ServiceClientIsStableReferenceAfterRestarting(t *tes
 }
 
 func TestApplicationContext_UnRegisterService(t *testing.T) {
-	app := service.NewApplicationContext()
+	app := service.NewApplicationContext(service.ApplicationSettings{})
 	app.Service().StartAsync()
 	app.Service().AwaitUntilRunning()
 	defer app.Service().Stop()
@@ -164,7 +164,7 @@ func (a *SimpleEchoService) Echo(msg interface{}) interface{} {
 }
 
 func TestApplicationContext_RegisterService_ServiceClientNotAssignableToServiceInterface(t *testing.T) {
-	app := service.NewApplicationContext()
+	app := service.NewApplicationContext(service.ApplicationSettings{})
 	app.Service().StartAsync()
 	app.Service().AwaitUntilRunning()
 	defer app.Service().Stop()
@@ -188,7 +188,7 @@ func TestApplicationContext_RegisterService_ServiceClientNotAssignableToServiceI
 				RestartableService: service.NewRestartableService(func() *service.Service {
 					var svc EchoService = &SimpleEchoService{}
 					serviceInterface, _ := commons.ObjectInterface(&svc)
-					return service.NewService(service.NewServiceParams{ServiceInterface: serviceInterface})
+					return service.NewService(service.ServiceSettings{ServiceInterface: serviceInterface})
 				}),
 			}
 		})
@@ -197,7 +197,7 @@ func TestApplicationContext_RegisterService_ServiceClientNotAssignableToServiceI
 }
 
 func TestApplicationContext_ServiceByType_NotRegistered(t *testing.T) {
-	app := service.NewApplicationContext()
+	app := service.NewApplicationContext(service.ApplicationSettings{})
 	app.Service().StartAsync()
 	app.Service().AwaitUntilRunning()
 	defer app.Service().Stop()
@@ -236,7 +236,7 @@ func TestApplicationContext_ServiceByType_NotRegistered(t *testing.T) {
 }
 
 func TestApplicationContext_ServiceInterfaces(t *testing.T) {
-	app := service.NewApplicationContext()
+	app := service.NewApplicationContext(service.ApplicationSettings{})
 	app.Service().StartAsync()
 	app.Service().AwaitUntilRunning()
 	defer app.Service().Stop()
@@ -289,7 +289,7 @@ func TestApplicationContext_ServiceInterfaces(t *testing.T) {
 }
 
 func TestApplicationContext_Services(t *testing.T) {
-	app := service.NewApplicationContext()
+	app := service.NewApplicationContext(service.ApplicationSettings{})
 	app.Service().StartAsync()
 	app.Service().AwaitUntilRunning()
 	defer app.Service().Stop()
@@ -326,7 +326,7 @@ func TestApplicationContext_Services(t *testing.T) {
 }
 
 func TestApplicationContext_ServiceKeys(t *testing.T) {
-	app := service.NewApplicationContext()
+	app := service.NewApplicationContext(service.ApplicationSettings{})
 	app.Service().StartAsync()
 	app.Service().AwaitUntilRunning()
 	defer app.Service().Stop()
@@ -367,7 +367,7 @@ func TestApplicationContext_ServiceKeys(t *testing.T) {
 }
 
 func TestApplicationContext_ServiceByTypeAsync(t *testing.T) {
-	app := service.NewApplicationContext()
+	app := service.NewApplicationContext(service.ApplicationSettings{})
 	app.Service().StartAsync()
 	app.Service().AwaitUntilRunning()
 	defer app.Service().Stop()
@@ -406,7 +406,7 @@ func TestApplicationContext_ServiceByTypeAsync(t *testing.T) {
 }
 
 func TestApplicationContext_CheckAllServiceDependenciesRegistered(t *testing.T) {
-	app := service.NewApplicationContext()
+	app := service.NewApplicationContext(service.ApplicationSettings{})
 	app.Service().StartAsync()
 	app.Service().AwaitUntilRunning()
 	defer app.Service().Stop()
@@ -464,7 +464,7 @@ func TestApplicationContext_CheckAllServiceDependenciesRegistered(t *testing.T) 
 }
 
 func TestApplicationContext_StopAppWhileWaitingForServiceDependencies(t *testing.T) {
-	app := service.NewApplicationContext()
+	app := service.NewApplicationContext(service.ApplicationSettings{})
 	app.Service().StartAsync()
 	app.Service().AwaitUntilRunning()
 
@@ -479,7 +479,7 @@ func TestApplicationContext_StopAppWhileWaitingForServiceDependencies(t *testing
 }
 
 func TestApplicationContext_CheckAllServiceDependencies(t *testing.T) {
-	app := service.NewApplicationContext()
+	app := service.NewApplicationContext(service.ApplicationSettings{})
 	app.Service().StartAsync()
 	app.Service().AwaitUntilRunning()
 	defer app.Service().Stop()
@@ -536,7 +536,7 @@ func TestApplicationContext_CheckAllServiceDependencies(t *testing.T) {
 }
 
 func TestApplicationContext_CheckAllServiceDependenciesRunning(t *testing.T) {
-	app := service.NewApplicationContext()
+	app := service.NewApplicationContext(service.ApplicationSettings{})
 	app.Service().StartAsync()
 	app.Service().AwaitUntilRunning()
 	defer app.Service().Stop()

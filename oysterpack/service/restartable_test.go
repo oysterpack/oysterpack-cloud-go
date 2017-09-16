@@ -24,7 +24,7 @@ import (
 func TestRestartableService_RestartService(t *testing.T) {
 
 	service := service.NewRestartableService(func() *service.Service {
-		return service.NewService(service.NewServiceParams{ServiceInterface: reflect.TypeOf(&foo)})
+		return service.NewService(service.ServiceSettings{ServiceInterface: reflect.TypeOf(&foo)})
 	})
 
 	if !service.Service().State().New() {

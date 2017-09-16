@@ -19,7 +19,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/oysterpack/oysterpack.go/oysterpack/internal/utils"
+	"github.com/oysterpack/oysterpack.go/oysterpack/commons"
 )
 
 // ServiceState is used to manage the service's state.
@@ -195,7 +195,7 @@ func (s *ServiceState) deleteAllStateChangeListeners() {
 
 // Ignores panic if the channel is already closed
 func closeStateChanQuietly(c chan State) {
-	defer utils.IgnorePanic()
+	defer commons.IgnorePanic()
 	close(c)
 }
 

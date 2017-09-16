@@ -12,8 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package utils
+package commons
+
+import "github.com/rs/zerolog/log"
 
 // IgnorePanic simply calls recover()
 // It is intended to use in defer() functions to explicitly specify the intent.
-func IgnorePanic() { recover() }
+// If debug logging is enabled, then ignored panics will be logged
+func IgnorePanic() {
+	if p := recover(); p != nil {
+		log.Debug().Msgf("IgnorePanic : %v", p)
+	}
+}

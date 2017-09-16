@@ -27,3 +27,7 @@ the -benchmem flag will include memory allocation statistics in the report
     
 ### How to run Go Report Card
 [OysterPack Go Report Card](https://goreportcard.com/report/github.com/oysterpack/oysterpack.go)
+
+# How to format the code
+
+    goimport -w -l ./
