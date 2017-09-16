@@ -28,7 +28,7 @@
 //    - each service must document its log events
 //    - log events should be as structural as possible, enabling it to be easily searched
 // - services should provide metrics and be instrumented for monitoring and alerting
-// - service dependencies must be defined
+// - service Dependencies must be defined
 // - services must provide health checks
 // - service issues, i.e., bugs, must be tracked
 // - services must be scalable

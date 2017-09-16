@@ -95,29 +95,21 @@ func (e *ServiceNotFoundError) Error() string {
 	return fmt.Sprintf("Service not found : %v.%v", e.ServiceKey.PackagePath, e.ServiceKey.TypeName)
 }
 
-type serviceDependencies struct {
-	serviceInterface commons.InterfaceType
-	dependencies     []commons.InterfaceType
-}
-
-func (a *serviceDependencies) Dependencies() []commons.InterfaceType {
-	return a.dependencies
-}
-
-func (a *serviceDependencies) ServiceInterface() commons.InterfaceType {
-	return a.serviceInterface
+type DependencyMappings struct {
+	ServiceInterface commons.InterfaceType
+	Dependencies     []commons.InterfaceType
 }
 
 // AddDependency will add the missing dependency, if it has not yet already been added
-func (a *serviceDependencies) addDependency(dependency commons.InterfaceType) {
+func (a *DependencyMappings) addDependency(dependency commons.InterfaceType) {
 	if !a.contains(dependency) {
-		a.dependencies = append(a.dependencies, dependency)
+		a.Dependencies = append(a.Dependencies, dependency)
 	}
 }
 
 // Contains returns true if the service dependency exists
-func (a *serviceDependencies) contains(dependency commons.InterfaceType) bool {
-	for _, v := range a.dependencies {
+func (a *DependencyMappings) contains(dependency commons.InterfaceType) bool {
+	for _, v := range a.Dependencies {
 		if v == dependency {
 			return true
 		}
@@ -125,17 +117,17 @@ func (a *serviceDependencies) contains(dependency commons.InterfaceType) bool {
 	return false
 }
 
-func (a *serviceDependencies) String() string {
-	return fmt.Sprintf("%v -> %v", a.ServiceInterface(), a.dependencies)
+func (a *DependencyMappings) String() string {
+	return fmt.Sprintf("%v -> %v", a.ServiceInterface, a.Dependencies)
 }
 
-// ServiceDependenciesMissing indicates that a service's dependencies are missing at runtime
+// ServiceDependenciesMissing indicates that a service's Dependencies are missing at runtime
 type ServiceDependenciesMissing struct {
-	*serviceDependencies
+	*DependencyMappings
 }
 
 func (a *ServiceDependenciesMissing) Error() string {
-	return fmt.Sprintf("Service dependencies are missing : %v", a.serviceDependencies)
+	return fmt.Sprintf("Service Dependencies are missing : %v", a.DependencyMappings)
 }
 
 // AddMissingDependency will add the missing dependency, if it has not yet already been added
@@ -148,18 +140,18 @@ func (a *ServiceDependenciesMissing) Missing(dependency commons.InterfaceType) b
 	return a.contains(dependency)
 }
 
-// HasMissing returns true if the service has any missing dependencies
+// HasMissing returns true if the service has any missing Dependencies
 func (a *ServiceDependenciesMissing) HasMissing() bool {
-	return len(a.dependencies) > 0
+	return len(a.Dependencies) > 0
 }
 
-// ServiceDependenciesNotRunning indicates that a service's dependencies are registered, but not running
+// ServiceDependenciesNotRunning indicates that a service's Dependencies are registered, but not running
 type ServiceDependenciesNotRunning struct {
-	*serviceDependencies
+	*DependencyMappings
 }
 
 func (a *ServiceDependenciesNotRunning) Error() string {
-	return fmt.Sprintf("Service dependencies are not running : %v", a.serviceDependencies)
+	return fmt.Sprintf("Service Dependencies are not running : %v", a.DependencyMappings)
 }
 
 // AddDependencyNotRunning will add the missing dependency, if it has not yet already been added
@@ -172,9 +164,9 @@ func (a *ServiceDependenciesNotRunning) NotRunning(dependency commons.InterfaceT
 	return a.contains(dependency)
 }
 
-// HasNotRunning returns true if the service has any missing dependencies
+// HasNotRunning returns true if the service has any missing Dependencies
 func (a *ServiceDependenciesNotRunning) HasNotRunning() bool {
-	return len(a.dependencies) > 0
+	return len(a.Dependencies) > 0
 }
 
 // ServiceDependencyErrors aggregates service dependency related errors. The types of errors are :

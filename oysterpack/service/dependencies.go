@@ -14,18 +14,18 @@
 
 package service
 
-// ServiceDependencies provides functionality to get information about about service dependencies
+// ServiceDependencies provides functionality to get information about about service Dependencies
 type ServiceDependencies interface {
 	// TODO: add healthchecks and alerts for dependency checks
 
-	// CheckAllServiceDependencies checks that all dependencies for each service are available
+	// CheckAllServiceDependencies checks that all Dependencies for each service are available
 	CheckAllServiceDependencies() *ServiceDependencyErrors
 
 	CheckAllServiceDependenciesRegistered() []*ServiceDependenciesMissing
 
 	CheckAllServiceDependenciesRunning() []*ServiceDependenciesNotRunning
 
-	// CheckServiceDependencies checks that the service dependencies are available
+	// CheckServiceDependencies checks that the service Dependencies are available
 	CheckServiceDependencies(client ServiceClient) *ServiceDependencyErrors
 
 	CheckServiceDependenciesRegistered(client ServiceClient) *ServiceDependenciesMissing

@@ -428,14 +428,14 @@ func TestApplicationContext_CheckAllServiceDependenciesRegistered(t *testing.T) 
 	}
 
 	checkMissingDepencencyServiceA := func(err *service.ServiceDependenciesMissing) {
-		if err.ServiceInterface() != bService.Service().Interface() {
+		if err.ServiceInterface != bService.Service().Interface() {
 			t.Errorf("ServiceInterface should be: %v , but was %v", bService.Service().Interface(), err.ServiceInterface)
 		}
-		if len(err.Dependencies()) != 1 {
-			t.Errorf("There shold be i missing ServiceDependencies : %v", err.Dependencies())
+		if len(err.Dependencies) != 1 {
+			t.Errorf("There shold be i missing ServiceDependencies : %v", err.Dependencies)
 		}
-		if err.Dependencies()[0] != AServiceInterface {
-			t.Errorf("Missing service dependency should be AService, but was : %v", err.Dependencies()[0])
+		if err.Dependencies[0] != AServiceInterface {
+			t.Errorf("Missing service dependency should be AService, but was : %v", err.Dependencies[0])
 		}
 	}
 
@@ -558,14 +558,14 @@ func TestApplicationContext_CheckAllServiceDependenciesRunning(t *testing.T) {
 	}
 
 	checkMissingDepencencyServiceA := func(err *service.ServiceDependenciesNotRunning) {
-		if err.ServiceInterface() != bService.Service().Interface() {
+		if err.ServiceInterface != bService.Service().Interface() {
 			t.Errorf("ServiceInterface should be: %v , but was %v", bService.Service().Interface(), err.ServiceInterface)
 		}
-		if len(err.Dependencies()) != 1 {
-			t.Errorf("There shold be i missing ServiceDependencies : %v", err.Dependencies())
+		if len(err.Dependencies) != 1 {
+			t.Errorf("There shold be i missing ServiceDependencies : %v", err.Dependencies)
 		}
-		if err.Dependencies()[0] != AServiceInterface {
-			t.Errorf("Missing service dependency should be AService, but was : %v", err.Dependencies()[0])
+		if err.Dependencies[0] != AServiceInterface {
+			t.Errorf("Missing service dependency should be AService, but was : %v", err.Dependencies[0])
 		}
 	}
 

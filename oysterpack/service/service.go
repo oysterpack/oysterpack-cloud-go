@@ -42,7 +42,7 @@ import (
 // leveraging channels and goroutines.
 //
 //
-// TODO: dependencies
+// TODO: Dependencies
 // TODO: events
 // TODO: logging
 // TODO: metrics
@@ -78,7 +78,7 @@ type lifeCycle struct {
 	destroy Destroy
 
 	// for informational purposes
-	// can also be used to validate an application, i.e., are all service dependencies satisfied by the application
+	// can also be used to validate an application, i.e., are all service Dependencies satisfied by the application
 	ServiceDependencies []commons.InterfaceType
 }
 
@@ -125,7 +125,7 @@ type ServiceSettings struct {
 	Destroy
 
 	// REQUIRED - ServiceDependencies returns the Service interfaces that this service depends on.
-	// It can be used to check if all service dependencies satisfied by the application.
+	// It can be used to check if all service Dependencies satisfied by the application.
 	ServiceDependencies []commons.InterfaceType
 
 	// OPTIONAL - used to specify an alternative writer for the service logger
@@ -134,7 +134,7 @@ type ServiceSettings struct {
 
 // NewService creates and returns a new Service instance in the 'New' state.
 //
-// serviceInterface:
+// ServiceInterface:
 // - must be an interface which defines the service's interface
 // - if nil or not an interface, then the method panics
 // All service life cycle functions are optional.
@@ -147,13 +147,13 @@ func NewService(params ServiceSettings) *Service {
 
 	checkServiceInterface := func() {
 		if serviceInterface == nil {
-			panic("serviceInterface is required")
+			panic("ServiceInterface is required")
 		}
 		switch serviceInterface.Kind() {
 		case reflect.Interface:
 		default:
 			if kind := serviceInterface.Elem().Kind(); kind != reflect.Interface {
-				panic(fmt.Sprintf("serviceInterface (%T) must be an interface, but was a %v", serviceInterface, kind))
+				panic(fmt.Sprintf("ServiceInterface (%T) must be an interface, but was a %v", serviceInterface, kind))
 			}
 			serviceInterface = serviceInterface.Elem()
 		}
