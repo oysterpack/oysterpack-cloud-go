@@ -31,3 +31,20 @@ the -benchmem flag will include memory allocation statistics in the report
 # How to format the code
 
     goimport -w -l ./
+    
+# Best Practices
+1. Define all package errors in a centralized location in a file name errors.go
+2. All error types should be implemented as references, e.g.
+
+        // IllegalStateError indicates we are in an illegal state
+        type IllegalStateError struct {
+            State
+            Message string
+        }
+        
+        func (e *IllegalStateError) Error() string {
+            if e.Message == "" {
+                return e.State.String()
+            }
+            return fmt.Sprintf("%v : %v", e.State, e.Message)
+        }

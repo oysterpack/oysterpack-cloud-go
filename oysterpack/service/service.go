@@ -438,7 +438,11 @@ func (svc *service) StopAsyc() {
 		svc.logger.Info().Str(logging.FUNC, FUNC).Msg("service was never started")
 		return
 	}
-	close(svc.stopTrigger)
+	func() {
+		defer commons.IgnorePanic()
+		close(svc.stopTrigger)
+	}()
+
 	svc.logger.Info().Str(logging.FUNC, FUNC).Dict(logging.EVENT, STOP_TRIGGERED.Dict()).Msg("")
 }
 

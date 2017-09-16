@@ -653,3 +653,175 @@ func TestApplication_ServiceStates(t *testing.T) {
 		t.Errorf("HeartbeatService should be stopped: %v", serviceStates)
 	}
 }
+
+func TestApplication_StopRestartServices(t *testing.T) {
+	app := service.NewApplication(service.ApplicationSettings{})
+	app.Service().StartAsync()
+	app.Service().AwaitUntilRunning()
+	defer app.Service().Stop()
+
+	checkErrorTypeIsServiceNotFoundError := func(err error) {
+		t.Helper()
+		switch err.(type) {
+		case *service.ServiceNotFoundError:
+		default:
+			t.Errorf("ERROR: Expected ServiceNotFoundError, but was %v", err)
+		}
+	}
+
+	// should be ok to call when no services are registered
+	app.RestartAllServices()
+	app.RestartAllFailedServices()
+	app.StopAllServices()
+	if err := app.RestartServiceByType(EchoServiceInterface); err != nil {
+		checkErrorTypeIsServiceNotFoundError(err)
+	} else {
+		t.Error("ERROR: no services are registered")
+	}
+	app.RestartServiceByKey(service.InterfaceTypeToServiceKey(EchoServiceInterface))
+	if err := app.StopServiceByType(EchoServiceInterface); err != nil {
+		checkErrorTypeIsServiceNotFoundError(err)
+	} else {
+		t.Error("ERROR: no services are registered")
+	}
+	if err := app.StopServiceByKey(service.InterfaceTypeToServiceKey(EchoServiceInterface)); err != nil {
+		checkErrorTypeIsServiceNotFoundError(err)
+	} else {
+		t.Error("ERROR: no services are registered")
+	}
+
+	echoService := app.RegisterService(EchoServiceClientConstructor)
+	echoService.Service().AwaitUntilRunning()
+
+	heartbeatService := app.RegisterService(HeartbeatServiceClientConstructor)
+	heartbeatService.Service().AwaitUntilRunning()
+
+	app.RestartAllServices()
+
+	for {
+		if echoService.RestartCount() == 1 && heartbeatService.RestartCount() == 1 {
+			break
+		}
+
+		t.Logf("Waiting for services to restart ...")
+		time.Sleep(1 * time.Millisecond)
+	}
+
+	app.RestartServiceByType(EchoServiceInterface)
+
+	for {
+		if echoService.RestartCount() == 2 && heartbeatService.RestartCount() == 1 {
+			break
+		}
+
+		t.Logf("Waiting for services to restart ...")
+		time.Sleep(1 * time.Millisecond)
+	}
+
+	app.RestartServiceByKey(service.InterfaceTypeToServiceKey(HeartbeatServiceInterface))
+
+	for {
+		if echoService.RestartCount() == 2 && heartbeatService.RestartCount() == 2 {
+			break
+		}
+
+		t.Logf("Waiting for services to restart ...")
+		time.Sleep(1 * time.Millisecond)
+	}
+
+	if err := app.StopServiceByType(EchoServiceInterface); err != nil {
+		t.Error(err)
+	}
+	// stopping a stopped service should be ok
+	if err := app.StopServiceByType(EchoServiceInterface); err != nil {
+		t.Error(err)
+	}
+	echoService.Service().AwaitUntilStopped()
+
+	if err := app.StopServiceByKey(service.InterfaceTypeToServiceKey(HeartbeatServiceInterface)); err != nil {
+		t.Error(err)
+	}
+	// stopping a stopped service should be ok
+	if err := app.StopServiceByKey(service.InterfaceTypeToServiceKey(HeartbeatServiceInterface)); err != nil {
+		t.Error(err)
+	}
+	heartbeatService.Service().AwaitUntilStopped()
+
+	app.StopAllServices()
+	app.RestartAllServices()
+
+	for {
+		if echoService.RestartCount() == 3 && heartbeatService.RestartCount() == 3 {
+			break
+		}
+
+		t.Logf("Waiting for services to restart ...")
+		time.Sleep(1 * time.Millisecond)
+	}
+}
+
+func TestApplication_RestartAllFailedServices(t *testing.T) {
+	app := service.NewApplication(service.ApplicationSettings{})
+	app.Service().StartAsync()
+	app.Service().AwaitUntilRunning()
+	defer app.Service().Stop()
+
+	echoService := app.RegisterService(EchoServiceClientConstructor)
+	echoService.Service().AwaitUntilRunning()
+
+	client := app.RegisterService(func(app service.Application) service.Client {
+		client := &testApplication_RestartAllFailedServices_client{fail: make(chan struct{})}
+		client.RestartableService = service.NewRestartableService(client.newService)
+		return client
+	})
+	client.Service().AwaitUntilRunning()
+
+	client.(testApplication_RestartAllFailedServices).Fail()
+	client.Service().AwaitUntilStopped()
+	app.RestartAllFailedServices()
+	client.Service().AwaitUntilRunning()
+
+	for {
+		if c := client.RestartCount(); c == 1 {
+			break
+		}
+		t.Log("Waiting for restart count to update")
+		time.Sleep(time.Millisecond)
+	}
+
+}
+
+type testApplication_RestartAllFailedServices interface {
+	Fail()
+}
+
+type testApplication_RestartAllFailedServices_client struct {
+	*service.RestartableService
+
+	fail chan struct{}
+}
+
+func (a *testApplication_RestartAllFailedServices_client) Fail() {
+	a.fail <- struct{}{}
+}
+
+func (a *testApplication_RestartAllFailedServices_client) run(ctx *service.Context) error {
+	for {
+		select {
+		case <-ctx.StopTrigger():
+			return nil
+		case <-a.fail:
+			panic("BOOM !!!")
+		}
+	}
+}
+
+func (a *testApplication_RestartAllFailedServices_client) newService() service.Service {
+	return service.NewService(service.ServiceSettings{ServiceInterface: testApplication_RestartAllFailedServices_interface, Run: a.run})
+}
+
+var testApplication_RestartAllFailedServices_interface service.ServiceInterface = func() service.ServiceInterface {
+	var o testApplication_RestartAllFailedServices = &testApplication_RestartAllFailedServices_client{}
+	i, _ := commons.ObjectInterface(&o)
+	return i
+}()

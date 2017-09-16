@@ -74,6 +74,14 @@ func (a *EchoServiceClient) newService() service.Service {
 	return service.NewService(service.ServiceSettings{ServiceInterface: EchoServiceInterface, Run: a.run})
 }
 
+func (a *EchoServiceClient) init(ctx *service.Context) error {
+	if a.echo == nil {
+		a.echo = make(chan *EchoRequest)
+	}
+
+	return nil
+}
+
 // Service Run func
 func (a *EchoServiceClient) run(ctx *service.Context) error {
 	for {
@@ -88,9 +96,7 @@ func (a *EchoServiceClient) run(ctx *service.Context) error {
 
 // EchoServiceClientConstructor is a ServiceClientConstructor
 func EchoServiceClientConstructor(application service.Application) service.Client {
-	serviceClient := &EchoServiceClient{
-		echo: make(chan *EchoRequest),
-	}
+	serviceClient := &EchoServiceClient{echo: make(chan *EchoRequest)}
 	serviceClient.RestartableService = service.NewRestartableService(serviceClient.newService)
 	return serviceClient
 }

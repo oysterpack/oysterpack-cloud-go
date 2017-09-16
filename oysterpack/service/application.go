@@ -40,7 +40,7 @@ type Application interface {
 	// ApplicationServiceState(s) will be returned sorted by the service interface
 	ServiceStates() map[ServiceInterface]State
 
-	//StartStopRestartServices
+	StopRestartServices
 }
 
 // application.services map entry type
@@ -426,7 +426,8 @@ func (a *application) StopServiceByType(serviceInterface ServiceInterface) error
 	if client == nil {
 		return &ServiceNotFoundError{InterfaceTypeToServiceKey(serviceInterface)}
 	}
-	return client.Service().StartAsync()
+	client.Service().StopAsyc()
+	return nil
 }
 
 func (a *application) StopServiceByKey(key ServiceKey) error {
@@ -434,5 +435,50 @@ func (a *application) StopServiceByKey(key ServiceKey) error {
 	if client == nil {
 		return &ServiceNotFoundError{key}
 	}
-	return client.Service().StartAsync()
+	client.Service().StopAsyc()
+	return nil
+}
+
+func (a *application) RestartServiceByType(serviceInterface ServiceInterface) error {
+	client := a.ServiceByType(serviceInterface)
+	if client == nil {
+		return &ServiceNotFoundError{InterfaceTypeToServiceKey(serviceInterface)}
+	}
+	client.Restart()
+	return nil
+}
+
+func (a *application) RestartServiceByKey(key ServiceKey) error {
+	client := a.ServiceByKey(key)
+	if client == nil {
+		return &ServiceNotFoundError{key}
+	}
+	client.Restart()
+	return nil
+}
+
+func (a *application) RestartAllServices() {
+	a.mutex.RLock()
+	defer a.mutex.RUnlock()
+	for _, client := range a.services {
+		go client.Restart()
+	}
+}
+
+func (a *application) RestartAllFailedServices() {
+	a.mutex.RLock()
+	defer a.mutex.RUnlock()
+	for _, client := range a.services {
+		if client.Service().FailureCause() != nil {
+			go client.Restart()
+		}
+	}
+}
+
+func (a *application) StopAllServices() {
+	a.mutex.RLock()
+	defer a.mutex.RUnlock()
+	for _, client := range a.services {
+		client.Service().Stop()
+	}
 }
