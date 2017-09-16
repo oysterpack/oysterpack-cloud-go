@@ -16,7 +16,7 @@ package service
 
 var app Application = NewApplication(ApplicationSettings{})
 
-// App() exposes the Application globally.
+// App exposes the Application globally.
 //
 // Use cases:
 // 1. Package init functions use it to to register services when the package is loaded

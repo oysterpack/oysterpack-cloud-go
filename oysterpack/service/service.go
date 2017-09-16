@@ -29,7 +29,6 @@ import (
 // Service represents the backend service.
 // use NewService() to create a new instance
 type Service interface {
-	// Interface represents the interface from the client's perspective, i.e., it defines the service's functionality.
 	Interface() ServiceInterface
 
 	StartAsync() error
@@ -92,6 +91,7 @@ type service struct {
 	logger zerolog.Logger
 }
 
+// ServiceInterface represents the interface from the client's perspective, i.e., it defines the service's functionality.
 type ServiceInterface commons.InterfaceType
 
 // LifeCycle encapsulates the service lifecycle, including the service's backend functions, i.e., Init, Run, Destroy
