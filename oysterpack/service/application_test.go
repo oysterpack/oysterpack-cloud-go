@@ -42,7 +42,7 @@ func TestApplicationContext_RegisterService(t *testing.T) {
 		t.Errorf("echo : return unexpected response : %v", response)
 	}
 
-	serviceClients := []service.ServiceClient{
+	serviceClients := []service.Client{
 		serviceClient,
 		app.ServiceByType(EchoServiceInterface),
 		app.ServiceByKey(service.InterfaceTypeToServiceKey(EchoServiceInterface)),
@@ -72,7 +72,7 @@ func TestApplicationContext_ServiceClientIsStableReferenceAfterRestarting(t *tes
 	serviceClient := app.RegisterService(EchoServiceClientConstructor)
 	message := "CIAO MUNDO !!!"
 
-	serviceClients := []service.ServiceClient{
+	serviceClients := []service.Client{
 		serviceClient,
 		app.ServiceByType(EchoServiceInterface),
 		app.ServiceByKey(service.InterfaceTypeToServiceKey(EchoServiceInterface)),
@@ -147,7 +147,7 @@ func TestApplicationContext_UnRegisterService(t *testing.T) {
 		t.Errorf("service should have been registered")
 	}
 	if serviceClient == serviceClient2 {
-		t.Errorf("A new ServiceClient instance should have been returned")
+		t.Errorf("A new Client instance should have been returned")
 	}
 	if serviceClient2 != app.ServiceByType(EchoServiceInterface) {
 		t.Errorf("the registered service client instance should be the same instance")
@@ -183,9 +183,9 @@ func TestApplicationContext_RegisterService_ServiceClientNotAssignableToServiceI
 			}
 		}()
 
-		app.RegisterService(func(app service.Application) service.ServiceClient {
+		app.RegisterService(func(app service.Application) service.Client {
 			return &InvalidEchoServiceClient{
-				RestartableService: service.NewRestartableService(func() *service.Service {
+				RestartableService: service.NewRestartableService(func() service.Service {
 					var svc EchoService = &SimpleEchoService{}
 					serviceInterface, _ := commons.ObjectInterface(&svc)
 					return service.NewService(service.ServiceSettings{ServiceInterface: serviceInterface})
@@ -211,7 +211,7 @@ func TestApplicationContext_ServiceByType_NotRegistered(t *testing.T) {
 
 	app.RegisterService(EchoServiceClientConstructor)
 
-	serviceClients := []service.ServiceClient{
+	serviceClients := []service.Client{
 		app.ServiceByType(EchoServiceInterface),
 		app.ServiceByKey(service.InterfaceTypeToServiceKey(EchoServiceInterface)),
 	}
@@ -597,5 +597,59 @@ func TestApplicationContext_CheckAllServiceDependenciesRunning(t *testing.T) {
 	notRunning = app.CheckAllServiceDependenciesRunning()
 	if len(notRunning) == 0 {
 		t.Errorf("AService should not be running : %v", notRunning)
+	}
+}
+
+func TestApplication_ServiceStates(t *testing.T) {
+	app := service.NewApplication(service.ApplicationSettings{})
+	app.Service().StartAsync()
+	app.Service().AwaitUntilRunning()
+	defer app.Service().Stop()
+
+	serviceStates := app.ServiceStates()
+	if len(serviceStates) != 0 {
+		t.Errorf("there should be no services registered : %v", serviceStates)
+	}
+
+	echoService := app.RegisterService(EchoServiceClientConstructor)
+	serviceStates = app.ServiceStates()
+	t.Logf("serviceStates: %v", serviceStates)
+	if len(serviceStates) != 1 {
+		t.Errorf("there should be 1 service registered : %v", serviceStates)
+	}
+
+	echoService.Service().AwaitUntilRunning()
+	serviceStates = app.ServiceStates()
+	if len(serviceStates) != 1 {
+		t.Errorf("there should be 1 service registered : %v", serviceStates)
+	}
+	if serviceStates[EchoServiceInterface] != echoService.Service().State() {
+		t.Errorf("EchoService should be running: %v", serviceStates)
+	}
+
+	heartbeatService := app.RegisterService(HeartbeatServiceClientConstructor)
+	serviceStates = app.ServiceStates()
+	if len(serviceStates) != 2 {
+		t.Errorf("there should be 1 service registered : %v", serviceStates)
+	}
+	heartbeatService.Service().AwaitUntilRunning()
+	serviceStates = app.ServiceStates()
+	if len(serviceStates) != 2 {
+		t.Errorf("there should be 2 services registered : %v", serviceStates)
+	}
+	if !serviceStates[EchoServiceInterface].Running() {
+		t.Errorf("EchoService should be running: %v", serviceStates)
+	}
+	if !serviceStates[HeartbeatServiceInterface].Running() {
+		t.Errorf("HeartbeatService should be running: %v", serviceStates)
+	}
+	app.Service().Stop()
+
+	serviceStates = app.ServiceStates()
+	if !serviceStates[EchoServiceInterface].Stopped() {
+		t.Errorf("EchoService should be stopped: %v", serviceStates)
+	}
+	if !serviceStates[HeartbeatServiceInterface].Stopped() {
+		t.Errorf("HeartbeatService should be stopped: %v", serviceStates)
 	}
 }

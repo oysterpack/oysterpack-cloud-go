@@ -17,7 +17,7 @@
 // to be cloud native.
 //
 // High quality application services must address for the following design and operational concerns :
-//
+// ==================================================================================================
 // - services must be designed to be threadsafe
 // - interfaces must be used to define a service
 //    - the interface defines the service's functionality and must be clearly documented
@@ -44,8 +44,18 @@
 //     - each service must define its resource needs - the application resources are then the sum of the service resources
 //     - external resources must also be defined, i.e., database, queues, etc
 //
-// Services must provide documentation for all of the above.
+// *** Services must provide documentation for all of the above.
 //
 // The bottom line, is that it takes great discipline to create high quality application services.
+//
+// Key interfaces
+// ==============
+// Service interfaces
+// Client interface
+// Application interface
+//
+// Key functions
+// =============
+// App() Application
 //
 package service

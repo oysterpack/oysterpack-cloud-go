@@ -22,13 +22,13 @@ type Restartable interface {
 	RestartCount() int
 }
 
-// RestartableService implements the ServiceClient interface - it has a service reference that is restartable.
+// RestartableService implements the Client interface - it has a service reference that is restartable.
 // The service is not really restarted because it is illegal to start a service that has been stopped.
 // Instead a new instance of the service is created (via the provided ServiceConstructor) and then started.
 // New instances should be created using NewRestartableService()
 type RestartableService struct {
 	serviceMutex sync.RWMutex
-	service      *Service
+	service      Service
 	restartCount int
 
 	// is used to create a new instance of the service each time the service is restarted
@@ -38,7 +38,7 @@ type RestartableService struct {
 // Service returns the managed service instance.
 // When the service is restarted, a new service instance is created. This means the service pointer will point will change
 // each time the service is restarted.
-func (a *RestartableService) Service() *Service {
+func (a *RestartableService) Service() Service {
 	a.serviceMutex.RLock()
 	defer a.serviceMutex.RUnlock()
 	return a.service

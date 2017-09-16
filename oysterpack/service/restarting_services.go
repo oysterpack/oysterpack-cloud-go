@@ -14,42 +14,27 @@
 
 package service
 
-import (
-	"time"
-
-	"github.com/oysterpack/oysterpack.go/oysterpack/commons"
-)
-
-// ServiceManager is used to start/stop services
-// TODO: Add to Application interface
-type ServiceManager interface {
-	ServiceStates() []ApplicationServiceState
+// StartStopRestartServices is used to start/stop/restart services
+type StartStopRestartServices interface {
 
 	// Stop and start the service
 	// returns ServiceNotFoundError if the service is not registered
 	// returns ServiceError if the service restart failed
-	RestartServiceByType(serviceInterface commons.InterfaceType) error
+	RestartServiceByType(serviceInterface ServiceInterface) error
 	RestartServiceByKey(key ServiceKey) error
 
-	RestartAllServices() []ApplicationServiceState
+	RestartAllServices() map[ServiceInterface]State
 
 	// Stop the service
 	// returns ServiceNotFoundError if the service is not registered
 	// returns ServiceError if the service stopped in a failed state
-	StopServiceByType(serviceInterface commons.InterfaceType) error
+	StopServiceByType(serviceInterface ServiceInterface) error
 	StopServiceByKey(key ServiceKey) error
 
 	// Start the service
 	// returns ServiceNotFoundError if the service is not registered
 	// returns ServiceError if the service failed to start
 	// returns IllegalStateError if the service is not in a NEW state
-	StartServiceByType(serviceInterface commons.InterfaceType) error
+	StartServiceByType(serviceInterface ServiceInterface) error
 	StartServiceByKey(key ServiceKey) error
-}
-
-// ApplicationServiceState contains the state for a registered application service at a point in time
-type ApplicationServiceState struct {
-	ServiceKey
-	State
-	time.Time
 }

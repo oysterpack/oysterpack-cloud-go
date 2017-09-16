@@ -70,12 +70,12 @@ func (a *EchoServiceClient) Echo(msg interface{}) interface{} {
 ////////// service constructor //////////////////
 
 // ServiceConstructor
-func (a *EchoServiceClient) newService() *service.Service {
+func (a *EchoServiceClient) newService() service.Service {
 	return service.NewService(service.ServiceSettings{ServiceInterface: EchoServiceInterface, Run: a.run})
 }
 
 // Service Run func
-func (a *EchoServiceClient) run(ctx *service.RunContext) error {
+func (a *EchoServiceClient) run(ctx *service.Context) error {
 	for {
 		select {
 		case req := <-a.echo:
@@ -87,7 +87,7 @@ func (a *EchoServiceClient) run(ctx *service.RunContext) error {
 }
 
 // EchoServiceClientConstructor is a ServiceClientConstructor
-func EchoServiceClientConstructor(application service.Application) service.ServiceClient {
+func EchoServiceClientConstructor(application service.Application) service.Client {
 	serviceClient := &EchoServiceClient{
 		echo: make(chan *EchoRequest),
 	}
@@ -129,7 +129,7 @@ func (a *HeartbeatServiceClient) Ping() time.Duration {
 	return <-req.replyTo
 }
 
-func (a *HeartbeatServiceClient) run(ctx *service.RunContext) error {
+func (a *HeartbeatServiceClient) run(ctx *service.Context) error {
 	for {
 		select {
 		case <-ctx.StopTrigger():
@@ -140,11 +140,11 @@ func (a *HeartbeatServiceClient) run(ctx *service.RunContext) error {
 	}
 }
 
-func (a *HeartbeatServiceClient) newService() *service.Service {
+func (a *HeartbeatServiceClient) newService() service.Service {
 	return service.NewService(service.ServiceSettings{ServiceInterface: HeartbeatServiceInterface, Run: a.run})
 }
 
-func HeartbeatServiceClientConstructor(application service.Application) service.ServiceClient {
+func HeartbeatServiceClientConstructor(application service.Application) service.Client {
 	serviceClient := &HeartbeatServiceClient{
 		pingChan: make(chan *PingRequest),
 	}
@@ -171,9 +171,9 @@ func aServiceInterfaceType() commons.InterfaceType {
 	return t
 }
 
-func AServiceClientConstructor(application service.Application) service.ServiceClient {
+func AServiceClientConstructor(application service.Application) service.Client {
 	serviceClient := &AServiceClient{}
-	serviceClient.RestartableService = service.NewRestartableService(func() *service.Service {
+	serviceClient.RestartableService = service.NewRestartableService(func() service.Service {
 		return service.NewService(service.ServiceSettings{ServiceInterface: AServiceInterface})
 	})
 	return serviceClient
@@ -198,9 +198,9 @@ func bServiceInterfaceType() commons.InterfaceType {
 	return t
 }
 
-func BServiceClientConstructor(app service.Application) service.ServiceClient {
+func BServiceClientConstructor(app service.Application) service.Client {
 	serviceClient := &AServiceClient{}
-	serviceClient.RestartableService = service.NewRestartableService(func() *service.Service {
+	serviceClient.RestartableService = service.NewRestartableService(func() service.Service {
 
 		var init service.Init = func(ctx *service.Context) error {
 			<-app.ServiceByTypeAsync(AServiceInterface).Channel()
@@ -209,7 +209,7 @@ func BServiceClientConstructor(app service.Application) service.ServiceClient {
 
 		return service.NewService(service.ServiceSettings{
 			ServiceInterface:    BServiceInterface,
-			ServiceDependencies: []commons.InterfaceType{AServiceInterface},
+			ServiceDependencies: []service.ServiceInterface{AServiceInterface},
 			Init:                init,
 		})
 	})

@@ -26,14 +26,41 @@ import (
 	"github.com/rs/zerolog"
 )
 
-// Service represents an object with an operational state.
+// Service represents the backend service.
+// use NewService() to create a new instance
+type Service interface {
+	// Interface represents the interface from the client's perspective, i.e., it defines the service's functionality.
+	Interface() ServiceInterface
+
+	StartAsync() error
+
+	Stop()
+	StopAsyc()
+
+	StopTriggered() bool
+	StopTrigger() StopTrigger
+
+	AwaitUntilRunning() error
+	AwaitRunning(wait time.Duration) error
+
+	AwaitUntilStopped() error
+	AwaitStopped(wait time.Duration) error
+
+	State() State
+	FailureCause() error
+
+	Logger() zerolog.Logger
+
+	ServiceDependencies() []ServiceInterface
+}
+
+// Service interface implementation
 //
 // Features
 // ========
 // 1. Services have a lifecycle defined by its Init, Run, and Destroy functions
 // - the service lifecyle state is maintained via ServiceState
 // - each state transition is logged as a STATE_CHANGED event
-// - services must be created using newService()
 // - when shut down is triggered the STOP_TRIGGERED event is logged
 // 2. Services run in their own separate goroutine
 // 3. Each service has their own logger.
@@ -57,13 +84,15 @@ import (
 // TODO: devops
 // TODO: security
 // TODO: gRPC - frontend
-type Service struct {
-	serviceInterface commons.InterfaceType
+type service struct {
+	serviceInterface ServiceInterface
 
 	lifeCycle
 
-	zerolog.Logger
+	logger zerolog.Logger
 }
+
+type ServiceInterface commons.InterfaceType
 
 // LifeCycle encapsulates the service lifecycle, including the service's backend functions, i.e., Init, Run, Destroy
 type lifeCycle struct {
@@ -79,12 +108,12 @@ type lifeCycle struct {
 
 	// for informational purposes
 	// can also be used to validate an application, i.e., are all service Dependencies satisfied by the application
-	ServiceDependencies []commons.InterfaceType
+	ServiceDependencies []ServiceInterface
 }
 
 // Context represents the service context that is exposed to the Init and Destroy funcs
 type Context struct {
-	service *Service
+	Service
 }
 
 // Init is a function that is used to initialize the service during startup
@@ -92,23 +121,7 @@ type Init func(*Context) error
 
 // Run is responsible to responding to a message on the StopTrigger channel.
 // When a message is received from the StopTrigger, then the Run function should stop running ASAP.
-type Run func(*RunContext) error
-
-// RunContext represents the service context that is exposed to the Run func
-type RunContext struct {
-	service *Service
-}
-
-// StopTriggered returns true if the service was triggered to stop
-func (ctx *RunContext) StopTriggered() bool {
-	return ctx.service.stopTriggered
-}
-
-// StopTrigger returns the channel that the Run func should use to listen on for the stop trigger.
-// Closing the channel will signal that service has been triggered to stop.
-func (ctx *RunContext) StopTrigger() StopTrigger {
-	return ctx.service.stopTrigger
-}
+type Run func(*Context) error
 
 // Destroy is a function that is used to perform any cleanup during service shutdown.
 type Destroy func(*Context) error
@@ -117,7 +130,7 @@ type Destroy func(*Context) error
 type ServiceSettings struct {
 	// REQUIRED - represents the service interface from the client's perspective
 	// If the service has no direct client API, e.g., a network based service, then use an empty interface{}
-	ServiceInterface commons.InterfaceType
+	ServiceInterface
 
 	// OPTIONAL - service lifecycle functions
 	Init
@@ -126,7 +139,7 @@ type ServiceSettings struct {
 
 	// REQUIRED - ServiceDependencies returns the Service interfaces that this service depends on.
 	// It can be used to check if all service Dependencies satisfied by the application.
-	ServiceDependencies []commons.InterfaceType
+	ServiceDependencies []ServiceInterface
 
 	// OPTIONAL - used to specify an alternative writer for the service logger
 	LogOutput io.Writer
@@ -139,7 +152,7 @@ type ServiceSettings struct {
 // - if nil or not an interface, then the method panics
 // All service life cycle functions are optional.
 // Any panic that occurs in the supplied functions is converted to a PanicError.
-func NewService(params ServiceSettings) *Service {
+func NewService(params ServiceSettings) Service {
 	serviceInterface := params.ServiceInterface
 	init := params.Init
 	run := params.Run
@@ -177,13 +190,13 @@ func NewService(params ServiceSettings) *Service {
 
 	instrumentRun := func() {
 		if run == nil {
-			run = func(ctx *RunContext) error {
+			run = func(ctx *Context) error {
 				<-ctx.StopTrigger()
 				return nil
 			}
 		} else {
 			_run := run
-			run = func(ctx *RunContext) (err error) {
+			run = func(ctx *Context) (err error) {
 				defer func() {
 					if p := recover(); p != nil {
 						err = &PanicError{Panic: p, Message: "Service.run()"}
@@ -210,14 +223,14 @@ func NewService(params ServiceSettings) *Service {
 		}
 	}
 
-	newService := func() *Service {
+	newService := func() Service {
 		svcLog := logger.With().Dict(logging.SERVICE, logging.InterfaceTypeDict(serviceInterface)).Logger()
 		if params.LogOutput != nil {
 			svcLog = svcLog.Output(params.LogOutput)
 		}
 		svcLog.Info().Str(logging.FUNC, "NewService").Msg("")
 
-		service := &Service{
+		svc := &service{
 			serviceInterface: serviceInterface,
 			lifeCycle: lifeCycle{
 				serviceState: NewServiceState(),
@@ -225,13 +238,13 @@ func NewService(params ServiceSettings) *Service {
 				run:          run,
 				destroy:      destroy,
 			},
-			Logger: svcLog,
+			logger: svcLog,
 		}
 		if len(params.ServiceDependencies) > 0 {
-			service.ServiceDependencies = make([]commons.InterfaceType, len(params.ServiceDependencies))
-			copy(service.ServiceDependencies, params.ServiceDependencies)
+			svc.lifeCycle.ServiceDependencies = make([]ServiceInterface, len(params.ServiceDependencies))
+			copy(svc.lifeCycle.ServiceDependencies, params.ServiceDependencies)
 		}
-		return service
+		return svc
 	}
 
 	checkServiceInterface()
@@ -242,21 +255,21 @@ func NewService(params ServiceSettings) *Service {
 }
 
 // State returns the current State
-func (svc *Service) State() State {
+func (svc *service) State() State {
 	state, _ := svc.serviceState.State()
 	return state
 }
 
 // FailureCause returns the error that caused the service to fail.
 // The service State should be Failed.
-func (svc *Service) FailureCause() error {
+func (svc *service) FailureCause() error {
 	return svc.serviceState.FailureCause()
 }
 
 // awaitState blocks until the desired state is reached
 // If the wait duration <= 0, then this method blocks until the desired state is reached.
 // If the desired state has past, then a PastStateError is returned
-func (svc *Service) awaitState(desiredState State, timeout time.Duration) error {
+func (svc *service) awaitState(desiredState State, timeout time.Duration) error {
 	matches := func(currentState State) (bool, error) {
 		switch {
 		case currentState == desiredState:
@@ -308,12 +321,12 @@ func (svc *Service) awaitState(desiredState State, timeout time.Duration) error 
 }
 
 // AwaitRunning waits for the Service to reach the running state
-func (svc *Service) AwaitRunning(wait time.Duration) error {
+func (svc *service) AwaitRunning(wait time.Duration) error {
 	return svc.awaitState(Running, wait)
 }
 
 // AwaitUntilRunning waits for the Service to reach the running state
-func (svc *Service) AwaitUntilRunning() error {
+func (svc *service) AwaitUntilRunning() error {
 	i := 0
 	for {
 		if err := svc.AwaitRunning(10 * time.Second); err != nil {
@@ -323,13 +336,13 @@ func (svc *Service) AwaitUntilRunning() error {
 			return nil
 		}
 		i++
-		svc.Logger.Info().Str(logging.FUNC, "AwaitUntilRunning").Int("i", i).Msg("")
+		svc.logger.Info().Str(logging.FUNC, "AwaitUntilRunning").Int("i", i).Msg("")
 	}
 }
 
 // AwaitStopped waits for the Service to terminate, i.e., reach the Terminated or Failed state
 // if the service terminates in a Failed state, then the service failure cause is returned
-func (svc *Service) AwaitStopped(wait time.Duration) error {
+func (svc *service) AwaitStopped(wait time.Duration) error {
 	if err := svc.awaitState(Terminated, wait); err != nil {
 		return svc.serviceState.failureCause
 	}
@@ -338,7 +351,7 @@ func (svc *Service) AwaitStopped(wait time.Duration) error {
 
 // AwaitUntilStopped waits until the service is stopped
 // If the service failed, then the failure cause is returned
-func (svc *Service) AwaitUntilStopped() error {
+func (svc *service) AwaitUntilStopped() error {
 	if svc.State().Stopped() {
 		return svc.FailureCause()
 	}
@@ -349,7 +362,7 @@ func (svc *Service) AwaitUntilStopped() error {
 			return svc.FailureCause()
 		}
 		i++
-		svc.Logger.Info().Str(logging.FUNC, "AwaitUntilStopped").Int("i", i).Msg("")
+		svc.logger.Info().Str(logging.FUNC, "AwaitUntilStopped").Int("i", i).Msg("")
 	}
 }
 
@@ -357,7 +370,7 @@ func (svc *Service) AwaitUntilStopped() error {
 // If the service state is 'New', this initiates startup and returns immediately.
 // Returns an IllegalStateError if the service state is not 'New'.
 // A stopped service may not be restarted.
-func (svc *Service) StartAsync() error {
+func (svc *service) StartAsync() error {
 	const FUNC = "StartAsync"
 
 	if !svc.serviceState.state.New() {
@@ -365,7 +378,7 @@ func (svc *Service) StartAsync() error {
 			State:   svc.serviceState.state,
 			Message: "A service can only be started in the 'New' state",
 		}
-		svc.Logger.Info().Str(logging.FUNC, FUNC).Err(err).Msg("")
+		svc.logger.Info().Str(logging.FUNC, FUNC).Err(err).Msg("")
 		return err
 	}
 
@@ -373,7 +386,7 @@ func (svc *Service) StartAsync() error {
 	go func() {
 		l := svc.lifeCycle.serviceState.NewStateChangeListener()
 		for stateChange := range l.Channel() {
-			svc.Logger.Info().
+			svc.logger.Info().
 				Dict(logging.EVENT, STATE_CHANGED.Dict()).
 				Str(logging.STATE, stateChange.String()).
 				Msg("")
@@ -383,20 +396,15 @@ func (svc *Service) StartAsync() error {
 	// start up the service
 	go func() {
 		svc.stopTrigger = make(chan struct{})
-		ctx := &Context{
-			service: svc,
-		}
+		ctx := &Context{svc}
 		svc.serviceState.Starting()
 		if err := svc.init(ctx); err != nil {
 			svc.destroy(ctx)
 			svc.serviceState.Failed(&ServiceError{State: Starting, Err: err})
 			return
 		}
-		runCtx := &RunContext{
-			service: svc,
-		}
 		svc.serviceState.Running()
-		if err := svc.run(runCtx); err != nil {
+		if err := svc.run(ctx); err != nil {
 			svc.destroy(ctx)
 			svc.serviceState.Failed(&ServiceError{State: Running, Err: err})
 			return
@@ -409,7 +417,7 @@ func (svc *Service) StartAsync() error {
 		svc.serviceState.Terminated()
 	}()
 
-	svc.Logger.Info().Str(logging.FUNC, FUNC).Msg("")
+	svc.logger.Info().Str(logging.FUNC, FUNC).Msg("")
 
 	return nil
 }
@@ -418,24 +426,24 @@ func (svc *Service) StartAsync() error {
 // If the service is starting or running, this initiates service shutdown and returns immediately.
 // If the service is new, it is terminated without having been started nor stopped.
 // If the service has already been stopped, this method returns immediately without taking action.
-func (svc *Service) StopAsyc() {
+func (svc *service) StopAsyc() {
 	const FUNC = "StopAsyc"
 	if svc.serviceState.state.Stopped() {
-		svc.Logger.Info().Str(logging.FUNC, FUNC).Msg("service is already stopped")
+		svc.logger.Info().Str(logging.FUNC, FUNC).Msg("service is already stopped")
 		return
 	}
 	svc.stopTriggered = true
 	if svc.serviceState.state.New() {
 		svc.serviceState.Terminated()
-		svc.Logger.Info().Str(logging.FUNC, FUNC).Msg("service was never started")
+		svc.logger.Info().Str(logging.FUNC, FUNC).Msg("service was never started")
 		return
 	}
 	close(svc.stopTrigger)
-	svc.Logger.Info().Str(logging.FUNC, FUNC).Dict(logging.EVENT, STOP_TRIGGERED.Dict()).Msg("")
+	svc.logger.Info().Str(logging.FUNC, FUNC).Dict(logging.EVENT, STOP_TRIGGERED.Dict()).Msg("")
 }
 
 // Stop invokes StopAsync() followed by AwaitUntilStopped()
-func (svc *Service) Stop() {
+func (svc *service) Stop() {
 	if svc.State().Stopped() {
 		return
 	}
@@ -444,16 +452,28 @@ func (svc *Service) Stop() {
 }
 
 // StopTriggered returns true if the service was triggered to stop.
-func (svc *Service) StopTriggered() bool {
+func (svc *service) StopTriggered() bool {
 	return svc.stopTriggered
 }
 
 // Interface returns the service interface which defines the service functionality
-func (svc *Service) Interface() reflect.Type {
+func (svc *service) Interface() ServiceInterface {
 	return svc.serviceInterface
 }
 
-func (svc *Service) String() string {
+func (svc *service) StopTrigger() StopTrigger {
+	return svc.stopTrigger
+}
+
+func (svc *service) Logger() zerolog.Logger {
+	return svc.logger
+}
+
+func (svc *service) ServiceDependencies() []ServiceInterface {
+	return svc.lifeCycle.ServiceDependencies
+}
+
+func (svc *service) String() string {
 	return fmt.Sprintf("Service : %v.%v", svc.serviceInterface.PkgPath(), svc.serviceInterface.Name())
 }
 
@@ -462,9 +482,9 @@ func (svc *Service) String() string {
 type StopTrigger <-chan struct{}
 
 // ServiceConstructor returns a new instance of a Service in the New state
-type ServiceConstructor func() *Service
+type ServiceConstructor func() Service
 
 // ServiceReference represents something that has a reference to a service.
 type ServiceReference interface {
-	Service() *Service
+	Service() Service
 }

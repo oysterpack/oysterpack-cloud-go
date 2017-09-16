@@ -20,40 +20,40 @@ import (
 	"github.com/oysterpack/oysterpack.go/oysterpack/commons"
 )
 
-// ServiceClientRegistry is a ServiceClient registry.
-// It is used to register/unregister ServiceClient(s) and lookup ServiceClient(s).
-type ServiceClientRegistry interface {
+// Registry is a Client registry.
+// It is used to register/unregister Client(s) and lookup Client(s).
+type Registry interface {
 	// ServiceByType looks up a service and returns nil if the service is not founc.
-	ServiceByType(serviceInterface commons.InterfaceType) ServiceClient
+	ServiceByType(serviceInterface ServiceInterface) Client
 
-	ServiceByTypeAsync(serviceInterface commons.InterfaceType) *ServiceTicket
+	ServiceByTypeAsync(serviceInterface ServiceInterface) *ServiceTicket
 
 	ServiceTicketCounts() map[commons.InterfaceType]int
 
 	// ServiceByKey looks up a service and returns nil if the service is not founc.
-	ServiceByKey(key ServiceKey) ServiceClient
+	ServiceByKey(key ServiceKey) Client
 
-	// Services returns the list of registered services as ServiceClient(s)
-	Services() []ServiceClient
+	// Services returns the list of registered services as Client(s)
+	Services() []Client
 
 	ServiceCount() int
 
 	// ServiceInterfaces returns the service interfaces for all registered services
-	ServiceInterfaces() []commons.InterfaceType
+	ServiceInterfaces() []ServiceInterface
 
 	// ServiceKeys returns the ServiceKey(s) for all registered services
 	ServiceKeys() []ServiceKey
 
 	// RegisterService will create a new instance of the service using the supplied service constructor.
-	// The ServiceClient must implement the service interface - otherwise the method panics.
+	// The Client must implement the service interface - otherwise the method panics.
 	// It will then register the service and start it async.
 	// If a service with the same service interface is already registered, then the service will not be started and nill will be returned.
 	// The ServiceClientConstructor is retained until the service is unregistered for the purpose of restarting the service using a new instance.
-	RegisterService(newService ServiceClientConstructor) ServiceClient
+	RegisterService(newService ServiceClientConstructor) Client
 
 	// UnRegisterService will unregister the service and returns false if no such service is registered.
 	// The service is simply unregistered, i.e., it is not stopped.
-	UnRegisterService(service ServiceClient) bool
+	UnRegisterService(service Client) bool
 }
 
 // ServiceKey represents the service interface.
@@ -68,7 +68,7 @@ func (s *ServiceKey) String() string {
 }
 
 // InterfaceTypeToServiceKey converts an interface type to a ServiceKey
-func InterfaceTypeToServiceKey(serviceInterface commons.InterfaceType) ServiceKey {
+func InterfaceTypeToServiceKey(serviceInterface ServiceInterface) ServiceKey {
 	return ServiceKey{
 		commons.PackagePath(serviceInterface.PkgPath()),
 		commons.TypeName(serviceInterface.Name()),

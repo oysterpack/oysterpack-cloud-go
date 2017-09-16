@@ -115,7 +115,7 @@ func TestNewService_WithNonNilLifeCycleFunctions(t *testing.T) {
 		t.Log("init")
 		return nil
 	}
-	var run service.Run = func(ctx *service.RunContext) error {
+	var run service.Run = func(ctx *service.Context) error {
 		t.Log("running")
 		for {
 			select {
@@ -156,7 +156,7 @@ func TestNewService_InitPanics(t *testing.T) {
 	var init service.Init = func(ctx *service.Context) error {
 		panic("Init is panicking")
 	}
-	var run service.Run = func(ctx *service.RunContext) error {
+	var run service.Run = func(ctx *service.Context) error {
 		t.Log("running")
 		for {
 			select {
@@ -212,7 +212,7 @@ func TestNewService_RunPanics(t *testing.T) {
 		t.Log("init")
 		return nil
 	}
-	var run service.Run = func(ctx *service.RunContext) error {
+	var run service.Run = func(ctx *service.Context) error {
 		panic("Run is panicking")
 	}
 	var destroy service.Destroy = func(ctx *service.Context) error {
@@ -262,7 +262,7 @@ func TestNewService_DestroyPanics(t *testing.T) {
 		t.Log("init")
 		return nil
 	}
-	var run service.Run = func(ctx *service.RunContext) error {
+	var run service.Run = func(ctx *service.Context) error {
 		t.Log("running")
 		for {
 			select {
@@ -298,12 +298,12 @@ func TestNewService_DestroyPanics(t *testing.T) {
 
 func TestService_ServiceDependencies(t *testing.T) {
 	serviceDependency, _ := commons.ObjectInterface(&bar)
-	service := service.NewService(service.ServiceSettings{ServiceInterface: reflect.TypeOf(&foo), ServiceDependencies: []commons.InterfaceType{serviceDependency}})
-	if len(service.ServiceDependencies) != 1 {
+	service := service.NewService(service.ServiceSettings{ServiceInterface: reflect.TypeOf(&foo), ServiceDependencies: []service.ServiceInterface{serviceDependency}})
+	if len(service.ServiceDependencies()) != 1 {
 		t.Errorf("Bar should have been added as a service dependency")
 	}
 	var barInterface commons.InterfaceType
-	for _, v := range service.ServiceDependencies {
+	for _, v := range service.ServiceDependencies() {
 		if v == serviceDependency {
 			barInterface = v
 		}
@@ -316,7 +316,7 @@ func TestService_ServiceDependencies(t *testing.T) {
 // startService waits up to 3 seconds for the server to start - checking every second
 // returns true is the server started
 // returns false if we timed out waiting for the server to start
-func startService(server *service.Service, t *testing.T) (bool, error) {
+func startService(server service.Service, t *testing.T) (bool, error) {
 	if err := server.StartAsync(); err != nil {
 		return false, err
 	}
@@ -335,7 +335,7 @@ func startService(server *service.Service, t *testing.T) (bool, error) {
 // stopService waits up to 3 seconds for the server to stop
 // returns true is the server stopped
 // returns false if we timed out waiting for the server to stop
-func stopService(server *service.Service, t *testing.T) bool {
+func stopService(server service.Service, t *testing.T) bool {
 	server.StopAsyc()
 	for i := 1; i <= 3; i++ {
 		server.AwaitStopped(time.Second)
