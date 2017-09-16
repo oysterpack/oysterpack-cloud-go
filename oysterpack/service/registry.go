@@ -28,6 +28,8 @@ type ServiceClientRegistry interface {
 
 	ServiceByTypeAsync(serviceInterface commons.InterfaceType) *ServiceTicket
 
+	ServiceTicketCounts() map[commons.InterfaceType]int
+
 	// ServiceByKey looks up a service and returns nil if the service is not founc.
 	ServiceByKey(key ServiceKey) ServiceClient
 

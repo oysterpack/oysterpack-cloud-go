@@ -21,6 +21,14 @@ type ServiceDependencies interface {
 	// CheckAllServiceDependencies checks that all dependencies for each service are available
 	CheckAllServiceDependencies() *ServiceDependencyErrors
 
+	CheckAllServiceDependenciesRegistered() []*ServiceDependenciesMissing
+
+	CheckAllServiceDependenciesRunning() []*ServiceDependenciesNotRunning
+
 	// CheckServiceDependencies checks that the service dependencies are available
 	CheckServiceDependencies(client ServiceClient) *ServiceDependencyErrors
+
+	CheckServiceDependenciesRegistered(client ServiceClient) *ServiceDependenciesMissing
+
+	CheckServiceDependenciesRunning(client ServiceClient) *ServiceDependenciesNotRunning
 }
