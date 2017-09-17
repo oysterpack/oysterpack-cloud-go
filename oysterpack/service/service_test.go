@@ -303,7 +303,7 @@ func TestService_ServiceDependencies(t *testing.T) {
 		t.Errorf("Bar should have been added as a service dependency")
 	}
 	var barInterface reflect.InterfaceType
-	for dependency, _ := range service.ServiceDependencies() {
+	for dependency := range service.ServiceDependencies() {
 		if dependency == serviceDependency {
 			barInterface = dependency
 		}
