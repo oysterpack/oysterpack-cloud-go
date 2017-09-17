@@ -148,6 +148,7 @@ type ServiceSettings struct {
 	LogSettings
 }
 
+// LogSettings groups the log settings for the service
 type LogSettings struct {
 	// OPTIONAL - used to specify an alternative writer for the service logger
 	LogOutput io.Writer
