@@ -278,28 +278,28 @@ func NewService(settings ServiceSettings) Service {
 }
 
 // State returns the current State
-func (svc *service) State() State {
-	state, _ := svc.serviceState.State()
+func (a *service) State() State {
+	state, _ := a.serviceState.State()
 	return state
 }
 
 // FailureCause returns the error that caused the service to fail.
 // The service State should be Failed.
-func (svc *service) FailureCause() error {
-	return svc.serviceState.FailureCause()
+func (a *service) FailureCause() error {
+	return a.serviceState.FailureCause()
 }
 
 // awaitState blocks until the desired state is reached
 // If the wait duration <= 0, then this method blocks until the desired state is reached.
 // If the desired state has past, then a PastStateError is returned
-func (svc *service) awaitState(desiredState State, timeout time.Duration) error {
+func (a *service) awaitState(desiredState State, timeout time.Duration) error {
 	matches := func(currentState State) (bool, error) {
 		switch {
 		case currentState == desiredState:
 			return true, nil
 		case currentState > desiredState:
-			if svc.State().Failed() {
-				return false, svc.FailureCause()
+			if a.State().Failed() {
+				return false, a.FailureCause()
 			}
 			return false, &PastStateError{Past: desiredState, Current: currentState}
 		default:
@@ -307,13 +307,13 @@ func (svc *service) awaitState(desiredState State, timeout time.Duration) error 
 		}
 	}
 
-	if reachedState, err := matches(svc.State()); err != nil {
+	if reachedState, err := matches(a.State()); err != nil {
 		return err
 	} else if reachedState {
 		return nil
 	}
 
-	l := svc.serviceState.NewStateChangeListener()
+	l := a.serviceState.NewStateChangeListener()
 	if timeout > 0 {
 		timer := time.AfterFunc(timeout, l.Cancel)
 		defer func() {
@@ -328,8 +328,8 @@ func (svc *service) awaitState(desiredState State, timeout time.Duration) error 
 		// ignore panics caused by sending on a closed messages
 		// the messages might be closed if the service failed
 		defer commons.IgnorePanic()
-		if stateChangeChann := svc.serviceState.stateChangeChannel(l); stateChangeChann != nil {
-			stateChangeChann <- svc.State()
+		if stateChangeChann := a.serviceState.stateChangeChannel(l); stateChangeChann != nil {
+			stateChangeChann <- a.State()
 		}
 	}()
 	for state := range l.Channel() {
@@ -340,52 +340,52 @@ func (svc *service) awaitState(desiredState State, timeout time.Duration) error 
 		}
 	}
 
-	return svc.FailureCause()
+	return a.FailureCause()
 }
 
 // AwaitRunning waits for the Service to reach the running state
-func (svc *service) AwaitRunning(wait time.Duration) error {
-	return svc.awaitState(Running, wait)
+func (a *service) AwaitRunning(wait time.Duration) error {
+	return a.awaitState(Running, wait)
 }
 
 // AwaitUntilRunning waits for the Service to reach the running state
-func (svc *service) AwaitUntilRunning() error {
+func (a *service) AwaitUntilRunning() error {
 	i := 0
 	for {
-		if err := svc.AwaitRunning(10 * time.Second); err != nil {
+		if err := a.AwaitRunning(10 * time.Second); err != nil {
 			return err
 		}
-		if svc.State().Running() {
+		if a.State().Running() {
 			return nil
 		}
 		i++
-		svc.logger.Info().Str(logging.FUNC, "AwaitUntilRunning").Int("i", i).Msg("")
+		a.logger.Info().Str(logging.FUNC, "AwaitUntilRunning").Int("i", i).Msg("")
 	}
 }
 
 // AwaitStopped waits for the Service to terminate, i.e., reach the Terminated or Failed state
 // if the service terminates in a Failed state, then the service failure cause is returned
-func (svc *service) AwaitStopped(wait time.Duration) error {
-	if err := svc.awaitState(Terminated, wait); err != nil {
-		return svc.serviceState.failureCause
+func (a *service) AwaitStopped(wait time.Duration) error {
+	if err := a.awaitState(Terminated, wait); err != nil {
+		return a.serviceState.failureCause
 	}
 	return nil
 }
 
 // AwaitUntilStopped waits until the service is stopped
 // If the service failed, then the failure cause is returned
-func (svc *service) AwaitUntilStopped() error {
-	if svc.State().Stopped() {
-		return svc.FailureCause()
+func (a *service) AwaitUntilStopped() error {
+	if a.State().Stopped() {
+		return a.FailureCause()
 	}
 	i := 0
 	for {
-		svc.AwaitStopped(10 * time.Second)
-		if svc.State().Stopped() {
-			return svc.FailureCause()
+		a.AwaitStopped(10 * time.Second)
+		if a.State().Stopped() {
+			return a.FailureCause()
 		}
 		i++
-		svc.logger.Debug().Str(logging.FUNC, "AwaitUntilStopped").Int("i", i).Msg("")
+		a.logger.Debug().Str(logging.FUNC, "AwaitUntilStopped").Int("i", i).Msg("")
 	}
 }
 
@@ -393,15 +393,15 @@ func (svc *service) AwaitUntilStopped() error {
 // If the service state is 'New', this initiates startup and returns immediately.
 // Returns an IllegalStateError if the service state is not 'New'.
 // A stopped service may not be restarted.
-func (svc *service) StartAsync() error {
+func (a *service) StartAsync() error {
 	const FUNC = "StartAsync"
 
-	if !svc.serviceState.state.New() {
+	if !a.serviceState.state.New() {
 		err := &IllegalStateError{
-			State:   svc.serviceState.state,
+			State:   a.serviceState.state,
 			Message: "A service can only be started in the 'New' state",
 		}
-		svc.logger.Info().Str(logging.FUNC, FUNC).Err(err).Msg("")
+		a.logger.Info().Str(logging.FUNC, FUNC).Err(err).Msg("")
 		return err
 	}
 
@@ -410,9 +410,9 @@ func (svc *service) StartAsync() error {
 	wait.Add(1)
 	go func() {
 		wait.Done()
-		l := svc.lifeCycle.serviceState.NewStateChangeListener()
+		l := a.lifeCycle.serviceState.NewStateChangeListener()
 		for stateChange := range l.Channel() {
-			svc.logger.Info().
+			a.logger.Info().
 				Dict(logging.EVENT, STATE_CHANGED.Dict()).
 				Str(logging.STATE, stateChange.String()).
 				Msg("")
@@ -422,29 +422,29 @@ func (svc *service) StartAsync() error {
 
 	// start up the service
 	go func() {
-		svc.stopTrigger = make(chan struct{})
-		ctx := &Context{svc}
-		svc.serviceState.Starting()
-		if err := svc.init(ctx); err != nil {
-			svc.destroy(ctx)
-			svc.serviceState.Failed(&ServiceError{State: Starting, Err: err})
+		a.stopTrigger = make(chan struct{})
+		ctx := &Context{a}
+		a.serviceState.Starting()
+		if err := a.init(ctx); err != nil {
+			a.destroy(ctx)
+			a.serviceState.Failed(&ServiceError{State: Starting, Err: err})
 			return
 		}
-		svc.serviceState.Running()
-		if err := svc.run(ctx); err != nil {
-			svc.destroy(ctx)
-			svc.serviceState.Failed(&ServiceError{State: Running, Err: err})
+		a.serviceState.Running()
+		if err := a.run(ctx); err != nil {
+			a.destroy(ctx)
+			a.serviceState.Failed(&ServiceError{State: Running, Err: err})
 			return
 		}
-		svc.serviceState.Stopping()
-		if err := svc.destroy(ctx); err != nil {
-			svc.serviceState.Failed(&ServiceError{State: Stopping, Err: err})
+		a.serviceState.Stopping()
+		if err := a.destroy(ctx); err != nil {
+			a.serviceState.Failed(&ServiceError{State: Stopping, Err: err})
 			return
 		}
-		svc.serviceState.Terminated()
+		a.serviceState.Terminated()
 	}()
 
-	svc.logger.Info().Str(logging.FUNC, FUNC).Msg("")
+	a.logger.Info().Str(logging.FUNC, FUNC).Msg("")
 
 	return nil
 }
@@ -453,43 +453,43 @@ func (svc *service) StartAsync() error {
 // If the service is starting or running, this initiates service shutdown and returns immediately.
 // If the service is new, it is terminated without having been started nor stopped.
 // If the service has already been stopped, this method returns immediately without taking action.
-func (svc *service) StopAsyc() {
+func (a *service) StopAsyc() {
 	const FUNC = "StopAsyc"
-	if svc.serviceState.state.Stopped() {
-		svc.logger.Info().Str(logging.FUNC, FUNC).Msg("service is already stopped")
+	if a.serviceState.state.Stopped() {
+		a.logger.Info().Str(logging.FUNC, FUNC).Msg("service is already stopped")
 		return
 	}
-	svc.stopTriggered = true
-	if svc.serviceState.state.New() {
-		svc.serviceState.Terminated()
-		svc.logger.Info().Str(logging.FUNC, FUNC).Msg("service was never started")
+	a.stopTriggered = true
+	if a.serviceState.state.New() {
+		a.serviceState.Terminated()
+		a.logger.Info().Str(logging.FUNC, FUNC).Msg("service was never started")
 		return
 	}
 	func() {
 		defer commons.IgnorePanic()
-		close(svc.stopTrigger)
+		close(a.stopTrigger)
 	}()
 
-	svc.logger.Info().Str(logging.FUNC, FUNC).Dict(logging.EVENT, STOP_TRIGGERED.Dict()).Msg("")
+	a.logger.Info().Str(logging.FUNC, FUNC).Dict(logging.EVENT, STOP_TRIGGERED.Dict()).Msg("")
 }
 
 // Stop invokes StopAsync() followed by AwaitUntilStopped()
-func (svc *service) Stop() {
-	if svc.State().Stopped() {
+func (a *service) Stop() {
+	if a.State().Stopped() {
 		return
 	}
-	svc.StopAsyc()
-	svc.AwaitUntilStopped()
+	a.StopAsyc()
+	a.AwaitUntilStopped()
 }
 
 // StopTriggered returns true if the service was triggered to stop.
-func (svc *service) StopTriggered() bool {
-	return svc.stopTriggered
+func (a *service) StopTriggered() bool {
+	return a.stopTriggered
 }
 
 // Interface returns the service interface which defines the service functionality
-func (svc *service) Interface() ServiceInterface {
-	return svc.serviceInterface
+func (a *service) Interface() ServiceInterface {
+	return a.serviceInterface
 }
 
 // Version returns the service version
@@ -498,22 +498,22 @@ func (a *service) Version() *semver.Version {
 }
 
 // StopTrigger returns the channel to listen for the stopping
-func (svc *service) StopTrigger() StopTrigger {
-	return svc.stopTrigger
+func (a *service) StopTrigger() StopTrigger {
+	return a.stopTrigger
 }
 
 // Logger returns the service's logger
-func (svc *service) Logger() zerolog.Logger {
-	return svc.logger
+func (a *service) Logger() zerolog.Logger {
+	return a.logger
 }
 
 // ServiceDependencies returns the service's dependencies
-func (svc *service) ServiceDependencies() InterfaceDependencies {
-	return svc.dependencies
+func (a *service) ServiceDependencies() InterfaceDependencies {
+	return a.dependencies
 }
 
-func (svc *service) String() string {
-	return fmt.Sprintf("Service : %v.%v", svc.serviceInterface.PkgPath(), svc.serviceInterface.Name())
+func (a *service) String() string {
+	return fmt.Sprintf("Service : %v.%v", a.serviceInterface.PkgPath(), a.serviceInterface.Name())
 }
 
 // StopTrigger is used to notify the service to stop.
