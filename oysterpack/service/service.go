@@ -23,6 +23,7 @@ import (
 
 	"sync"
 
+	"github.com/Masterminds/semver"
 	"github.com/oysterpack/oysterpack.go/oysterpack/commons"
 	"github.com/oysterpack/oysterpack.go/oysterpack/commons/reflect"
 	"github.com/oysterpack/oysterpack.go/oysterpack/logging"
@@ -33,6 +34,8 @@ import (
 // use NewService() to create a new instance
 type Service interface {
 	Interface() ServiceInterface
+
+	Version() *semver.Version
 
 	StartAsync() error
 
@@ -53,8 +56,11 @@ type Service interface {
 
 	Logger() zerolog.Logger
 
-	ServiceDependencies() []ServiceInterface
+	ServiceDependencies() InterfaceDependencies
 }
+
+// InterfaceDependencies represents a service's interface dependencies with version constraints
+type InterfaceDependencies map[ServiceInterface]*semver.Constraints
 
 // Service interface implementation
 //
@@ -90,9 +96,13 @@ type Service interface {
 type service struct {
 	serviceInterface ServiceInterface
 
+	version semver.Version
+
 	lifeCycle
 
 	logger zerolog.Logger
+
+	dependencies InterfaceDependencies
 }
 
 // ServiceInterface represents the interface from the client's perspective, i.e., it defines the service's functionality.
@@ -109,10 +119,6 @@ type lifeCycle struct {
 	init    Init
 	run     Run
 	destroy Destroy
-
-	// for informational purposes
-	// can also be used to validate an application, i.e., are all service Dependencies satisfied by the application
-	ServiceDependencies []ServiceInterface
 }
 
 // Context represents the service context that is exposed to the Init and Destroy funcs
@@ -136,14 +142,16 @@ type ServiceSettings struct {
 	// If the service has no direct client API, e.g., a network based service, then use an empty interface{}
 	ServiceInterface
 
+	semver.Version
+
 	// OPTIONAL - functions that define the service lifecycle
 	Init
 	Run
 	Destroy
 
-	// REQUIRED - ServiceDependencies returns the Service interfaces that this service depends on.
+	// REQUIRED - InterfaceDependencies returns the Service interfaces that this service depends with version constraints
 	// It can be used to check if all service Dependencies satisfied by the application.
-	ServiceDependencies []ServiceInterface
+	InterfaceDependencies
 
 	LogSettings
 }
@@ -247,6 +255,7 @@ func NewService(settings ServiceSettings) Service {
 
 		svc := &service{
 			serviceInterface: serviceInterface,
+			version:          settings.Version,
 			lifeCycle: lifeCycle{
 				serviceState: NewServiceState(),
 				init:         init,
@@ -255,9 +264,8 @@ func NewService(settings ServiceSettings) Service {
 			},
 			logger: svcLog,
 		}
-		if len(settings.ServiceDependencies) > 0 {
-			svc.lifeCycle.ServiceDependencies = make([]ServiceInterface, len(settings.ServiceDependencies))
-			copy(svc.lifeCycle.ServiceDependencies, settings.ServiceDependencies)
+		if len(settings.InterfaceDependencies) > 0 {
+			svc.dependencies = settings.InterfaceDependencies
 		}
 		return svc
 	}
@@ -484,16 +492,24 @@ func (svc *service) Interface() ServiceInterface {
 	return svc.serviceInterface
 }
 
+// Version returns the service version
+func (a *service) Version() *semver.Version {
+	return &a.version
+}
+
+// StopTrigger returns the channel to listen for the stopping
 func (svc *service) StopTrigger() StopTrigger {
 	return svc.stopTrigger
 }
 
+// Logger returns the service's logger
 func (svc *service) Logger() zerolog.Logger {
 	return svc.logger
 }
 
-func (svc *service) ServiceDependencies() []ServiceInterface {
-	return svc.lifeCycle.ServiceDependencies
+// ServiceDependencies returns the service's dependencies
+func (svc *service) ServiceDependencies() InterfaceDependencies {
+	return svc.dependencies
 }
 
 func (svc *service) String() string {

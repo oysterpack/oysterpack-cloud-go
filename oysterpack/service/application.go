@@ -341,10 +341,18 @@ func (a *application) CheckServiceDependenciesRegistered(serviceClient Client) *
 
 func (a *application) checkServiceDependenciesRegistered(serviceClient Client) *ServiceDependenciesMissing {
 	missingDependencies := &ServiceDependenciesMissing{&DependencyMappings{ServiceInterface: serviceClient.Service().Interface()}}
-	for _, dependency := range serviceClient.Service().ServiceDependencies() {
-		if a.serviceByType(dependency) == nil {
+	for dependency, constraints := range serviceClient.Service().ServiceDependencies() {
+		b := a.serviceByType(dependency)
+		if b == nil {
 			missingDependencies.AddMissingDependency(dependency)
 		}
+
+		if constraints != nil {
+			if !constraints.Check(b.Service().Version()) {
+				missingDependencies.AddMissingDependency(dependency)
+			}
+		}
+
 	}
 	if missingDependencies.HasMissing() {
 		return missingDependencies
@@ -375,8 +383,10 @@ func (a *application) CheckServiceDependenciesRunning(serviceClient Client) *Ser
 
 func (a *application) checkServiceDependenciesRunning(serviceClient Client) *ServiceDependenciesNotRunning {
 	notRunning := &ServiceDependenciesNotRunning{&DependencyMappings{ServiceInterface: serviceClient.Service().Interface()}}
-	for _, dependency := range serviceClient.Service().ServiceDependencies() {
-		if client := a.serviceByType(dependency); client == nil || !client.Service().State().Running() {
+	for dependency, constraints := range serviceClient.Service().ServiceDependencies() {
+		if client := a.serviceByType(dependency); client == nil ||
+			(constraints != nil && !constraints.Check(client.Service().Version())) ||
+			!client.Service().State().Running() {
 			notRunning.AddDependencyNotRunning(dependency)
 		}
 	}

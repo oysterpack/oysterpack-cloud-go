@@ -2,6 +2,12 @@
 
 
 [[projects]]
+  name = "github.com/Masterminds/semver"
+  packages = ["."]
+  revision = "517734cc7d6470c0d07130e40fd40bdeb9bcd3fd"
+  version = "v1.3.1"
+
+[[projects]]
   name = "github.com/rs/zerolog"
   packages = [".","internal/json","log"]
   revision = "3ac71fc58dbd43122668a912b755b0979ba9ce1f"
@@ -10,6 +16,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "46b02f3be287d321c0ede6b06aa5e2e0566977834dfbbd0ff4d2424b85b546cd"
+  inputs-digest = "cdd6dde68624a533526b291ac01cc349676d12244da90a4283dd87113f4581eb"
   solver-name = "gps-cdcl"
   solver-version = 1

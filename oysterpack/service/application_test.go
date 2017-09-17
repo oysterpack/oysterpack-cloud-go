@@ -585,6 +585,7 @@ func TestApplicationContext_CheckAllServiceDependenciesRunning(t *testing.T) {
 	}
 
 	aService := app.RegisterService(AServiceClientConstructor)
+	aService.Service().AwaitUntilRunning()
 	bService.Service().AwaitUntilRunning()
 
 	notRunning = app.CheckAllServiceDependenciesRunning()

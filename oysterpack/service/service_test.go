@@ -298,14 +298,14 @@ func TestNewService_DestroyPanics(t *testing.T) {
 
 func TestService_ServiceDependencies(t *testing.T) {
 	serviceDependency, _ := reflect.ObjectInterface(&bar)
-	service := service.NewService(service.ServiceSettings{ServiceInterface: stdreflect.TypeOf(&foo), ServiceDependencies: []service.ServiceInterface{serviceDependency}})
+	service := service.NewService(service.ServiceSettings{ServiceInterface: stdreflect.TypeOf(&foo), InterfaceDependencies: service.InterfaceDependencies{serviceDependency: nil}})
 	if len(service.ServiceDependencies()) != 1 {
 		t.Errorf("Bar should have been added as a service dependency")
 	}
 	var barInterface reflect.InterfaceType
-	for _, v := range service.ServiceDependencies() {
-		if v == serviceDependency {
-			barInterface = v
+	for dependency, _ := range service.ServiceDependencies() {
+		if dependency == serviceDependency {
+			barInterface = dependency
 		}
 	}
 	if barInterface != serviceDependency {

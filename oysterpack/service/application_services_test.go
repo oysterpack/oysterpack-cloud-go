@@ -214,9 +214,9 @@ func BServiceClientConstructor(app service.Application) service.Client {
 		}
 
 		return service.NewService(service.ServiceSettings{
-			ServiceInterface:    BServiceInterface,
-			ServiceDependencies: []service.ServiceInterface{AServiceInterface},
-			Init:                init,
+			ServiceInterface:      BServiceInterface,
+			InterfaceDependencies: service.InterfaceDependencies{AServiceInterface: nil},
+			Init: init,
 		})
 	})
 	return serviceClient
