@@ -48,8 +48,8 @@ type Registry interface {
 	// The Client must implement the service interface - otherwise the method panics.
 	// It will then register the service and start it async.
 	// If a service with the same service interface is already registered, then the service will not be started and nill will be returned.
-	// The ServiceClientConstructor is retained until the service is unregistered for the purpose of restarting the service using a new instance.
-	RegisterService(newService ServiceClientConstructor) Client
+	// The ClientConstructor is retained until the service is unregistered for the purpose of restarting the service using a new instance.
+	RegisterService(newService ClientConstructor) Client
 
 	// UnRegisterService will unregister the service and returns false if no such service is registered.
 	// The service is simply unregistered, i.e., it is not stopped.

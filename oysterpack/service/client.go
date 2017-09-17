@@ -39,7 +39,7 @@ package service
 //      - exit when shutdown is triggered
 //    - Destroy
 //      - clean up any resources created by the service
-// 4. create a ServiceClientConstructor function
+// 4. create a ClientConstructor function
 // 5. create a service commons.InterfaceType for the service interface - this will be used to lookup the service within the Application
 type Client interface {
 	ServiceReference
@@ -47,7 +47,7 @@ type Client interface {
 	Restartable
 }
 
-// ServiceClientConstructor is a service factory function that will construct a new Service instance and return a pointer to it.
+// ClientConstructor is a service factory function that will construct a new Service instance and return a pointer to it.
 // The returned service will be in a New state.
 // The constructor is given the application that is creating the service client, i.e., the service client will be managed by the given application.
 //
@@ -56,4 +56,4 @@ type Client interface {
 //    during the service's init phase. Once the service client dependency reference is obtained, the service should await
 //    until the service dependency is running during the service's run phase.
 // 2. The service uses the application to register additional services.
-type ServiceClientConstructor func(application Application) Client
+type ClientConstructor func(application Application) Client

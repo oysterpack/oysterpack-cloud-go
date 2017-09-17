@@ -94,7 +94,7 @@ func (a *EchoServiceClient) run(ctx *service.Context) error {
 	}
 }
 
-// EchoServiceClientConstructor is a ServiceClientConstructor
+// EchoServiceClientConstructor is a ClientConstructor
 func EchoServiceClientConstructor(application service.Application) service.Client {
 	serviceClient := &EchoServiceClient{echo: make(chan *EchoRequest)}
 	serviceClient.RestartableService = service.NewRestartableService(serviceClient.newService)

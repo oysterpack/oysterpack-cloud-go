@@ -19,10 +19,12 @@ import (
 	"github.com/oysterpack/oysterpack.go/oysterpack/service"
 )
 
+// Interface is the service client interface
 type Interface interface {
 	NextInt() uint64
 }
 
+// CounterServiceInterface is the ServiceInterface
 var CounterServiceInterface service.ServiceInterface = func() service.ServiceInterface {
 	var c Interface = &client{}
 	serviceInterface, err := commons.ObjectInterface(&c)
@@ -64,6 +66,7 @@ func (a *client) newService() service.Service {
 	return service.NewService(service.ServiceSettings{ServiceInterface: CounterServiceInterface, Run: a.run})
 }
 
+// ClientConstructor is the service ClientConstructor
 func ClientConstructor(app service.Application) service.Client {
 	c := &client{
 		nextInt: make(chan chan<- uint64),

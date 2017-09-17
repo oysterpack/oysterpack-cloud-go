@@ -50,7 +50,7 @@ type Application interface {
 
 // application.services map entry type
 type registeredService struct {
-	NewService ServiceClientConstructor
+	NewService ClientConstructor
 	Client
 }
 
@@ -258,7 +258,7 @@ func (a *application) ServiceKeys() []ServiceKey {
 // RegisterService will register the service and start it, if it is not already registered.
 // Returns the new registered service or nil if a service with the same interface was already registered.
 // A panic occurs if the Client type is not assignable to the Service.
-func (a *application) RegisterService(newService ServiceClientConstructor) Client {
+func (a *application) RegisterService(newService ClientConstructor) Client {
 	a.mutex.Lock()
 	defer a.mutex.Unlock()
 	service := newService(Application(a))
