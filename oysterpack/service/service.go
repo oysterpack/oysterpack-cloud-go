@@ -21,6 +21,8 @@ import (
 
 	"io"
 
+	"sync"
+
 	"github.com/oysterpack/oysterpack.go/oysterpack/commons"
 	"github.com/oysterpack/oysterpack.go/oysterpack/logging"
 	"github.com/rs/zerolog"
@@ -59,7 +61,8 @@ type Service interface {
 // ========
 // 1. Services have a lifecycle defined by its Init, Run, and Destroy functions
 // - the service lifecyle state is maintained via ServiceState
-// - each state transition is logged as a STATE_CHANGED event
+// - each state transition is logged as a STATE_CHANGED event async
+//   - NOTE: thus, when the application is stopped, the logging goroutines may not get a chance to run before the process terminates.
 // - when shut down is triggered the STOP_TRIGGERED event is logged
 // 2. Services run in their own separate goroutine
 // 3. Each service has their own logger.
@@ -143,6 +146,8 @@ type ServiceSettings struct {
 
 	// OPTIONAL - used to specify an alternative writer for the service logger
 	LogOutput io.Writer
+
+	LogLevel *zerolog.Level
 }
 
 // NewService creates and returns a new Service instance in the 'New' state.
@@ -152,11 +157,11 @@ type ServiceSettings struct {
 // - if nil or not an interface, then the method panics
 // All service life cycle functions are optional.
 // Any panic that occurs in the supplied functions is converted to a PanicError.
-func NewService(params ServiceSettings) Service {
-	serviceInterface := params.ServiceInterface
-	init := params.Init
-	run := params.Run
-	destroy := params.Destroy
+func NewService(settings ServiceSettings) Service {
+	serviceInterface := settings.ServiceInterface
+	init := settings.Init
+	run := settings.Run
+	destroy := settings.Destroy
 
 	checkServiceInterface := func() {
 		if serviceInterface == nil {
@@ -225,8 +230,11 @@ func NewService(params ServiceSettings) Service {
 
 	newService := func() Service {
 		svcLog := logger.With().Dict(logging.SERVICE, logging.InterfaceTypeDict(serviceInterface)).Logger()
-		if params.LogOutput != nil {
-			svcLog = svcLog.Output(params.LogOutput)
+		if settings.LogOutput != nil {
+			svcLog = svcLog.Output(settings.LogOutput)
+		}
+		if settings.LogLevel != nil {
+			svcLog = svcLog.Level(*settings.LogLevel)
 		}
 		svcLog.Info().Str(logging.FUNC, "NewService").Msg("")
 
@@ -240,9 +248,9 @@ func NewService(params ServiceSettings) Service {
 			},
 			logger: svcLog,
 		}
-		if len(params.ServiceDependencies) > 0 {
-			svc.lifeCycle.ServiceDependencies = make([]ServiceInterface, len(params.ServiceDependencies))
-			copy(svc.lifeCycle.ServiceDependencies, params.ServiceDependencies)
+		if len(settings.ServiceDependencies) > 0 {
+			svc.lifeCycle.ServiceDependencies = make([]ServiceInterface, len(settings.ServiceDependencies))
+			copy(svc.lifeCycle.ServiceDependencies, settings.ServiceDependencies)
 		}
 		return svc
 	}
@@ -362,7 +370,7 @@ func (svc *service) AwaitUntilStopped() error {
 			return svc.FailureCause()
 		}
 		i++
-		svc.logger.Info().Str(logging.FUNC, "AwaitUntilStopped").Int("i", i).Msg("")
+		svc.logger.Debug().Str(logging.FUNC, "AwaitUntilStopped").Int("i", i).Msg("")
 	}
 }
 
@@ -382,8 +390,11 @@ func (svc *service) StartAsync() error {
 		return err
 	}
 
-	// log state changes
+	// log state changes async- wait for the goroutine to start before proceeding
+	wait := sync.WaitGroup{}
+	wait.Add(1)
 	go func() {
+		wait.Done()
 		l := svc.lifeCycle.serviceState.NewStateChangeListener()
 		for stateChange := range l.Channel() {
 			svc.logger.Info().
@@ -392,6 +403,7 @@ func (svc *service) StartAsync() error {
 				Msg("")
 		}
 	}()
+	wait.Wait()
 
 	// start up the service
 	go func() {

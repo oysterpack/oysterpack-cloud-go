@@ -26,6 +26,7 @@ import (
 	"io"
 
 	"github.com/oysterpack/oysterpack.go/oysterpack/commons"
+	"github.com/rs/zerolog"
 )
 
 // Application is a service, which serves as a container for other services.
@@ -41,6 +42,10 @@ type Application interface {
 	ServiceStates() map[ServiceInterface]State
 
 	StopRestartServices
+
+	Start()
+
+	Stop()
 }
 
 // application.services map entry type
@@ -106,6 +111,8 @@ func (a *application) Service() Service {
 // ApplicationSettings provides application settings used to create a new application
 type ApplicationSettings struct {
 	LogOutput io.Writer
+
+	LogLevel *zerolog.Level
 }
 
 // NewApplication returns a new application
@@ -120,6 +127,7 @@ func NewApplication(settings ApplicationSettings) Application {
 		Run:              app.run,
 		Destroy:          app.destroy,
 		LogOutput:        settings.LogOutput,
+		LogLevel:         settings.LogLevel,
 	})
 	return service
 }
@@ -280,7 +288,7 @@ func (a *application) UnRegisterService(service Client) bool {
 
 func (a *application) run(ctx *Context) error {
 	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGTERM, syscall.SIGINT)
+	signal.Notify(sigs, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 	for {
 		select {
 		case <-sigs:
@@ -481,4 +489,13 @@ func (a *application) StopAllServices() {
 	for _, client := range a.services {
 		client.Service().Stop()
 	}
+}
+
+func (a *application) Start() {
+	a.Service().StartAsync()
+	a.Service().AwaitUntilRunning()
+}
+
+func (a *application) Stop() {
+	a.Service().Stop()
 }

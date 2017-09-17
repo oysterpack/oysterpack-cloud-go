@@ -232,23 +232,23 @@ func (s *ServiceState) notifyStateChangeListeners(state State) {
 			}(l)
 		}
 		s.deleteAllStateChangeListeners()
-	} else {
-		var closedChannels []chan State
-		for _, l := range s.stateChangeListeners {
-			func(l chan State) {
-				defer func() {
-					// ignore panics caused by sending on a closed channel
-					// this should normally never happen
-					if p := recover(); p != nil {
-						closedChannels = append(closedChannels, l)
-					}
-				}()
-				l <- state
-			}(l)
-		}
-		for _, l := range closedChannels {
-			s.deleteStateChangeListener(l)
-		}
+		return
+	}
+	var closedChannels []chan State
+	for _, l := range s.stateChangeListeners {
+		func(l chan State) {
+			defer func() {
+				// ignore panics caused by sending on a closed channel
+				// this should normally never happen
+				if p := recover(); p != nil {
+					closedChannels = append(closedChannels, l)
+				}
+			}()
+			l <- state
+		}(l)
+	}
+	for _, l := range closedChannels {
+		s.deleteStateChangeListener(l)
 	}
 }
 

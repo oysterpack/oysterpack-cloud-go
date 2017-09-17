@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package logging initializes zerolog and redirects golang's std global logger to zerolog's global logger
+// Package logging initializes zerolog and redirects golang's std global logger to zerolog's global logger.
+// The global log level can be specified via the command line flag "-loglevel". If not specified, the defaul log level is INFO.
 package logging
 
 import (
@@ -21,6 +22,11 @@ import (
 	stdlog "log"
 	"reflect"
 	"time"
+
+	"os"
+
+	"flag"
+	"strings"
 
 	"github.com/oysterpack/oysterpack.go/oysterpack/commons"
 	"github.com/rs/zerolog"
@@ -49,7 +55,9 @@ func NewTypeLogger(o interface{}) zerolog.Logger {
 		return log.With().
 			Str(PACKAGE, string(commons.TypePackage(t))).
 			Str(TYPE, t.Name()).
-			Logger()
+			Logger().
+			Output(os.Stderr).
+			Level(LoggingLevel())
 	}
 }
 
@@ -62,16 +70,48 @@ func NewPackageLogger(o interface{}) zerolog.Logger {
 	}
 	return log.With().
 		Str(PACKAGE, string(commons.ObjectPackage(o))).
-		Logger()
+		Logger().
+		Output(os.Stderr).
+		Level(LoggingLevel())
 }
 
 func init() {
 	// log with nanosecond precision time
 	zerolog.TimeFieldFormat = time.RFC3339Nano
 
-	// redirects
+	flag.Parse()
+
+	// set the global log level
+	log.Logger = log.Logger.Level(LoggingLevel())
+
+	// redirects go's std log to zerolog
 	stdlog.SetFlags(0)
 	stdlog.SetOutput(log.Logger)
+}
+
+var loggingLevel = flag.String("loglevel", "INFO", "valid log levels [DEBUG,INFO,WARN,ERROR] default = INFO")
+
+// LoggingLevel returns the application log level.
+// If the command line is parsed, then the -loglevel flag will be inspected. Valid values for -loglevel are : [DEBUG,INFO,WARN,ERROR]
+// If not specified on the command line, then the defauly value is INFO.
+// The log level is used to configure the log level for loggers returned via NewTypeLogger() and NewPackageLogger().
+// It is also used to initialize zerolog's global logger level.
+func LoggingLevel() zerolog.Level {
+	if loggingLevel == nil {
+		return zerolog.InfoLevel
+	}
+	switch strings.ToUpper(*loggingLevel) {
+	case "DEBUG":
+		return zerolog.DebugLevel
+	case "INFO":
+		return zerolog.InfoLevel
+	case "WARN":
+		return zerolog.WarnLevel
+	case "ERROR":
+		return zerolog.ErrorLevel
+	default:
+		return zerolog.InfoLevel
+	}
 }
 
 // Level is the logging level
