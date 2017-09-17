@@ -17,7 +17,7 @@ package service
 import (
 	"fmt"
 
-	"github.com/oysterpack/oysterpack.go/oysterpack/commons"
+	"github.com/oysterpack/oysterpack.go/oysterpack/commons/reflect"
 )
 
 // Registry is a Client registry.
@@ -26,9 +26,11 @@ type Registry interface {
 	// ServiceByType looks up a service and returns nil if the service is not founc.
 	ServiceByType(serviceInterface ServiceInterface) Client
 
+	// ServiceByTypeAsync returns a ServiceTicket that can be used to receive the service client via a channel.
 	ServiceByTypeAsync(serviceInterface ServiceInterface) *ServiceTicket
 
-	ServiceTicketCounts() map[commons.InterfaceType]int
+	// Returns a snapshot of the number of open ServiceTicket(s) per ServiceInterface
+	ServiceTicketCounts() map[ServiceInterface]int
 
 	// ServiceByKey looks up a service and returns nil if the service is not founc.
 	ServiceByKey(key ServiceKey) Client
@@ -36,6 +38,7 @@ type Registry interface {
 	// Services returns the list of registered services as Client(s)
 	Services() []Client
 
+	// ServiceCount returns the number of services registered
 	ServiceCount() int
 
 	// ServiceInterfaces returns the service interfaces for all registered services
@@ -59,8 +62,8 @@ type Registry interface {
 // ServiceKey represents the service interface.
 // It can be used to lookup a service.
 type ServiceKey struct {
-	commons.PackagePath
-	commons.TypeName
+	reflect.PackagePath
+	reflect.TypeName
 }
 
 func (s *ServiceKey) String() string {
@@ -70,7 +73,7 @@ func (s *ServiceKey) String() string {
 // InterfaceTypeToServiceKey converts an interface type to a ServiceKey
 func InterfaceTypeToServiceKey(serviceInterface ServiceInterface) ServiceKey {
 	return ServiceKey{
-		commons.PackagePath(serviceInterface.PkgPath()),
-		commons.TypeName(serviceInterface.Name()),
+		reflect.PackagePath(serviceInterface.PkgPath()),
+		reflect.TypeName(serviceInterface.Name()),
 	}
 }

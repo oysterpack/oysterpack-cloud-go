@@ -20,7 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 	stdlog "log"
-	"reflect"
+	stdreflect "reflect"
 	"time"
 
 	"os"
@@ -28,7 +28,7 @@ import (
 	"flag"
 	"strings"
 
-	"github.com/oysterpack/oysterpack.go/oysterpack/commons"
+	"github.com/oysterpack/oysterpack.go/oysterpack/commons/reflect"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
@@ -49,11 +49,11 @@ const (
 // where {pkg} is o's package path and {type} is o's type name
 // o must be a struct - the pattern is to use an empty struct
 func NewTypeLogger(o interface{}) zerolog.Logger {
-	if t, err := commons.Struct(reflect.TypeOf(o)); err != nil {
+	if t, err := reflect.Struct(stdreflect.TypeOf(o)); err != nil {
 		panic("NewTypeLogger can only be created for a struct")
 	} else {
 		return log.With().
-			Str(PACKAGE, string(commons.TypePackage(t))).
+			Str(PACKAGE, string(reflect.TypePackage(t))).
 			Str(TYPE, t.Name()).
 			Logger().
 			Output(os.Stderr).
@@ -65,11 +65,11 @@ func NewTypeLogger(o interface{}) zerolog.Logger {
 // where {pkg} is o's package path
 // o must be for a named type because the package path can only be obtained for named types
 func NewPackageLogger(o interface{}) zerolog.Logger {
-	if commons.ObjectPackage(o) == commons.NoPackage {
+	if reflect.ObjectPackage(o) == reflect.NoPackage {
 		panic("only objects for named types are supported")
 	}
 	return log.With().
-		Str(PACKAGE, string(commons.ObjectPackage(o))).
+		Str(PACKAGE, string(reflect.ObjectPackage(o))).
 		Logger().
 		Output(os.Stderr).
 		Level(LoggingLevel())
@@ -130,7 +130,7 @@ const (
 type LogEvent struct {
 	Time    time.Time           `json:"time"`
 	Level   Level               `json:"level"`
-	Package commons.PackagePath `json:"pkg"`
+	Package reflect.PackagePath `json:"pkg"`
 	Type    string              `json:"type,omitempty"`
 	Func    string              `json:"func,omitempty"`
 	Event   *Event              `json:"event,omitempty"`
@@ -160,7 +160,7 @@ func (e *Event) Dict() *zerolog.Event {
 
 // InterfaceTypeDict returns a standard zerolog dictionary for an interface type
 // It contains the Package and Type fields.
-func InterfaceTypeDict(interfaceType commons.InterfaceType) *zerolog.Event {
+func InterfaceTypeDict(interfaceType reflect.InterfaceType) *zerolog.Event {
 	return zerolog.Dict().
 		Str(PACKAGE, interfaceType.PkgPath()).
 		Str(TYPE, interfaceType.Name())

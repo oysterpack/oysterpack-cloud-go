@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/oysterpack/oysterpack.go/oysterpack/commons"
+	"github.com/oysterpack/oysterpack.go/oysterpack/commons/reflect"
 )
 
 // InvalidStateTransition indicates an invalid transition was attempted
@@ -102,14 +102,14 @@ type DependencyMappings struct {
 }
 
 // AddDependency will add the missing dependency, if it has not yet already been added
-func (a *DependencyMappings) addDependency(dependency commons.InterfaceType) {
+func (a *DependencyMappings) addDependency(dependency reflect.InterfaceType) {
 	if !a.contains(dependency) {
 		a.Dependencies = append(a.Dependencies, dependency)
 	}
 }
 
 // Contains returns true if the service dependency exists
-func (a *DependencyMappings) contains(dependency commons.InterfaceType) bool {
+func (a *DependencyMappings) contains(dependency reflect.InterfaceType) bool {
 	for _, v := range a.Dependencies {
 		if v == dependency {
 			return true
@@ -132,12 +132,12 @@ func (a *ServiceDependenciesMissing) Error() string {
 }
 
 // AddMissingDependency will add the missing dependency, if it has not yet already been added
-func (a *ServiceDependenciesMissing) AddMissingDependency(dependency commons.InterfaceType) {
+func (a *ServiceDependenciesMissing) AddMissingDependency(dependency reflect.InterfaceType) {
 	a.addDependency(dependency)
 }
 
 // Missing returns true if the service is missing the specified dependency
-func (a *ServiceDependenciesMissing) Missing(dependency commons.InterfaceType) bool {
+func (a *ServiceDependenciesMissing) Missing(dependency reflect.InterfaceType) bool {
 	return a.contains(dependency)
 }
 
@@ -156,12 +156,12 @@ func (a *ServiceDependenciesNotRunning) Error() string {
 }
 
 // AddDependencyNotRunning will add the missing dependency, if it has not yet already been added
-func (a *ServiceDependenciesNotRunning) AddDependencyNotRunning(dependency commons.InterfaceType) {
+func (a *ServiceDependenciesNotRunning) AddDependencyNotRunning(dependency reflect.InterfaceType) {
 	a.addDependency(dependency)
 }
 
 // NotRunning returns true if the service is missing the specified dependency
-func (a *ServiceDependenciesNotRunning) NotRunning(dependency commons.InterfaceType) bool {
+func (a *ServiceDependenciesNotRunning) NotRunning(dependency reflect.InterfaceType) bool {
 	return a.contains(dependency)
 }
 
@@ -215,11 +215,11 @@ func (a *ServiceDependencyErrors) ServiceDependenciesNotRunningErrors() []*Servi
 }
 
 // DependencyErrors returns any dependency errors for the specified service interface
-func (a *ServiceDependencyErrors) DependencyErrors(serviceInterface commons.InterfaceType) []error {
+func (a *ServiceDependencyErrors) DependencyErrors(serviceInterface reflect.InterfaceType) []error {
 	errors := []error{}
 
 	type GetServiceInterface interface {
-		ServiceInterface() commons.InterfaceType
+		ServiceInterface() reflect.InterfaceType
 	}
 
 	for _, err := range a.Errors {

@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"reflect"
+	stdreflect "reflect"
 	"sync"
 	"syscall"
 	"time"
@@ -26,6 +26,7 @@ import (
 	"io"
 
 	"github.com/oysterpack/oysterpack.go/oysterpack/commons"
+	"github.com/oysterpack/oysterpack.go/oysterpack/commons/reflect"
 	"github.com/rs/zerolog"
 )
 
@@ -38,13 +39,15 @@ type Application interface {
 
 	ServiceDependencies
 
-	// ApplicationServiceState(s) will be returned sorted by the service interface
+	// ServiceStates returns a snapshot of the current states for all registered services
 	ServiceStates() map[ServiceInterface]State
 
 	StopRestartServices
 
+	// Start the application blocks until the app is running
 	Start()
 
+	// Stop the application blocks until the app is stopped
 	Stop()
 }
 
@@ -93,10 +96,10 @@ func (a *ServiceTicket) Channel() <-chan Client {
 }
 
 // ServiceTicketCounts returns the number of tickets that have been issued per service
-func (a *application) ServiceTicketCounts() map[commons.InterfaceType]int {
+func (a *application) ServiceTicketCounts() map[ServiceInterface]int {
 	a.serviceTicketsMutex.RLock()
 	defer a.serviceTicketsMutex.RUnlock()
-	counts := make(map[commons.InterfaceType]int)
+	counts := make(map[ServiceInterface]int)
 	for _, ticket := range a.serviceTickets {
 		counts[ticket.ServiceInterface]++
 	}
@@ -121,13 +124,12 @@ func NewApplication(settings ApplicationSettings) Application {
 		services: make(map[ServiceInterface]*registeredService),
 	}
 	var service Application = app
-	serviceInterface, _ := commons.ObjectInterface(&service)
+	serviceInterface, _ := reflect.ObjectInterface(&service)
 	app.service = NewService(ServiceSettings{
 		ServiceInterface: serviceInterface,
 		Run:              app.run,
 		Destroy:          app.destroy,
-		LogOutput:        settings.LogOutput,
-		LogLevel:         settings.LogLevel,
+		LogSettings:      LogSettings{LogOutput: settings.LogOutput, LogLevel: settings.LogLevel},
 	})
 	return service
 }
@@ -262,8 +264,8 @@ func (a *application) RegisterService(newService ClientConstructor) Client {
 	a.mutex.Lock()
 	defer a.mutex.Unlock()
 	service := newService(Application(a))
-	if !reflect.TypeOf(service).AssignableTo(service.Service().Interface()) {
-		panic(fmt.Sprintf("%T is not assignable to %v", reflect.TypeOf(service), service.Service().Interface()))
+	if !stdreflect.TypeOf(service).AssignableTo(service.Service().Interface()) {
+		panic(fmt.Sprintf("%T is not assignable to %v", stdreflect.TypeOf(service), service.Service().Interface()))
 	}
 	if _, exists := a.services[service.Service().Interface()]; !exists {
 		a.services[service.Service().Interface()] = &registeredService{NewService: newService, Client: service}

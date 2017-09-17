@@ -15,18 +15,11 @@
 package oysterpack_test
 
 import (
-	"fmt"
-	"os"
-	"reflect"
+	"net"
 	"sync"
 	"testing"
 	"time"
-
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 )
-
-var logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout}).Level(zerolog.WarnLevel)
 
 type Foo struct{}
 
@@ -59,124 +52,51 @@ func TestClosingClosedChannel(t *testing.T) {
 
 func TestClosingBlockedChannelOnSend(t *testing.T) {
 	msgs := make(chan string)
-	waitGroup := sync.WaitGroup{}
-	waitGroup.Add(1)
+	wait1 := sync.WaitGroup{}
+	wait1.Add(1)
+	msgSent := sync.WaitGroup{}
+	msgSent.Add(1)
 	go func() {
 		defer func() {
 			switch p := recover().(type) {
 			case nil:
-				log.Info().Msg("no error")
+				t.Errorf("this should have caused a panic when the channel is closed - message delivery should have failed")
 			case error:
-				logger.Warn().Msgf("error(%[1]T) : %[1]s", p)
+				t.Logf("error(%[1]T) : %[1]s", p)
 			}
+			msgSent.Done()
 		}()
-		waitGroup.Done()
-		log.Info().Msg("msgs <- MSG")
+		wait1.Done()
+		t.Log("msgs <- MSG")
 		msgs <- "MSG"
 	}()
-	waitGroup.Wait()
+	wait1.Wait()
 	time.Sleep(100 * time.Millisecond)
-	log.Info().Msg("close(msgs) ...")
+	t.Log("close(msgs) ...")
 	close(msgs)
-	log.Info().Msg("close(msgs) !!!")
-}
-
-func TestReflect(t *testing.T) {
-	var foo fmt.Stringer = fmt.Stringer(Foo{})
-	log.Info().Msgf("reflect.TypeOf(foo) = %s, Kind = %v", reflect.TypeOf(foo), reflect.TypeOf(foo).Kind())
-	log.Info().Msgf("reflect.TypeOf(&foo).Elem() = %s, Kind() = %v", reflect.TypeOf(&foo).Elem(), reflect.TypeOf(&foo).Elem().Kind())
-	log.Info().Msgf("TypeOf(&foo).Elem() == TypeOf(&foo).Elem() is %v", reflect.TypeOf(&foo).Elem() == reflect.TypeOf(&foo).Elem())
-	log.Info().Msgf("ValueOf(&foo) = %s", reflect.ValueOf(&foo))
-}
-
-func TestEchoService(t *testing.T) {
-	StartService(EchoService)
-	reqWaitGroup := sync.WaitGroup{}
-	for i := 0; i < 100; i++ {
-		req := NewEchoRequest(fmt.Sprintf("REQ #%d", i))
-		logger.Info().Msgf("TestEchoService : REQ #%d", i)
-		reqWaitGroup.Add(1)
-		go func() {
-			Echo <- req
-			response := <-req.ReplyTo
-			logger.Info().Msgf("response : %v", response)
-			reqWaitGroup.Done()
-		}()
+	t.Log("close(msgs) !!!")
+	if msg := <-msgs; msg != "" {
+		t.Errorf("Zero value should be received on closed channel : %v", msg)
 	}
-
-	reqWaitGroup.Wait()
-	StopServices()
-	ServicesWaitGroup.Wait()
+	msgSent.Wait()
 }
 
-func BenchmarkEchoService(t *testing.B) {
-	Stop = make(chan struct{})
-	StartService(EchoService)
-	reqWaitGroup := sync.WaitGroup{}
+func TestGetLocalIP(t *testing.T) {
+	t.Logf(GetLocalIP())
+}
 
-	t.ResetTimer()
-	for i := 0; i < t.N; i++ {
-		req := NewEchoRequest(fmt.Sprintf("REQ #%d", i))
-		reqWaitGroup.Add(1)
-		go func() {
-			Echo <- req
-			<-req.ReplyTo
-			reqWaitGroup.Done()
-		}()
+func GetLocalIP() string {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return ""
 	}
-	reqWaitGroup.Wait()
-	t.StopTimer()
-
-	StopServices()
-	ServicesWaitGroup.Wait()
-}
-
-var Stop = make(chan struct{})
-
-var Echo = make(chan *EchoRequest, 1000)
-
-var ServicesWaitGroup sync.WaitGroup
-
-func StartService(service func(stop <-chan struct{})) {
-	ServicesWaitGroup.Add(1)
-	log.Info().Msgf("StartService : %T", service)
-	go service(Stop)
-}
-
-func StopServices() {
-	close(Stop)
-}
-
-func EchoService(stop <-chan struct{}) {
-	logger.Info().Msg("EchoService : Running")
-	for {
-		select {
-		case <-stop:
-			logger.Info().Msg("EchoService : Stop")
-			ServicesWaitGroup.Done()
-			return
-		case req := <-Echo:
-			logger.Info().Msgf("EchoService: echo(%v)", req.Msg)
-			go func() { req.ReplyTo <- req.Msg }()
+	for _, address := range addrs {
+		// check the address type and if it is not a loopback the display it
+		if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+			if ipnet.IP.To4() != nil {
+				return ipnet.IP.String()
+			}
 		}
 	}
-}
-
-type EchoRequest struct {
-	Msg     interface{}
-	ReplyTo chan interface{}
-}
-
-func NewEchoRequest(msg interface{}) *EchoRequest {
-	return &EchoRequest{
-		msg,
-		make(chan interface{}),
-	}
-}
-
-func TestNegativeDuration(t *testing.T) {
-	var d time.Duration = -1
-	if d < 0 {
-		t.Log("negative durations are allowed")
-	}
+	return ""
 }

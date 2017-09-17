@@ -17,7 +17,7 @@ package service_test
 import (
 	"time"
 
-	"github.com/oysterpack/oysterpack.go/oysterpack/commons"
+	"github.com/oysterpack/oysterpack.go/oysterpack/commons/reflect"
 	"github.com/oysterpack/oysterpack.go/oysterpack/service"
 )
 
@@ -26,11 +26,11 @@ type EchoService interface {
 	Echo(msg interface{}) interface{}
 }
 
-var EchoServiceInterface commons.InterfaceType = echoServiceInterfaceType()
+var EchoServiceInterface reflect.InterfaceType = echoServiceInterfaceType()
 
-func echoServiceInterfaceType() commons.InterfaceType {
+func echoServiceInterfaceType() reflect.InterfaceType {
 	var echoServicePrototype EchoService = &EchoServiceClient{}
-	t, err := commons.ObjectInterface(&echoServicePrototype)
+	t, err := reflect.ObjectInterface(&echoServicePrototype)
 	if err != nil {
 		panic(err)
 	}
@@ -107,11 +107,11 @@ type HeartbeatService interface {
 	Ping() time.Duration
 }
 
-var HeartbeatServiceInterface commons.InterfaceType = heartbeatServiceInterfaceType()
+var HeartbeatServiceInterface reflect.InterfaceType = heartbeatServiceInterfaceType()
 
-func heartbeatServiceInterfaceType() commons.InterfaceType {
+func heartbeatServiceInterfaceType() reflect.InterfaceType {
 	var prototype HeartbeatService = &HeartbeatServiceClient{}
-	t, err := commons.ObjectInterface(&prototype)
+	t, err := reflect.ObjectInterface(&prototype)
 	if err != nil {
 		panic(err)
 	}
@@ -166,11 +166,11 @@ type AServiceClient struct {
 	*service.RestartableService
 }
 
-var AServiceInterface commons.InterfaceType = aServiceInterfaceType()
+var AServiceInterface reflect.InterfaceType = aServiceInterfaceType()
 
-func aServiceInterfaceType() commons.InterfaceType {
+func aServiceInterfaceType() reflect.InterfaceType {
 	var prototype AService = &AServiceClient{}
-	t, err := commons.ObjectInterface(&prototype)
+	t, err := reflect.ObjectInterface(&prototype)
 	if err != nil {
 		panic(err)
 	}
@@ -193,11 +193,11 @@ type BServiceClient struct {
 	*service.RestartableService
 }
 
-var BServiceInterface commons.InterfaceType = bServiceInterfaceType()
+var BServiceInterface reflect.InterfaceType = bServiceInterfaceType()
 
-func bServiceInterfaceType() commons.InterfaceType {
+func bServiceInterfaceType() reflect.InterfaceType {
 	var prototype BService = &BServiceClient{}
-	t, err := commons.ObjectInterface(&prototype)
+	t, err := reflect.ObjectInterface(&prototype)
 	if err != nil {
 		panic(err)
 	}

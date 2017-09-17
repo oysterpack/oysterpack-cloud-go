@@ -12,17 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package commons
+package os
 
-import (
-	"github.com/rs/zerolog/log"
-)
+import "os"
 
-// IgnorePanic simply calls recover()
-// It is intended to use in defer() functions to explicitly specify the intent.
-// If debug logging is enabled, then ignored panics will be logged
-func IgnorePanic() {
-	if p := recover(); p != nil {
-		log.Debug().Msgf("IgnorePanic : %v", p)
-	}
-}
+var pid = os.Getpid()
+
+// PID returns the process id of the caller.
+func PID() int { return pid }

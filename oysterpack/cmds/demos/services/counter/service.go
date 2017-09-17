@@ -15,7 +15,7 @@
 package counter
 
 import (
-	"github.com/oysterpack/oysterpack.go/oysterpack/commons"
+	"github.com/oysterpack/oysterpack.go/oysterpack/commons/reflect"
 	"github.com/oysterpack/oysterpack.go/oysterpack/service"
 )
 
@@ -27,7 +27,7 @@ type Interface interface {
 // CounterServiceInterface is the ServiceInterface
 var CounterServiceInterface service.ServiceInterface = func() service.ServiceInterface {
 	var c Interface = &client{}
-	serviceInterface, err := commons.ObjectInterface(&c)
+	serviceInterface, err := reflect.ObjectInterface(&c)
 	if err != nil {
 		panic(err)
 	}

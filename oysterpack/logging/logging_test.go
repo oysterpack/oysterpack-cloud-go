@@ -22,7 +22,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/oysterpack/oysterpack.go/oysterpack/commons"
+	"github.com/oysterpack/oysterpack.go/oysterpack/commons/reflect"
 	"github.com/oysterpack/oysterpack.go/oysterpack/logging"
 	"github.com/rs/zerolog"
 )
@@ -51,7 +51,7 @@ func TestNewPackageLogger(t *testing.T) {
 	if logEvent.Level != logging.INFO {
 		t.Errorf("Level was not parsed correctly : %v", logEvent.Level)
 	}
-	if logEvent.Package != commons.ObjectPackage(A{}) {
+	if logEvent.Package != reflect.ObjectPackage(A{}) {
 		t.Errorf("Package was not parsed correctly : %v", logEvent.Package)
 	}
 	if *logEvent.Event != event {
@@ -92,7 +92,7 @@ func TestNewTypeLogger(t *testing.T) {
 	if logEvent.Level != logging.INFO {
 		t.Errorf("Level was not parsed correctly : %v", logEvent.Level)
 	}
-	if logEvent.Package != commons.ObjectPackage(A{}) {
+	if logEvent.Package != reflect.ObjectPackage(A{}) {
 		t.Errorf("Package was not parsed correctly : %v", logEvent.Package)
 	}
 	if logEvent.Type != "A" {

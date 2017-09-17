@@ -12,16 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package commons_test
+package reflect_test
 
 import (
 	"reflect"
 	"testing"
 
-	"github.com/oysterpack/oysterpack.go/oysterpack/commons"
+	commons "github.com/oysterpack/oysterpack.go/oysterpack/commons/reflect"
 )
 
-var thisPackage = commons.PackagePath("github.com/oysterpack/oysterpack.go/oysterpack/commons_test")
+var thisPackage = commons.PackagePath("github.com/oysterpack/oysterpack.go/oysterpack/commons/reflect_test")
 
 func TestObjectPackage(t *testing.T) {
 	type IFoo interface{}

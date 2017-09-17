@@ -18,7 +18,7 @@
 //
 // High quality application services must address for the following design and operational concerns :
 // ==================================================================================================
-// - services must be designed to be threadsafe
+// - services must be designed to be used concurrently safe
 // - interfaces must be used to define a service
 //    - the interface defines the service's functionality and must be clearly documented
 // - services must have a clearly defined lifecycle, i.e., init -> run -> destroy
@@ -58,4 +58,5 @@
 // =============
 // App() Application
 //
+// All exported functions and methods are safe to be used concurrently unless specified otherwise.
 package service

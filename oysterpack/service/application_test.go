@@ -15,12 +15,12 @@
 package service_test
 
 import (
-	"reflect"
+	stdreflect "reflect"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/oysterpack/oysterpack.go/oysterpack/commons"
+	"github.com/oysterpack/oysterpack.go/oysterpack/commons/reflect"
 	"github.com/oysterpack/oysterpack.go/oysterpack/service"
 )
 
@@ -187,7 +187,7 @@ func TestApplicationContext_RegisterService_ServiceClientNotAssignableToServiceI
 			return &InvalidEchoServiceClient{
 				RestartableService: service.NewRestartableService(func() service.Service {
 					var svc EchoService = &SimpleEchoService{}
-					serviceInterface, _ := commons.ObjectInterface(&svc)
+					serviceInterface, _ := reflect.ObjectInterface(&svc)
 					return service.NewService(service.ServiceSettings{ServiceInterface: serviceInterface})
 				}),
 			}
@@ -226,7 +226,7 @@ func TestApplicationContext_ServiceByType_NotRegistered(t *testing.T) {
 	type Foo interface{}
 	type Bar struct{}
 	var foo Foo = &Bar{}
-	fooType, err := commons.ObjectInterface(&foo)
+	fooType, err := reflect.ObjectInterface(&foo)
 	if err != nil {
 		t.Fatalf("Failed to get Foo type : %v", err)
 	}
@@ -270,7 +270,7 @@ func TestApplicationContext_ServiceInterfaces(t *testing.T) {
 		t.Errorf("ERROR: there should be 2 services registered : %d : %d : %v", app.ServiceCount(), len(serviceInterfaces), serviceInterfaces)
 	}
 
-	containsInterface := func(svcInterface commons.InterfaceType) bool {
+	containsInterface := func(svcInterface reflect.InterfaceType) bool {
 		for _, serviceInterface := range serviceInterfaces {
 			if serviceInterface == svcInterface {
 				return true
@@ -307,9 +307,9 @@ func TestApplicationContext_Services(t *testing.T) {
 		t.Errorf("ERROR: there should be 2 services registered : %v", services)
 	}
 
-	containsService := func(svcInterface commons.InterfaceType) bool {
+	containsService := func(svcInterface reflect.InterfaceType) bool {
 		for _, service := range services {
-			if reflect.TypeOf(service).AssignableTo(svcInterface) {
+			if stdreflect.TypeOf(service).AssignableTo(svcInterface) {
 				return true
 			}
 		}
@@ -348,7 +348,7 @@ func TestApplicationContext_ServiceKeys(t *testing.T) {
 		t.Errorf("ERROR: there should be 2 services registered : %d : %d : %v", app.ServiceCount(), len(serviceKeys), serviceKeys)
 	}
 
-	containsInterface := func(svcInterface commons.InterfaceType) bool {
+	containsInterface := func(svcInterface reflect.InterfaceType) bool {
 		for _, key := range serviceKeys {
 			if service.InterfaceTypeToServiceKey(svcInterface) == key {
 				return true
@@ -851,6 +851,6 @@ func (a *testApplication_RestartAllFailedServices_client) newService() service.S
 
 var testApplication_RestartAllFailedServices_interface service.ServiceInterface = func() service.ServiceInterface {
 	var o testApplication_RestartAllFailedServices = &testApplication_RestartAllFailedServices_client{}
-	i, _ := commons.ObjectInterface(&o)
+	i, _ := reflect.ObjectInterface(&o)
 	return i
 }()

@@ -16,7 +16,7 @@ package service
 
 import (
 	"fmt"
-	"reflect"
+	stdreflect "reflect"
 	"time"
 
 	"io"
@@ -24,6 +24,7 @@ import (
 	"sync"
 
 	"github.com/oysterpack/oysterpack.go/oysterpack/commons"
+	"github.com/oysterpack/oysterpack.go/oysterpack/commons/reflect"
 	"github.com/oysterpack/oysterpack.go/oysterpack/logging"
 	"github.com/rs/zerolog"
 )
@@ -95,7 +96,7 @@ type service struct {
 }
 
 // ServiceInterface represents the interface from the client's perspective, i.e., it defines the service's functionality.
-type ServiceInterface commons.InterfaceType
+type ServiceInterface reflect.InterfaceType
 
 // LifeCycle encapsulates the service lifecycle, including the service's backend functions, i.e., Init, Run, Destroy
 type lifeCycle struct {
@@ -135,7 +136,7 @@ type ServiceSettings struct {
 	// If the service has no direct client API, e.g., a network based service, then use an empty interface{}
 	ServiceInterface
 
-	// OPTIONAL - service lifecycle functions
+	// OPTIONAL - functions that define the service lifecycle
 	Init
 	Run
 	Destroy
@@ -144,9 +145,14 @@ type ServiceSettings struct {
 	// It can be used to check if all service Dependencies satisfied by the application.
 	ServiceDependencies []ServiceInterface
 
+	LogSettings
+}
+
+type LogSettings struct {
 	// OPTIONAL - used to specify an alternative writer for the service logger
 	LogOutput io.Writer
 
+	// OPTIONAL - if not specified then the global default log level is used
 	LogLevel *zerolog.Level
 }
 
@@ -168,9 +174,9 @@ func NewService(settings ServiceSettings) Service {
 			panic("ServiceInterface is required")
 		}
 		switch serviceInterface.Kind() {
-		case reflect.Interface:
+		case stdreflect.Interface:
 		default:
-			if kind := serviceInterface.Elem().Kind(); kind != reflect.Interface {
+			if kind := serviceInterface.Elem().Kind(); kind != stdreflect.Interface {
 				panic(fmt.Sprintf("ServiceInterface (%T) must be an interface, but was a %v", serviceInterface, kind))
 			}
 			serviceInterface = serviceInterface.Elem()
