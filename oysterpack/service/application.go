@@ -15,7 +15,6 @@
 package service
 
 import (
-	"fmt"
 	"os"
 	"os/signal"
 	stdreflect "reflect"
@@ -25,8 +24,11 @@ import (
 
 	"io"
 
+	"fmt"
+
 	"github.com/oysterpack/oysterpack.go/oysterpack/commons"
 	"github.com/oysterpack/oysterpack.go/oysterpack/commons/reflect"
+	"github.com/oysterpack/oysterpack.go/oysterpack/logging"
 	"github.com/rs/zerolog"
 )
 
@@ -257,23 +259,53 @@ func (a *application) ServiceKeys() []ServiceKey {
 	return interfaces
 }
 
-// RegisterService will register the service and start it, if it is not already registered.
-// Returns the new registered service or nil if a service with the same interface was already registered.
-// A panic occurs if the Client type is not assignable to the Service.
-func (a *application) RegisterService(newService ClientConstructor) Client {
+// MustRegisterService will register the service and start it, if it is not already registered.
+// A panic occurs if registration fails for any of the following reasons:
+// 1. ServiceInterface is nil
+// 2. Version is nil
+// 3. the Client instance type is not assignable to the Service.
+// 4. A service with the same ServiceInterface is already registered.
+func (a *application) MustRegisterService(create ClientConstructor) Client {
+	validate := func(service Client) {
+		if service.Service().Interface() == nil {
+			a.Service().Logger().Panic().Msg("Service failed to register because it has no ServiceInterface")
+		}
+
+		if service.Service().Version() == nil {
+			a.Service().Logger().Panic().
+				Str(logging.SERVICE, service.Service().Interface().String()).
+				Msgf("Service failed to register because it has no version")
+		}
+
+		if !stdreflect.TypeOf(service).AssignableTo(service.Service().Interface()) {
+			a.Service().Logger().Panic().
+				Str(logging.SERVICE, service.Service().Interface().String()).
+				Msgf("Service failed to register because %T is not assignable to %v", stdreflect.TypeOf(service), service.Service().Interface())
+		}
+	}
+
 	a.mutex.Lock()
 	defer a.mutex.Unlock()
-	service := newService(Application(a))
-	if !stdreflect.TypeOf(service).AssignableTo(service.Service().Interface()) {
-		panic(fmt.Sprintf("%T is not assignable to %v", stdreflect.TypeOf(service), service.Service().Interface()))
+	service := create(Application(a))
+	validate(service)
+	if _, exists := a.services[service.Service().Interface()]; exists {
+		a.Service().Logger().Panic().
+			Str(logging.SERVICE, service.Service().Interface().String()).
+			Msgf("Service is already registered : %v", service.Service().Interface())
 	}
-	if _, exists := a.services[service.Service().Interface()]; !exists {
-		a.services[service.Service().Interface()] = &registeredService{NewService: newService, Client: service}
-		service.Service().StartAsync()
-		go a.checkServiceTickets()
-		return service
-	}
-	return nil
+	a.services[service.Service().Interface()] = &registeredService{NewService: create, Client: service}
+	service.Service().StartAsync()
+	go a.checkServiceTickets()
+	return service
+}
+
+func (a *application) RegisterService(create ClientConstructor) (client Client, err error) {
+	defer func() {
+		if p := recover(); p != nil {
+			err = fmt.Errorf("%v", p)
+		}
+	}()
+	return a.MustRegisterService(create), nil
 }
 
 // UnRegisterService unregisters the specified service.
@@ -345,14 +377,13 @@ func (a *application) checkServiceDependenciesRegistered(serviceClient Client) *
 		b := a.serviceByType(dependency)
 		if b == nil {
 			missingDependencies.AddMissingDependency(dependency)
-		}
-
-		if constraints != nil {
-			if !constraints.Check(b.Service().Version()) {
-				missingDependencies.AddMissingDependency(dependency)
+		} else {
+			if constraints != nil {
+				if !constraints.Check(b.Service().Version()) {
+					missingDependencies.AddMissingDependency(dependency)
+				}
 			}
 		}
-
 	}
 	if missingDependencies.HasMissing() {
 		return missingDependencies

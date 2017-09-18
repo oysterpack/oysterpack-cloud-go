@@ -47,12 +47,19 @@ type Registry interface {
 	// ServiceKeys returns the ServiceKey(s) for all registered services
 	ServiceKeys() []ServiceKey
 
-	// RegisterService will create a new instance of the service using the supplied service constructor.
+	// MustRegisterService will create a new instance of the service using the supplied service constructor.
 	// The Client must implement the service interface - otherwise the method panics.
 	// It will then register the service and start it async.
-	// If a service with the same service interface is already registered, then the service will not be started and nill will be returned.
-	// The ClientConstructor is retained until the service is unregistered for the purpose of restarting the service using a new instance.
-	RegisterService(newService ClientConstructor) Client
+	// If a service with the same service interface is already registered, then the service will not be started and nil will be returned.
+	// NOTE: only a single version of the service may be registered
+	//
+	// A panic occurs if registration fails for any of the following reasons:
+	// 1. ServiceInterface is nil
+	// 2. Version is nil
+	// 3. the Client instance type is not assignable to the Service.
+	MustRegisterService(newService ClientConstructor) Client
+
+	RegisterService(newService ClientConstructor) (Client, error)
 
 	// UnRegisterService will unregister the service and returns false if no such service is registered.
 	// The service is simply unregistered, i.e., it is not stopped.

@@ -29,10 +29,23 @@ func TestApplicationContext_RegisterService(t *testing.T) {
 	app.Service().StartAsync()
 	app.Service().AwaitUntilRunning()
 	defer app.Service().Stop()
-	serviceClient := app.RegisterService(EchoServiceClientConstructor)
+	serviceClient := app.MustRegisterService(EchoServiceClientConstructor)
+
+	func() {
+		defer func() {
+			if p := recover(); p == nil {
+				t.Error("registration should have panicked because the service is already registered")
+			} else {
+				t.Logf("registration failed as expected because : %v", p)
+			}
+		}()
+		app.MustRegisterService(EchoServiceClientConstructor)
+	}()
+
 	if err := serviceClient.Service().AwaitUntilRunning(); err != nil {
 		t.Fatal(err)
 	}
+
 	if !serviceClient.Service().State().Running() {
 		t.Fatal("service should be running")
 	}
@@ -61,7 +74,6 @@ func TestApplicationContext_RegisterService(t *testing.T) {
 			}
 		}
 	}
-
 }
 
 func TestApplicationContext_ServiceClientIsStableReferenceAfterRestarting(t *testing.T) {
@@ -69,7 +81,7 @@ func TestApplicationContext_ServiceClientIsStableReferenceAfterRestarting(t *tes
 	app.Service().StartAsync()
 	app.Service().AwaitUntilRunning()
 	defer app.Service().Stop()
-	serviceClient := app.RegisterService(EchoServiceClientConstructor)
+	serviceClient := app.MustRegisterService(EchoServiceClientConstructor)
 	message := "CIAO MUNDO !!!"
 
 	serviceClients := []service.Client{
@@ -126,9 +138,9 @@ func TestApplicationContext_UnRegisterService(t *testing.T) {
 	app.Service().StartAsync()
 	app.Service().AwaitUntilRunning()
 	defer app.Service().Stop()
-	serviceClient := app.RegisterService(EchoServiceClientConstructor)
-	if app.RegisterService(EchoServiceClientConstructor) != nil {
-		t.Errorf("nil should have been returned because the service is already registered")
+	serviceClient := app.MustRegisterService(EchoServiceClientConstructor)
+	if _, err := app.RegisterService(EchoServiceClientConstructor); err == nil {
+		t.Errorf("registering a service that is already registered should fail")
 	}
 	if app.ServiceCount() != 1 {
 		t.Errorf("service count should be 1 , but was %d", app.ServiceCount())
@@ -142,7 +154,7 @@ func TestApplicationContext_UnRegisterService(t *testing.T) {
 	if app.UnRegisterService(serviceClient) {
 		t.Errorf("the service should not be registered")
 	}
-	serviceClient2 := app.RegisterService(EchoServiceClientConstructor)
+	serviceClient2 := app.MustRegisterService(EchoServiceClientConstructor)
 	if serviceClient2 == nil {
 		t.Errorf("service should have been registered")
 	}
@@ -179,11 +191,11 @@ func TestApplicationContext_RegisterService_ServiceClientNotAssignableToServiceI
 			if p := recover(); p != nil {
 				t.Logf("panic was expected : [%v]", p)
 			} else {
-				t.Errorf("Application.RegisterService should have panicked")
+				t.Errorf("Application.MustRegisterService should have panicked")
 			}
 		}()
 
-		app.RegisterService(func(app service.Application) service.Client {
+		app.MustRegisterService(func(app service.Application) service.Client {
 			return &InvalidEchoServiceClient{
 				RestartableService: service.NewRestartableService(func() service.Service {
 					var svc EchoService = &SimpleEchoService{}
@@ -209,7 +221,7 @@ func TestApplicationContext_ServiceByType_NotRegistered(t *testing.T) {
 		t.Error("ERROR: no services are registered")
 	}
 
-	app.RegisterService(EchoServiceClientConstructor)
+	app.MustRegisterService(EchoServiceClientConstructor)
 
 	serviceClients := []service.Client{
 		app.ServiceByType(EchoServiceInterface),
@@ -249,7 +261,7 @@ func TestApplicationContext_ServiceInterfaces(t *testing.T) {
 		t.Errorf("ERROR: there should be 0 services registered : %d : %d : %v", app.ServiceCount(), len(serviceInterfaces), serviceInterfaces)
 	}
 
-	echoService := app.RegisterService(EchoServiceClientConstructor).(EchoService)
+	echoService := app.MustRegisterService(EchoServiceClientConstructor).(EchoService)
 	serviceInterfaces = app.ServiceInterfaces()
 	if app.ServiceCount() != 1 {
 		t.Errorf("ERROR: there should be 1 services registered : %d : %v", len(serviceInterfaces), serviceInterfaces)
@@ -258,7 +270,7 @@ func TestApplicationContext_ServiceInterfaces(t *testing.T) {
 		t.Errorf("ERROR: there should be 1 services registered : %d : %d : %v", app.ServiceCount(), len(serviceInterfaces), serviceInterfaces)
 	}
 	t.Logf("echo : %v", echoService.Echo("TestApplicationContext_ServiceInterfaces"))
-	heartbeatService := app.RegisterService(HeartbeatServiceClientConstructor).(HeartbeatService)
+	heartbeatService := app.MustRegisterService(HeartbeatServiceClientConstructor).(HeartbeatService)
 	t.Logf("heartbeat ping : %v", heartbeatService.Ping())
 
 	serviceInterfaces = app.ServiceInterfaces()
@@ -294,13 +306,13 @@ func TestApplicationContext_Services(t *testing.T) {
 	app.Service().AwaitUntilRunning()
 	defer app.Service().Stop()
 
-	app.RegisterService(EchoServiceClientConstructor)
+	app.MustRegisterService(EchoServiceClientConstructor)
 	services := app.Services()
 	if len(services) != 1 {
 		t.Errorf("there should be 1 service registered : %v", services)
 	}
 
-	app.RegisterService(HeartbeatServiceClientConstructor)
+	app.MustRegisterService(HeartbeatServiceClientConstructor)
 	services = app.Services()
 
 	if len(services) != 2 {
@@ -336,12 +348,12 @@ func TestApplicationContext_ServiceKeys(t *testing.T) {
 		t.Errorf("ERROR: there should be 0 services registered : %d : %d : %v", app.ServiceCount(), len(serviceKeys), serviceKeys)
 	}
 
-	app.RegisterService(EchoServiceClientConstructor)
+	app.MustRegisterService(EchoServiceClientConstructor)
 	serviceKeys = app.ServiceKeys()
 	if len(serviceKeys) != 1 {
 		t.Errorf("ERROR: there should be 1 services registered : %v", serviceKeys)
 	}
-	app.RegisterService(HeartbeatServiceClientConstructor)
+	app.MustRegisterService(HeartbeatServiceClientConstructor)
 	serviceKeys = app.ServiceKeys()
 	t.Logf("serviceKeys : %v", serviceKeys)
 	if len(serviceKeys) != 2 {
@@ -384,7 +396,7 @@ func TestApplicationContext_ServiceByTypeAsync(t *testing.T) {
 	if app.ServiceTicketCounts()[EchoServiceInterface] != 1 {
 		t.Errorf("There should be ticket in the queue for the EchoService : %d", app.ServiceTicketCounts()[EchoServiceInterface])
 	}
-	app.RegisterService(EchoServiceClientConstructor)
+	app.MustRegisterService(EchoServiceClientConstructor)
 	wait.Wait()
 
 	serviceTicket = app.ServiceByTypeAsync(EchoServiceInterface)
@@ -411,15 +423,15 @@ func TestApplicationContext_CheckAllServiceDependenciesRegistered(t *testing.T) 
 	app.Service().AwaitUntilRunning()
 	defer app.Service().Stop()
 
-	app.RegisterService(EchoServiceClientConstructor)
-	app.RegisterService(HeartbeatServiceClientConstructor)
+	app.MustRegisterService(EchoServiceClientConstructor)
+	app.MustRegisterService(HeartbeatServiceClientConstructor)
 
 	servicesMissingDependencies := app.CheckAllServiceDependenciesRegistered()
 	if len(servicesMissingDependencies) > 0 {
 		t.Errorf("There should be no services missing dependencies : %v", servicesMissingDependencies)
 	}
 
-	bService := app.RegisterService(BServiceClientConstructor)
+	bService := app.MustRegisterService(BServiceClientConstructor)
 
 	servicesMissingDependencies = app.CheckAllServiceDependenciesRegistered()
 	t.Log(servicesMissingDependencies)
@@ -454,7 +466,7 @@ func TestApplicationContext_CheckAllServiceDependenciesRegistered(t *testing.T) 
 		t.Errorf("BService should be blocked while starting waiting on reference to A : %v", bService.Service().State())
 	}
 
-	app.RegisterService(AServiceClientConstructor)
+	app.MustRegisterService(AServiceClientConstructorFactory("1.0.0"))
 	bService.Service().AwaitUntilRunning()
 
 	servicesMissingDependencies = app.CheckAllServiceDependenciesRegistered()
@@ -468,7 +480,7 @@ func TestApplicationContext_StopAppWhileWaitingForServiceDependencies(t *testing
 	app.Service().StartAsync()
 	app.Service().AwaitUntilRunning()
 
-	app.RegisterService(BServiceClientConstructor)
+	app.MustRegisterService(BServiceClientConstructor)
 	dependencyErrors := app.CheckAllServiceDependencies()
 	t.Log(dependencyErrors)
 	if len(dependencyErrors.Errors) == 0 {
@@ -484,14 +496,14 @@ func TestApplicationContext_CheckAllServiceDependencies(t *testing.T) {
 	app.Service().AwaitUntilRunning()
 	defer app.Service().Stop()
 
-	app.RegisterService(EchoServiceClientConstructor)
+	app.MustRegisterService(EchoServiceClientConstructor)
 
 	dependencyErrors := app.CheckAllServiceDependencies()
 	if dependencyErrors != nil {
 		t.Errorf("There should be no services missing dependencies : %v", dependencyErrors)
 	}
 
-	bService := app.RegisterService(BServiceClientConstructor)
+	bService := app.MustRegisterService(BServiceClientConstructor)
 
 	dependencyErrors = app.CheckAllServiceDependencies()
 	t.Log(dependencyErrors)
@@ -523,14 +535,38 @@ func TestApplicationContext_CheckAllServiceDependencies(t *testing.T) {
 	checkServiceADependencyErrors(dependencyErrors)
 	checkServiceADependencyErrors(app.CheckServiceDependencies(bService))
 
-	app.RegisterService(AServiceClientConstructor)
-	bService.Service().AwaitUntilRunning()
+	serviceA := app.MustRegisterService(AServiceClientConstructorFactory("0.9.0"))
+	serviceA.Service().AwaitUntilRunning()
 
+	dependencyErrors = app.CheckAllServiceDependencies()
+	if len(dependencyErrors.Errors) != 2 {
+		t.Errorf("BService should be missing AService dependency - it should not be registered and thus not running: %v", dependencyErrors)
+	}
+
+	if !app.UnRegisterService(serviceA) {
+		t.Error("Failed to unregister serviceA")
+	}
+
+	serviceA = app.MustRegisterService(AServiceClientConstructorFactory("1.9.0"))
+	serviceA.Service().AwaitUntilRunning()
+	bService.Service().AwaitUntilRunning()
 	if dependencyErrors = app.CheckAllServiceDependencies(); dependencyErrors != nil {
 		t.Errorf("There should be no services dependency errors : %v", dependencyErrors)
 	}
-
 	if dependencyErrors := app.CheckServiceDependencies(bService); dependencyErrors != nil {
+		t.Errorf("There should be no services dependency errors : %v", dependencyErrors)
+	}
+
+	serviceA.Service().Stop()
+	dependencyErrors = app.CheckAllServiceDependencies()
+	if len(dependencyErrors.Errors) != 1 {
+		t.Errorf("AService dependency is not running: %v", dependencyErrors)
+	}
+
+	serviceA.Restart()
+	serviceA.Service().AwaitUntilRunning()
+	dependencyErrors = app.CheckAllServiceDependencies()
+	if dependencyErrors = app.CheckAllServiceDependencies(); dependencyErrors != nil {
 		t.Errorf("There should be no services dependency errors : %v", dependencyErrors)
 	}
 }
@@ -541,15 +577,15 @@ func TestApplicationContext_CheckAllServiceDependenciesRunning(t *testing.T) {
 	app.Service().AwaitUntilRunning()
 	defer app.Service().Stop()
 
-	app.RegisterService(EchoServiceClientConstructor)
-	app.RegisterService(HeartbeatServiceClientConstructor)
+	app.MustRegisterService(EchoServiceClientConstructor)
+	app.MustRegisterService(HeartbeatServiceClientConstructor)
 
 	notRunning := app.CheckAllServiceDependenciesRunning()
 	if len(notRunning) > 0 {
 		t.Errorf("There should be no services missing dependencies : %v", notRunning)
 	}
 
-	bService := app.RegisterService(BServiceClientConstructor)
+	bService := app.MustRegisterService(BServiceClientConstructor)
 
 	notRunning = app.CheckAllServiceDependenciesRunning()
 	t.Log(notRunning)
@@ -584,7 +620,7 @@ func TestApplicationContext_CheckAllServiceDependenciesRunning(t *testing.T) {
 		t.Errorf("BService should be blocked while starting waiting on reference to A : %v", bService.Service().State())
 	}
 
-	aService := app.RegisterService(AServiceClientConstructor)
+	aService := app.MustRegisterService(AServiceClientConstructorFactory("1.0.0"))
 	aService.Service().AwaitUntilRunning()
 	bService.Service().AwaitUntilRunning()
 
@@ -612,7 +648,7 @@ func TestApplication_ServiceStates(t *testing.T) {
 		t.Errorf("there should be no services registered : %v", serviceStates)
 	}
 
-	echoService := app.RegisterService(EchoServiceClientConstructor)
+	echoService := app.MustRegisterService(EchoServiceClientConstructor)
 	serviceStates = app.ServiceStates()
 	t.Logf("serviceStates: %v", serviceStates)
 	if len(serviceStates) != 1 {
@@ -628,7 +664,7 @@ func TestApplication_ServiceStates(t *testing.T) {
 		t.Errorf("EchoService should be running: %v", serviceStates)
 	}
 
-	heartbeatService := app.RegisterService(HeartbeatServiceClientConstructor)
+	heartbeatService := app.MustRegisterService(HeartbeatServiceClientConstructor)
 	serviceStates = app.ServiceStates()
 	if len(serviceStates) != 2 {
 		t.Errorf("there should be 1 service registered : %v", serviceStates)
@@ -661,10 +697,10 @@ func TestApplication_StopRestartServices(t *testing.T) {
 	app.Service().AwaitUntilRunning()
 	defer app.Service().Stop()
 
-	echoService := app.RegisterService(EchoServiceClientConstructor)
+	echoService := app.MustRegisterService(EchoServiceClientConstructor)
 	echoService.Service().AwaitUntilRunning()
 
-	heartbeatService := app.RegisterService(HeartbeatServiceClientConstructor)
+	heartbeatService := app.MustRegisterService(HeartbeatServiceClientConstructor)
 	heartbeatService.Service().AwaitUntilRunning()
 
 	app.RestartServiceByType(EchoServiceInterface)
@@ -724,10 +760,10 @@ func TestApplication_RestartAllServices(t *testing.T) {
 	app.Service().AwaitUntilRunning()
 	defer app.Service().Stop()
 
-	echoService := app.RegisterService(EchoServiceClientConstructor)
+	echoService := app.MustRegisterService(EchoServiceClientConstructor)
 	echoService.Service().AwaitUntilRunning()
 
-	heartbeatService := app.RegisterService(HeartbeatServiceClientConstructor)
+	heartbeatService := app.MustRegisterService(HeartbeatServiceClientConstructor)
 	heartbeatService.Service().AwaitUntilRunning()
 
 	app.RestartAllServices()
@@ -796,10 +832,10 @@ func TestApplication_RestartAllFailedServices(t *testing.T) {
 	app.Service().AwaitUntilRunning()
 	defer app.Service().Stop()
 
-	echoService := app.RegisterService(EchoServiceClientConstructor)
+	echoService := app.MustRegisterService(EchoServiceClientConstructor)
 	echoService.Service().AwaitUntilRunning()
 
-	client := app.RegisterService(func(app service.Application) service.Client {
+	client := app.MustRegisterService(func(app service.Application) service.Client {
 		client := &testApplication_RestartAllFailedServices_client{fail: make(chan struct{})}
 		client.RestartableService = service.NewRestartableService(client.newService)
 		return client

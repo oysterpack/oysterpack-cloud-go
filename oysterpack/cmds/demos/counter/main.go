@@ -27,7 +27,7 @@ import (
 func main() {
 	defer service.App().Stop()
 	service.App().Start()
-	client := service.App().RegisterService(counter.ClientConstructor)
+	client := service.App().MustRegisterService(counter.ClientConstructor)
 	client.Service().AwaitUntilRunning()
 	counter := client.(counter.Interface)
 

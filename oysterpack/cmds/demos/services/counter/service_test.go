@@ -27,7 +27,7 @@ func TestClientConstructor(t *testing.T) {
 	app.Service().AwaitUntilRunning()
 	defer app.Service().Stop()
 
-	client := app.RegisterService(counter.ClientConstructor)
+	client := app.MustRegisterService(counter.ClientConstructor)
 	client.Service().AwaitUntilRunning()
 
 	counter := client.(counter.Interface)

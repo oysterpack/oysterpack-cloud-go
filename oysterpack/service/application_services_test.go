@@ -17,6 +17,7 @@ package service_test
 import (
 	"time"
 
+	"github.com/Masterminds/semver"
 	"github.com/oysterpack/oysterpack.go/oysterpack/commons/reflect"
 	"github.com/oysterpack/oysterpack.go/oysterpack/service"
 )
@@ -71,7 +72,16 @@ func (a *EchoServiceClient) Echo(msg interface{}) interface{} {
 
 // ServiceConstructor
 func (a *EchoServiceClient) newService() service.Service {
-	return service.NewService(service.ServiceSettings{ServiceInterface: EchoServiceInterface, Run: a.run})
+	version, err := semver.NewVersion("1.0.0")
+	if err != nil {
+		panic(err)
+	}
+
+	return service.NewService(service.ServiceSettings{
+		ServiceInterface: EchoServiceInterface,
+		Version:          *version,
+		Run:              a.run,
+	})
 }
 
 func (a *EchoServiceClient) init(ctx *service.Context) error {
@@ -147,7 +157,11 @@ func (a *HeartbeatServiceClient) run(ctx *service.Context) error {
 }
 
 func (a *HeartbeatServiceClient) newService() service.Service {
-	return service.NewService(service.ServiceSettings{ServiceInterface: HeartbeatServiceInterface, Run: a.run})
+	version, err := semver.NewVersion("1.0.0")
+	if err != nil {
+		panic(err)
+	}
+	return service.NewService(service.ServiceSettings{ServiceInterface: HeartbeatServiceInterface, Version: *version, Run: a.run})
 }
 
 func HeartbeatServiceClientConstructor(application service.Application) service.Client {
@@ -177,12 +191,18 @@ func aServiceInterfaceType() reflect.InterfaceType {
 	return t
 }
 
-func AServiceClientConstructor(application service.Application) service.Client {
-	serviceClient := &AServiceClient{}
-	serviceClient.RestartableService = service.NewRestartableService(func() service.Service {
-		return service.NewService(service.ServiceSettings{ServiceInterface: AServiceInterface})
-	})
-	return serviceClient
+func AServiceClientConstructorFactory(version string) service.ClientConstructor {
+	return func(application service.Application) service.Client {
+		serviceClient := &AServiceClient{}
+		serviceClient.RestartableService = service.NewRestartableService(func() service.Service {
+			version, err := semver.NewVersion(version)
+			if err != nil {
+				panic(err)
+			}
+			return service.NewService(service.ServiceSettings{ServiceInterface: AServiceInterface, Version: *version})
+		})
+		return serviceClient
+	}
 }
 
 ////////////////////////////////
@@ -213,9 +233,20 @@ func BServiceClientConstructor(app service.Application) service.Client {
 			return nil
 		}
 
+		version, err := semver.NewVersion("1.0.0")
+		if err != nil {
+			panic(err)
+		}
+
+		aServiceVersionConstraint, err := semver.NewConstraint(">= 1.0, < 2")
+		if err != nil {
+			panic(err)
+		}
+
 		return service.NewService(service.ServiceSettings{
 			ServiceInterface:      BServiceInterface,
-			InterfaceDependencies: service.InterfaceDependencies{AServiceInterface: nil},
+			Version:               *version,
+			InterfaceDependencies: service.InterfaceDependencies{AServiceInterface: aServiceVersionConstraint},
 			Init: init,
 		})
 	})

@@ -15,6 +15,7 @@
 package counter
 
 import (
+	"github.com/Masterminds/semver"
 	"github.com/oysterpack/oysterpack.go/oysterpack/commons/reflect"
 	"github.com/oysterpack/oysterpack.go/oysterpack/service"
 )
@@ -63,7 +64,11 @@ func (a *client) NextInt() (i uint64) {
 }
 
 func (a *client) newService() service.Service {
-	return service.NewService(service.ServiceSettings{ServiceInterface: CounterServiceInterface, Run: a.run})
+	version, err := semver.NewVersion("1.0.0")
+	if err != nil {
+		panic(err)
+	}
+	return service.NewService(service.ServiceSettings{ServiceInterface: CounterServiceInterface, Version: *version, Run: a.run})
 }
 
 // ClientConstructor is the service ClientConstructor
