@@ -35,15 +35,15 @@ import (
 
 // logger fields
 const (
-	PACKAGE = "pkg"
-	TYPE    = "type"
-	FUNC    = "func"
-	SERVICE = "svc"
-	EVENT   = "event"
-	ID      = "id"
-	CODE    = "code"
-	STATE   = "state"
-	METRIC = "metric"
+	PACKAGE     = "pkg"
+	TYPE        = "type"
+	FUNC        = "func"
+	SERVICE     = "svc"
+	EVENT       = "event"
+	ID          = "id"
+	CODE        = "code"
+	STATE       = "state"
+	METRIC      = "metric"
 	HEALTHCHECK = "healthcheck"
 )
 

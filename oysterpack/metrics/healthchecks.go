@@ -87,11 +87,13 @@ type HealthCheckResult struct {
 	time.Duration
 }
 
-// HealthCheckGaugeValue
+// HealthCheckGaugeValue represents an enum for HealthCheck gauge values
 type HealthCheckGaugeValue float64
 
 const (
+	// HEALTHCHECK_FAILURE = 0
 	HEALTHCHECK_FAILURE HealthCheckGaugeValue = 0
+	// HEALTHCHECK_SUCCESS = 1
 	HEALTHCHECK_SUCCESS HealthCheckGaugeValue = 1
 )
 
@@ -187,7 +189,7 @@ func (a *healthcheck) String() string {
 func (a *healthcheck) Key() string {
 	if len(a.opts.ConstLabels) > 0 {
 		keys := []string{}
-		for k, _ := range a.opts.ConstLabels {
+		for k := range a.opts.ConstLabels {
 			keys = append(keys, k)
 		}
 		sort.Strings(keys)
