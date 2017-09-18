@@ -43,6 +43,8 @@ const (
 	ID      = "id"
 	CODE    = "code"
 	STATE   = "state"
+	METRIC = "metric"
+	HEALTHCHECK = "healthcheck"
 )
 
 // NewTypeLogger returns a new logger with pkg={pkg}, type={type}
