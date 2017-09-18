@@ -26,3 +26,10 @@ func IgnorePanic() {
 		log.Debug().Msgf("IgnorePanic : %v", p)
 	}
 }
+
+// CloseQuietly quietly close the channel
+// A common use case for such a channel is for event notifications, e.g., stop triggers
+func CloseQuietly(c chan struct{}) {
+	defer IgnorePanic()
+	close(c)
+}

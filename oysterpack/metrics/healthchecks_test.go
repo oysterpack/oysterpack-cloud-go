@@ -58,6 +58,24 @@ func TestRegisterHealthCheck_WithNoLabels(t *testing.T) {
 	}
 }
 
+func TestNewHealthCheck_WithNilRunFunc(t *testing.T) {
+	var ping metrics.RunHealthCheck
+
+	opts := prometheus.GaugeOpts{
+		Name: "ping",
+		Help: "ping always succeeds",
+	}
+
+	func() {
+		defer func() {
+			if p := recover(); p == nil {
+				t.Errorf("creating new heatlhcheck should have failed because the run fuc was nil")
+			}
+		}()
+		metrics.NewHealthCheck(opts, 0, ping)
+	}()
+}
+
 func TestRegisterHealthCheck_WithLabels(t *testing.T) {
 	var ping metrics.RunHealthCheck = func() error {
 		return nil
@@ -216,4 +234,5 @@ func TestHealthcheck_StopTicker_StartTicker(t *testing.T) {
 	if pingCheck.LastResult() == nil {
 		t.Error("the healthcheck should have been run")
 	}
+
 }

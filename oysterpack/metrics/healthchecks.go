@@ -23,6 +23,7 @@ import (
 	"bytes"
 	"sort"
 
+	"github.com/oysterpack/oysterpack.go/oysterpack/commons"
 	"github.com/oysterpack/oysterpack.go/oysterpack/logging"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -119,6 +120,7 @@ type healthcheck struct {
 
 	runInterval time.Duration
 	ticker      *time.Ticker
+	stopTrigger chan struct{}
 
 	lastResult *HealthCheckResult
 }
@@ -225,8 +227,10 @@ func (a *healthcheck) StopTicker() {
 	defer a.Unlock()
 	if a.ticker != nil {
 		a.ticker.Stop()
+		commons.CloseQuietly(a.stopTrigger)
 	}
 	a.ticker = nil
+	a.stopTrigger = nil
 }
 
 func (a *healthcheck) StartTicker() {
@@ -237,15 +241,17 @@ func (a *healthcheck) StartTicker() {
 	defer a.Unlock()
 	if a.ticker == nil {
 		a.ticker = time.NewTicker(a.runInterval)
-		go func(ticker *time.Ticker) {
+		a.stopTrigger = make(chan struct{})
+		go func(ticker *time.Ticker, stopTrigger <-chan struct{}) {
 			for {
-				time := <-ticker.C
-				if time.IsZero() {
+				select {
+				case <-ticker.C:
+					a.Run()
+				case <-stopTrigger:
 					return
 				}
-				a.Run()
 			}
-		}(a.ticker)
+		}(a.ticker, a.stopTrigger)
 	}
 }
 
