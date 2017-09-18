@@ -16,20 +16,10 @@ package service
 
 import "github.com/Masterminds/semver"
 
-var app Application = NewApplication(ApplicationSettings{})
-
-var ApplicationVersion *semver.Version = func() *semver.Version {
-	version, err := semver.NewVersion("0.1.0")
+func NewVersion(version string) *semver.Version {
+	v, err := semver.NewVersion(version)
 	if err != nil {
 		panic(err)
 	}
-	return version
-}()
-
-// App exposes the Application globally.
-//
-// Use cases:
-// 1. Package init functions use it to to register services when the package is loaded
-// 2. Used to register services in the main function
-// 3. Used to integrate application services with third party libraries.
-func App() Application { return app }
+	return v
+}

@@ -68,7 +68,7 @@ func (a *client) newService() service.Service {
 	if err != nil {
 		panic(err)
 	}
-	return service.NewService(service.ServiceSettings{ServiceInterface: CounterServiceInterface, Version: *version, Run: a.run})
+	return service.NewService(service.ServiceSettings{ServiceInterface: CounterServiceInterface, Version: version, Run: a.run})
 }
 
 // ClientConstructor is the service ClientConstructor

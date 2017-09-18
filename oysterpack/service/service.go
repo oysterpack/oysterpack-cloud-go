@@ -56,7 +56,7 @@ type Service interface {
 
 	Logger() zerolog.Logger
 
-	ServiceDependencies() InterfaceDependencies
+	Dependencies() InterfaceDependencies
 }
 
 // InterfaceDependencies represents a service's interface dependencies with version constraints
@@ -96,7 +96,7 @@ type InterfaceDependencies map[ServiceInterface]*semver.Constraints
 type service struct {
 	serviceInterface ServiceInterface
 
-	version semver.Version
+	version *semver.Version
 
 	lifeCycle
 
@@ -142,7 +142,7 @@ type ServiceSettings struct {
 	// If the service has no direct client API, e.g., a network based service, then use an empty interface{}
 	ServiceInterface
 
-	semver.Version
+	*semver.Version
 
 	// OPTIONAL - functions that define the service lifecycle
 	Init
@@ -178,9 +178,9 @@ func NewService(settings ServiceSettings) Service {
 	run := settings.Run
 	destroy := settings.Destroy
 
-	checkServiceInterface := func() {
+	checkSettings := func() {
 		if serviceInterface == nil {
-			panic("ServiceInterface is required")
+			logger.Panic().Msg("Failed to create new service because ServiceInterface is required")
 		}
 		switch serviceInterface.Kind() {
 		case stdreflect.Interface:
@@ -189,6 +189,12 @@ func NewService(settings ServiceSettings) Service {
 				panic(fmt.Sprintf("ServiceInterface (%T) must be an interface, but was a %v", serviceInterface, kind))
 			}
 			serviceInterface = serviceInterface.Elem()
+		}
+
+		if settings.Version == nil {
+			logger.Panic().
+				Str(logging.SERVICE, serviceInterface.String()).
+				Msgf("Failed to create new service because it has no version")
 		}
 	}
 
@@ -270,7 +276,7 @@ func NewService(settings ServiceSettings) Service {
 		return svc
 	}
 
-	checkServiceInterface()
+	checkSettings()
 	instrumentInit()
 	instrumentRun()
 	instrumentDestroy()
@@ -494,7 +500,7 @@ func (a *service) Interface() ServiceInterface {
 
 // Version returns the service version
 func (a *service) Version() *semver.Version {
-	return &a.version
+	return a.version
 }
 
 // StopTrigger returns the channel to listen for the stopping
@@ -507,8 +513,8 @@ func (a *service) Logger() zerolog.Logger {
 	return a.logger
 }
 
-// ServiceDependencies returns the service's dependencies
-func (a *service) ServiceDependencies() InterfaceDependencies {
+// Dependencies returns the service's dependencies
+func (a *service) Dependencies() InterfaceDependencies {
 	return a.dependencies
 }
 

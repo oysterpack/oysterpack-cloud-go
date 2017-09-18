@@ -34,7 +34,7 @@ type Bar struct{}
 var bar BarService = Bar{}
 
 func TestNewService_WithNilLifeCycleFunctions(t *testing.T) {
-	server := service.NewService(service.ServiceSettings{ServiceInterface: stdreflect.TypeOf(&foo)})
+	server := service.NewService(service.ServiceSettings{ServiceInterface: stdreflect.TypeOf(&foo), Version: service.NewVersion("1.0.0")})
 	if !server.State().New() {
 		t.Errorf("Service state should be 'New', but instead was : %q", server.State())
 	}
@@ -83,7 +83,7 @@ func TestNewService_WithNilLifeCycleFunctions(t *testing.T) {
 }
 
 func TestNewService_StoppingNewService(t *testing.T) {
-	server := service.NewService(service.ServiceSettings{ServiceInterface: stdreflect.TypeOf(&foo)})
+	server := service.NewService(service.ServiceSettings{ServiceInterface: stdreflect.TypeOf(&foo), Version: service.NewVersion("1.0.0")})
 	if !stopService(server, t) {
 		t.Error("The service should have stopped")
 	}
@@ -97,7 +97,7 @@ func TestNewService_StoppingNewService(t *testing.T) {
 }
 
 func TestNewService_AwaitBlocking(t *testing.T) {
-	server := service.NewService(service.ServiceSettings{ServiceInterface: stdreflect.TypeOf(&foo)})
+	server := service.NewService(service.ServiceSettings{ServiceInterface: stdreflect.TypeOf(&foo), Version: service.NewVersion("1.0.0")})
 	server.StartAsync()
 	server.AwaitRunning(0)
 	if !server.State().Running() {
@@ -133,7 +133,7 @@ func TestNewService_WithNonNilLifeCycleFunctions(t *testing.T) {
 		return nil
 	}
 
-	server := service.NewService(service.ServiceSettings{ServiceInterface: stdreflect.TypeOf(&foo), Init: init, Run: run, Destroy: destroy})
+	server := service.NewService(service.ServiceSettings{ServiceInterface: stdreflect.TypeOf(&foo), Version: service.NewVersion("1.0.0"), Init: init, Run: run, Destroy: destroy})
 	if !server.State().New() {
 		t.Errorf("Service state should be 'New', but instead was : %q", server.State())
 	}
@@ -171,7 +171,7 @@ func TestNewService_InitPanics(t *testing.T) {
 		return nil
 	}
 
-	server := service.NewService(service.ServiceSettings{ServiceInterface: stdreflect.TypeOf(&foo), Init: init, Run: run, Destroy: destroy})
+	server := service.NewService(service.ServiceSettings{ServiceInterface: stdreflect.TypeOf(&foo), Version: service.NewVersion("1.0.0"), Init: init, Run: run, Destroy: destroy})
 	if !server.State().New() {
 		t.Errorf("Service state should be 'New', but instead was : %q", server.State())
 	}
@@ -220,7 +220,7 @@ func TestNewService_RunPanics(t *testing.T) {
 		return nil
 	}
 
-	server := service.NewService(service.ServiceSettings{ServiceInterface: stdreflect.TypeOf(&foo), Init: init, Run: run, Destroy: destroy})
+	server := service.NewService(service.ServiceSettings{ServiceInterface: stdreflect.TypeOf(&foo), Version: service.NewVersion("1.0.0"), Init: init, Run: run, Destroy: destroy})
 	if !server.State().New() {
 		t.Errorf("Service state should be 'New', but instead was : %q", server.State())
 	}
@@ -276,7 +276,7 @@ func TestNewService_DestroyPanics(t *testing.T) {
 		panic("Destroy is panicking")
 	}
 
-	server := service.NewService(service.ServiceSettings{ServiceInterface: stdreflect.TypeOf(&foo), Init: init, Run: run, Destroy: destroy})
+	server := service.NewService(service.ServiceSettings{ServiceInterface: stdreflect.TypeOf(&foo), Version: service.NewVersion("1.0.0"), Init: init, Run: run, Destroy: destroy})
 	if !server.State().New() {
 		t.Errorf("Service state should be 'New', but instead was : %q", server.State())
 	}
@@ -298,12 +298,16 @@ func TestNewService_DestroyPanics(t *testing.T) {
 
 func TestService_ServiceDependencies(t *testing.T) {
 	serviceDependency, _ := reflect.ObjectInterface(&bar)
-	service := service.NewService(service.ServiceSettings{ServiceInterface: stdreflect.TypeOf(&foo), InterfaceDependencies: service.InterfaceDependencies{serviceDependency: nil}})
-	if len(service.ServiceDependencies()) != 1 {
+	service := service.NewService(service.ServiceSettings{
+		ServiceInterface:      stdreflect.TypeOf(&foo),
+		Version:               service.NewVersion("1.0.0"),
+		InterfaceDependencies: service.InterfaceDependencies{serviceDependency: nil},
+	})
+	if len(service.Dependencies()) != 1 {
 		t.Errorf("Bar should have been added as a service dependency")
 	}
 	var barInterface reflect.InterfaceType
-	for dependency := range service.ServiceDependencies() {
+	for dependency := range service.Dependencies() {
 		if dependency == serviceDependency {
 			barInterface = dependency
 		}

@@ -63,6 +63,7 @@ type Registry interface {
 
 	// UnRegisterService will unregister the service and returns false if no such service is registered.
 	// The service is simply unregistered, i.e., it is not stopped.
+	// This will not normally be used in an application. It's main purpose is to support testing.
 	UnRegisterService(service Client) bool
 }
 

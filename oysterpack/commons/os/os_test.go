@@ -12,24 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package service
+package os_test
 
-import "github.com/Masterminds/semver"
+import (
+	"testing"
 
-var app Application = NewApplication(ApplicationSettings{})
+	"github.com/oysterpack/oysterpack.go/oysterpack/commons/os"
+)
 
-var ApplicationVersion *semver.Version = func() *semver.Version {
-	version, err := semver.NewVersion("0.1.0")
-	if err != nil {
-		panic(err)
+func TestPID(t *testing.T) {
+	if os.PID() == 0 {
+		t.Errorf("invalid PID : %d", os.PID())
 	}
-	return version
-}()
-
-// App exposes the Application globally.
-//
-// Use cases:
-// 1. Package init functions use it to to register services when the package is loaded
-// 2. Used to register services in the main function
-// 3. Used to integrate application services with third party libraries.
-func App() Application { return app }
+}

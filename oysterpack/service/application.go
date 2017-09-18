@@ -125,6 +125,7 @@ func NewApplication(settings ApplicationSettings) Application {
 	app := &application{
 		services: make(map[ServiceInterface]*registeredService),
 	}
+
 	var service Application = app
 	serviceInterface, _ := reflect.ObjectInterface(&service)
 	app.service = NewService(ServiceSettings{
@@ -132,6 +133,7 @@ func NewApplication(settings ApplicationSettings) Application {
 		Run:              app.run,
 		Destroy:          app.destroy,
 		LogSettings:      LogSettings{LogOutput: settings.LogOutput, LogLevel: settings.LogLevel},
+		Version:          ApplicationVersion,
 	})
 	return service
 }
@@ -373,7 +375,7 @@ func (a *application) CheckServiceDependenciesRegistered(serviceClient Client) *
 
 func (a *application) checkServiceDependenciesRegistered(serviceClient Client) *ServiceDependenciesMissing {
 	missingDependencies := &ServiceDependenciesMissing{&DependencyMappings{ServiceInterface: serviceClient.Service().Interface()}}
-	for dependency, constraints := range serviceClient.Service().ServiceDependencies() {
+	for dependency, constraints := range serviceClient.Service().Dependencies() {
 		b := a.serviceByType(dependency)
 		if b == nil {
 			missingDependencies.AddMissingDependency(dependency)
@@ -414,7 +416,7 @@ func (a *application) CheckServiceDependenciesRunning(serviceClient Client) *Ser
 
 func (a *application) checkServiceDependenciesRunning(serviceClient Client) *ServiceDependenciesNotRunning {
 	notRunning := &ServiceDependenciesNotRunning{&DependencyMappings{ServiceInterface: serviceClient.Service().Interface()}}
-	for dependency, constraints := range serviceClient.Service().ServiceDependencies() {
+	for dependency, constraints := range serviceClient.Service().Dependencies() {
 		if client := a.serviceByType(dependency); client == nil ||
 			(constraints != nil && !constraints.Check(client.Service().Version())) ||
 			!client.Service().State().Running() {

@@ -444,7 +444,7 @@ func TestApplicationContext_CheckAllServiceDependenciesRegistered(t *testing.T) 
 			t.Errorf("ServiceInterface should be: %v , but was %v", bService.Service().Interface(), err.ServiceInterface)
 		}
 		if len(err.Dependencies) != 1 {
-			t.Errorf("There shold be i missing ServiceDependencies : %v", err.Dependencies)
+			t.Errorf("There shold be i missing Dependencies : %v", err.Dependencies)
 		}
 		if err.Dependencies[0] != AServiceInterface {
 			t.Errorf("Missing service dependency should be AService, but was : %v", err.Dependencies[0])
@@ -490,6 +490,52 @@ func TestApplicationContext_StopAppWhileWaitingForServiceDependencies(t *testing
 	app.Service().Stop()
 }
 
+func TestApplicationContext_CheckAllServiceDependencies_DependencyVersionConstraintsFail(t *testing.T) {
+	app := service.NewApplication(service.ApplicationSettings{})
+	app.Service().StartAsync()
+	app.Service().AwaitUntilRunning()
+	defer app.Service().Stop()
+
+	bService := app.MustRegisterService(BServiceClientConstructor)
+
+	// serviceB depends on serviceA version >= 1.0, < 2
+	serviceA := app.MustRegisterService(AServiceClientConstructorFactory("0.9.0"))
+	serviceA.Service().AwaitUntilRunning()
+
+	dependencyErrors := app.CheckAllServiceDependencies()
+	if len(dependencyErrors.Errors) != 2 {
+		t.Errorf("BService should be missing AService dependency - it should not be registered and thus not running: %v", dependencyErrors)
+	}
+
+	if !app.UnRegisterService(serviceA) {
+		t.Error("Failed to unregister serviceA")
+	}
+
+	// register compatible serviceA version
+	serviceA = app.MustRegisterService(AServiceClientConstructorFactory("1.9.0"))
+	serviceA.Service().AwaitUntilRunning()
+	bService.Service().AwaitUntilRunning()
+	if dependencyErrors = app.CheckAllServiceDependencies(); dependencyErrors != nil {
+		t.Errorf("There should be no services dependency errors : %v", dependencyErrors)
+	}
+	if dependencyErrors := app.CheckServiceDependencies(bService); dependencyErrors != nil {
+		t.Errorf("There should be no services dependency errors : %v", dependencyErrors)
+	}
+
+	serviceA.Service().Stop()
+	dependencyErrors = app.CheckAllServiceDependencies()
+	if len(dependencyErrors.Errors) != 1 {
+		t.Errorf("AService dependency is not running: %v", dependencyErrors)
+	}
+
+	serviceA.Restart()
+	serviceA.Service().AwaitUntilRunning()
+	dependencyErrors = app.CheckAllServiceDependencies()
+	if dependencyErrors = app.CheckAllServiceDependencies(); dependencyErrors != nil {
+		t.Errorf("There should be no services dependency errors : %v", dependencyErrors)
+	}
+}
+
 func TestApplicationContext_CheckAllServiceDependencies(t *testing.T) {
 	app := service.NewApplication(service.ApplicationSettings{})
 	app.Service().StartAsync()
@@ -514,7 +560,7 @@ func TestApplicationContext_CheckAllServiceDependencies(t *testing.T) {
 	checkServiceADependencyErrors := func(err *service.ServiceDependencyErrors) {
 		t.Helper()
 		if len(err.Errors) != 2 {
-			t.Errorf("There shold be 2 missing ServiceDependencies : %v", err.Errors)
+			t.Errorf("There shold be 2 missing Dependencies : %v", err.Errors)
 		}
 		for _, dependencyError := range err.Errors {
 			switch e := dependencyError.(type) {
@@ -535,19 +581,7 @@ func TestApplicationContext_CheckAllServiceDependencies(t *testing.T) {
 	checkServiceADependencyErrors(dependencyErrors)
 	checkServiceADependencyErrors(app.CheckServiceDependencies(bService))
 
-	serviceA := app.MustRegisterService(AServiceClientConstructorFactory("0.9.0"))
-	serviceA.Service().AwaitUntilRunning()
-
-	dependencyErrors = app.CheckAllServiceDependencies()
-	if len(dependencyErrors.Errors) != 2 {
-		t.Errorf("BService should be missing AService dependency - it should not be registered and thus not running: %v", dependencyErrors)
-	}
-
-	if !app.UnRegisterService(serviceA) {
-		t.Error("Failed to unregister serviceA")
-	}
-
-	serviceA = app.MustRegisterService(AServiceClientConstructorFactory("1.9.0"))
+	serviceA := app.MustRegisterService(AServiceClientConstructorFactory("1.9.0"))
 	serviceA.Service().AwaitUntilRunning()
 	bService.Service().AwaitUntilRunning()
 	if dependencyErrors = app.CheckAllServiceDependencies(); dependencyErrors != nil {
@@ -598,7 +632,7 @@ func TestApplicationContext_CheckAllServiceDependenciesRunning(t *testing.T) {
 			t.Errorf("ServiceInterface should be: %v , but was %v", bService.Service().Interface(), err.ServiceInterface)
 		}
 		if len(err.Dependencies) != 1 {
-			t.Errorf("There shold be i missing ServiceDependencies : %v", err.Dependencies)
+			t.Errorf("There shold be i missing Dependencies : %v", err.Dependencies)
 		}
 		if err.Dependencies[0] != AServiceInterface {
 			t.Errorf("Missing service dependency should be AService, but was : %v", err.Dependencies[0])
@@ -883,7 +917,7 @@ func (a *testApplication_RestartAllFailedServices_client) run(ctx *service.Conte
 }
 
 func (a *testApplication_RestartAllFailedServices_client) newService() service.Service {
-	return service.NewService(service.ServiceSettings{ServiceInterface: testApplication_RestartAllFailedServices_interface, Run: a.run})
+	return service.NewService(service.ServiceSettings{ServiceInterface: testApplication_RestartAllFailedServices_interface, Version: service.NewVersion("1.0.0"), Run: a.run})
 }
 
 var testApplication_RestartAllFailedServices_interface service.ServiceInterface = func() service.ServiceInterface {
