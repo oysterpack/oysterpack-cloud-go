@@ -14,12 +14,16 @@
 
 package service
 
-import "github.com/Masterminds/semver"
+import (
+	"github.com/Masterminds/semver"
+)
 
+// NewVersion returns a new version.
+// If the version is not a valid semver, then the func panics.
 func NewVersion(version string) *semver.Version {
 	v, err := semver.NewVersion(version)
 	if err != nil {
-		panic(err)
+		logger.Panic().Msgf("Invalid version : %v : %v", version, err)
 	}
 	return v
 }

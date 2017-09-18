@@ -18,6 +18,7 @@ import "github.com/Masterminds/semver"
 
 var app Application = NewApplication(ApplicationSettings{})
 
+// ApplicationVersion is the current Application Service version
 var ApplicationVersion *semver.Version = func() *semver.Version {
 	version, err := semver.NewVersion("0.1.0")
 	if err != nil {

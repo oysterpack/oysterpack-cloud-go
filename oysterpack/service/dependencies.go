@@ -14,7 +14,7 @@
 
 package service
 
-// Dependencies provides functionality to get information about about service Dependencies
+// ServiceDependencies provides functionality to get information about about service Dependencies
 type ServiceDependencies interface {
 	// TODO: add healthcheck metric gauges and alerts for dependency checks
 
