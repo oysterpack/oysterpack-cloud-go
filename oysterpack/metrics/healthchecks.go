@@ -45,6 +45,8 @@ type HealthCheck interface {
 	// For example, a database health check could have the following named labels : 'db', 'schema'
 	Labels() map[string]string
 
+	Key() HealthCheckKey
+
 	// Help provides information about this health check
 	Help() string
 
@@ -69,6 +71,11 @@ type HealthCheck interface {
 	MustRegister(registerer prometheus.Registerer)
 	// Register returns an error if registration fails
 	Register(registerer prometheus.Registerer) error
+}
+
+type HealthCheckKey struct {
+	Name   string
+	Labels map[string]string
 }
 
 // RunHealthCheck is used to run the health check.
@@ -127,6 +134,30 @@ type healthcheck struct {
 	lastResult *HealthCheckResult
 }
 
+func (a *healthcheck) Key() HealthCheckKey {
+	return HealthCheckKey{a.Name(), a.opts.ConstLabels}
+}
+
+func (a HealthCheckKey) String() string {
+	if len(a.Labels) > 0 {
+		keys := []string{}
+		for k := range a.Labels {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		buf := bytes.Buffer{}
+		for _, key := range keys {
+			buf.WriteString(key)
+			buf.WriteString("=")
+			buf.WriteString(a.Labels[key])
+			buf.WriteString(" ")
+		}
+		labels := string(buf.Bytes()[:len(buf.Bytes())-1])
+		return fmt.Sprintf("%v[%v]", a.Name, labels)
+	}
+	return a.Name
+}
+
 func (a *healthcheck) Name() string {
 	return prometheus.BuildFQName(a.opts.Namespace, a.opts.Subsystem, a.opts.Name)
 }
@@ -155,9 +186,9 @@ func (a *healthcheck) Run() (result *HealthCheckResult) {
 		}
 
 		if result.Success() {
-			logger.Info().Str(logging.HEALTHCHECK, a.Key()).Dur("duration", result.Duration).Msg("")
+			logger.Info().Str(logging.HEALTHCHECK, a.Key().String()).Dur("duration", result.Duration).Msg("")
 		} else {
-			logger.Error().Str(logging.HEALTHCHECK, a.Key()).Dur("duration", result.Duration).Err(result.Err).Msg("")
+			logger.Error().Str(logging.HEALTHCHECK, a.Key().String()).Dur("duration", result.Duration).Err(result.Err).Msg("")
 		}
 
 		a.gauge.Set(float64(result.Value()))
@@ -186,29 +217,9 @@ func (a *healthcheck) String() string {
 	return fmt.Sprintf("%v : %v", a.Key(), a.Help())
 }
 
-func (a *healthcheck) Key() string {
-	if len(a.opts.ConstLabels) > 0 {
-		keys := []string{}
-		for k := range a.opts.ConstLabels {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
-		buf := bytes.Buffer{}
-		for _, key := range keys {
-			buf.WriteString(key)
-			buf.WriteString("=")
-			buf.WriteString(a.opts.ConstLabels[key])
-			buf.WriteString(" ")
-		}
-		labels := string(buf.Bytes()[:len(buf.Bytes())-1])
-		return fmt.Sprintf("%v[%v]", a.Name(), labels)
-	}
-	return a.Name()
-}
-
 // MustRegister panics if registration fails
 func (a *healthcheck) MustRegister(registerer prometheus.Registerer) {
-	registerer.MustRegister(a.gauge, a.durationGauge)
+	registerer.MustRegister(a.gauge, a.durationGauge, a.runCounter)
 }
 
 // Register returns an error if registration fails
@@ -216,7 +227,10 @@ func (a *healthcheck) Register(registerer prometheus.Registerer) error {
 	if err := registerer.Register(a.gauge); err != nil {
 		return err
 	}
-	return registerer.Register(a.durationGauge)
+	if err := registerer.Register(a.durationGauge); err != nil {
+		return err
+	}
+	return registerer.Register(a.runCounter)
 }
 
 // RunInterval if 0, then the healthcheck is not run on an interval
@@ -272,6 +286,7 @@ func NewHealthCheck(opts prometheus.GaugeOpts, runInterval time.Duration, check 
 		Namespace:   opts.Namespace,
 		Subsystem:   opts.Subsystem,
 		Name:        fmt.Sprintf("%s_run_count", opts.Name),
+		Help:        "healthcheck run count",
 		ConstLabels: opts.ConstLabels,
 	}
 
@@ -283,7 +298,7 @@ func NewHealthCheck(opts prometheus.GaugeOpts, runInterval time.Duration, check 
 		runInterval: runInterval,
 	}
 	opts.Name = fmt.Sprintf("%s_duration_seconds", opts.Name)
-	opts.Help = "healthcheck execution duration"
+	opts.Help = "healthcheck run duration"
 	a.durationGauge = prometheus.NewGauge(opts)
 	a.StartTicker()
 	return a

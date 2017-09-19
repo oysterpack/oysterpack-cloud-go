@@ -27,6 +27,7 @@ import (
 	"github.com/oysterpack/oysterpack.go/oysterpack/commons"
 	"github.com/oysterpack/oysterpack.go/oysterpack/commons/reflect"
 	"github.com/oysterpack/oysterpack.go/oysterpack/logging"
+	"github.com/oysterpack/oysterpack.go/oysterpack/metrics"
 	"github.com/rs/zerolog"
 )
 
@@ -103,6 +104,8 @@ type service struct {
 	logger zerolog.Logger
 
 	dependencies InterfaceDependencies
+
+	healthchecks []metrics.HealthCheck
 }
 
 // ServiceInterface represents the interface from the client's perspective, i.e., it defines the service's functionality.
@@ -154,6 +157,8 @@ type ServiceSettings struct {
 	InterfaceDependencies
 
 	LogSettings
+
+	HealthChecks []metrics.HealthCheck
 }
 
 // LogSettings groups the log settings for the service
@@ -268,7 +273,8 @@ func NewService(settings ServiceSettings) Service {
 				run:          run,
 				destroy:      destroy,
 			},
-			logger: svcLog,
+			logger:       svcLog,
+			healthchecks: settings.HealthChecks,
 		}
 		if len(settings.InterfaceDependencies) > 0 {
 			svc.dependencies = settings.InterfaceDependencies

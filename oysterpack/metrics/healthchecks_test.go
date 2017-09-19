@@ -20,6 +20,8 @@ import (
 
 	"errors"
 
+	"fmt"
+
 	"github.com/oysterpack/oysterpack.go/oysterpack/metrics"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -56,6 +58,53 @@ func TestRegisterHealthCheck_WithNoLabels(t *testing.T) {
 	} else if pingCheck != nil {
 		t.Error("ERROR: healthcheck should be nil")
 	}
+}
+
+func TestRegisterHealthCheck_CheckMetricsAreRegistered(t *testing.T) {
+	var ping metrics.RunHealthCheck = func() error {
+		return nil
+	}
+
+	opts := prometheus.GaugeOpts{
+		Name: "ping",
+		Help: "ping always succeeds",
+	}
+
+	registry := prometheus.NewPedanticRegistry()
+	pingCheck := metrics.NewHealthCheck(opts, 0, ping)
+	if err := pingCheck.Register(registry); err != nil {
+		t.Errorf("ERROR: %v", err)
+	} else {
+		if registry.Register(prometheus.NewGauge(opts)) == nil {
+			t.Error("Registration should have failed")
+		}
+
+		counterOpts := prometheus.CounterOpts{
+			Namespace:   opts.Namespace,
+			Subsystem:   opts.Subsystem,
+			Name:        fmt.Sprintf("%s_run_count", opts.Name),
+			Help:        "healthcheck run count",
+			ConstLabels: opts.ConstLabels,
+		}
+
+		if registry.Register(prometheus.NewCounter(counterOpts)) == nil {
+			t.Error("Registration should have failed")
+		}
+
+		durationOpts := prometheus.GaugeOpts{
+			Namespace:   opts.Namespace,
+			Subsystem:   opts.Subsystem,
+			Name:        fmt.Sprintf("%s_duration_seconds", opts.Name),
+			Help:        "healthcheck run duration",
+			ConstLabels: opts.ConstLabels,
+		}
+
+		if registry.Register(prometheus.NewGauge(durationOpts)) == nil {
+			t.Error("Registration should have failed")
+		}
+
+	}
+
 }
 
 func TestNewHealthCheck_WithNilRunFunc(t *testing.T) {

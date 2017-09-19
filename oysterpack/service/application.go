@@ -46,10 +46,10 @@ type Application interface {
 
 	StopRestartServices
 
-	// Start the application blocks until the app is running
+	// Start the application and waits until the app is running
 	Start()
 
-	// Stop the application blocks until the app is stopped
+	// Stop the application and waits until the app is stopped
 	Stop()
 }
 
