@@ -88,6 +88,11 @@ func TestNewService_WithNilLifeCycleFunctions(t *testing.T) {
 			t.Errorf("Expected error type is *service.IllegalStateError, but was %T", err)
 		}
 	}
+}
+
+func TestNewService_AwaitRunningForStoppedService(t *testing.T) {
+	server := service.NewService(service.ServiceSettings{ServiceInterface: stdreflect.TypeOf(&foo), Version: service.NewVersion("1.0.0")})
+	server.Stop()
 
 	if err := server.AwaitUntilRunning(); err == nil {
 		t.Errorf("An PastStateError should have been returned because the service is stopped")
@@ -98,7 +103,6 @@ func TestNewService_WithNilLifeCycleFunctions(t *testing.T) {
 			t.Errorf("Unexpected error type : %T : %v", err, err)
 		}
 	}
-
 }
 
 func TestNewService_StoppingNewService(t *testing.T) {

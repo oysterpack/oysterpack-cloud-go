@@ -36,6 +36,60 @@ func TestService_HealthChecks(t *testing.T) {
 	healthchecks := []metrics.HealthCheck{
 		metrics.NewHealthCheck(
 			prometheus.GaugeOpts{Name: "healthcheck_1", Help: "HealthCheck 1"},
+			0,
+			func() error {
+				if error1 != nil {
+					return *error1
+				}
+				return nil
+			}),
+		metrics.NewHealthCheck(
+			prometheus.GaugeOpts{Name: "healthcheck_2", Help: "HealthCheck 2"},
+			0,
+			func() error {
+				if error2 != nil {
+					return *error2
+				}
+				return nil
+			}),
+		metrics.NewHealthCheck(
+			prometheus.GaugeOpts{Name: "healthcheck_3", Help: "HealthCheck 3"},
+			0,
+			func() error {
+				if error3 != nil {
+					return *error3
+				}
+				return nil
+			}),
+	}
+
+	server := service.NewService(service.ServiceSettings{
+		ServiceInterface: EchoServiceInterface,
+		Version:          service.NewVersion("1.0.0"),
+		HealthChecks:     healthchecks,
+	})
+
+	serviceHealthChecks := server.(service.HealthChecks)
+	if len(serviceHealthChecks.HealthChecks()) != 3 {
+		t.Errorf("There should be 3 healthchecks registered : %v", serviceHealthChecks.HealthChecks())
+	}
+
+	if len(serviceHealthChecks.FailedHealthChecks()) != 0 || len(serviceHealthChecks.SucceededHealthChecks()) != 0 {
+		t.Errorf("No healthchecks have been run yet")
+	}
+
+}
+
+func TestService_RunAllHealthChecks(t *testing.T) {
+	registryBackup := metrics.Registry
+	metrics.Registry = prometheus.NewPedanticRegistry()
+	defer func() { metrics.Registry = registryBackup }()
+
+	var error1, error2, error3 *error
+
+	healthchecks := []metrics.HealthCheck{
+		metrics.NewHealthCheck(
+			prometheus.GaugeOpts{Name: "healthcheck_1", Help: "HealthCheck 1"},
 			15*time.Second,
 			func() error {
 				if error1 != nil {
@@ -84,6 +138,52 @@ func TestService_HealthChecks(t *testing.T) {
 	if len(serviceHealthChecks.FailedHealthChecks()) != 0 || len(serviceHealthChecks.SucceededHealthChecks()) != 3 {
 		t.Errorf("There should be no failed health checks")
 	}
+}
+
+func TestService_RunAllFailedHealthChecks(t *testing.T) {
+	registryBackup := metrics.Registry
+	metrics.Registry = prometheus.NewPedanticRegistry()
+	defer func() { metrics.Registry = registryBackup }()
+
+	var error1, error2, error3 *error
+
+	healthchecks := []metrics.HealthCheck{
+		metrics.NewHealthCheck(
+			prometheus.GaugeOpts{Name: "healthcheck_1", Help: "HealthCheck 1"},
+			15*time.Second,
+			func() error {
+				if error1 != nil {
+					return *error1
+				}
+				return nil
+			}),
+		metrics.NewHealthCheck(
+			prometheus.GaugeOpts{Name: "healthcheck_2", Help: "HealthCheck 2"},
+			15*time.Second,
+			func() error {
+				if error2 != nil {
+					return *error2
+				}
+				return nil
+			}),
+		metrics.NewHealthCheck(
+			prometheus.GaugeOpts{Name: "healthcheck_3", Help: "HealthCheck 3"},
+			15*time.Second,
+			func() error {
+				if error3 != nil {
+					return *error3
+				}
+				return nil
+			}),
+	}
+
+	server := service.NewService(service.ServiceSettings{
+		ServiceInterface: EchoServiceInterface,
+		Version:          service.NewVersion("1.0.0"),
+		HealthChecks:     healthchecks,
+	})
+
+	serviceHealthChecks := server.(service.HealthChecks)
 
 	err := errors.New("ERROR 1")
 	error1 = &err
