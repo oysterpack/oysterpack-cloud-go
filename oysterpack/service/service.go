@@ -183,26 +183,6 @@ func NewService(settings ServiceSettings) Service {
 	run := settings.Run
 	destroy := settings.Destroy
 
-	checkSettings := func() {
-		if serviceInterface == nil {
-			logger.Panic().Msg("Failed to create new service because ServiceInterface is required")
-		}
-		switch serviceInterface.Kind() {
-		case stdreflect.Interface:
-		default:
-			if kind := serviceInterface.Elem().Kind(); kind != stdreflect.Interface {
-				panic(fmt.Sprintf("ServiceInterface (%T) must be an interface, but was a %v", serviceInterface, kind))
-			}
-			serviceInterface = serviceInterface.Elem()
-		}
-
-		if settings.Version == nil {
-			logger.Panic().
-				Str(logging.SERVICE, serviceInterface.String()).
-				Msgf("Failed to create new service because it has no version")
-		}
-	}
-
 	// panics if healthcheck metrics fail to register
 	mustRegisterHealthChecks := func() {
 		for _, healthcheck := range settings.HealthChecks {
@@ -280,12 +260,32 @@ func NewService(settings ServiceSettings) Service {
 		return svc
 	}
 
-	checkSettings()
+	checkSettings(settings)
 	mustRegisterHealthChecks()
 	init = trapPanics(init, "Service.init()")
 	instrumentRun()
 	destroy = trapPanics(destroy, "Service.destroy()")
 	return newService()
+}
+
+// panics if settings are invalid
+func checkSettings(settings ServiceSettings) {
+	serviceInterface := settings.ServiceInterface
+	if serviceInterface == nil {
+		logger.Panic().Msg("Failed to create new service because ServiceInterface is required")
+	}
+	switch serviceInterface.Kind() {
+	case stdreflect.Interface:
+	default:
+		if kind := serviceInterface.Elem().Kind(); kind != stdreflect.Interface {
+			logger.Panic().Msgf("ServiceInterface (%T) must be an interface, but was a %v", serviceInterface, kind)
+		}
+		serviceInterface = serviceInterface.Elem()
+	}
+
+	if settings.Version == nil {
+		logger.Panic().Str(logging.SERVICE, serviceInterface.String()).Msgf("Failed to create new service because it has no version")
+	}
 }
 
 // State returns the current State
