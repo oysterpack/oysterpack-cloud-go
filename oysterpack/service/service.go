@@ -183,22 +183,6 @@ func NewService(settings ServiceSettings) Service {
 	run := settings.Run
 	destroy := settings.Destroy
 
-	// panics if healthcheck metrics fail to register
-	mustRegisterHealthChecks := func() {
-		for _, healthcheck := range settings.HealthChecks {
-			errors := []error{}
-			if err := healthcheck.Register(metrics.Registry); err != nil {
-				errors = append(errors, err)
-			}
-			if len(errors) > 0 {
-				serviceKey := InterfaceToServiceKey(serviceInterface)
-				logger.Panic().Str(logging.SERVICE, serviceKey.String()).
-					Errs(logging.ERRORS, errors).
-					Msgf("healthcheck metric registration failed")
-			}
-		}
-	}
-
 	trapPanics := func(f func(*Context) error, msg string) func(*Context) error {
 		if f == nil {
 			return func(ctx *Context) error { return nil }
@@ -261,7 +245,7 @@ func NewService(settings ServiceSettings) Service {
 	}
 
 	checkSettings(settings)
-	mustRegisterHealthChecks()
+	mustRegisterHealthChecks(settings)
 	init = trapPanics(init, "Service.init()")
 	instrumentRun()
 	destroy = trapPanics(destroy, "Service.destroy()")
@@ -285,6 +269,22 @@ func checkSettings(settings ServiceSettings) {
 
 	if settings.Version == nil {
 		logger.Panic().Str(logging.SERVICE, serviceInterface.String()).Msgf("Failed to create new service because it has no version")
+	}
+}
+
+// panics if healthcheck metrics fail to register
+func mustRegisterHealthChecks(settings ServiceSettings) {
+	for _, healthcheck := range settings.HealthChecks {
+		errors := []error{}
+		if err := healthcheck.Register(metrics.Registry); err != nil {
+			errors = append(errors, err)
+		}
+		if len(errors) > 0 {
+			serviceKey := InterfaceToServiceKey(settings.ServiceInterface)
+			logger.Panic().Str(logging.SERVICE, serviceKey.String()).
+				Errs(logging.ERRORS, errors).
+				Msgf("healthcheck metric registration failed")
+		}
 	}
 }
 

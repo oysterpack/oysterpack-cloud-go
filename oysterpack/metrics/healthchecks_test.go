@@ -196,7 +196,7 @@ func TestRegisterHealthCheck_WithRunInterval(t *testing.T) {
 		t.Errorf("the healthcheck should have run after : %v : %v", now, pingCheck.LastResult())
 	}
 	now = time.Now()
-	time.Sleep(pingCheck.RunInterval() + time.Millisecond)
+	time.Sleep(pingCheck.RunInterval() + 2*time.Millisecond)
 	if pingCheck.LastResult() == nil {
 		t.Errorf("ERROR: healthcheck should have run")
 	} else if !pingCheck.LastResult().Time.After(now) {
