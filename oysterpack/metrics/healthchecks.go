@@ -110,6 +110,13 @@ func (a *HealthCheckResult) Success() bool {
 	return a.Err == nil
 }
 
+func (a *HealthCheckResult) String() string {
+	if a.Success() {
+		return fmt.Sprintf("PASS : %v : %v ", a.Time, a.Duration)
+	}
+	return fmt.Sprintf("FAIL : %v : %v : %v", a.Time, a.Duration, a.Err)
+}
+
 // Value maps the HealthCheckResult to a gauge value
 func (a *HealthCheckResult) Value() HealthCheckGaugeValue {
 	if a.Success() {

@@ -23,11 +23,9 @@ type HealthChecks interface {
 	HealthChecks() []metrics.HealthCheck
 
 	// FailedHealthChecks returns all failed health checks based on the last result.
-	// If a HealthCheck has not yet been run, then it will be run.
 	FailedHealthChecks() []metrics.HealthCheck
 
 	// SucceededHealthChecks returns all health checks that succeeded based on the last result.
-	// If a HealthCheck has not yet been run, then it will be run.
 	SucceededHealthChecks() []metrics.HealthCheck
 
 	// RunAllHealthChecks runs all registered health checks.
@@ -35,6 +33,5 @@ type HealthChecks interface {
 	RunAllHealthChecks() <-chan metrics.HealthCheck
 
 	// RunAllFailedHealthChecks all failed health checks based on the last result
-	// If a HealthCheck has not yet been run, then it will be run.
 	RunAllFailedHealthChecks() <-chan metrics.HealthCheck
 }
