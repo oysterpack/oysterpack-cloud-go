@@ -219,18 +219,18 @@ func NewService(settings ServiceSettings) Service {
 		}
 	}
 
-	instrumentInit := func() {
-		if init == nil {
-			init = func(ctx *Context) error { return nil }
+	trapPanics := func(f func(*Context) error, msg string) func(*Context) error {
+		if f == nil {
+			return func(ctx *Context) error { return nil }
 		} else {
-			_init := init
-			init = func(ctx *Context) (err error) {
+			_f := f
+			return func(ctx *Context) (err error) {
 				defer func() {
 					if p := recover(); p != nil {
-						err = &PanicError{Panic: p, Message: "Service.init()"}
+						err = &PanicError{Panic: p, Message: msg}
 					}
 				}()
-				return _init(ctx)
+				return _f(ctx)
 			}
 		}
 	}
@@ -250,22 +250,6 @@ func NewService(settings ServiceSettings) Service {
 					}
 				}()
 				return _run(ctx)
-			}
-		}
-	}
-
-	instrumentDestroy := func() {
-		if destroy == nil {
-			destroy = func(ctx *Context) error { return nil }
-		} else {
-			_destroy := destroy
-			destroy = func(ctx *Context) (err error) {
-				defer func() {
-					if p := recover(); p != nil {
-						err = &PanicError{Panic: p, Message: "Service.destroy()"}
-					}
-				}()
-				return _destroy(ctx)
 			}
 		}
 	}
@@ -300,9 +284,9 @@ func NewService(settings ServiceSettings) Service {
 
 	checkSettings()
 	mustRegisterHealthChecks()
-	instrumentInit()
+	init = trapPanics(init, "Service.init()")
 	instrumentRun()
-	instrumentDestroy()
+	destroy = trapPanics(destroy, "Service.destroy()")
 	return newService()
 }
 
