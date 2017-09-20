@@ -16,7 +16,11 @@ package service
 
 import "github.com/Masterminds/semver"
 
-var app Application = NewApplication(ApplicationSettings{})
+var app Application = func() Application {
+	application := NewApplication(ApplicationSettings{})
+	application.Service().StartAsync()
+	return application
+}()
 
 // ApplicationVersion is the current Application Service version
 var ApplicationVersion *semver.Version = func() *semver.Version {

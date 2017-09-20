@@ -109,3 +109,7 @@ func NewClient(app service.Application) service.Client {
 	c.RestartableService = service.NewRestartableService(c.newService)
 	return c
 }
+
+func init() {
+	service.App().MustRegisterService(NewClient)
+}

@@ -27,12 +27,9 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-func TestNewClient(t *testing.T) {
-	app := service.NewApplication(service.ApplicationSettings{})
-	app.Start()
-	defer app.Stop()
-
-	client := app.MustRegisterService(metricsService.NewClient)
+func TestService(t *testing.T) {
+	// service is auto registered
+	client := <-service.App().ServiceByTypeAsync(metricsService.MetricsServiceInterface).Channel()
 	client.Service().AwaitUntilRunning()
 
 	service := client.(metricsService.Service)
@@ -55,7 +52,6 @@ func TestNewClient(t *testing.T) {
 	} else {
 		t.Logf("metrics:\n%s", string(body))
 	}
-
 }
 
 func getMetrics() (string, error) {
