@@ -222,16 +222,14 @@ func NewService(settings ServiceSettings) Service {
 	trapPanics := func(f func(*Context) error, msg string) func(*Context) error {
 		if f == nil {
 			return func(ctx *Context) error { return nil }
-		} else {
-			_f := f
-			return func(ctx *Context) (err error) {
-				defer func() {
-					if p := recover(); p != nil {
-						err = &PanicError{Panic: p, Message: msg}
-					}
-				}()
-				return _f(ctx)
-			}
+		}
+		return func(ctx *Context) (err error) {
+			defer func() {
+				if p := recover(); p != nil {
+					err = &PanicError{Panic: p, Message: msg}
+				}
+			}()
+			return f(ctx)
 		}
 	}
 
