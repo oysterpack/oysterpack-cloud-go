@@ -19,8 +19,15 @@ import (
 	"testing"
 	"time"
 
+	"bytes"
+	"io"
+	"strings"
+
 	"github.com/oysterpack/oysterpack.go/oysterpack/commons/reflect"
+	"github.com/oysterpack/oysterpack.go/oysterpack/metrics"
 	"github.com/oysterpack/oysterpack.go/oysterpack/service"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/rs/zerolog"
 )
 
 type FooService interface{}
@@ -35,6 +42,7 @@ var bar BarService = Bar{}
 
 func TestNewService_WithNilLifeCycleFunctions(t *testing.T) {
 	server := service.NewService(service.ServiceSettings{ServiceInterface: stdreflect.TypeOf(&foo), Version: service.NewVersion("1.0.0")})
+	t.Logf("new service : %v", server)
 	if !server.State().New() {
 		t.Errorf("Service state should be 'New', but instead was : %q", server.State())
 	}
@@ -317,6 +325,119 @@ func TestService_ServiceDependencies(t *testing.T) {
 	}
 }
 
+func TestNewService_WithHealthChecks(t *testing.T) {
+	var ping metrics.RunHealthCheck = func() error {
+		return nil
+	}
+	opts := prometheus.GaugeOpts{
+		Name: "ping",
+		Help: "ping always succeeds",
+	}
+	registry_backup := metrics.Registry
+	metrics.Registry = prometheus.NewPedanticRegistry()
+	defer func() {
+		// restore registry
+		metrics.Registry = registry_backup
+	}()
+
+	service.NewService(service.ServiceSettings{
+		ServiceInterface: stdreflect.TypeOf(&foo), Version: service.NewVersion("1.0.0"),
+		HealthChecks: []metrics.HealthCheck{metrics.NewHealthCheck(opts, 0, ping)},
+	})
+
+	gatheredMetrics, _ := metrics.Registry.Gather()
+	if m := metrics.FindMetricFamilyByName(gatheredMetrics, opts.Name); m == nil {
+		t.Errorf("Metric was not found : %v", opts.Name)
+		t.Error("Metrics should have been registered when the service was created")
+	}
+}
+
+func TestNewService_WithDupHealthChecks(t *testing.T) {
+	var ping metrics.RunHealthCheck = func() error {
+		return nil
+	}
+	opts := prometheus.GaugeOpts{
+		Name: "ping",
+		Help: "ping always succeeds",
+	}
+	registry_backup := metrics.Registry
+	metrics.Registry = prometheus.NewPedanticRegistry()
+	defer func() {
+		// restore registry
+		metrics.Registry = registry_backup
+	}()
+
+	func() {
+		defer func() {
+			t.Helper()
+			if p := recover(); p == nil {
+				t.Error("registering dup metric should have triggered a panic")
+			} else {
+				t.Log(p)
+			}
+		}()
+		service.NewService(service.ServiceSettings{
+			ServiceInterface: stdreflect.TypeOf(&foo), Version: service.NewVersion("1.0.0"),
+			HealthChecks: []metrics.HealthCheck{
+				metrics.NewHealthCheck(opts, 0, ping),
+				metrics.NewHealthCheck(opts, 0, ping),
+			},
+		})
+	}()
+}
+
+func TestNewService_WithNilServiceInterface(t *testing.T) {
+	defer func() {
+		if p := recover(); p == nil {
+			t.Error("registering service wilth nil ServiceInterface should have triggered a panic")
+		} else {
+			t.Log(p)
+		}
+	}()
+	service.NewService(service.ServiceSettings{Version: service.NewVersion("1.0.0")})
+}
+
+func TestNewService_WithInvalidServiceInterface(t *testing.T) {
+	defer func() {
+		if p := recover(); p == nil {
+			t.Error("registering service wilth nil ServiceInterface should have triggered a panic")
+		} else {
+			t.Log(p)
+		}
+	}()
+
+	t.Logf("stdreflect.TypeOf(struct{}{}).Kind : %v", stdreflect.TypeOf(struct{}{}).Kind())
+
+	service.NewService(service.ServiceSettings{ServiceInterface: stdreflect.TypeOf(&struct{}{}), Version: service.NewVersion("1.0.0")})
+}
+
+func TestNewService_WithLogSettings(t *testing.T) {
+
+	buf := &bytes.Buffer{}
+	var logOutput io.Writer = buf
+
+	logLevel := zerolog.WarnLevel
+
+	server := service.NewService(service.ServiceSettings{
+		ServiceInterface: stdreflect.TypeOf(&foo), Version: service.NewVersion("1.0.0"),
+		LogSettings: service.LogSettings{
+			LogLevel:  &logLevel,
+			LogOutput: logOutput,
+		},
+	})
+
+	server.Logger().Info().Msg("INFO")
+	server.Logger().Warn().Msg("WARN")
+
+	if !strings.Contains(buf.String(), "WARN") {
+		t.Errorf("Log level should be set to warn : %v", buf)
+	}
+
+	if strings.Contains(buf.String(), "INFO") {
+		t.Errorf("INFO level message should not be logged : %v", buf)
+	}
+}
+
 // startService waits up to 3 seconds for the server to start - checking every second
 // returns true is the server started
 // returns false if we timed out waiting for the server to start
@@ -346,7 +467,7 @@ func stopService(server service.Service, t *testing.T) bool {
 		if server.State().Stopped() {
 			return true
 		}
-		t.Logf("Waiting for server to run for %d sec ...", i)
+		t.Logf("Waiting for server (%v) to run for %d sec ...", server, i)
 	}
 	return false
 }

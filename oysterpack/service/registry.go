@@ -78,8 +78,8 @@ func (s *ServiceKey) String() string {
 	return fmt.Sprintf("%v.%v", s.PackagePath, s.TypeName)
 }
 
-// InterfaceTypeToServiceKey converts an interface type to a ServiceKey
-func InterfaceTypeToServiceKey(serviceInterface ServiceInterface) ServiceKey {
+// InterfaceToServiceKey converts an interface type to a ServiceKey
+func InterfaceToServiceKey(serviceInterface ServiceInterface) ServiceKey {
 	return ServiceKey{
 		reflect.PackagePath(serviceInterface.PkgPath()),
 		reflect.TypeName(serviceInterface.Name()),

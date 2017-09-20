@@ -30,7 +30,7 @@ func TestClientConstructor(t *testing.T) {
 	client := app.MustRegisterService(counter.ClientConstructor)
 	client.Service().AwaitUntilRunning()
 
-	counter := client.(counter.Interface)
+	counter := client.(counter.Service)
 
 	var count uint64 = 0
 	for i := 0; i < 100; i++ {

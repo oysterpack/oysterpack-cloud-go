@@ -203,6 +203,22 @@ func NewService(settings ServiceSettings) Service {
 		}
 	}
 
+	// panics if healthcheck metrics fail to register
+	mustRegisterHealthChecks := func() {
+		for _, healthcheck := range settings.HealthChecks {
+			errors := []error{}
+			if err := healthcheck.Register(metrics.Registry); err != nil {
+				errors = append(errors, err)
+			}
+			if len(errors) > 0 {
+				serviceKey := InterfaceToServiceKey(serviceInterface)
+				logger.Panic().Str(logging.SERVICE, serviceKey.String()).
+					Errs(logging.ERRORS, errors).
+					Msgf("healthcheck metric registration failed")
+			}
+		}
+	}
+
 	instrumentInit := func() {
 		if init == nil {
 			init = func(ctx *Context) error { return nil }
@@ -283,6 +299,7 @@ func NewService(settings ServiceSettings) Service {
 	}
 
 	checkSettings()
+	mustRegisterHealthChecks()
 	instrumentInit()
 	instrumentRun()
 	instrumentDestroy()

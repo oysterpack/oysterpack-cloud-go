@@ -29,7 +29,7 @@ func main() {
 	service.App().Start()
 	client := service.App().MustRegisterService(counter.ClientConstructor)
 	client.Service().AwaitUntilRunning()
-	counter := client.(counter.Interface)
+	counter := client.(counter.Service)
 
 	go func() {
 		scanner := bufio.NewScanner(os.Stdin)

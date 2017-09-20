@@ -75,10 +75,10 @@ func TestRegisterHealthCheck_CheckMetricsAreRegistered(t *testing.T) {
 	if err := pingCheck.Register(registry); err != nil {
 		t.Errorf("ERROR: %v", err)
 	} else {
+		// registering the same metrics again should fail
 		if registry.Register(prometheus.NewGauge(opts)) == nil {
 			t.Error("Registration should have failed")
 		}
-
 		counterOpts := prometheus.CounterOpts{
 			Namespace:   opts.Namespace,
 			Subsystem:   opts.Subsystem,
@@ -86,11 +86,9 @@ func TestRegisterHealthCheck_CheckMetricsAreRegistered(t *testing.T) {
 			Help:        "healthcheck run count",
 			ConstLabels: opts.ConstLabels,
 		}
-
 		if registry.Register(prometheus.NewCounter(counterOpts)) == nil {
 			t.Error("Registration should have failed")
 		}
-
 		durationOpts := prometheus.GaugeOpts{
 			Namespace:   opts.Namespace,
 			Subsystem:   opts.Subsystem,
@@ -98,11 +96,25 @@ func TestRegisterHealthCheck_CheckMetricsAreRegistered(t *testing.T) {
 			Help:        "healthcheck run duration",
 			ConstLabels: opts.ConstLabels,
 		}
-
 		if registry.Register(prometheus.NewGauge(durationOpts)) == nil {
 			t.Error("Registration should have failed")
 		}
 
+		pingCheck.Run()
+		gatheredMetrics, err := registry.Gather()
+		if err != nil {
+			t.Errorf("Gathering metrics failed : %v", err)
+		}
+
+		if m := metrics.FindMetricFamilyByName(gatheredMetrics, opts.Name); m == nil {
+			t.Errorf("Metric was not found : %v", opts.Name)
+		}
+		if m := metrics.FindMetricFamilyByName(gatheredMetrics, counterOpts.Name); m == nil {
+			t.Errorf("Metric was not found : %v", counterOpts.Name)
+		}
+		if m := metrics.FindMetricFamilyByName(gatheredMetrics, durationOpts.Name); m == nil {
+			t.Errorf("Metric was not found : %v", counterOpts.Name)
+		}
 	}
 
 }
@@ -177,7 +189,7 @@ func TestRegisterHealthCheck_WithRunInterval(t *testing.T) {
 	t.Log(pingCheck)
 	pingCheck.MustRegister(registry)
 
-	time.Sleep(pingCheck.RunInterval() + time.Millisecond)
+	time.Sleep(pingCheck.RunInterval() + 2*time.Millisecond)
 	if pingCheck.LastResult() == nil {
 		t.Errorf("ERROR: healthcheck should have run")
 	} else if !pingCheck.LastResult().Time.After(now) {

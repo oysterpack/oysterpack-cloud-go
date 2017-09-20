@@ -58,7 +58,7 @@ func TestApplicationContext_RegisterService(t *testing.T) {
 	serviceClients := []service.Client{
 		serviceClient,
 		app.ServiceByType(EchoServiceInterface),
-		app.ServiceByKey(service.InterfaceTypeToServiceKey(EchoServiceInterface)),
+		app.ServiceByKey(service.InterfaceToServiceKey(EchoServiceInterface)),
 	}
 
 	for i, client := range serviceClients {
@@ -87,7 +87,7 @@ func TestApplicationContext_ServiceClientIsStableReferenceAfterRestarting(t *tes
 	serviceClients := []service.Client{
 		serviceClient,
 		app.ServiceByType(EchoServiceInterface),
-		app.ServiceByKey(service.InterfaceTypeToServiceKey(EchoServiceInterface)),
+		app.ServiceByKey(service.InterfaceToServiceKey(EchoServiceInterface)),
 	}
 
 	app.Service().Stop()
@@ -215,7 +215,7 @@ func TestApplicationContext_ServiceByType_NotRegistered(t *testing.T) {
 	if app.ServiceByType(EchoServiceInterface) != nil {
 		t.Error("ERROR: no services are registered")
 	}
-	if app.ServiceByKey(service.InterfaceTypeToServiceKey(EchoServiceInterface)) != nil {
+	if app.ServiceByKey(service.InterfaceToServiceKey(EchoServiceInterface)) != nil {
 		t.Error("ERROR: no services are registered")
 	}
 
@@ -223,7 +223,7 @@ func TestApplicationContext_ServiceByType_NotRegistered(t *testing.T) {
 
 	serviceClients := []service.Client{
 		app.ServiceByType(EchoServiceInterface),
-		app.ServiceByKey(service.InterfaceTypeToServiceKey(EchoServiceInterface)),
+		app.ServiceByKey(service.InterfaceToServiceKey(EchoServiceInterface)),
 	}
 
 	for i, client := range serviceClients {
@@ -357,7 +357,7 @@ func TestApplicationContext_ServiceKeys(t *testing.T) {
 
 	containsInterface := func(svcInterface reflect.InterfaceType) bool {
 		for _, key := range serviceKeys {
-			if service.InterfaceTypeToServiceKey(svcInterface) == key {
+			if service.InterfaceToServiceKey(svcInterface) == key {
 				return true
 			}
 		}
@@ -735,7 +735,7 @@ func TestApplication_StopRestartServices(t *testing.T) {
 		time.Sleep(1 * time.Millisecond)
 	}
 
-	app.RestartServiceByKey(service.InterfaceTypeToServiceKey(HeartbeatServiceInterface))
+	app.RestartServiceByKey(service.InterfaceToServiceKey(HeartbeatServiceInterface))
 	for {
 		if echoService.RestartCount() == 1 && heartbeatService.RestartCount() == 1 {
 			break
@@ -754,11 +754,11 @@ func TestApplication_StopRestartServices(t *testing.T) {
 	}
 	echoService.Service().AwaitUntilStopped()
 
-	if err := app.StopServiceByKey(service.InterfaceTypeToServiceKey(HeartbeatServiceInterface)); err != nil {
+	if err := app.StopServiceByKey(service.InterfaceToServiceKey(HeartbeatServiceInterface)); err != nil {
 		t.Error(err)
 	}
 	// stopping a stopped service should be ok
-	if err := app.StopServiceByKey(service.InterfaceTypeToServiceKey(HeartbeatServiceInterface)); err != nil {
+	if err := app.StopServiceByKey(service.InterfaceToServiceKey(HeartbeatServiceInterface)); err != nil {
 		t.Error(err)
 	}
 	heartbeatService.Service().AwaitUntilStopped()
@@ -833,13 +833,13 @@ func TestApplication_StopRestartServices_OnEmptyApp(t *testing.T) {
 	} else {
 		t.Error("ERROR: no services are registered")
 	}
-	app.RestartServiceByKey(service.InterfaceTypeToServiceKey(EchoServiceInterface))
+	app.RestartServiceByKey(service.InterfaceToServiceKey(EchoServiceInterface))
 	if err := app.StopServiceByType(EchoServiceInterface); err != nil {
 		checkErrorTypeIsServiceNotFoundError(err)
 	} else {
 		t.Error("ERROR: no services are registered")
 	}
-	if err := app.StopServiceByKey(service.InterfaceTypeToServiceKey(EchoServiceInterface)); err != nil {
+	if err := app.StopServiceByKey(service.InterfaceToServiceKey(EchoServiceInterface)); err != nil {
 		checkErrorTypeIsServiceNotFoundError(err)
 	} else {
 		t.Error("ERROR: no services are registered")

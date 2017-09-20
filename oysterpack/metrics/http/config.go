@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package service
+package http
 
 // ServiceConfig defines the config for the metrics service
 type ServiceConfig struct {
@@ -24,4 +24,4 @@ func (a *ServiceConfig) HTTPPort() int {
 	return a.httpPort
 }
 
-var Config = &ServiceConfig{httpPort: 9090}
+var Config = &ServiceConfig{httpPort: 4444}

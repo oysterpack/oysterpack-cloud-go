@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package service
+package http
 
 import (
 	"net/http"
@@ -23,19 +23,19 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver"
-	"github.com/oysterpack/oysterpack.go/oysterpack/commons/os"
 	"github.com/oysterpack/oysterpack.go/oysterpack/commons/reflect"
+	"github.com/oysterpack/oysterpack.go/oysterpack/metrics"
 	"github.com/oysterpack/oysterpack.go/oysterpack/service"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-type Interface interface {
+type Service interface {
 	Registry() *prometheus.Registry
 }
 
 var MetricsServiceInterface service.ServiceInterface = func() service.ServiceInterface {
-	var c Interface = &client{}
+	var c Service = &server{}
 	serviceInterface, err := reflect.ObjectInterface(&c)
 	if err != nil {
 		panic(err)
@@ -43,28 +43,19 @@ var MetricsServiceInterface service.ServiceInterface = func() service.ServiceInt
 	return serviceInterface
 }()
 
-type client struct {
+type server struct {
 	*service.RestartableService
 
-	metricRegistry *prometheus.Registry
-	httpServer     *http.Server
+	httpServer *http.Server
 }
 
-func (a *client) Registry() *prometheus.Registry {
-	return a.metricRegistry
+func (a *server) Registry() *prometheus.Registry {
+	return metrics.Registry
 }
 
-func (a *client) init(ctx *service.Context) error {
-	if a.metricRegistry == nil {
-		a.metricRegistry = prometheus.NewRegistry()
-		a.metricRegistry.MustRegister(
-			prometheus.NewGoCollector(),
-			prometheus.NewProcessCollector(os.PID(), ""),
-		)
-	}
-
+func (a *server) init(ctx *service.Context) error {
 	metricsHandler := promhttp.HandlerFor(
-		a.metricRegistry,
+		a.Registry(),
 		promhttp.HandlerOpts{
 			ErrorLog:      a,
 			ErrorHandling: promhttp.ContinueOnError,
@@ -79,7 +70,7 @@ func (a *client) init(ctx *service.Context) error {
 	return nil
 }
 
-func (a *client) destroy(ctx *service.Context) error {
+func (a *server) destroy(ctx *service.Context) error {
 	shutdownContext := context.Background()
 	shutdownContext, _ = context.WithTimeout(shutdownContext, time.Second*30)
 	if err := a.httpServer.Shutdown(shutdownContext); err != nil {
@@ -90,11 +81,11 @@ func (a *client) destroy(ctx *service.Context) error {
 }
 
 // Println implements promhttp.Logger interface
-func (a *client) Println(v ...interface{}) {
+func (a *server) Println(v ...interface{}) {
 	a.Service().Logger().Error().Msg(fmt.Sprint(v))
 }
 
-func (a *client) newService() service.Service {
+func (a *server) newService() service.Service {
 	version, err := semver.NewVersion("1.0.0")
 	if err != nil {
 		panic(err)
@@ -110,7 +101,7 @@ func (a *client) newService() service.Service {
 }
 
 func NewClient(app service.Application) service.Client {
-	c := &client{}
+	c := &server{}
 	c.RestartableService = service.NewRestartableService(c.newService)
 	return c
 }

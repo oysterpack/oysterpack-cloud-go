@@ -8,6 +8,48 @@
   version = "v1.3.1"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/beorn7/perks"
+  packages = ["quantile"]
+  revision = "4c0e84591b9aa9e6dcfdf3e020114cd81f89d5f9"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/golang/protobuf"
+  packages = ["proto"]
+  revision = "ae59567b9aab61b50b2590679a62c3c044030b61"
+
+[[projects]]
+  name = "github.com/matttproud/golang_protobuf_extensions"
+  packages = ["pbutil"]
+  revision = "3247c84500bff8d9fb6d579d800f20b3e091582c"
+  version = "v1.0.0"
+
+[[projects]]
+  name = "github.com/prometheus/client_golang"
+  packages = ["prometheus"]
+  revision = "c5b7fccd204277076155f10851dad72b76a49317"
+  version = "v0.8.0"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/prometheus/client_model"
+  packages = ["go"]
+  revision = "6f3806018612930941127f2a7c6c453ba2c527d2"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/prometheus/common"
+  packages = ["expfmt","internal/bitbucket.org/ww/goautoneg","model"]
+  revision = "2f17f4a9d485bf34b4bfaccc273805040e4f86c8"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/prometheus/procfs"
+  packages = [".","xfs"]
+  revision = "e645f4e5aaa8506fc71d6edbc5c4ff02c04c46f2"
+
+[[projects]]
   name = "github.com/rs/zerolog"
   packages = [".","internal/json","log"]
   revision = "3ac71fc58dbd43122668a912b755b0979ba9ce1f"
@@ -16,6 +58,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "cdd6dde68624a533526b291ac01cc349676d12244da90a4283dd87113f4581eb"
+  inputs-digest = "400b2e02fff4deb58325ff1ecdfae98544c715ad4d1e5aa141a862e169b15dea"
   solver-name = "gps-cdcl"
   solver-version = 1

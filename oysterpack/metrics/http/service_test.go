@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package service_test
+package http_test
 
 import (
 	"testing"
@@ -22,7 +22,7 @@ import (
 	"net/http"
 
 	"github.com/oysterpack/oysterpack.go/oysterpack/metrics"
-	metricsService "github.com/oysterpack/oysterpack.go/oysterpack/metrics/service"
+	metricsService "github.com/oysterpack/oysterpack.go/oysterpack/metrics/http"
 	"github.com/oysterpack/oysterpack.go/oysterpack/service"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -35,7 +35,7 @@ func TestNewClient(t *testing.T) {
 	client := app.MustRegisterService(metricsService.NewClient)
 	client.Service().AwaitUntilRunning()
 
-	service := client.(metricsService.Interface)
+	service := client.(metricsService.Service)
 
 	var ping metrics.RunHealthCheck = func() error {
 		return nil

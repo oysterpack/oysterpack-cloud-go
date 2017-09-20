@@ -216,7 +216,7 @@ func (a *application) ServiceByKey(serviceKey ServiceKey) Client {
 	a.mutex.RLock()
 	defer a.mutex.RUnlock()
 	for _, s := range a.services {
-		if InterfaceTypeToServiceKey(s.Service().Interface()) == serviceKey {
+		if InterfaceToServiceKey(s.Service().Interface()) == serviceKey {
 			return s.Client
 		}
 	}
@@ -256,7 +256,7 @@ func (a *application) ServiceKeys() []ServiceKey {
 	defer a.mutex.RUnlock()
 	interfaces := []ServiceKey{}
 	for _, v := range a.ServiceInterfaces() {
-		interfaces = append(interfaces, InterfaceTypeToServiceKey(v))
+		interfaces = append(interfaces, InterfaceToServiceKey(v))
 	}
 	return interfaces
 }
@@ -477,7 +477,7 @@ func (a *application) ServiceStates() map[ServiceInterface]State {
 func (a *application) StopServiceByType(serviceInterface ServiceInterface) error {
 	client := a.ServiceByType(serviceInterface)
 	if client == nil {
-		return &ServiceNotFoundError{InterfaceTypeToServiceKey(serviceInterface)}
+		return &ServiceNotFoundError{InterfaceToServiceKey(serviceInterface)}
 	}
 	client.Service().StopAsyc()
 	return nil
@@ -495,7 +495,7 @@ func (a *application) StopServiceByKey(key ServiceKey) error {
 func (a *application) RestartServiceByType(serviceInterface ServiceInterface) error {
 	client := a.ServiceByType(serviceInterface)
 	if client == nil {
-		return &ServiceNotFoundError{InterfaceTypeToServiceKey(serviceInterface)}
+		return &ServiceNotFoundError{InterfaceToServiceKey(serviceInterface)}
 	}
 	client.Restart()
 	return nil

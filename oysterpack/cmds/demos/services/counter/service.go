@@ -20,14 +20,14 @@ import (
 	"github.com/oysterpack/oysterpack.go/oysterpack/service"
 )
 
-// Interface is the service client interface
-type Interface interface {
+// Service is the service server interface
+type Service interface {
 	NextInt() uint64
 }
 
 // CounterServiceInterface is the ServiceInterface
 var CounterServiceInterface service.ServiceInterface = func() service.ServiceInterface {
-	var c Interface = &client{}
+	var c Service = &server{}
 	serviceInterface, err := reflect.ObjectInterface(&c)
 	if err != nil {
 		panic(err)
@@ -35,14 +35,14 @@ var CounterServiceInterface service.ServiceInterface = func() service.ServiceInt
 	return serviceInterface
 }()
 
-type client struct {
+type server struct {
 	*service.RestartableService
 
 	counter uint64
 	nextInt chan chan<- uint64
 }
 
-func (a *client) run(ctx *service.Context) error {
+func (a *server) run(ctx *service.Context) error {
 	for {
 		select {
 		case <-ctx.StopTrigger():
@@ -54,7 +54,7 @@ func (a *client) run(ctx *service.Context) error {
 	}
 }
 
-func (a *client) NextInt() (i uint64) {
+func (a *server) NextInt() (i uint64) {
 	defer func() { a.Service().Logger().Info().Msgf("NextInt() : %d", i) }()
 	a.Service().Logger().Info().Msg("NextInt() ...")
 	ch := make(chan uint64, 1)
@@ -63,7 +63,7 @@ func (a *client) NextInt() (i uint64) {
 	return
 }
 
-func (a *client) newService() service.Service {
+func (a *server) newService() service.Service {
 	version, err := semver.NewVersion("1.0.0")
 	if err != nil {
 		panic(err)
@@ -73,7 +73,7 @@ func (a *client) newService() service.Service {
 
 // ClientConstructor is the service ClientConstructor
 func ClientConstructor(app service.Application) service.Client {
-	c := &client{
+	c := &server{
 		nextInt: make(chan chan<- uint64),
 	}
 	c.RestartableService = service.NewRestartableService(c.newService)
