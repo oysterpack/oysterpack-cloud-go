@@ -30,10 +30,12 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
+// Service interface
 type Service interface {
 	Registry() *prometheus.Registry
 }
 
+// MetricsServiceInterface service interface instance that can be used to lookup the registered service
 var MetricsServiceInterface service.ServiceInterface = func() service.ServiceInterface {
 	var c Service = &server{}
 	serviceInterface, err := reflect.ObjectInterface(&c)
@@ -71,8 +73,9 @@ func (a *server) init(ctx *service.Context) error {
 }
 
 func (a *server) destroy(ctx *service.Context) error {
-	shutdownContext := context.Background()
-	shutdownContext, _ = context.WithTimeout(shutdownContext, time.Second*30)
+	background := context.Background()
+	shutdownContext, cancel := context.WithTimeout(background, time.Second*30)
+	defer cancel()
 	if err := a.httpServer.Shutdown(shutdownContext); err != nil {
 		a.Service().Logger().Error().Err(err).Msg("")
 	}
@@ -100,6 +103,7 @@ func (a *server) newService() service.Service {
 	return service.NewService(settings)
 }
 
+// NewClient service.ClientConstructor
 func NewClient(app service.Application) service.Client {
 	c := &server{}
 	c.RestartableService = service.NewRestartableService(c.newService)

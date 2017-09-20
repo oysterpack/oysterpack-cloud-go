@@ -21,6 +21,7 @@ import (
 	dto "github.com/prometheus/client_model/go"
 )
 
+// Registry is used to register metrics that will be exposed to prometheus
 var Registry *prometheus.Registry = func() *prometheus.Registry {
 	registry := prometheus.NewRegistry()
 	registry.MustRegister(

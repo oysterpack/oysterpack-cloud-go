@@ -24,4 +24,5 @@ func (a *ServiceConfig) HTTPPort() int {
 	return a.httpPort
 }
 
+// Config exposes service config - used by http clients to obtain the HTTP port
 var Config = &ServiceConfig{httpPort: 4444}

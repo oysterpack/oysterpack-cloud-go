@@ -16,6 +16,7 @@ package service
 
 import "github.com/oysterpack/oysterpack.go/oysterpack/metrics"
 
+// HealthChecks service health checks
 type HealthChecks interface {
 
 	// HealthChecks returns all registered service health checks

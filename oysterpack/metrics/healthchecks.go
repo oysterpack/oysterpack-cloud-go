@@ -73,6 +73,7 @@ type HealthCheck interface {
 	Register(registerer prometheus.Registerer) error
 }
 
+// HealthCheckKey health check unique metric key
 type HealthCheckKey struct {
 	Name   string
 	Labels map[string]string
