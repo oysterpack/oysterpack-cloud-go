@@ -21,12 +21,17 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+// Metrics represents service specific metrics.
+// It provides a means to discover what metrics have been registered for the service.
 type Metrics interface {
+	// Counters returns the service counters that have been registered
 	Counters() []prometheus.CounterOpts
 
+	// CounterVecs returns the service counter vectors that have been registered
 	CounterVecs() []metrics.CounterVecOpts
 }
 
+// MetricsRegistry implements the Metrics interface and provides functionality to create and register metrics with prometheus
 type MetricsRegistry struct {
 	mutex       sync.RWMutex
 	counters    []prometheus.CounterOpts
@@ -45,6 +50,8 @@ func (a *MetricsRegistry) CounterVecs() []metrics.CounterVecOpts {
 	return a.counterVecs
 }
 
+// MustRegisterCounter creates and registers a counter based on the supplied opts.
+// If registration fails, then the func panic.
 func (a *MetricsRegistry) MustRegisterCounter(opts prometheus.CounterOpts) prometheus.Counter {
 	a.mutex.Lock()
 	defer a.mutex.Unlock()
@@ -54,6 +61,8 @@ func (a *MetricsRegistry) MustRegisterCounter(opts prometheus.CounterOpts) prome
 	return counter
 }
 
+// MustRegisterCounterVec creates and registers a counter vector based on the supplied opts.
+// If registration fails, then the func panic.
 func (a *MetricsRegistry) MustRegisterCounterVec(opts metrics.CounterVecOpts) *prometheus.CounterVec {
 	a.mutex.Lock()
 	defer a.mutex.Unlock()

@@ -102,7 +102,7 @@ type HistogramVecOpts struct {
 	Labels []string
 }
 
-// CheckGaugeOpts panics if checks fail :
+// CheckHistogramOpts panics if checks fail :
 // - name must not be blank
 // - help must not be blank
 // - buckets are required
@@ -131,7 +131,7 @@ func CheckHistogramOpts(opts prometheus.HistogramOpts) prometheus.HistogramOpts 
 	}
 	opts.Buckets = make([]float64, len(bucketSet))
 	i := 0
-	for k, _ := range bucketSet {
+	for k := range bucketSet {
 		opts.Buckets[i] = k
 		i++
 	}
@@ -162,7 +162,7 @@ type SummaryVecOpts struct {
 // DefObjectives are the default summary objectives used by CheckSummaryOpts() if none are specified.
 var DefObjectives = map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.95: 0.001, 0.99: 0.001}
 
-// NewHistogramVecOpts returns a new HistogramVecOpts.
+// CheckSummaryOpts returns a new HistogramVecOpts.
 // If validation fails, then the func panics. The following checks are applied :
 // - labels cannot be empty
 // - label names cannot be blank

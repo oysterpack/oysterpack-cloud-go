@@ -56,6 +56,7 @@ type set struct {
 
 var entry = struct{}{}
 
+// NewStrings returns a new string set
 func NewStrings() Strings {
 	return &set{
 		values: make(map[string]struct{}),
@@ -67,7 +68,7 @@ func (a *set) Values() []string {
 	defer a.mutex.RUnlock()
 	values := make([]string, len(a.values))
 	i := 0
-	for k, _ := range a.values {
+	for k := range a.values {
 		values[i] = k
 		i++
 	}
