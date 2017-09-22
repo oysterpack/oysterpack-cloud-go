@@ -21,7 +21,7 @@ import (
 	"github.com/oysterpack/oysterpack.go/oysterpack/commons/collections/sets"
 )
 
-func TestNewStrings(t *testing.T) {
+func TestNewStrings_EmptySet(t *testing.T) {
 	s := sets.NewStrings()
 
 	// exercise empty set
@@ -29,12 +29,16 @@ func TestNewStrings(t *testing.T) {
 		t.Error("set should be empty")
 	}
 	s.Clear()
+}
+
+func TestStrings_AddRemove(t *testing.T) {
+	s := sets.NewStrings()
 
 	for i := 0; i < 10; i++ {
 		s.Add(fmt.Sprintf("#%v", i))
 	}
 	t.Logf("set : %v", s)
-	if s.Empty() || s.Size() != 10 {
+	if s.Size() != 10 {
 		t.Error("There should be 10 elements in the set")
 	}
 	for i := 0; i < 10; i++ {
@@ -53,7 +57,10 @@ func TestNewStrings(t *testing.T) {
 			t.Errorf("should have been already removed: %v", value)
 		}
 	}
+}
 
+func TestStrings_ContainsAll_Equals(t *testing.T) {
+	s := sets.NewStrings()
 	for i := 0; i < 10; i++ {
 		s.Add(fmt.Sprintf("#%v", i))
 	}

@@ -38,12 +38,14 @@ type MetricsRegistry struct {
 	counterVecs []metrics.CounterVecOpts
 }
 
+// Counters returns the service counters that have been registered
 func (a *MetricsRegistry) Counters() []prometheus.CounterOpts {
 	a.mutex.RLock()
 	defer a.mutex.RUnlock()
 	return a.counters
 }
 
+// CounterVecs returns the service counter vectors that have been registered
 func (a *MetricsRegistry) CounterVecs() []metrics.CounterVecOpts {
 	a.mutex.RLock()
 	defer a.mutex.RUnlock()
