@@ -60,6 +60,8 @@ type Service interface {
 	Dependencies() InterfaceDependencies
 
 	HealthChecks
+
+	Metrics
 }
 
 // InterfaceDependencies represents a service's interface dependencies with version constraints
@@ -108,6 +110,8 @@ type service struct {
 	dependencies InterfaceDependencies
 
 	healthchecks []metrics.HealthCheck
+
+	MetricsRegistry
 }
 
 // ServiceInterface represents the interface from the client's perspective, i.e., it defines the service's functionality.

@@ -100,7 +100,7 @@ func TestRegisterHealthCheck_CheckMetricsAreRegistered(t *testing.T) {
 			t.Error("Registration should have failed")
 		}
 
-		pingCheck.Run()
+		t.Logf("result : %v", pingCheck.Run())
 		gatheredMetrics, err := registry.Gather()
 		if err != nil {
 			t.Errorf("Gathering metrics failed : %v", err)
@@ -223,6 +223,7 @@ func TestHealthcheck_Run_Error(t *testing.T) {
 	pingCheck.MustRegister(registry)
 	now := time.Now()
 	result := pingCheck.Run()
+	t.Logf("result : %v", result)
 	if result.Success() {
 		t.Errorf("should have failed")
 	}

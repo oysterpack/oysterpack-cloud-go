@@ -41,7 +41,7 @@ type HealthCheck interface {
 	// Name is the base health check name
 	Name() string
 
-	// Labels are used to label health check instances.
+	// LabelSet are used to label health check instances.
 	// For example, a database health check could have the following named labels : 'db', 'schema'
 	Labels() map[string]string
 
