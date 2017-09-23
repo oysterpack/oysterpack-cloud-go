@@ -45,8 +45,8 @@ func GetOrMustRegisterHistogramVec(opts *HistogramVecOpts) *prometheus.Histogram
 	if registered(name) {
 		logger.Panic().Str(logging.FUNC, FUNC).
 			Str("name", name).
-			Int("type", MetricType_HISTOGRAM_VEC.Value()).
-			Int("registered_type", MetricType_HISTOGRAM.Value()).
+			Int("type", HISTOGRAMVEC.Value()).
+			Int("registered_type", HISTOGRAM.Value()).
 			Err(MetricNameUsedByDifferentMetricType).
 			Msg("")
 	}

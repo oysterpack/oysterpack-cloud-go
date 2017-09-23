@@ -82,15 +82,15 @@ func TestRegisteringMetricsOfDifferentTypesWithSameFullyQualifiedNamesShouldFail
 
 func TestMetricType_String(t *testing.T) {
 	types := map[metrics.MetricType]string{
-		metrics.MetricTypeUNKNOWN:        "UNKNOWN",
-		metrics.MetricType_COUNTER:       "Counter",
-		metrics.MetricType_GAUGE:         "Gauge",
-		metrics.MetricType_HISTOGRAM:     "Histogram",
-		metrics.MetricType_SUMMARY:       "Summary",
-		metrics.MetricType_COUNTER_VEC:   "CounterVec",
-		metrics.MetricType_GAUGE_VEC:     "GaugeVec",
-		metrics.MetricType_HISTOGRAM_VEC: "HistogramVec",
-		metrics.MetricType_SUMMARY_VEC:   "SummaryVec",
+		metrics.UNKNOWN:      "UNKNOWN",
+		metrics.COUNTER:      "Counter",
+		metrics.GAUGE:        "Gauge",
+		metrics.HISTOGRAM:    "Histogram",
+		metrics.SUMMARY:      "Summary",
+		metrics.COUNTERVEC:   "CounterVec",
+		metrics.GAUGEVEC:     "GaugeVec",
+		metrics.HISTOGRAMVEC: "HistogramVec",
+		metrics.SUMMARYVEC:   "SummaryVec",
 	}
 
 	for k, v := range types {

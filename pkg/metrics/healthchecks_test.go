@@ -271,7 +271,7 @@ func TestHealthcheck_StopTicker_StartTicker(t *testing.T) {
 	if !pingCheck.Scheduled() {
 		t.Errorf("healthcheck should be scheduled")
 	}
-	time.Sleep(pingCheck.RunInterval() + 2*time.Millisecond)
+	time.Sleep(pingCheck.RunInterval() + 5*time.Millisecond)
 	if pingCheck.LastResult() == nil {
 		t.Error("the healthcheck should have been run")
 	}

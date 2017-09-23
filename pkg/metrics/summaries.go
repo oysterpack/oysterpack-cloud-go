@@ -45,8 +45,8 @@ func GetOrMustRegisterSummary(opts *prometheus.SummaryOpts) prometheus.Summary {
 	if registered(name) {
 		logger.Panic().Str(logging.FUNC, FUNC).
 			Str("name", name).
-			Int("type", MetricType_SUMMARY.Value()).
-			Int("registered_type", MetricType_SUMMARY_VEC.Value()).
+			Int("type", SUMMARY.Value()).
+			Int("registered_type", SUMMARYVEC.Value()).
 			Err(MetricNameUsedByDifferentMetricType).
 			Msg("")
 	}

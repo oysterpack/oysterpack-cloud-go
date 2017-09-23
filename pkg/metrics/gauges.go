@@ -45,8 +45,8 @@ func GetOrMustRegisterGauge(opts *prometheus.GaugeOpts) prometheus.Gauge {
 	if registered(name) {
 		logger.Panic().Str(logging.FUNC, FUNC).
 			Str("name", name).
-			Int("type", MetricType_GAUGE.Value()).
-			Int("registered_type", MetricType_GAUGE_VEC.Value()).
+			Int("type", GAUGE.Value()).
+			Int("registered_type", GAUGEVEC.Value()).
 			Err(MetricNameUsedByDifferentMetricType).
 			Msg("")
 	}

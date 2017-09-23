@@ -45,8 +45,8 @@ func GetOrMustRegisterCounterVec(opts *CounterVecOpts) *prometheus.CounterVec {
 	if registered(name) {
 		logger.Panic().Str(logging.FUNC, FUNC).
 			Str("name", name).
-			Int("type", MetricType_COUNTER_VEC.Value()).
-			Int("registered_type", MetricType_COUNTER.Value()).
+			Int("type", COUNTERVEC.Value()).
+			Int("registered_type", COUNTER.Value()).
 			Err(MetricNameUsedByDifferentMetricType).
 			Msg("")
 	}

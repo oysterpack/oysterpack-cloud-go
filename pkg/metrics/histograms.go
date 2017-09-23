@@ -45,8 +45,8 @@ func GetOrMustRegisterHistogram(opts *prometheus.HistogramOpts) prometheus.Histo
 	if registered(name) {
 		logger.Panic().Str(logging.FUNC, FUNC).
 			Str("name", name).
-			Int("type", MetricType_HISTOGRAM.Value()).
-			Int("registered_type", MetricType_HISTOGRAM_VEC.Value()).
+			Int("type", HISTOGRAM.Value()).
+			Int("registered_type", HISTOGRAMVEC.Value()).
 			Err(MetricNameUsedByDifferentMetricType).
 			Msg("")
 	}

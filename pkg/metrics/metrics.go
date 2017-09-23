@@ -22,17 +22,26 @@ import (
 type MetricType int
 
 const (
-	MetricTypeUNKNOWN MetricType = iota
+	// UNKNOWN unknown metric type
+	UNKNOWN MetricType = iota
 
-	MetricType_COUNTER
-	MetricType_GAUGE
-	MetricType_HISTOGRAM
-	MetricType_SUMMARY
+	// COUNTER -> prometheus.Counter
+	COUNTER
+	// GAUGE -> prometheus.Gauge
+	GAUGE
+	// HISTOGRAM -> prometheus.Histogram
+	HISTOGRAM
+	// SUMMARY -> prometheus.Summary
+	SUMMARY
 
-	MetricType_COUNTER_VEC
-	MetricType_GAUGE_VEC
-	MetricType_HISTOGRAM_VEC
-	MetricType_SUMMARY_VEC
+	// COUNTERVEC -> prometheus.CounterVec
+	COUNTERVEC
+	// GAUGEVEC -> prometheus.GaugeVec
+	GAUGEVEC
+	// HISTOGRAMVEC -> prometheus.HistogramVec
+	HISTOGRAMVEC
+	// SUMMARYVEC -> prometheus.SummaryVec
+	SUMMARYVEC
 )
 
 // Value returns the value as an int
@@ -42,21 +51,21 @@ func (a MetricType) Value() int {
 
 func (a MetricType) String() string {
 	switch a {
-	case MetricType_COUNTER:
+	case COUNTER:
 		return "Counter"
-	case MetricType_GAUGE:
+	case GAUGE:
 		return "Gauge"
-	case MetricType_HISTOGRAM:
+	case HISTOGRAM:
 		return "Histogram"
-	case MetricType_SUMMARY:
+	case SUMMARY:
 		return "Summary"
-	case MetricType_COUNTER_VEC:
+	case COUNTERVEC:
 		return "CounterVec"
-	case MetricType_GAUGE_VEC:
+	case GAUGEVEC:
 		return "GaugeVec"
-	case MetricType_HISTOGRAM_VEC:
+	case HISTOGRAMVEC:
 		return "HistogramVec"
-	case MetricType_SUMMARY_VEC:
+	case SUMMARYVEC:
 		return "SummaryVec"
 	default:
 		return "UNKNOWN"

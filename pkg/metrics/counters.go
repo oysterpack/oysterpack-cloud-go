@@ -45,8 +45,8 @@ func GetOrMustRegisterCounter(opts *prometheus.CounterOpts) prometheus.Counter {
 	if registered(name) {
 		logger.Panic().Str(logging.FUNC, FUNC).
 			Str("name", name).
-			Int("type", MetricType_COUNTER.Value()).
-			Int("registered_type", MetricType_COUNTER_VEC.Value()).
+			Int("type", COUNTER.Value()).
+			Int("registered_type", COUNTERVEC.Value()).
 			Err(MetricNameUsedByDifferentMetricType).
 			Msg("")
 	}
