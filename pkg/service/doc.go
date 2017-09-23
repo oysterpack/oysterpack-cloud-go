@@ -16,8 +16,7 @@
 // Application services must be easy to configure, deploy, monitor, operate, scale. Application services must be designed
 // to be cloud native.
 //
-// High quality application services must address for the following design and operational concerns :
-// ==================================================================================================
+// High quality application services must address the following design and operational concerns :
 // - services must be designed to be used concurrently safe
 // - interfaces must be used to define a service
 //    - the interface defines the service's functionality and must be clearly documented
@@ -48,15 +47,15 @@
 //
 // The bottom line, is that it takes great discipline to create high quality application services.
 //
-// Key interfaces
-// ==============
-// Service interfaces
-// Client interface
-// Application interface
+// Key Interfaces
 //
-// Key functions
-// =============
-// App() Application
+// - Service
+// - Client
+// - Application
+//
+// Key Functions
+//
+// - App() Application
 //
 // All exported functions and methods are safe to be used concurrently unless specified otherwise.
 package service

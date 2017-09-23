@@ -93,3 +93,23 @@ func TestStrings_ContainsAll_Equals(t *testing.T) {
 		t.Error("ERROR: s2 should != s")
 	}
 }
+
+func TestStrings_AddAll(t *testing.T) {
+	s := sets.NewStrings()
+	added, dups := s.AddAll("a", "b", "c")
+	if s.Size() != 3 || !s.Contains("a") || !s.Contains("b") || !s.Contains("c") {
+		t.Errorf("AddAll did not add all : %v", s)
+	}
+	if len(added) != 3 || len(dups) != 0 {
+		t.Errorf("AddAll reported incorrectly : %v | %v", added, dups)
+	}
+
+	added, dups = s.AddAll("a", "b", "c", "d")
+	t.Logf("added: %v, dups: %v", added, dups)
+	if s.Size() != 4 || !s.Contains("a") || !s.Contains("b") || !s.Contains("c") || !s.Contains("d") {
+		t.Errorf("AddAll did not add all : %v", s)
+	}
+	if len(added) != 1 || len(dups) != 3 {
+		t.Errorf("AddAll reported incorrectly : %v | %v", added, dups)
+	}
+}

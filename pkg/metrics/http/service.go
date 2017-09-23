@@ -30,6 +30,9 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
+// Version is the service version
+const Version = "1.0.0"
+
 // Service interface
 type Service interface {
 	Registry() *prometheus.Registry
@@ -89,12 +92,12 @@ func (a *server) Println(v ...interface{}) {
 }
 
 func (a *server) newService() service.Service {
-	version, err := semver.NewVersion("1.0.0")
+	version, err := semver.NewVersion(Version)
 	if err != nil {
 		panic(err)
 	}
 
-	settings := service.ServiceSettings{
+	settings := service.Settings{
 		ServiceInterface: MetricsServiceInterface,
 		Version:          version,
 		Init:             a.init,

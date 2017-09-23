@@ -29,6 +29,11 @@ type Strings interface {
 	// false is returned if the string already exists in the set.
 	Add(s string) bool
 
+	// AddAll will try to add each of the strings.
+	// Those that are added are returned.
+	// Any that are already contained in the set will be returned as dups.
+	AddAll(s ...string) (added []string, dups []string)
+
 	// Remove returns true if the string was removed from the set.
 	// false is returned if the string did not exist in the set
 	Remove(s string) bool
@@ -83,6 +88,20 @@ func (a *set) Add(s string) bool {
 	}
 	a.values[s] = entry
 	return true
+}
+
+func (a *set) AddAll(s ...string) (added []string, dups []string) {
+	a.mutex.Lock()
+	defer a.mutex.Unlock()
+	for _, ss := range s {
+		if a.contains(ss) {
+			dups = append(dups, ss)
+		} else {
+			a.values[ss] = entry
+			added = append(added, ss)
+		}
+	}
+	return
 }
 
 func (a *set) contains(s string) bool {

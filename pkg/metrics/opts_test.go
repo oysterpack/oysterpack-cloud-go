@@ -23,40 +23,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-func TestRegisteringMetricsOfDifferentTypesWithSameFullyQualifiedNamesShouldFail(t *testing.T) {
-	var metric1Opts = prometheus.Opts{
-		Name: "metric1",
-		Help: "Metric 1",
-	}
-	counter1 := prometheus.NewCounter(prometheus.CounterOpts(metric1Opts))
-	counterVec1Opts := metrics.NewCounterVecOpts(prometheus.CounterOpts(metric1Opts), "a", "b")
-	counterVec1 := prometheus.NewCounterVec(counterVec1Opts.CounterOpts, counterVec1Opts.Labels)
-
-	registry := prometheus.NewPedanticRegistry()
-	registry.MustRegister(counter1)
-
-	if err := registry.Register(counterVec1); err == nil {
-		t.Error("should have failed because the previous metric has the same fully-qualified name")
-	} else {
-		t.Logf("Failed to register counter vector : %v", err)
-	}
-
-	gauge1 := prometheus.NewGauge(prometheus.GaugeOpts(metric1Opts))
-	if err := registry.Register(gauge1); err == nil {
-		t.Error("should have failed because the previous metric has the same fully-qualified name")
-	} else {
-		t.Logf("Failed to register gauge : %v", err)
-	}
-
-	gaugeVec1Opts := metrics.NewGaugeVecOpts(prometheus.GaugeOpts(metric1Opts), "a", "b", "c")
-	gaugeVec1 := prometheus.NewGaugeVec(gaugeVec1Opts.GaugeOpts, gaugeVec1Opts.Labels)
-	if err := registry.Register(gaugeVec1); err == nil {
-		t.Error("should have failed because the previous metric has the same fully-qualified name")
-	} else {
-		t.Logf("Failed to register gauge vector : %v", err)
-	}
-}
-
 func TestNewCounterVecOpts_TrimmingAndSortingLabel(t *testing.T) {
 	opts := metrics.NewCounterVecOpts(prometheus.CounterOpts{Name: " ABC ", Help: " XYZ"}, "  b  ", " a   ")
 	if opts.Name != "ABC" {

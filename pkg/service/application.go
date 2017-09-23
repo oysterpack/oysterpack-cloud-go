@@ -128,7 +128,7 @@ func NewApplication(settings ApplicationSettings) Application {
 
 	var service Application = app
 	serviceInterface, _ := reflect.ObjectInterface(&service)
-	app.service = NewService(ServiceSettings{
+	app.service = NewService(Settings{
 		ServiceInterface: serviceInterface,
 		Run:              app.run,
 		Destroy:          app.destroy,

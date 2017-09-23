@@ -77,7 +77,7 @@ func (a *EchoServiceClient) newService() service.Service {
 		panic(err)
 	}
 
-	return service.NewService(service.ServiceSettings{
+	return service.NewService(service.Settings{
 		ServiceInterface: EchoServiceInterface,
 		Version:          version,
 		Run:              a.run,
@@ -161,7 +161,7 @@ func (a *HeartbeatServiceClient) newService() service.Service {
 	if err != nil {
 		panic(err)
 	}
-	return service.NewService(service.ServiceSettings{ServiceInterface: HeartbeatServiceInterface, Version: version, Run: a.run})
+	return service.NewService(service.Settings{ServiceInterface: HeartbeatServiceInterface, Version: version, Run: a.run})
 }
 
 func HeartbeatServiceClientConstructor(application service.Application) service.Client {
@@ -199,7 +199,7 @@ func AServiceClientConstructorFactory(version string) service.ClientConstructor 
 			if err != nil {
 				panic(err)
 			}
-			return service.NewService(service.ServiceSettings{ServiceInterface: AServiceInterface, Version: version})
+			return service.NewService(service.Settings{ServiceInterface: AServiceInterface, Version: version})
 		})
 		return serviceClient
 	}
@@ -243,7 +243,7 @@ func BServiceClientConstructor(app service.Application) service.Client {
 			panic(err)
 		}
 
-		return service.NewService(service.ServiceSettings{
+		return service.NewService(service.Settings{
 			ServiceInterface:      BServiceInterface,
 			Version:               version,
 			InterfaceDependencies: service.InterfaceDependencies{AServiceInterface: aServiceVersionConstraint},

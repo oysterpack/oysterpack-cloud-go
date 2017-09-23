@@ -20,6 +20,9 @@ import (
 	"github.com/oysterpack/oysterpack.go/pkg/service"
 )
 
+// Version is the service version
+const Version = "1.0.0"
+
 // Service is the service server interface
 type Service interface {
 	NextInt() uint64
@@ -64,11 +67,11 @@ func (a *server) NextInt() (i uint64) {
 }
 
 func (a *server) newService() service.Service {
-	version, err := semver.NewVersion("1.0.0")
+	version, err := semver.NewVersion(Version)
 	if err != nil {
 		panic(err)
 	}
-	return service.NewService(service.ServiceSettings{ServiceInterface: CounterServiceInterface, Version: version, Run: a.run})
+	return service.NewService(service.Settings{ServiceInterface: CounterServiceInterface, Version: version, Run: a.run})
 }
 
 // ClientConstructor is the service ClientConstructor

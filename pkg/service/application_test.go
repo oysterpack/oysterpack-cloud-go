@@ -199,7 +199,7 @@ func TestApplicationContext_RegisterService_ServiceClientNotAssignableToServiceI
 				RestartableService: service.NewRestartableService(func() service.Service {
 					var svc EchoService = &SimpleEchoService{}
 					serviceInterface, _ := reflect.ObjectInterface(&svc)
-					return service.NewService(service.ServiceSettings{ServiceInterface: serviceInterface})
+					return service.NewService(service.Settings{ServiceInterface: serviceInterface})
 				}),
 			}
 		})
@@ -902,7 +902,7 @@ func (a *testApplication_RestartAllFailedServices_client) run(ctx *service.Conte
 }
 
 func (a *testApplication_RestartAllFailedServices_client) newService() service.Service {
-	return service.NewService(service.ServiceSettings{ServiceInterface: testApplication_RestartAllFailedServices_interface, Version: service.NewVersion("1.0.0"), Run: a.run})
+	return service.NewService(service.Settings{ServiceInterface: testApplication_RestartAllFailedServices_interface, Version: service.NewVersion("1.0.0"), Run: a.run})
 }
 
 var testApplication_RestartAllFailedServices_interface service.ServiceInterface = func() service.ServiceInterface {

@@ -19,8 +19,6 @@ import (
 	stdreflect "reflect"
 	"time"
 
-	"io"
-
 	"sync"
 
 	"github.com/Masterminds/semver"
@@ -61,7 +59,8 @@ type Service interface {
 
 	HealthChecks
 
-	Metrics
+	// MetricOpts define the service related metrics
+	MetricOpts() *metrics.MetricOpts
 }
 
 // InterfaceDependencies represents a service's interface dependencies with version constraints
@@ -111,7 +110,7 @@ type service struct {
 
 	healthchecks []metrics.HealthCheck
 
-	MetricsRegistry
+	metricOpts *metrics.MetricOpts
 }
 
 // ServiceInterface represents the interface from the client's perspective, i.e., it defines the service's functionality.
@@ -145,37 +144,6 @@ type Run func(*Context) error
 // Destroy is a function that is used to perform any cleanup during service shutdown.
 type Destroy func(*Context) error
 
-// ServiceSettings is used by NewService to create a new service instance
-type ServiceSettings struct {
-	// REQUIRED - represents the service interface from the client's perspective
-	// If the service has no direct client API, e.g., a network based service, then use an empty interface{}
-	ServiceInterface
-
-	*semver.Version
-
-	// OPTIONAL - functions that define the service lifecycle
-	Init
-	Run
-	Destroy
-
-	// REQUIRED - InterfaceDependencies returns the Service interfaces that this service depends with version constraints
-	// It can be used to check if all service Dependencies satisfied by the application.
-	InterfaceDependencies
-
-	LogSettings
-
-	HealthChecks []metrics.HealthCheck
-}
-
-// LogSettings groups the log settings for the service
-type LogSettings struct {
-	// OPTIONAL - used to specify an alternative writer for the service logger
-	LogOutput io.Writer
-
-	// OPTIONAL - if not specified then the global default log level is used
-	LogLevel *zerolog.Level
-}
-
 // NewService creates and returns a new Service instance in the 'New' state.
 //
 // ServiceInterface:
@@ -183,7 +151,7 @@ type LogSettings struct {
 // - if nil or not an interface, then the method panics
 // All service life cycle functions are optional.
 // Any panic that occurs in the supplied functions is converted to a PanicError.
-func NewService(settings ServiceSettings) Service {
+func NewService(settings Settings) Service {
 	serviceInterface := settings.ServiceInterface
 	init := settings.Init
 	run := settings.Run
@@ -247,6 +215,11 @@ func NewService(settings ServiceSettings) Service {
 		if len(settings.InterfaceDependencies) > 0 {
 			svc.dependencies = settings.InterfaceDependencies
 		}
+		if settings.Metrics == nil {
+			svc.metricOpts = &metrics.MetricOpts{}
+		} else {
+			svc.metricOpts = settings.Metrics
+		}
 		return svc
 	}
 
@@ -259,7 +232,7 @@ func NewService(settings ServiceSettings) Service {
 }
 
 // panics if settings are invalid
-func checkSettings(settings ServiceSettings) {
+func checkSettings(settings Settings) {
 	serviceInterface := settings.ServiceInterface
 	if serviceInterface == nil {
 		logger.Panic().Msg("Failed to create new service because ServiceInterface is required")
@@ -279,7 +252,7 @@ func checkSettings(settings ServiceSettings) {
 }
 
 // panics if healthcheck metrics fail to register
-func mustRegisterHealthChecks(settings ServiceSettings) {
+func mustRegisterHealthChecks(settings Settings) {
 	for _, healthcheck := range settings.HealthChecks {
 		errors := []error{}
 		if err := healthcheck.Register(metrics.Registry); err != nil {
@@ -292,6 +265,11 @@ func mustRegisterHealthChecks(settings ServiceSettings) {
 				Msgf("healthcheck metric registration failed")
 		}
 	}
+}
+
+// MetricOpts returns the service related metrics
+func (a *service) MetricOpts() *metrics.MetricOpts {
+	return a.metricOpts
 }
 
 // State returns the current State

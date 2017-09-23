@@ -17,27 +17,56 @@ package metrics
 import (
 	"github.com/prometheus/client_golang/prometheus"
 
+	"sync"
+
 	"github.com/oysterpack/oysterpack.go/pkg/commons/os"
-	dto "github.com/prometheus/client_model/go"
 )
 
-// Registry is used to register metrics that will be exposed to prometheus
-var Registry *prometheus.Registry = func() *prometheus.Registry {
-	registry := prometheus.NewRegistry()
-	registry.MustRegister(
-		prometheus.NewGoCollector(),
-		prometheus.NewProcessCollector(os.PID(), ""),
-	)
-	return registry
-}()
+var (
+	mutex sync.RWMutex
 
-// FindMetricFamilyByName finds a MetricFamily by name.
-// nil is returned if no match is found
-func FindMetricFamilyByName(gatheredMetrics []*dto.MetricFamily, name string) *dto.MetricFamily {
-	for _, m := range gatheredMetrics {
-		if *m.Name == name {
-			return m
-		}
+	// Registry is the global registry
+	Registry *prometheus.Registry = NewRegistry(true)
+
+	countersMap    = map[string]*Counter{}
+	counterVecsMap = map[string]*CounterVec{}
+)
+
+// NewRegistry creates a new registry.
+// If collectProcessMetrics = true, then the prometheus GoCollector and ProcessCollectors are registered.
+func NewRegistry(collectProcessMetrics bool) *prometheus.Registry {
+	registry := prometheus.NewRegistry()
+	if collectProcessMetrics {
+		registry.MustRegister(
+			prometheus.NewGoCollector(),
+			prometheus.NewProcessCollector(os.PID(), ""),
+		)
 	}
-	return nil
+	return registry
+}
+
+func ResetRegistry() {
+	mutex.Lock()
+	defer mutex.Unlock()
+	Registry = NewRegistry(true)
+	countersMap = map[string]*Counter{}
+	counterVecsMap = map[string]*CounterVec{}
+}
+
+// Registered returns true if a metric is registered with the same name
+func Registered(name string) bool {
+	mutex.RLock()
+	defer mutex.RUnlock()
+	return registered(name)
+}
+
+func registered(name string) bool {
+	if _, exists := countersMap[name]; exists {
+		return true
+	}
+	if _, exists := counterVecsMap[name]; exists {
+		return true
+	}
+
+	return false
 }

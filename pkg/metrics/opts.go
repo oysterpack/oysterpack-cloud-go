@@ -23,6 +23,21 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+// MetricOpts is a collection of metric opts
+type MetricOpts struct {
+	CounterOpts    []prometheus.CounterOpts
+	CounterVecOpts []CounterVecOpts
+
+	GaugeOpts    []prometheus.GaugeOpts
+	GaugeVecOpts []GaugeVecOpts
+
+	HistogramOpts    []prometheus.HistogramOpts
+	HistogramVecOpts []HistogramVecOpts
+
+	SummaryOpts    []prometheus.SummaryOpts
+	SummaryVecOpts []SummaryVecOpts
+}
+
 // CounterVecOpts represents the settings for a prometheus counter vector metric
 type CounterVecOpts struct {
 	prometheus.CounterOpts

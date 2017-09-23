@@ -12,8 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package countersMap integrates with prometheus (https://prometheus.io).
-// The countersMap.Registry should be used to register countersMap for prometheus.
-//
-// Health checks are recorded as countersMap.
-package metrics
+package collections
+
+// StringMapEquals returns true of the 2 maps of strings are the same
+func StringMapEquals(m1, m2 map[string]string) bool {
+	if len(m1) != len(m2) {
+		return false
+	}
+
+	for k, v := range m1 {
+		if m2[k] != v {
+			return false
+		}
+	}
+
+	return true
+}
