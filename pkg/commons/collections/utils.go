@@ -29,8 +29,38 @@ func StringMapsAreEqual(m1, m2 map[string]string) bool {
 	return true
 }
 
+// Float64MapsAreEqual returns true of the 2 maps of strings are the same
+func Float64MapsAreEqual(m1, m2 map[float64]float64) bool {
+	if len(m1) != len(m2) {
+		return false
+	}
+
+	for k, v := range m1 {
+		if m2[k] != v {
+			return false
+		}
+	}
+
+	return true
+}
+
 // StringSlicesAreEqual returns true if the slice contents are the same
 func StringSlicesAreEqual(s1, s2 []string) bool {
+	if len(s1) != len(s2) {
+		return false
+	}
+
+	for i, v := range s1 {
+		if s2[i] != v {
+			return false
+		}
+	}
+
+	return true
+}
+
+// Float64SlicesAreEqual returns true if the slice contents are the same
+func Float64SlicesAreEqual(s1, s2 []float64) bool {
 	if len(s1) != len(s2) {
 		return false
 	}

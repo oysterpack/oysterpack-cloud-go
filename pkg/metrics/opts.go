@@ -113,7 +113,7 @@ func NewGaugeVecOpts(opts *prometheus.GaugeOpts, label string, labels ...string)
 
 // HistogramVecOpts represents the settings for a prometheus histogram vector metric
 type HistogramVecOpts struct {
-	prometheus.HistogramOpts
+	*prometheus.HistogramOpts
 	Labels []string
 }
 
@@ -122,7 +122,7 @@ type HistogramVecOpts struct {
 // - help must not be blank
 // - buckets are required
 // The returned opts has all string fields trimmed and the buckets are deduped and sorted.
-func CheckHistogramOpts(opts prometheus.HistogramOpts) prometheus.HistogramOpts {
+func CheckHistogramOpts(opts *prometheus.HistogramOpts) *prometheus.HistogramOpts {
 	FUNC := "CheckHistogramOpts"
 
 	if len(opts.Buckets) == 0 {
@@ -164,13 +164,13 @@ func CheckHistogramOpts(opts prometheus.HistogramOpts) prometheus.HistogramOpts 
 //
 // All string fields will be trimmed, i.e., opts and labels may be modified.
 // Buckets will be deduped and sorted.
-func NewHistogramVecOpts(opts prometheus.HistogramOpts, label string, labels ...string) *HistogramVecOpts {
+func NewHistogramVecOpts(opts *prometheus.HistogramOpts, label string, labels ...string) *HistogramVecOpts {
 	return &HistogramVecOpts{HistogramOpts: CheckHistogramOpts(opts), Labels: labelNames(label, labels...)}
 }
 
 // SummaryVecOpts represents the settings for a prometheus summary vector metric
 type SummaryVecOpts struct {
-	prometheus.SummaryOpts
+	*prometheus.SummaryOpts
 	Labels []string
 }
 
@@ -186,7 +186,7 @@ var DefObjectives = map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.95: 0.001, 0.99:
 //
 // All string fields will be trimmed, i.e., opts and labels may be modified.
 // If there were no objectives set, then default objectives for the 50th, 90th, 95th, and 99th percentiles are set
-func CheckSummaryOpts(opts prometheus.SummaryOpts) prometheus.SummaryOpts {
+func CheckSummaryOpts(opts *prometheus.SummaryOpts) *prometheus.SummaryOpts {
 	FUNC := "CheckSummaryOpts"
 
 	opts.Name = strings.TrimSpace(opts.Name)
@@ -215,7 +215,7 @@ func CheckSummaryOpts(opts prometheus.SummaryOpts) prometheus.SummaryOpts {
 // All string fields will be trimmed, i.e., opts and labels may be modified.
 // If there were no objectives set, then default objectives for the 50th, 90th, 95th, and 99th percentiles are set.
 func NewSummaryVecOpts(opts prometheus.SummaryOpts, label string, labels ...string) *SummaryVecOpts {
-	return &SummaryVecOpts{SummaryOpts: CheckSummaryOpts(opts), Labels: labelNames(label, labels...)}
+	return &SummaryVecOpts{SummaryOpts: CheckSummaryOpts(&opts), Labels: labelNames(label, labels...)}
 }
 
 // LabelSet is an alias for a set of strings that represent a set of labels

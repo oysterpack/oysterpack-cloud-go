@@ -162,7 +162,7 @@ func TestNewGaugeVecOpts_ChecksFail(t *testing.T) {
 }
 
 func TestNewHistogramVecOpts_TrimmingAndSortingLabelAndBucketDedupeSorting(t *testing.T) {
-	opts := metrics.NewHistogramVecOpts(prometheus.HistogramOpts{Name: " ABC ", Help: " XYZ", Buckets: []float64{3, 2, 1, 2}}, "  b  ", " a   ")
+	opts := metrics.NewHistogramVecOpts(&prometheus.HistogramOpts{Name: " ABC ", Help: " XYZ", Buckets: []float64{3, 2, 1, 2}}, "  b  ", " a   ")
 	if opts.Name != "ABC" {
 		t.Errorf("Name have been trimmed, but was %q", opts.Name)
 	}
@@ -188,7 +188,7 @@ func TestNewHistogramVecOpts_ChecksFail(t *testing.T) {
 				t.Error("Opts should have failed checks and triggered panic")
 			}
 		}()
-		metrics.NewHistogramVecOpts(prometheus.HistogramOpts{}, "  b  ", " a   ")
+		metrics.NewHistogramVecOpts(&prometheus.HistogramOpts{}, "  b  ", " a   ")
 	}()
 
 	func() {
@@ -197,7 +197,7 @@ func TestNewHistogramVecOpts_ChecksFail(t *testing.T) {
 				t.Error("Opts should have failed checks and triggered panic")
 			}
 		}()
-		metrics.NewHistogramVecOpts(prometheus.HistogramOpts{Name: "sfsdf"}, "  b  ", " a   ")
+		metrics.NewHistogramVecOpts(&prometheus.HistogramOpts{Name: "sfsdf"}, "  b  ", " a   ")
 	}()
 
 	func() {
@@ -206,7 +206,7 @@ func TestNewHistogramVecOpts_ChecksFail(t *testing.T) {
 				t.Error("Opts should have failed checks and triggered panic")
 			}
 		}()
-		metrics.NewHistogramVecOpts(prometheus.HistogramOpts{Name: "   "}, "  b  ", " a   ")
+		metrics.NewHistogramVecOpts(&prometheus.HistogramOpts{Name: "   "}, "  b  ", " a   ")
 	}()
 
 	func() {
@@ -215,7 +215,7 @@ func TestNewHistogramVecOpts_ChecksFail(t *testing.T) {
 				t.Error("Opts should have failed checks and triggered panic")
 			}
 		}()
-		metrics.NewHistogramVecOpts(prometheus.HistogramOpts{Help: "sdfsdfsdf"}, "  b  ", " a   ")
+		metrics.NewHistogramVecOpts(&prometheus.HistogramOpts{Help: "sdfsdfsdf"}, "  b  ", " a   ")
 	}()
 
 	func() {
@@ -224,7 +224,7 @@ func TestNewHistogramVecOpts_ChecksFail(t *testing.T) {
 				t.Error("Opts should have failed checks and triggered panic")
 			}
 		}()
-		metrics.NewHistogramVecOpts(prometheus.HistogramOpts{Help: "   "}, "  b  ", " a   ")
+		metrics.NewHistogramVecOpts(&prometheus.HistogramOpts{Help: "   "}, "  b  ", " a   ")
 	}()
 
 	func() {
@@ -233,7 +233,7 @@ func TestNewHistogramVecOpts_ChecksFail(t *testing.T) {
 				t.Error("Opts should have failed checks and triggered panic")
 			}
 		}()
-		metrics.NewHistogramVecOpts(prometheus.HistogramOpts{Name: "a", Help: "a"}, "  ", " a   ")
+		metrics.NewHistogramVecOpts(&prometheus.HistogramOpts{Name: "a", Help: "a"}, "  ", " a   ")
 	}()
 	func() {
 		defer func() {
@@ -241,7 +241,7 @@ func TestNewHistogramVecOpts_ChecksFail(t *testing.T) {
 				t.Error("Opts should have failed checks and triggered panic")
 			}
 		}()
-		metrics.NewHistogramVecOpts(prometheus.HistogramOpts{Name: "a", Help: "a", Buckets: []float64{}}, "  ", " a   ")
+		metrics.NewHistogramVecOpts(&prometheus.HistogramOpts{Name: "a", Help: "a", Buckets: []float64{}}, "  ", " a   ")
 	}()
 }
 

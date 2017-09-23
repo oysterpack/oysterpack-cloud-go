@@ -45,6 +45,25 @@ func GaugeFQName(opts *prometheus.GaugeOpts) string {
 	return MetricFQName(&o)
 }
 
+// HistogramFQName returns the fully qualified name for the counter.
+func HistogramFQName(opts *prometheus.HistogramOpts) string {
+	return MetricFQName(&prometheus.Opts{
+		Namespace: opts.Namespace,
+		Subsystem: opts.Subsystem,
+		Name:      opts.Name,
+	})
+}
+
+// SummaryFQName returns the fully qualified name for the counter.
+func SummaryFQName(opts *prometheus.SummaryOpts) string {
+	return MetricFQName(&prometheus.Opts{
+		Namespace: opts.Namespace,
+		Subsystem: opts.Subsystem,
+		Name:      opts.Name,
+	})
+}
+
+// MetricFQName builds the metrics fully qualified name
 func MetricFQName(opts *prometheus.Opts) string {
 	return prometheus.BuildFQName(opts.Namespace, opts.Subsystem, opts.Name)
 }
@@ -110,6 +129,96 @@ func GaugeVecOptsMatch(opts1, opts2 *GaugeVecOpts) bool {
 	if !GaugeOptsMatch(opts1.GaugeOpts, opts2.GaugeOpts) {
 		return false
 	}
+	sort.Strings(opts1.Labels)
+	sort.Strings(opts2.Labels)
+	return collections.StringSlicesAreEqual(opts1.Labels, opts2.Labels)
+}
+
+// HistogramOptsMatch return true if the 2 opts match
+func HistogramOptsMatch(opts1, opts2 *prometheus.HistogramOpts) bool {
+	if HistogramFQName(opts1) != HistogramFQName(opts2) {
+		return false
+	}
+
+	if opts1.Help != opts2.Help {
+		return false
+	}
+
+	if !collections.StringMapsAreEqual(opts1.ConstLabels, opts2.ConstLabels) {
+		return false
+	}
+
+	if !collections.Float64SlicesAreEqual(opts1.Buckets, opts2.Buckets) {
+		return false
+	}
+
+	return true
+}
+
+// HistogramVecOptsMatch return true if the 2 opts match
+func HistogramVecOptsMatch(opts1, opts2 *HistogramVecOpts) bool {
+	if opts1 == nil && opts2 == nil {
+		return true
+	}
+	if opts1 == nil || opts2 == nil {
+		return false
+	}
+
+	if !HistogramOptsMatch(opts1.HistogramOpts, opts2.HistogramOpts) {
+		return false
+	}
+
+	sort.Strings(opts1.Labels)
+	sort.Strings(opts2.Labels)
+	return collections.StringSlicesAreEqual(opts1.Labels, opts2.Labels)
+}
+
+// SummaryVecOptsMatch return true if the 2 opts match
+func SummaryOptsMatch(opts1, opts2 *prometheus.SummaryOpts) bool {
+	if SummaryFQName(opts1) != SummaryFQName(opts2) {
+		return false
+	}
+
+	if opts1.Help != opts2.Help {
+		return false
+	}
+
+	if !collections.StringMapsAreEqual(opts1.ConstLabels, opts2.ConstLabels) {
+		return false
+	}
+
+	if opts1.AgeBuckets != opts2.AgeBuckets {
+		return false
+	}
+
+	if opts1.BufCap != opts2.BufCap {
+		return false
+	}
+
+	if opts1.MaxAge != opts2.MaxAge {
+		return false
+	}
+
+	if !collections.Float64MapsAreEqual(opts1.Objectives, opts2.Objectives) {
+		return false
+	}
+
+	return true
+}
+
+// SummaryVecOptsMatch return true if the 2 opts match
+func SummaryVecOptsMatch(opts1, opts2 *SummaryVecOpts) bool {
+	if opts1 == nil && opts2 == nil {
+		return true
+	}
+	if opts1 == nil || opts2 == nil {
+		return false
+	}
+
+	if !SummaryOptsMatch(opts1.SummaryOpts, opts2.SummaryOpts) {
+		return false
+	}
+
 	sort.Strings(opts1.Labels)
 	sort.Strings(opts2.Labels)
 	return collections.StringSlicesAreEqual(opts1.Labels, opts2.Labels)
