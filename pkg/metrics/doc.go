@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package countersMap integrates with prometheus (https://prometheus.io).
+// Package metrics integrates with prometheus (https://prometheus.io).
 // The countersMap.Registry should be used to register countersMap for prometheus.
 //
 // Health checks are recorded as countersMap.

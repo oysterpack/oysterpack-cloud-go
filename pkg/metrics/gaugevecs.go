@@ -38,7 +38,7 @@ func GetOrMustRegisterGaugeVec(opts *GaugeVecOpts) *prometheus.GaugeVec {
 		logger.Panic().Str(logging.FUNC, FUNC).
 			Str("registered", fmt.Sprintf("%v", gaugeVec.GaugeVecOpts)).
 			Str("dup", fmt.Sprintf("%v", opts)).
-			Err(MetricAlreadyRegisteredWithDifferentOpts).
+			Err(ErrMetricAlreadyRegisteredWithDifferentOpts).
 			Msg("")
 	}
 
@@ -47,7 +47,7 @@ func GetOrMustRegisterGaugeVec(opts *GaugeVecOpts) *prometheus.GaugeVec {
 			Str("name", name).
 			Int("type", GAUGEVEC.Value()).
 			Int("registered_type", GAUGE.Value()).
-			Err(MetricNameUsedByDifferentMetricType).
+			Err(ErrMetricNameUsedByDifferentMetricType).
 			Msg("")
 	}
 

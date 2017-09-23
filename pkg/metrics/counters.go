@@ -38,7 +38,7 @@ func GetOrMustRegisterCounter(opts *prometheus.CounterOpts) prometheus.Counter {
 		logger.Panic().Str(logging.FUNC, FUNC).
 			Str("registered", fmt.Sprintf("%v", counter.CounterOpts)).
 			Str("dup", fmt.Sprintf("%v", opts)).
-			Err(MetricAlreadyRegisteredWithDifferentOpts).
+			Err(ErrMetricAlreadyRegisteredWithDifferentOpts).
 			Msg("")
 	}
 
@@ -47,7 +47,7 @@ func GetOrMustRegisterCounter(opts *prometheus.CounterOpts) prometheus.Counter {
 			Str("name", name).
 			Int("type", COUNTER.Value()).
 			Int("registered_type", COUNTERVEC.Value()).
-			Err(MetricNameUsedByDifferentMetricType).
+			Err(ErrMetricNameUsedByDifferentMetricType).
 			Msg("")
 	}
 

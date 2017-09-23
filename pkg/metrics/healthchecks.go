@@ -296,7 +296,7 @@ func NewHealthCheck(opts prometheus.GaugeOpts, runInterval time.Duration, check 
 
 	// check for metric collision
 	if Registered(CounterFQName(&counterOpts)) {
-		logger.Panic().Err(MetricAlreadyRegistered).Msg("")
+		logger.Panic().Err(ErrMetricAlreadyRegistered).Msg("")
 	}
 
 	a := &healthcheck{

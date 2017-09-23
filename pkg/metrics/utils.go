@@ -175,7 +175,7 @@ func HistogramVecOptsMatch(opts1, opts2 *HistogramVecOpts) bool {
 	return collections.StringSlicesAreEqual(opts1.Labels, opts2.Labels)
 }
 
-// SummaryVecOptsMatch return true if the 2 opts match
+// SummaryOptsMatch return true if the 2 opts match
 func SummaryOptsMatch(opts1, opts2 *prometheus.SummaryOpts) bool {
 	if SummaryFQName(opts1) != SummaryFQName(opts2) {
 		return false

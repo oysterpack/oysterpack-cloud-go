@@ -38,7 +38,7 @@ func GetOrMustRegisterHistogramVec(opts *HistogramVecOpts) *prometheus.Histogram
 		logger.Panic().Str(logging.FUNC, FUNC).
 			Str("registered", fmt.Sprintf("%v", histogramVec.HistogramVecOpts)).
 			Str("dup", fmt.Sprintf("%v", opts)).
-			Err(MetricAlreadyRegisteredWithDifferentOpts).
+			Err(ErrMetricAlreadyRegisteredWithDifferentOpts).
 			Msg("")
 	}
 
@@ -47,7 +47,7 @@ func GetOrMustRegisterHistogramVec(opts *HistogramVecOpts) *prometheus.Histogram
 			Str("name", name).
 			Int("type", HISTOGRAMVEC.Value()).
 			Int("registered_type", HISTOGRAM.Value()).
-			Err(MetricNameUsedByDifferentMetricType).
+			Err(ErrMetricNameUsedByDifferentMetricType).
 			Msg("")
 	}
 

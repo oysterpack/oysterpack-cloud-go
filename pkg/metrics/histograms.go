@@ -38,7 +38,7 @@ func GetOrMustRegisterHistogram(opts *prometheus.HistogramOpts) prometheus.Histo
 		logger.Panic().Str(logging.FUNC, FUNC).
 			Str("registered", fmt.Sprintf("%v", histogram.HistogramOpts)).
 			Str("dup", fmt.Sprintf("%v", opts)).
-			Err(MetricAlreadyRegisteredWithDifferentOpts).
+			Err(ErrMetricAlreadyRegisteredWithDifferentOpts).
 			Msg("")
 	}
 
@@ -47,7 +47,7 @@ func GetOrMustRegisterHistogram(opts *prometheus.HistogramOpts) prometheus.Histo
 			Str("name", name).
 			Int("type", HISTOGRAM.Value()).
 			Int("registered_type", HISTOGRAMVEC.Value()).
-			Err(MetricNameUsedByDifferentMetricType).
+			Err(ErrMetricNameUsedByDifferentMetricType).
 			Msg("")
 	}
 

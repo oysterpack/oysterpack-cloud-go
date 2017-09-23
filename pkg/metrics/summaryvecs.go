@@ -38,7 +38,7 @@ func GetOrMustRegisterSummaryVec(opts *SummaryVecOpts) *prometheus.SummaryVec {
 		logger.Panic().Str(logging.FUNC, FUNC).
 			Str("registered", fmt.Sprintf("%v", summaryVec.SummaryVecOpts)).
 			Str("dup", fmt.Sprintf("%v", opts)).
-			Err(MetricAlreadyRegisteredWithDifferentOpts).
+			Err(ErrMetricAlreadyRegisteredWithDifferentOpts).
 			Msg("")
 	}
 
@@ -47,7 +47,7 @@ func GetOrMustRegisterSummaryVec(opts *SummaryVecOpts) *prometheus.SummaryVec {
 			Str("name", name).
 			Int("type", SUMMARYVEC.Value()).
 			Int("registered_type", SUMMARY.Value()).
-			Err(MetricNameUsedByDifferentMetricType).
+			Err(ErrMetricNameUsedByDifferentMetricType).
 			Msg("")
 	}
 

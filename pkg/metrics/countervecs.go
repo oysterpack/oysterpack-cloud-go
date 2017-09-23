@@ -38,7 +38,7 @@ func GetOrMustRegisterCounterVec(opts *CounterVecOpts) *prometheus.CounterVec {
 		logger.Panic().Str(logging.FUNC, FUNC).
 			Str("registered", fmt.Sprintf("%v", counterVec.CounterVecOpts)).
 			Str("dup", fmt.Sprintf("%v", opts)).
-			Err(MetricAlreadyRegisteredWithDifferentOpts).
+			Err(ErrMetricAlreadyRegisteredWithDifferentOpts).
 			Msg("")
 	}
 
@@ -47,7 +47,7 @@ func GetOrMustRegisterCounterVec(opts *CounterVecOpts) *prometheus.CounterVec {
 			Str("name", name).
 			Int("type", COUNTERVEC.Value()).
 			Int("registered_type", COUNTER.Value()).
-			Err(MetricNameUsedByDifferentMetricType).
+			Err(ErrMetricNameUsedByDifferentMetricType).
 			Msg("")
 	}
 

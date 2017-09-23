@@ -54,6 +54,7 @@ func NewRegistry(collectProcessMetrics bool) *prometheus.Registry {
 	return registry
 }
 
+// ResetRegistry resets the prometheus Registry and clears all cached metrics
 func ResetRegistry() {
 	mutex.Lock()
 	defer mutex.Unlock()
