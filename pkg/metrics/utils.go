@@ -148,6 +148,8 @@ func HistogramOptsMatch(opts1, opts2 *prometheus.HistogramOpts) bool {
 		return false
 	}
 
+	sort.Float64s(opts1.Buckets)
+	sort.Float64s(opts2.Buckets)
 	if !collections.Float64SlicesAreEqual(opts1.Buckets, opts2.Buckets) {
 		return false
 	}

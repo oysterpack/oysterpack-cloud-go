@@ -79,3 +79,23 @@ func TestRegisteringMetricsOfDifferentTypesWithSameFullyQualifiedNamesShouldFail
 		t.Logf("Failed to register gauge : %v", err)
 	}
 }
+
+func TestMetricType_String(t *testing.T) {
+	types := map[metrics.MetricType]string{
+		metrics.MetricType_UNKNOWN:       "UNKNOWN",
+		metrics.MetricType_COUNTER:       "Counter",
+		metrics.MetricType_GAUGE:         "Gauge",
+		metrics.MetricType_HISTOGRAM:     "Histogram",
+		metrics.MetricType_SUMMARY:       "Summary",
+		metrics.MetricType_COUNTER_VEC:   "CounterVec",
+		metrics.MetricType_GAUGE_VEC:     "GaugeVec",
+		metrics.MetricType_HISTOGRAM_VEC: "HistogramVec",
+		metrics.MetricType_SUMMARY_VEC:   "SummaryVec",
+	}
+
+	for k, v := range types {
+		if k.String() != v {
+			t.Errorf("%v != %v", k.String(), v)
+		}
+	}
+}
