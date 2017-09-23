@@ -82,7 +82,7 @@ func TestRegisteringMetricsOfDifferentTypesWithSameFullyQualifiedNamesShouldFail
 
 func TestMetricType_String(t *testing.T) {
 	types := map[metrics.MetricType]string{
-		metrics.MetricType_UNKNOWN:       "UNKNOWN",
+		metrics.MetricTypeUNKNOWN:        "UNKNOWN",
 		metrics.MetricType_COUNTER:       "Counter",
 		metrics.MetricType_GAUGE:         "Gauge",
 		metrics.MetricType_HISTOGRAM:     "Histogram",

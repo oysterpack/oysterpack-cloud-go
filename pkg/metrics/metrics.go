@@ -18,10 +18,11 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+// MetricType is an enum for metric types
 type MetricType int
 
 const (
-	MetricType_UNKNOWN MetricType = iota
+	MetricTypeUNKNOWN MetricType = iota
 
 	MetricType_COUNTER
 	MetricType_GAUGE
@@ -34,6 +35,7 @@ const (
 	MetricType_SUMMARY_VEC
 )
 
+// Value returns the value as an int
 func (a MetricType) Value() int {
 	return int(a)
 }
@@ -61,41 +63,49 @@ func (a MetricType) String() string {
 	}
 }
 
+// Counter aggregates the metric along with its opts
 type Counter struct {
 	prometheus.Counter
 	*prometheus.CounterOpts
 }
 
+// CounterVec aggregates the metric along with its opts
 type CounterVec struct {
 	*prometheus.CounterVec
 	*CounterVecOpts
 }
 
+// Gauge aggregates the metric along with its opts
 type Gauge struct {
 	prometheus.Gauge
 	*prometheus.GaugeOpts
 }
 
+// GaugeVec aggregates the metric along with its opts
 type GaugeVec struct {
 	*prometheus.GaugeVec
 	*GaugeVecOpts
 }
 
+// Histogram aggregates the metric along with its opts
 type Histogram struct {
 	prometheus.Histogram
 	*prometheus.HistogramOpts
 }
 
+// HistogramVec aggregates the metric along with its opts
 type HistogramVec struct {
 	*prometheus.HistogramVec
 	*HistogramVecOpts
 }
 
+// Summary aggregates the metric along with its opts
 type Summary struct {
 	prometheus.Summary
 	*prometheus.SummaryOpts
 }
 
+// SummaryVec aggregates the metric along with its opts
 type SummaryVec struct {
 	*prometheus.SummaryVec
 	*SummaryVecOpts

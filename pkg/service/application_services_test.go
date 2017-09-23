@@ -235,8 +235,6 @@ func BServiceClientConstructor(app service.Application) service.Client {
 			case <-ctx.StopTrigger():
 				return nil
 			}
-
-			return nil
 		}
 
 		version, err := semver.NewVersion("1.0.0")

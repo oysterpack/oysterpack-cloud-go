@@ -17,8 +17,12 @@ package metrics
 import "errors"
 
 var (
+	// MetricAlreadyRegisteredWithDifferentOpts indicates a metric opts collision
 	MetricAlreadyRegisteredWithDifferentOpts = errors.New("MetricAlreadyRegisteredWithDifferentOpts")
-	MetricNameUsedByDifferentMetricType      = errors.New("MetricNameUsedByDifferentMetricType")
-	MetricNameCannotBeBlank                  = errors.New("MetricNameCannotBeBlank")
-	MetricAlreadyRegistered                  = errors.New("MetricAlreadyRegistered")
+	// MetricNameUsedByDifferentMetricType indicates the metric name collision between different metric types
+	MetricNameUsedByDifferentMetricType = errors.New("MetricNameUsedByDifferentMetricType")
+	// MetricNameCannotBeBlank metric name is required and cannot be blank
+	MetricNameCannotBeBlank = errors.New("MetricNameCannotBeBlank")
+	// MetricAlreadyRegistered indicates a metric name collision
+	MetricAlreadyRegistered = errors.New("MetricAlreadyRegistered")
 )
