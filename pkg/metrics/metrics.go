@@ -75,8 +75,8 @@ type CounterVec struct {
 	*CounterVecOpts
 }
 
-func NewCounterVec(opts CounterVecOpts) *CounterVec {
-	return &CounterVec{prometheus.NewCounterVec(opts.CounterOpts, opts.Labels), &opts}
+func NewCounterVec(opts *CounterVecOpts) *CounterVec {
+	return &CounterVec{prometheus.NewCounterVec(*opts.CounterOpts, opts.Labels), opts}
 }
 
 type Gauge struct {
@@ -84,8 +84,8 @@ type Gauge struct {
 	*prometheus.GaugeOpts
 }
 
-func NewGauge(opts prometheus.GaugeOpts) *Gauge {
-	return &Gauge{prometheus.NewGauge(opts), &opts}
+func NewGauge(opts *prometheus.GaugeOpts) *Gauge {
+	return &Gauge{prometheus.NewGauge(*opts), opts}
 }
 
 type GaugeVec struct {
@@ -93,8 +93,8 @@ type GaugeVec struct {
 	*GaugeVecOpts
 }
 
-func NewGaugeVec(opts GaugeVecOpts) *GaugeVec {
-	return &GaugeVec{prometheus.NewGaugeVec(opts.GaugeOpts, opts.Labels), &opts}
+func NewGaugeVec(opts *GaugeVecOpts) *GaugeVec {
+	return &GaugeVec{prometheus.NewGaugeVec(*opts.GaugeOpts, opts.Labels), opts}
 }
 
 type Histogram struct {
@@ -102,8 +102,8 @@ type Histogram struct {
 	*prometheus.HistogramOpts
 }
 
-func NewHistogram(opts prometheus.HistogramOpts) *Histogram {
-	return &Histogram{prometheus.NewHistogram(opts), &opts}
+func NewHistogram(opts *prometheus.HistogramOpts) *Histogram {
+	return &Histogram{prometheus.NewHistogram(*opts), opts}
 }
 
 type HistogramVec struct {
@@ -111,8 +111,8 @@ type HistogramVec struct {
 	*HistogramVecOpts
 }
 
-func NewHistogramVec(opts HistogramVecOpts) *HistogramVec {
-	return &HistogramVec{prometheus.NewHistogramVec(opts.HistogramOpts, opts.Labels), &opts}
+func NewHistogramVec(opts *HistogramVecOpts) *HistogramVec {
+	return &HistogramVec{prometheus.NewHistogramVec(opts.HistogramOpts, opts.Labels), opts}
 }
 
 type Summary struct {
@@ -120,8 +120,8 @@ type Summary struct {
 	*prometheus.SummaryOpts
 }
 
-func NewSummary(opts prometheus.SummaryOpts) *Summary {
-	return &Summary{prometheus.NewSummary(opts), &opts}
+func NewSummary(opts *prometheus.SummaryOpts) *Summary {
+	return &Summary{prometheus.NewSummary(*opts), opts}
 }
 
 type SummaryVec struct {
@@ -129,6 +129,6 @@ type SummaryVec struct {
 	*SummaryVecOpts
 }
 
-func NewSummaryVec(opts SummaryVecOpts) *SummaryVec {
-	return &SummaryVec{prometheus.NewSummaryVec(opts.SummaryOpts, opts.Labels), &opts}
+func NewSummaryVec(opts *SummaryVecOpts) *SummaryVec {
+	return &SummaryVec{prometheus.NewSummaryVec(opts.SummaryOpts, opts.Labels), opts}
 }

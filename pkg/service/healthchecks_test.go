@@ -27,9 +27,9 @@ import (
 )
 
 func TestService_HealthChecks(t *testing.T) {
-	registryBackup := metrics.Registry
+	defer metrics.ResetRegistry()
+	metrics.ResetRegistry()
 	metrics.Registry = prometheus.NewPedanticRegistry()
-	defer func() { metrics.Registry = registryBackup }()
 
 	var error1, error2, error3 *error
 
@@ -81,9 +81,9 @@ func TestService_HealthChecks(t *testing.T) {
 }
 
 func TestService_RunAllHealthChecks(t *testing.T) {
-	registryBackup := metrics.Registry
+	defer metrics.ResetRegistry()
+	metrics.ResetRegistry()
 	metrics.Registry = prometheus.NewPedanticRegistry()
-	defer func() { metrics.Registry = registryBackup }()
 
 	var error1, error2, error3 *error
 
@@ -141,9 +141,9 @@ func TestService_RunAllHealthChecks(t *testing.T) {
 }
 
 func TestService_RunAllFailedHealthChecks(t *testing.T) {
-	registryBackup := metrics.Registry
+	defer metrics.ResetRegistry()
+	metrics.ResetRegistry()
 	metrics.Registry = prometheus.NewPedanticRegistry()
-	defer func() { metrics.Registry = registryBackup }()
 
 	var error1, error2, error3 *error
 

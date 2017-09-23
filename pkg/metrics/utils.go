@@ -15,6 +15,8 @@
 package metrics
 
 import (
+	"sort"
+
 	"github.com/oysterpack/oysterpack.go/pkg/commons/collections"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
@@ -37,6 +39,12 @@ func CounterFQName(opts *prometheus.CounterOpts) string {
 	return MetricFQName(&o)
 }
 
+// GaugeFQName returns the fully qualified name for the counter.
+func GaugeFQName(opts *prometheus.GaugeOpts) string {
+	o := prometheus.Opts(*opts)
+	return MetricFQName(&o)
+}
+
 func MetricFQName(opts *prometheus.Opts) string {
 	return prometheus.BuildFQName(opts.Namespace, opts.Subsystem, opts.Name)
 }
@@ -51,9 +59,58 @@ func CounterOptsMatch(opts1, opts2 *prometheus.CounterOpts) bool {
 		return false
 	}
 
-	if !collections.StringMapEquals(opts1.ConstLabels, opts2.ConstLabels) {
+	if !collections.StringMapsAreEqual(opts1.ConstLabels, opts2.ConstLabels) {
 		return false
 	}
 
 	return true
+}
+
+// CounterVecOptsMatch return true if the 2 opts match
+func CounterVecOptsMatch(opts1, opts2 *CounterVecOpts) bool {
+	if opts1 == nil && opts2 == nil {
+		return true
+	}
+	if opts1 == nil || opts2 == nil {
+		return false
+	}
+	if !CounterOptsMatch(opts1.CounterOpts, opts2.CounterOpts) {
+		return false
+	}
+	sort.Strings(opts1.Labels)
+	sort.Strings(opts2.Labels)
+	return collections.StringSlicesAreEqual(opts1.Labels, opts2.Labels)
+}
+
+// GaugeOptsMatch return true if the 2 opts match
+func GaugeOptsMatch(opts1, opts2 *prometheus.GaugeOpts) bool {
+	if GaugeFQName(opts1) != GaugeFQName(opts2) {
+		return false
+	}
+
+	if opts1.Help != opts2.Help {
+		return false
+	}
+
+	if !collections.StringMapsAreEqual(opts1.ConstLabels, opts2.ConstLabels) {
+		return false
+	}
+
+	return true
+}
+
+// GaugeVecOptsMatch return true if the 2 opts match
+func GaugeVecOptsMatch(opts1, opts2 *GaugeVecOpts) bool {
+	if opts1 == nil && opts2 == nil {
+		return true
+	}
+	if opts1 == nil || opts2 == nil {
+		return false
+	}
+	if !GaugeOptsMatch(opts1.GaugeOpts, opts2.GaugeOpts) {
+		return false
+	}
+	sort.Strings(opts1.Labels)
+	sort.Strings(opts2.Labels)
+	return collections.StringSlicesAreEqual(opts1.Labels, opts2.Labels)
 }

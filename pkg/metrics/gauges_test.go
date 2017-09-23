@@ -23,44 +23,44 @@ import (
 	"github.com/prometheus/client_model/go"
 )
 
-func TestCounters_GetOrMustRegisterCounter(t *testing.T) {
+func TestGauges_GetOrMustRegisterGauge(t *testing.T) {
 	defer metrics.ResetRegistry()
 
-	opts := &prometheus.CounterOpts{
-		Name: "counter1",
-		Help: "Counter #1",
+	opts := &prometheus.GaugeOpts{
+		Name: "gauge1",
+		Help: "Gauge #1",
 	}
 
-	counter := metrics.GetOrMustRegisterCounter(opts)
-	counter.Inc()
-	metrics.GetOrMustRegisterCounter(opts).Inc()
-	metrics.GetCounter(metrics.CounterFQName(opts)).Inc()
-	metrics.Counters()[0].Inc()
+	gauge := metrics.GetOrMustRegisterGauge(opts)
+	gauge.Inc()
+	metrics.GetOrMustRegisterGauge(opts).Inc()
+	metrics.GetGauge(metrics.GaugeFQName(opts)).Inc()
+	metrics.Gauges()[0].Inc()
 
-	// check the same counter was incremented
+	// check the same gauge was incremented
 	c := make(chan prometheus.Metric, 1)
-	counter.Collect(c)
+	gauge.Collect(c)
 	collectedMetric := <-c
 	metric := &io_prometheus_client.Metric{}
 	collectedMetric.Write(metric)
-	if *metric.Counter.Value != 4 {
-		t.Error("counter value should be 4")
+	if *metric.Gauge.Value != 4 {
+		t.Error("gauge value should be 4")
 	}
 
-	if len(metrics.CounterNames()) != 1 || metrics.CounterNames()[0] != metrics.CounterFQName(opts) {
-		t.Errorf("Counter name %q was not returned : %v", metrics.CounterFQName(opts), metrics.CounterNames())
+	if len(metrics.GaugeNames()) != 1 || metrics.GaugeNames()[0] != metrics.GaugeFQName(opts) {
+		t.Errorf("Gauge name %q was not returned : %v", metrics.GaugeFQName(opts), metrics.GaugeNames())
 	}
 
 	func() {
 		defer func() {
 			if p := recover(); p == nil {
-				t.Errorf("The counter is already registered but with different opts should have triggered a panic")
+				t.Errorf("The gauge is already registered but with different opts should have triggered a panic")
 			} else {
 				t.Logf("panic : %v", p)
 			}
 
 		}()
-		metrics.GetOrMustRegisterCounter(&prometheus.CounterOpts{
+		metrics.GetOrMustRegisterGauge(&prometheus.GaugeOpts{
 			Name:        opts.Name,
 			Help:        opts.Help,
 			ConstLabels: map[string]string{"a": "b"},
@@ -70,14 +70,14 @@ func TestCounters_GetOrMustRegisterCounter(t *testing.T) {
 	func() {
 		defer func() {
 			if p := recover(); p == nil {
-				t.Errorf("The counter is already registered but with different opts should have triggered a panic")
+				t.Errorf("The gauge is already registered but with different opts should have triggered a panic")
 			} else {
 				t.Logf("panic : %v", p)
 			}
 
 		}()
-		metrics.GetOrMustRegisterCounterVec(&metrics.CounterVecOpts{
-			CounterOpts: &prometheus.CounterOpts{
+		metrics.GetOrMustRegisterGaugeVec(&metrics.GaugeVecOpts{
+			GaugeOpts: &prometheus.GaugeOpts{
 				Name:        opts.Name,
 				Help:        opts.Help,
 				ConstLabels: map[string]string{"a": "b"},
@@ -87,26 +87,26 @@ func TestCounters_GetOrMustRegisterCounter(t *testing.T) {
 
 }
 
-func TestCounters_GetOrMustRegisterCounter_NameCollisionWithCounterVec(t *testing.T) {
+func TestGauges_GetOrMustRegisterGauge_NameCollisionWithGaugeVec(t *testing.T) {
 	defer metrics.ResetRegistry()
 
-	opts := &prometheus.CounterOpts{
-		Name: "counter1",
-		Help: "Counter #1",
+	opts := &prometheus.GaugeOpts{
+		Name: "gauge1",
+		Help: "Gauge #1",
 	}
-	metrics.GetOrMustRegisterCounterVec(&metrics.CounterVecOpts{CounterOpts: opts})
-	metrics.GetOrMustRegisterCounterVec(&metrics.CounterVecOpts{CounterOpts: opts})
+	metrics.GetOrMustRegisterGaugeVec(&metrics.GaugeVecOpts{GaugeOpts: opts})
+	metrics.GetOrMustRegisterGaugeVec(&metrics.GaugeVecOpts{GaugeOpts: opts})
 
 	func() {
 		defer func() {
 			if p := recover(); p == nil {
-				t.Errorf("The counter is already registered but with different opts should have triggered a panic")
+				t.Errorf("The gauge is already registered but with different opts should have triggered a panic")
 			} else {
 				t.Logf("panic : %v", p)
 			}
 
 		}()
-		metrics.GetOrMustRegisterCounter(opts)
+		metrics.GetOrMustRegisterGauge(opts)
 	}()
 
 }

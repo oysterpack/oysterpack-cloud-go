@@ -38,8 +38,9 @@ func TestRegisteringMetricsOfDifferentTypesWithSameFullyQualifiedNamesShouldFail
 	}
 
 	// different metric types with the same name are not allowed
-	counterVec1Opts := metrics.NewCounterVecOpts(prometheus.CounterOpts(metric1Opts), "a", "b")
-	if err := registry.Register(prometheus.NewCounterVec(counterVec1Opts.CounterOpts, counterVec1Opts.Labels)); err == nil {
+	counterOpts := prometheus.CounterOpts(metric1Opts)
+	counterVec1Opts := metrics.NewCounterVecOpts(&counterOpts, "a", "b")
+	if err := registry.Register(prometheus.NewCounterVec(*counterVec1Opts.CounterOpts, counterVec1Opts.Labels)); err == nil {
 		t.Error("should have failed because the counter metric has the same fully-qualified name")
 	} else {
 		t.Logf("Failed to register counter vector : %v", err)
@@ -49,8 +50,10 @@ func TestRegisteringMetricsOfDifferentTypesWithSameFullyQualifiedNamesShouldFail
 	} else {
 		t.Logf("Failed to register gauge : %v", err)
 	}
-	gaugeVec1Opts := metrics.NewGaugeVecOpts(prometheus.GaugeOpts(metric1Opts), "a", "b", "c")
-	if err := registry.Register(prometheus.NewGaugeVec(gaugeVec1Opts.GaugeOpts, gaugeVec1Opts.Labels)); err == nil {
+
+	gaugeOpts := prometheus.GaugeOpts(metric1Opts)
+	gaugeVec1Opts := metrics.NewGaugeVecOpts(&gaugeOpts, "a", "b", "c")
+	if err := registry.Register(prometheus.NewGaugeVec(*gaugeVec1Opts.GaugeOpts, gaugeVec1Opts.Labels)); err == nil {
 		t.Error("should have failed because the previous metric has the same fully-qualified name")
 	} else {
 		t.Logf("Failed to register gauge vector : %v", err)

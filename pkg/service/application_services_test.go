@@ -229,7 +229,13 @@ func BServiceClientConstructor(app service.Application) service.Client {
 	serviceClient.RestartableService = service.NewRestartableService(func() service.Service {
 
 		var init service.Init = func(ctx *service.Context) error {
-			<-app.ServiceByTypeAsync(AServiceInterface).Channel()
+			select {
+			case <-app.ServiceByTypeAsync(AServiceInterface).Channel():
+				return nil
+			case <-ctx.StopTrigger():
+				return nil
+			}
+
 			return nil
 		}
 

@@ -30,6 +30,9 @@ var (
 
 	countersMap    = map[string]*Counter{}
 	counterVecsMap = map[string]*CounterVec{}
+
+	gaugesMap    = map[string]*Gauge{}
+	gaugeVecsMap = map[string]*GaugeVec{}
 )
 
 // NewRegistry creates a new registry.
@@ -51,6 +54,8 @@ func ResetRegistry() {
 	Registry = NewRegistry(true)
 	countersMap = map[string]*Counter{}
 	counterVecsMap = map[string]*CounterVec{}
+	gaugesMap = map[string]*Gauge{}
+	gaugeVecsMap = map[string]*GaugeVec{}
 }
 
 // Registered returns true if a metric is registered with the same name
@@ -65,6 +70,12 @@ func registered(name string) bool {
 		return true
 	}
 	if _, exists := counterVecsMap[name]; exists {
+		return true
+	}
+	if _, exists := gaugesMap[name]; exists {
+		return true
+	}
+	if _, exists := gaugeVecsMap[name]; exists {
 		return true
 	}
 

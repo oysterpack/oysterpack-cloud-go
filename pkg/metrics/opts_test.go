@@ -24,7 +24,7 @@ import (
 )
 
 func TestNewCounterVecOpts_TrimmingAndSortingLabel(t *testing.T) {
-	opts := metrics.NewCounterVecOpts(prometheus.CounterOpts{Name: " ABC ", Help: " XYZ"}, "  b  ", " a   ")
+	opts := metrics.NewCounterVecOpts(&prometheus.CounterOpts{Name: " ABC ", Help: " XYZ"}, "  b  ", " a   ")
 	if opts.Name != "ABC" {
 		t.Errorf("Name have been trimmed, but was %q", opts.Name)
 	}
@@ -43,7 +43,7 @@ func TestNewCounterVecOpts_ChecksFail(t *testing.T) {
 				t.Error("Opts should have failed checks and triggered panic")
 			}
 		}()
-		metrics.NewCounterVecOpts(prometheus.CounterOpts{}, "  b  ", " a   ")
+		metrics.NewCounterVecOpts(&prometheus.CounterOpts{}, "  b  ", " a   ")
 	}()
 
 	func() {
@@ -52,7 +52,7 @@ func TestNewCounterVecOpts_ChecksFail(t *testing.T) {
 				t.Error("Opts should have failed checks and triggered panic")
 			}
 		}()
-		metrics.NewCounterVecOpts(prometheus.CounterOpts{Name: "sfsdf"}, "  b  ", " a   ")
+		metrics.NewCounterVecOpts(&prometheus.CounterOpts{Name: "sfsdf"}, "  b  ", " a   ")
 	}()
 
 	func() {
@@ -61,7 +61,7 @@ func TestNewCounterVecOpts_ChecksFail(t *testing.T) {
 				t.Error("Opts should have failed checks and triggered panic")
 			}
 		}()
-		metrics.NewCounterVecOpts(prometheus.CounterOpts{Name: "   "}, "  b  ", " a   ")
+		metrics.NewCounterVecOpts(&prometheus.CounterOpts{Name: "   "}, "  b  ", " a   ")
 	}()
 
 	func() {
@@ -70,7 +70,7 @@ func TestNewCounterVecOpts_ChecksFail(t *testing.T) {
 				t.Error("Opts should have failed checks and triggered panic")
 			}
 		}()
-		metrics.NewCounterVecOpts(prometheus.CounterOpts{Help: "sdfsdfsdf"}, "  b  ", " a   ")
+		metrics.NewCounterVecOpts(&prometheus.CounterOpts{Help: "sdfsdfsdf"}, "  b  ", " a   ")
 	}()
 
 	func() {
@@ -79,7 +79,7 @@ func TestNewCounterVecOpts_ChecksFail(t *testing.T) {
 				t.Error("Opts should have failed checks and triggered panic")
 			}
 		}()
-		metrics.NewCounterVecOpts(prometheus.CounterOpts{Help: "   "}, "  b  ", " a   ")
+		metrics.NewCounterVecOpts(&prometheus.CounterOpts{Help: "   "}, "  b  ", " a   ")
 	}()
 
 	func() {
@@ -88,12 +88,12 @@ func TestNewCounterVecOpts_ChecksFail(t *testing.T) {
 				t.Error("Opts should have failed checks and triggered panic")
 			}
 		}()
-		metrics.NewCounterVecOpts(prometheus.CounterOpts{Name: "a", Help: "a"}, "  ", " a   ")
+		metrics.NewCounterVecOpts(&prometheus.CounterOpts{Name: "a", Help: "a"}, "  ", " a   ")
 	}()
 }
 
 func TestNewGaugeVecOpts_TrimmingAndSortingLabel(t *testing.T) {
-	opts := metrics.NewGaugeVecOpts(prometheus.GaugeOpts{Name: " ABC ", Help: " XYZ"}, "  b  ", " a   ")
+	opts := metrics.NewGaugeVecOpts(&prometheus.GaugeOpts{Name: " ABC ", Help: " XYZ"}, "  b  ", " a   ")
 	if opts.Name != "ABC" {
 		t.Errorf("Name have been trimmed, but was %q", opts.Name)
 	}
@@ -112,7 +112,7 @@ func TestNewGaugeVecOpts_ChecksFail(t *testing.T) {
 				t.Error("Opts should have failed checks and triggered panic")
 			}
 		}()
-		metrics.NewGaugeVecOpts(prometheus.GaugeOpts{}, "  b  ", " a   ")
+		metrics.NewGaugeVecOpts(&prometheus.GaugeOpts{}, "  b  ", " a   ")
 	}()
 
 	func() {
@@ -121,7 +121,7 @@ func TestNewGaugeVecOpts_ChecksFail(t *testing.T) {
 				t.Error("Opts should have failed checks and triggered panic")
 			}
 		}()
-		metrics.NewGaugeVecOpts(prometheus.GaugeOpts{Name: "sfsdf"}, "  b  ", " a   ")
+		metrics.NewGaugeVecOpts(&prometheus.GaugeOpts{Name: "sfsdf"}, "  b  ", " a   ")
 	}()
 
 	func() {
@@ -130,7 +130,7 @@ func TestNewGaugeVecOpts_ChecksFail(t *testing.T) {
 				t.Error("Opts should have failed checks and triggered panic")
 			}
 		}()
-		metrics.NewGaugeVecOpts(prometheus.GaugeOpts{Name: "   "}, "  b  ", " a   ")
+		metrics.NewGaugeVecOpts(&prometheus.GaugeOpts{Name: "   "}, "  b  ", " a   ")
 	}()
 
 	func() {
@@ -139,7 +139,7 @@ func TestNewGaugeVecOpts_ChecksFail(t *testing.T) {
 				t.Error("Opts should have failed checks and triggered panic")
 			}
 		}()
-		metrics.NewGaugeVecOpts(prometheus.GaugeOpts{Help: "sdfsdfsdf"}, "  b  ", " a   ")
+		metrics.NewGaugeVecOpts(&prometheus.GaugeOpts{Help: "sdfsdfsdf"}, "  b  ", " a   ")
 	}()
 
 	func() {
@@ -148,7 +148,7 @@ func TestNewGaugeVecOpts_ChecksFail(t *testing.T) {
 				t.Error("Opts should have failed checks and triggered panic")
 			}
 		}()
-		metrics.NewGaugeVecOpts(prometheus.GaugeOpts{Help: "   "}, "  b  ", " a   ")
+		metrics.NewGaugeVecOpts(&prometheus.GaugeOpts{Help: "   "}, "  b  ", " a   ")
 	}()
 
 	func() {
@@ -157,7 +157,7 @@ func TestNewGaugeVecOpts_ChecksFail(t *testing.T) {
 				t.Error("Opts should have failed checks and triggered panic")
 			}
 		}()
-		metrics.NewGaugeVecOpts(prometheus.GaugeOpts{Name: "a", Help: "a"}, "  ", " a   ")
+		metrics.NewGaugeVecOpts(&prometheus.GaugeOpts{Name: "a", Help: "a"}, "  ", " a   ")
 	}()
 }
 

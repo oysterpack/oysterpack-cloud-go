@@ -66,11 +66,6 @@ type HealthCheck interface {
 	StartTicker()
 	// Scheduled returns true if the healthcheck is scheduled to run
 	Scheduled() bool
-
-	// MustRegister panics if registration fails
-	MustRegister(registerer prometheus.Registerer)
-	// Register returns an error if registration fails
-	Register(registerer prometheus.Registerer) error
 }
 
 // HealthCheckKey health check unique metric key
@@ -225,21 +220,21 @@ func (a *healthcheck) String() string {
 	return fmt.Sprintf("%v : %v", a.Key(), a.Help())
 }
 
-// MustRegister panics if registration fails
-func (a *healthcheck) MustRegister(registerer prometheus.Registerer) {
-	registerer.MustRegister(a.gauge, a.durationGauge, a.runCounter)
-}
-
-// Register returns an error if registration fails
-func (a *healthcheck) Register(registerer prometheus.Registerer) error {
-	if err := registerer.Register(a.gauge); err != nil {
-		return err
-	}
-	if err := registerer.Register(a.durationGauge); err != nil {
-		return err
-	}
-	return registerer.Register(a.runCounter)
-}
+//// MustRegister panics if registration fails
+//func (a *healthcheck) MustRegister(registerer prometheus.Registerer) {
+//	registerer.MustRegister(a.gauge, a.durationGauge, a.runCounter)
+//}
+//
+//// Register returns an error if registration fails
+//func (a *healthcheck) Register(registerer prometheus.Registerer) error {
+//	if err := registerer.Register(a.gauge); err != nil {
+//		return err
+//	}
+//	if err := registerer.Register(a.durationGauge); err != nil {
+//		return err
+//	}
+//	return registerer.Register(a.runCounter)
+//}
 
 // RunInterval if 0, then the healthcheck is not run on an interval
 func (a *healthcheck) RunInterval() time.Duration {
@@ -285,6 +280,7 @@ func (a *healthcheck) Scheduled() bool {
 
 // NewHealthCheck creates a new HealthCheck.
 // check is required - panics if nil.
+// The healthcheck metrics are registered. Failing to registering the metrics will trigger a panic.
 func NewHealthCheck(opts prometheus.GaugeOpts, runInterval time.Duration, check RunHealthCheck) HealthCheck {
 	if check == nil {
 		panic("check is required")
@@ -298,16 +294,27 @@ func NewHealthCheck(opts prometheus.GaugeOpts, runInterval time.Duration, check 
 		ConstLabels: opts.ConstLabels,
 	}
 
+	// check for metric collision
+	if Registered(CounterFQName(&counterOpts)) {
+		logger.Panic().Err(MetricAlreadyRegistered).Msg("")
+	}
+
 	a := &healthcheck{
 		opts:        opts,
 		run:         check,
-		gauge:       prometheus.NewGauge(opts),
-		runCounter:  prometheus.NewCounter(counterOpts),
+		gauge:       GetOrMustRegisterGauge(&opts),
+		runCounter:  GetOrMustRegisterCounter(&counterOpts),
 		runInterval: runInterval,
 	}
-	opts.Name = fmt.Sprintf("%s_duration_seconds", opts.Name)
-	opts.Help = "healthcheck run duration"
-	a.durationGauge = prometheus.NewGauge(opts)
+
+	durationGaugeOpts := prometheus.GaugeOpts{
+		Namespace:   opts.Namespace,
+		Subsystem:   opts.Subsystem,
+		Name:        fmt.Sprintf("%s_duration_seconds", opts.Name),
+		Help:        "healthcheck run duration",
+		ConstLabels: opts.ConstLabels,
+	}
+	a.durationGauge = GetOrMustRegisterGauge(&durationGaugeOpts)
 	a.StartTicker()
 	return a
 }

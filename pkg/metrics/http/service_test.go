@@ -32,8 +32,6 @@ func TestService(t *testing.T) {
 	client := <-service.App().ServiceByTypeAsync(metricsService.MetricsServiceInterface).Channel()
 	client.Service().AwaitUntilRunning()
 
-	service := client.(metricsService.Service)
-
 	var ping metrics.RunHealthCheck = func() error {
 		return nil
 	}
@@ -43,7 +41,6 @@ func TestService(t *testing.T) {
 		Help: "ping always succeeds",
 	}
 	pingCheck := metrics.NewHealthCheck(opts, 0, ping)
-	pingCheck.MustRegister(service.Registry())
 	pingCheck.Run()
 
 	body, err := getMetrics()

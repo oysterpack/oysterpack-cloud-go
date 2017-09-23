@@ -224,7 +224,6 @@ func NewService(settings Settings) Service {
 	}
 
 	checkSettings(settings)
-	mustRegisterHealthChecks(settings)
 	init = trapPanics(init, "Service.init()")
 	instrumentRun()
 	destroy = trapPanics(destroy, "Service.destroy()")
@@ -248,22 +247,6 @@ func checkSettings(settings Settings) {
 
 	if settings.Version == nil {
 		logger.Panic().Str(logging.SERVICE, serviceInterface.String()).Msgf("Failed to create new service because it has no version")
-	}
-}
-
-// panics if healthcheck metrics fail to register
-func mustRegisterHealthChecks(settings Settings) {
-	for _, healthcheck := range settings.HealthChecks {
-		errors := []error{}
-		if err := healthcheck.Register(metrics.Registry); err != nil {
-			errors = append(errors, err)
-		}
-		if len(errors) > 0 {
-			serviceKey := InterfaceToServiceKey(settings.ServiceInterface)
-			logger.Panic().Str(logging.SERVICE, serviceKey.String()).
-				Errs(logging.ERRORS, errors).
-				Msgf("healthcheck metric registration failed")
-		}
 	}
 }
 

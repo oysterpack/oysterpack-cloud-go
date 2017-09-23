@@ -24,32 +24,58 @@ func TestStringMapEquals(t *testing.T) {
 	m1 := map[string]string{}
 	m2 := map[string]string{}
 
-	if !collections.StringMapEquals(m1, m2) {
+	if !collections.StringMapsAreEqual(m1, m2) {
 		t.Errorf("both are empty maps, and thus should be equal")
 	}
 
 	m1["a"] = "a"
-	if collections.StringMapEquals(m1, m2) {
+	if collections.StringMapsAreEqual(m1, m2) {
 		t.Errorf("maps should not be equal")
 	}
 
 	m2["a"] = "a"
-	if !collections.StringMapEquals(m1, m2) {
+	if !collections.StringMapsAreEqual(m1, m2) {
 		t.Errorf("both maps should be equal")
 	}
 
 	m2["a"] = "b"
-	if collections.StringMapEquals(m1, m2) {
+	if collections.StringMapsAreEqual(m1, m2) {
 		t.Errorf("both maps should not be equal")
 	}
 
 	m1["a"] = "b"
-	if !collections.StringMapEquals(m1, m2) {
+	if !collections.StringMapsAreEqual(m1, m2) {
 		t.Errorf("maps should be equal")
 	}
 
 	m1["b"] = "b"
-	if collections.StringMapEquals(m1, m2) {
+	if collections.StringMapsAreEqual(m1, m2) {
 		t.Errorf("maps should not be equal")
 	}
+}
+
+func TestStringSlicesEquals(t *testing.T) {
+	s1 := []string{}
+	s2 := []string{}
+	if !collections.StringSlicesAreEqual(s1, s2) {
+		t.Error("slices should be equal")
+	}
+	s1 = append(s1, "a", "b")
+	s2 = append(s2, "a", "b")
+	if !collections.StringSlicesAreEqual(s1, s2) {
+		t.Error("slices should be equal")
+	}
+	s2[0], s2[1] = s2[1], s2[0]
+	if collections.StringSlicesAreEqual(s1, s2) {
+		t.Error("slices should not be equal")
+	}
+	s2 = s2[:1]
+	if collections.StringSlicesAreEqual(s1, s2) {
+		t.Error("slices should not be equal")
+	}
+	s2 = nil
+	if collections.StringSlicesAreEqual(s1, s2) {
+		t.Error("slices should not be equal")
+	}
+
 }

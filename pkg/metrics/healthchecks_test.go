@@ -27,6 +27,7 @@ import (
 )
 
 func TestRegisterHealthCheck_WithNoLabels(t *testing.T) {
+	defer metrics.ResetRegistry()
 	var ping metrics.RunHealthCheck = func() error {
 		return nil
 	}
@@ -36,7 +37,6 @@ func TestRegisterHealthCheck_WithNoLabels(t *testing.T) {
 		Help: "ping always succeeds",
 	}
 
-	registry := prometheus.NewPedanticRegistry()
 	pingCheck := metrics.NewHealthCheck(opts, 0, ping)
 	t.Log(pingCheck)
 
@@ -49,18 +49,10 @@ func TestRegisterHealthCheck_WithNoLabels(t *testing.T) {
 		t.Errorf("Last result did not match : %v != %v", result, pingCheck.LastResult())
 	}
 
-	if err := pingCheck.Register(registry); err != nil {
-		t.Errorf("ERROR: %v", err)
-	}
-
-	if err := pingCheck.Register(registry); err != nil {
-		t.Log(err)
-	} else if pingCheck != nil {
-		t.Error("ERROR: healthcheck should be nil")
-	}
 }
 
 func TestRegisterHealthCheck_CheckMetricsAreRegistered(t *testing.T) {
+	defer metrics.ResetRegistry()
 	var ping metrics.RunHealthCheck = func() error {
 		return nil
 	}
@@ -70,56 +62,53 @@ func TestRegisterHealthCheck_CheckMetricsAreRegistered(t *testing.T) {
 		Help: "ping always succeeds",
 	}
 
-	registry := prometheus.NewPedanticRegistry()
 	pingCheck := metrics.NewHealthCheck(opts, 0, ping)
-	if err := pingCheck.Register(registry); err != nil {
-		t.Errorf("ERROR: %v", err)
-	} else {
-		// registering the same metrics again should fail
-		if registry.Register(prometheus.NewGauge(opts)) == nil {
-			t.Error("Registration should have failed")
-		}
-		counterOpts := prometheus.CounterOpts{
-			Namespace:   opts.Namespace,
-			Subsystem:   opts.Subsystem,
-			Name:        fmt.Sprintf("%s_run_count", opts.Name),
-			Help:        "healthcheck run count",
-			ConstLabels: opts.ConstLabels,
-		}
-		if registry.Register(prometheus.NewCounter(counterOpts)) == nil {
-			t.Error("Registration should have failed")
-		}
-		durationOpts := prometheus.GaugeOpts{
-			Namespace:   opts.Namespace,
-			Subsystem:   opts.Subsystem,
-			Name:        fmt.Sprintf("%s_duration_seconds", opts.Name),
-			Help:        "healthcheck run duration",
-			ConstLabels: opts.ConstLabels,
-		}
-		if registry.Register(prometheus.NewGauge(durationOpts)) == nil {
-			t.Error("Registration should have failed")
-		}
 
-		t.Logf("result : %v", pingCheck.Run())
-		gatheredMetrics, err := registry.Gather()
-		if err != nil {
-			t.Errorf("Gathering metrics failed : %v", err)
-		}
+	// registering the same metrics again should fail
+	if metrics.Registry.Register(prometheus.NewGauge(opts)) == nil {
+		t.Error("Registration should have failed")
+	}
+	counterOpts := prometheus.CounterOpts{
+		Namespace:   opts.Namespace,
+		Subsystem:   opts.Subsystem,
+		Name:        fmt.Sprintf("%s_run_count", opts.Name),
+		Help:        "healthcheck run count",
+		ConstLabels: opts.ConstLabels,
+	}
+	if metrics.Registry.Register(prometheus.NewCounter(counterOpts)) == nil {
+		t.Error("Registration should have failed")
+	}
+	durationOpts := prometheus.GaugeOpts{
+		Namespace:   opts.Namespace,
+		Subsystem:   opts.Subsystem,
+		Name:        fmt.Sprintf("%s_duration_seconds", opts.Name),
+		Help:        "healthcheck run duration",
+		ConstLabels: opts.ConstLabels,
+	}
+	if metrics.Registry.Register(prometheus.NewGauge(durationOpts)) == nil {
+		t.Error("Registration should have failed")
+	}
 
-		if m := metrics.FindMetricFamilyByName(gatheredMetrics, opts.Name); m == nil {
-			t.Errorf("Metric was not found : %v", opts.Name)
-		}
-		if m := metrics.FindMetricFamilyByName(gatheredMetrics, counterOpts.Name); m == nil {
-			t.Errorf("Metric was not found : %v", counterOpts.Name)
-		}
-		if m := metrics.FindMetricFamilyByName(gatheredMetrics, durationOpts.Name); m == nil {
-			t.Errorf("Metric was not found : %v", counterOpts.Name)
-		}
+	t.Logf("result : %v", pingCheck.Run())
+	gatheredMetrics, err := metrics.Registry.Gather()
+	if err != nil {
+		t.Errorf("Gathering metrics failed : %v", err)
+	}
+
+	if m := metrics.FindMetricFamilyByName(gatheredMetrics, opts.Name); m == nil {
+		t.Errorf("Metric was not found : %v", opts.Name)
+	}
+	if m := metrics.FindMetricFamilyByName(gatheredMetrics, counterOpts.Name); m == nil {
+		t.Errorf("Metric was not found : %v", counterOpts.Name)
+	}
+	if m := metrics.FindMetricFamilyByName(gatheredMetrics, durationOpts.Name); m == nil {
+		t.Errorf("Metric was not found : %v", counterOpts.Name)
 	}
 
 }
 
 func TestNewHealthCheck_WithNilRunFunc(t *testing.T) {
+	defer metrics.ResetRegistry()
 	var ping metrics.RunHealthCheck
 
 	opts := prometheus.GaugeOpts{
@@ -138,6 +127,7 @@ func TestNewHealthCheck_WithNilRunFunc(t *testing.T) {
 }
 
 func TestRegisterHealthCheck_WithLabels(t *testing.T) {
+	defer metrics.ResetRegistry()
 	var ping metrics.RunHealthCheck = func() error {
 		return nil
 	}
@@ -148,7 +138,6 @@ func TestRegisterHealthCheck_WithLabels(t *testing.T) {
 		ConstLabels: map[string]string{"service": "Foo"},
 	}
 
-	registry := prometheus.NewPedanticRegistry()
 	pingCheck := metrics.NewHealthCheck(opts, 0, ping)
 	t.Log(pingCheck)
 
@@ -161,18 +150,10 @@ func TestRegisterHealthCheck_WithLabels(t *testing.T) {
 	}
 	pingCheck.Run()
 
-	if err := pingCheck.Register(registry); err != nil {
-		t.Errorf("ERROR: %v", err)
-	}
-
-	if err := pingCheck.Register(registry); err != nil {
-		t.Log(err)
-	} else if pingCheck != nil {
-		t.Error("ERROR: healthcheck should be nil")
-	}
 }
 
 func TestRegisterHealthCheck_WithRunInterval(t *testing.T) {
+	defer metrics.ResetRegistry()
 	var ping metrics.RunHealthCheck = func() error {
 		return nil
 	}
@@ -183,11 +164,9 @@ func TestRegisterHealthCheck_WithRunInterval(t *testing.T) {
 		ConstLabels: map[string]string{"service": "Foo"},
 	}
 
-	registry := prometheus.NewPedanticRegistry()
 	now := time.Now()
 	pingCheck := metrics.NewHealthCheck(opts, 5*time.Millisecond, ping)
 	t.Log(pingCheck)
-	pingCheck.MustRegister(registry)
 
 	time.Sleep(pingCheck.RunInterval() + 5*time.Millisecond)
 	if pingCheck.LastResult() == nil {
@@ -207,6 +186,7 @@ func TestRegisterHealthCheck_WithRunInterval(t *testing.T) {
 }
 
 func TestHealthcheck_Run_Error(t *testing.T) {
+	defer metrics.ResetRegistry()
 	var ping metrics.RunHealthCheck = func() error {
 		return errors.New("BOOM !!!")
 	}
@@ -217,10 +197,9 @@ func TestHealthcheck_Run_Error(t *testing.T) {
 		ConstLabels: map[string]string{"service": "Foo"},
 	}
 
-	registry := prometheus.NewPedanticRegistry()
 	pingCheck := metrics.NewHealthCheck(opts, 5*time.Millisecond, ping)
 	t.Log(pingCheck)
-	pingCheck.MustRegister(registry)
+
 	now := time.Now()
 	result := pingCheck.Run()
 	t.Logf("result : %v", result)
@@ -238,6 +217,7 @@ func TestHealthcheck_Run_Error(t *testing.T) {
 }
 
 func TestHealthcheck_Run_Panic(t *testing.T) {
+	defer metrics.ResetRegistry()
 	var ping metrics.RunHealthCheck = func() error {
 		panic("BOOM !!!")
 	}
@@ -248,10 +228,9 @@ func TestHealthcheck_Run_Panic(t *testing.T) {
 		ConstLabels: map[string]string{"service": "Foo"},
 	}
 
-	registry := prometheus.NewPedanticRegistry()
 	pingCheck := metrics.NewHealthCheck(opts, 5*time.Millisecond, ping)
 	t.Log(pingCheck)
-	pingCheck.MustRegister(registry)
+
 	now := time.Now()
 	result := pingCheck.Run()
 	if result.Success() {

@@ -40,7 +40,7 @@ type MetricOpts struct {
 
 // CounterVecOpts represents the settings for a prometheus counter vector metric
 type CounterVecOpts struct {
-	prometheus.CounterOpts
+	*prometheus.CounterOpts
 
 	Labels []string
 }
@@ -49,7 +49,7 @@ type CounterVecOpts struct {
 // - name must not be blank
 // - help must not be blank
 // The returned opts has all string fields trimmed.
-func CheckCounterOpts(opts prometheus.CounterOpts) prometheus.CounterOpts {
+func CheckCounterOpts(opts *prometheus.CounterOpts) *prometheus.CounterOpts {
 	FUNC := "CheckCounterOpts"
 	opts.Name = strings.TrimSpace(opts.Name)
 	mustNotBeBlank(opts.Name, FUNC, "Name")
@@ -70,13 +70,13 @@ func CheckCounterOpts(opts prometheus.CounterOpts) prometheus.CounterOpts {
 // - opts.Help cannot be blank
 //
 // All string fields will be trimmed, i.e., opts and labels may be modified.
-func NewCounterVecOpts(opts prometheus.CounterOpts, label string, labels ...string) *CounterVecOpts {
+func NewCounterVecOpts(opts *prometheus.CounterOpts, label string, labels ...string) *CounterVecOpts {
 	return &CounterVecOpts{CounterOpts: CheckCounterOpts(opts), Labels: labelNames(label, labels...)}
 }
 
 // GaugeVecOpts represents the settings for a prometheus gauge vector metric
 type GaugeVecOpts struct {
-	prometheus.GaugeOpts
+	*prometheus.GaugeOpts
 	Labels []string
 }
 
@@ -84,7 +84,7 @@ type GaugeVecOpts struct {
 // - name must not be blank
 // - help must not be blank
 // The returned opts has all string fields trimmed.
-func CheckGaugeOpts(opts prometheus.GaugeOpts) prometheus.GaugeOpts {
+func CheckGaugeOpts(opts *prometheus.GaugeOpts) *prometheus.GaugeOpts {
 	FUNC := "CheckGaugeOpts"
 
 	opts.Name = strings.TrimSpace(opts.Name)
@@ -107,7 +107,7 @@ func CheckGaugeOpts(opts prometheus.GaugeOpts) prometheus.GaugeOpts {
 // - opts.Help cannot be blank
 //
 // All string fields will be trimmed, i.e., opts and labels may be modified.
-func NewGaugeVecOpts(opts prometheus.GaugeOpts, label string, labels ...string) *GaugeVecOpts {
+func NewGaugeVecOpts(opts *prometheus.GaugeOpts, label string, labels ...string) *GaugeVecOpts {
 	return &GaugeVecOpts{GaugeOpts: CheckGaugeOpts(opts), Labels: labelNames(label, labels...)}
 }
 

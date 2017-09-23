@@ -20,4 +20,5 @@ var (
 	MetricAlreadyRegisteredWithDifferentOpts = errors.New("MetricAlreadyRegisteredWithDifferentOpts")
 	MetricNameUsedByDifferentMetricType      = errors.New("MetricNameUsedByDifferentMetricType")
 	MetricNameCannotBeBlank                  = errors.New("MetricNameCannotBeBlank")
+	MetricAlreadyRegistered                  = errors.New("MetricAlreadyRegistered")
 )

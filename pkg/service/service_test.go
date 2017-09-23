@@ -384,7 +384,6 @@ func TestNewService_WithDupHealthChecks(t *testing.T) {
 
 	func() {
 		defer func() {
-			t.Helper()
 			if p := recover(); p == nil {
 				t.Error("registering dup metric should have triggered a panic")
 			} else {
