@@ -15,6 +15,10 @@
 package counter
 
 import (
+	"time"
+
+	"fmt"
+
 	"github.com/Masterminds/semver"
 	"github.com/oysterpack/oysterpack.go/pkg/commons/reflect"
 	"github.com/oysterpack/oysterpack.go/pkg/metrics"
@@ -87,11 +91,25 @@ func (a *server) newService() service.Service {
 	if err != nil {
 		panic(err)
 	}
+
+	healthchecks := []metrics.HealthCheck{
+		metrics.NewHealthCheck(
+			prometheus.GaugeOpts{Name: "running", Help: "Checks is the backend server is running"},
+			15*time.Second,
+			func() error {
+				if state := a.Service().State(); !state.Running() {
+					return fmt.Errorf("server is not running : %v", state)
+				}
+				return nil
+			}),
+	}
+
 	return service.NewService(service.Settings{
 		ServiceInterface: CounterServiceInterface,
 		Version:          version,
 		Run:              a.run,
 		Metrics:          metricOpts,
+		HealthChecks:     healthchecks,
 	})
 }
 
