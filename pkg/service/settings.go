@@ -17,6 +17,8 @@ package service
 import (
 	"io"
 
+	"fmt"
+
 	"github.com/Masterminds/semver"
 	"github.com/oysterpack/oysterpack.go/pkg/metrics"
 	"github.com/rs/zerolog"
@@ -45,6 +47,29 @@ type Settings struct {
 
 	// service related metrics
 	Metrics *metrics.MetricOpts
+}
+
+func (a *Settings) String() string {
+	info := make(map[string]interface{})
+
+	if a.ServiceInterface != nil {
+		info["package"] = a.ServiceInterface.PkgPath()
+		info["name"] = a.ServiceInterface.Name()
+	}
+
+	if a.Version != nil {
+		info["version"] = a.Version
+	}
+
+	if len(a.InterfaceDependencies) > 0 {
+		info["InterfaceDependencies"] = a.InterfaceDependencies
+	}
+
+	if len(a.HealthChecks) > 0 {
+		// TODO
+	}
+
+	return fmt.Sprintf("%v", info)
 }
 
 // LogSettings groups the log settings for the service

@@ -17,7 +17,9 @@ package counter
 import (
 	"github.com/Masterminds/semver"
 	"github.com/oysterpack/oysterpack.go/pkg/commons/reflect"
+	"github.com/oysterpack/oysterpack.go/pkg/metrics"
 	"github.com/oysterpack/oysterpack.go/pkg/service"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 // Version is the service version
@@ -54,6 +56,7 @@ func (a *server) run(ctx *service.Context) error {
 			a.counter++
 			replyTo <- a.counter
 		}
+		msgCounter.Inc()
 	}
 }
 
@@ -66,12 +69,30 @@ func (a *server) NextInt() (i uint64) {
 	return
 }
 
+var (
+	msgCounterOpts = &prometheus.CounterOpts{
+		Name: "msgs_processed",
+		Help: "The number of messages that have been processed",
+	}
+
+	msgCounter = metrics.GetOrMustRegisterCounter(msgCounterOpts)
+
+	metricOpts = &metrics.MetricOpts{
+		CounterOpts: []*prometheus.CounterOpts{msgCounterOpts},
+	}
+)
+
 func (a *server) newService() service.Service {
 	version, err := semver.NewVersion(Version)
 	if err != nil {
 		panic(err)
 	}
-	return service.NewService(service.Settings{ServiceInterface: CounterServiceInterface, Version: version, Run: a.run})
+	return service.NewService(service.Settings{
+		ServiceInterface: CounterServiceInterface,
+		Version:          version,
+		Run:              a.run,
+		Metrics:          metricOpts,
+	})
 }
 
 // ClientConstructor is the service ClientConstructor

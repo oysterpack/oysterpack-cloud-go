@@ -25,17 +25,17 @@ import (
 
 // MetricOpts is a collection of metric opts
 type MetricOpts struct {
-	CounterOpts    []prometheus.CounterOpts
-	CounterVecOpts []CounterVecOpts
+	CounterOpts    []*prometheus.CounterOpts
+	CounterVecOpts []*CounterVecOpts
 
-	GaugeOpts    []prometheus.GaugeOpts
-	GaugeVecOpts []GaugeVecOpts
+	GaugeOpts    []*prometheus.GaugeOpts
+	GaugeVecOpts []*GaugeVecOpts
 
-	HistogramOpts    []prometheus.HistogramOpts
-	HistogramVecOpts []HistogramVecOpts
+	HistogramOpts    []*prometheus.HistogramOpts
+	HistogramVecOpts []*HistogramVecOpts
 
-	SummaryOpts    []prometheus.SummaryOpts
-	SummaryVecOpts []SummaryVecOpts
+	SummaryOpts    []*prometheus.SummaryOpts
+	SummaryVecOpts []*SummaryVecOpts
 }
 
 // CounterVecOpts represents the settings for a prometheus counter vector metric

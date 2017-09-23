@@ -198,7 +198,7 @@ func NewService(settings Settings) Service {
 		if settings.LogLevel != nil {
 			svcLog = svcLog.Level(*settings.LogLevel)
 		}
-		svcLog.Info().Str(logging.FUNC, "NewService").Msg("")
+		logSettings(svcLog.Info().Str(logging.FUNC, "NewService"), &settings).Msg("")
 
 		svc := &service{
 			serviceInterface: serviceInterface,
@@ -220,10 +220,11 @@ func NewService(settings Settings) Service {
 		} else {
 			svc.metricOpts = settings.Metrics
 		}
+
 		return svc
 	}
 
-	checkSettings(settings)
+	checkSettings(&settings)
 	init = trapPanics(init, "Service.init()")
 	instrumentRun()
 	destroy = trapPanics(destroy, "Service.destroy()")
@@ -231,7 +232,7 @@ func NewService(settings Settings) Service {
 }
 
 // panics if settings are invalid
-func checkSettings(settings Settings) {
+func checkSettings(settings *Settings) {
 	serviceInterface := settings.ServiceInterface
 	if serviceInterface == nil {
 		logger.Panic().Msg("Failed to create new service because ServiceInterface is required")
@@ -248,6 +249,100 @@ func checkSettings(settings Settings) {
 	if settings.Version == nil {
 		logger.Panic().Str(logging.SERVICE, serviceInterface.String()).Msgf("Failed to create new service because it has no version")
 	}
+}
+
+func logSettings(log *zerolog.Event, settings *Settings) *zerolog.Event {
+	log.Str("Version", settings.Version.String())
+
+	if settings.InterfaceDependencies != nil {
+		deps := make([]string, len(settings.InterfaceDependencies))
+		i := 0
+		for k, v := range settings.InterfaceDependencies {
+			deps[i] = fmt.Sprintf("%v : %v", k, v)
+			i++
+		}
+		log.Strs("InterfaceDependencies", deps)
+	}
+
+	if len(settings.HealthChecks) > 0 {
+		names := make([]string, len(settings.HealthChecks))
+		for i, v := range settings.HealthChecks {
+			names[i] = v.Key().String()
+		}
+
+		log.Strs("HealthChecks", names)
+	}
+
+	if settings.Metrics != nil {
+		dict := zerolog.Dict()
+		if len(settings.Metrics.CounterOpts) > 0 {
+			names := make([]string, len(settings.Metrics.CounterOpts))
+			for i, v := range settings.Metrics.CounterOpts {
+				names[i] = metrics.CounterFQName(v)
+			}
+			dict.Strs("Counters", names)
+		}
+
+		if len(settings.Metrics.CounterVecOpts) > 0 {
+			names := make([]string, len(settings.Metrics.CounterVecOpts))
+			for i, v := range settings.Metrics.CounterVecOpts {
+				names[i] = metrics.CounterFQName(v.CounterOpts)
+			}
+			dict.Strs("CounterVecss", names)
+		}
+
+		if len(settings.Metrics.GaugeOpts) > 0 {
+			names := make([]string, len(settings.Metrics.GaugeOpts))
+			for i, v := range settings.Metrics.GaugeOpts {
+				names[i] = metrics.GaugeFQName(v)
+			}
+			dict.Strs("Gauges", names)
+		}
+
+		if len(settings.Metrics.GaugeVecOpts) > 0 {
+			names := make([]string, len(settings.Metrics.GaugeVecOpts))
+			for i, v := range settings.Metrics.GaugeVecOpts {
+				names[i] = metrics.GaugeFQName(v.GaugeOpts)
+			}
+			dict.Strs("GaugeVecs", names)
+		}
+
+		if len(settings.Metrics.HistogramOpts) > 0 {
+			names := make([]string, len(settings.Metrics.HistogramOpts))
+			for i, v := range settings.Metrics.HistogramOpts {
+				names[i] = metrics.HistogramFQName(v)
+			}
+			dict.Strs("Histograms", names)
+		}
+
+		if len(settings.Metrics.HistogramVecOpts) > 0 {
+			names := make([]string, len(settings.Metrics.HistogramVecOpts))
+			for i, v := range settings.Metrics.HistogramVecOpts {
+				names[i] = metrics.HistogramFQName(v.HistogramOpts)
+			}
+			dict.Strs("HistogramVecs", names)
+		}
+
+		if len(settings.Metrics.SummaryOpts) > 0 {
+			names := make([]string, len(settings.Metrics.SummaryOpts))
+			for i, v := range settings.Metrics.SummaryOpts {
+				names[i] = metrics.SummaryFQName(v)
+			}
+			dict.Strs("Summaries", names)
+		}
+
+		if len(settings.Metrics.SummaryVecOpts) > 0 {
+			names := make([]string, len(settings.Metrics.SummaryVecOpts))
+			for i, v := range settings.Metrics.SummaryVecOpts {
+				names[i] = metrics.SummaryFQName(v.SummaryOpts)
+			}
+			dict.Strs("SummaryVecs", names)
+		}
+
+		log.Dict("Metrics", dict)
+	}
+
+	return log
 }
 
 // MetricOpts returns the service related metrics
