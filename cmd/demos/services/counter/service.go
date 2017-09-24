@@ -19,7 +19,6 @@ import (
 
 	"fmt"
 
-	"github.com/Masterminds/semver"
 	"github.com/oysterpack/oysterpack.go/pkg/commons/reflect"
 	"github.com/oysterpack/oysterpack.go/pkg/metrics"
 	"github.com/oysterpack/oysterpack.go/pkg/service"
@@ -75,8 +74,9 @@ func (a *server) NextInt() (i uint64) {
 
 var (
 	msgCounterOpts = &prometheus.CounterOpts{
-		Name: "msgs_processed",
-		Help: "The number of messages that have been processed",
+		Name:        "msgs_processed",
+		Help:        "The number of messages that have been processed",
+		ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, CounterServiceInterface, service.NewVersion(Version)),
 	}
 
 	msgCounter = metrics.GetOrMustRegisterCounter(msgCounterOpts)
@@ -87,11 +87,6 @@ var (
 )
 
 func (a *server) newService() service.Service {
-	version, err := semver.NewVersion(Version)
-	if err != nil {
-		panic(err)
-	}
-
 	healthchecks := []metrics.HealthCheck{
 		metrics.NewHealthCheck(
 			prometheus.GaugeOpts{Name: "running", Help: "Checks is the backend server is running"},
@@ -106,7 +101,7 @@ func (a *server) newService() service.Service {
 
 	return service.NewService(service.Settings{
 		ServiceInterface: CounterServiceInterface,
-		Version:          version,
+		Version:          service.NewVersion(Version),
 		Run:              a.run,
 		Metrics:          metricOpts,
 		HealthChecks:     healthchecks,

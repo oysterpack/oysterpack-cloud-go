@@ -368,6 +368,9 @@ func TestNewService_WithHealthChecks(t *testing.T) {
 }
 
 func TestNewService_WithDupHealthChecks(t *testing.T) {
+	metrics.ResetRegistry()
+	defer metrics.ResetRegistry()
+
 	var ping metrics.RunHealthCheck = func() error {
 		return nil
 	}
@@ -375,12 +378,6 @@ func TestNewService_WithDupHealthChecks(t *testing.T) {
 		Name: "ping",
 		Help: "ping always succeeds",
 	}
-	registry_backup := metrics.Registry
-	metrics.Registry = prometheus.NewPedanticRegistry()
-	defer func() {
-		// restore registry
-		metrics.Registry = registry_backup
-	}()
 
 	func() {
 		defer func() {

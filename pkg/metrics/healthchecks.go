@@ -28,14 +28,14 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-// HealthCheck represents a health check metric - it maps to a prometheus gauge, where
+// HealthCheck represents a health check metric - it maps to a prometheus status, where
 // 	0 = FAIL
 // 	1 = PASS
 //
 // The unique identifier for a HealthCheck is the combination of name and labels.
 //
 // Metrics are also collected for the healthchecks themselves :
-// 1. health check run time -> gauge
+// 1. health check run time -> status
 // 2. health check run counter
 type HealthCheck interface {
 	// Name is the base health check name
@@ -50,7 +50,7 @@ type HealthCheck interface {
 	// Help provides information about this health check
 	Help() string
 
-	// Run executes the health check and updates the health check gauge
+	// Run executes the health check and updates the health check status
 	// It is safe to run it concurrently - it is protected by a mutex.
 	Run() *HealthCheckResult
 
@@ -90,7 +90,7 @@ type HealthCheckResult struct {
 	time.Duration
 }
 
-// HealthCheckGaugeValue represents an enum for HealthCheck gauge values
+// HealthCheckGaugeValue represents an enum for HealthCheck status values
 type HealthCheckGaugeValue float64
 
 const (
@@ -98,6 +98,23 @@ const (
 	HEALTHCHECK_FAILURE HealthCheckGaugeValue = 0
 	// HEALTHCHECK_SUCCESS = 1
 	HEALTHCHECK_SUCCESS HealthCheckGaugeValue = 1
+
+	// HEALTHCHECK_LABEL is used to tag metrics as healthchecks. It is added as a constant label to healthcheck related
+	// metrics. The label value indicates what type of healthcheck metric. Valid values are :
+	//
+	//	status -> heathcheck status that records the healthcheck status
+	//	count -> healthcheck run counter
+	//	duration -> healthchecl run duration
+	HEALTHCHECK_LABEL = "healthcheck"
+)
+
+var (
+	// marks the healthcheck status metric, which reports the status for the latest healthcheck run
+	healthcheckLabelsStatus = prometheus.Labels{HEALTHCHECK_LABEL: "status"}
+	// marks the healthcheck run duration metric
+	healthcheckLabelsDuration = prometheus.Labels{HEALTHCHECK_LABEL: "duration"}
+
+	healthcheckDurationBuckets = []float64{.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10}
 )
 
 // Success returns true if there was no error
@@ -112,7 +129,7 @@ func (a *HealthCheckResult) String() string {
 	return fmt.Sprintf("FAIL : %v : %v : %v", a.Time, a.Duration, a.Err)
 }
 
-// Value maps the HealthCheckResult to a gauge value
+// Value maps the HealthCheckResult to a status value
 func (a *HealthCheckResult) Value() HealthCheckGaugeValue {
 	if a.Success() {
 		return HEALTHCHECK_SUCCESS
@@ -126,9 +143,8 @@ type healthcheck struct {
 	sync.Mutex
 	run RunHealthCheck
 
-	gauge         prometheus.Gauge
-	durationGauge prometheus.Gauge
-	runCounter    prometheus.Counter
+	status      prometheus.Gauge
+	runDuration prometheus.Histogram
 
 	runInterval time.Duration
 	ticker      *time.Ticker
@@ -194,9 +210,8 @@ func (a *healthcheck) Run() (result *HealthCheckResult) {
 			logger.Error().Str(logging.HEALTHCHECK, a.Key().String()).Dur("duration", result.Duration).Err(result.Err).Msg("")
 		}
 
-		a.gauge.Set(float64(result.Value()))
-		a.durationGauge.Set(result.Duration.Seconds())
-		a.runCounter.Inc()
+		a.status.Set(float64(result.Value()))
+		a.runDuration.Observe(result.Duration.Seconds())
 
 		a.lastResult = result
 	}()
@@ -215,26 +230,10 @@ func (a *healthcheck) LastResult() *HealthCheckResult {
 
 func (a *healthcheck) String() string {
 	if a.lastResult != nil {
-		return fmt.Sprintf("%v : %v : %v : %v", a.Key(), a.Help(), a.runCounter, a.lastResult.Success())
+		return fmt.Sprintf("%v : %v : %v", a.Key(), a.Help(), a.lastResult.Success())
 	}
 	return fmt.Sprintf("%v : %v", a.Key(), a.Help())
 }
-
-//// MustRegister panics if registration fails
-//func (a *healthcheck) MustRegister(registerer prometheus.Registerer) {
-//	registerer.MustRegister(a.gauge, a.durationGauge, a.runCounter)
-//}
-//
-//// Register returns an error if registration fails
-//func (a *healthcheck) Register(registerer prometheus.Registerer) error {
-//	if err := registerer.Register(a.gauge); err != nil {
-//		return err
-//	}
-//	if err := registerer.Register(a.durationGauge); err != nil {
-//		return err
-//	}
-//	return registerer.Register(a.runCounter)
-//}
 
 // RunInterval if 0, then the healthcheck is not run on an interval
 func (a *healthcheck) RunInterval() time.Duration {
@@ -286,35 +285,49 @@ func NewHealthCheck(opts prometheus.GaugeOpts, runInterval time.Duration, check 
 		panic("check is required")
 	}
 
-	counterOpts := prometheus.CounterOpts{
-		Namespace:   opts.Namespace,
-		Subsystem:   opts.Subsystem,
-		Name:        fmt.Sprintf("%s_run_count", opts.Name),
-		Help:        "healthcheck run count",
-		ConstLabels: opts.ConstLabels,
-	}
-
 	// check for metric collision
-	if Registered(CounterFQName(&counterOpts)) {
+	if Registered(GaugeFQName(&opts)) {
 		logger.Panic().Err(ErrMetricAlreadyRegistered).Msg("")
 	}
+
+	opts.ConstLabels = addLabels(healthcheckLabelsStatus, opts.ConstLabels)
 
 	a := &healthcheck{
 		opts:        opts,
 		run:         check,
-		gauge:       GetOrMustRegisterGauge(&opts),
-		runCounter:  GetOrMustRegisterCounter(&counterOpts),
+		status:      GetOrMustRegisterGauge(&opts),
 		runInterval: runInterval,
 	}
 
-	durationGaugeOpts := prometheus.GaugeOpts{
+	durationOpts := prometheus.HistogramOpts{
 		Namespace:   opts.Namespace,
 		Subsystem:   opts.Subsystem,
 		Name:        fmt.Sprintf("%s_duration_seconds", opts.Name),
-		Help:        "healthcheck run duration",
-		ConstLabels: opts.ConstLabels,
+		Help:        "The healthckeck run duration in seconds",
+		ConstLabels: addLabels(healthcheckLabelsDuration, opts.ConstLabels),
+		Buckets:     healthcheckDurationBuckets,
 	}
-	a.durationGauge = GetOrMustRegisterGauge(&durationGaugeOpts)
+	// check for metric collision
+	if Registered(HistogramFQName(&durationOpts)) {
+		logger.Panic().Err(ErrMetricAlreadyRegistered).Msg("")
+	}
+
+	a.runDuration = GetOrMustRegisterHistogram(&durationOpts)
 	a.StartTicker()
 	return a
+}
+
+func addLabels(from prometheus.Labels, to prometheus.Labels) prometheus.Labels {
+	if len(to) == 0 {
+		return from
+	}
+
+	labels := prometheus.Labels{}
+	for k, v := range to {
+		labels[k] = v
+	}
+	for k, v := range from {
+		labels[k] = v
+	}
+	return labels
 }

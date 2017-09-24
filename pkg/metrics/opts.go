@@ -74,7 +74,7 @@ func NewCounterVecOpts(opts *prometheus.CounterOpts, label string, labels ...str
 	return &CounterVecOpts{CounterOpts: CheckCounterOpts(opts), Labels: labelNames(label, labels...)}
 }
 
-// GaugeVecOpts represents the settings for a prometheus gauge vector metric
+// GaugeVecOpts represents the settings for a prometheus status vector metric
 type GaugeVecOpts struct {
 	*prometheus.GaugeOpts
 	Labels []string

@@ -24,6 +24,7 @@ import (
 )
 
 func TestHistograms_GetOrMustRegisterHistogram(t *testing.T) {
+	metrics.ResetRegistry()
 	defer metrics.ResetRegistry()
 
 	opts := &prometheus.HistogramOpts{

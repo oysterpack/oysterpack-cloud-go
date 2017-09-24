@@ -68,24 +68,16 @@ func TestRegisterHealthCheck_CheckMetricsAreRegistered(t *testing.T) {
 	if metrics.Registry.Register(prometheus.NewGauge(opts)) == nil {
 		t.Error("Registration should have failed")
 	}
-	counterOpts := prometheus.CounterOpts{
-		Namespace:   opts.Namespace,
-		Subsystem:   opts.Subsystem,
-		Name:        fmt.Sprintf("%s_run_count", opts.Name),
-		Help:        "healthcheck run count",
-		ConstLabels: opts.ConstLabels,
-	}
-	if metrics.Registry.Register(prometheus.NewCounter(counterOpts)) == nil {
-		t.Error("Registration should have failed")
-	}
-	durationOpts := prometheus.GaugeOpts{
+
+	durationOpts := prometheus.HistogramOpts{
 		Namespace:   opts.Namespace,
 		Subsystem:   opts.Subsystem,
 		Name:        fmt.Sprintf("%s_duration_seconds", opts.Name),
 		Help:        "healthcheck run duration",
 		ConstLabels: opts.ConstLabels,
+		Buckets:     prometheus.DefBuckets,
 	}
-	if metrics.Registry.Register(prometheus.NewGauge(durationOpts)) == nil {
+	if metrics.Registry.Register(prometheus.NewHistogram(durationOpts)) == nil {
 		t.Error("Registration should have failed")
 	}
 
@@ -97,12 +89,24 @@ func TestRegisterHealthCheck_CheckMetricsAreRegistered(t *testing.T) {
 
 	if m := metrics.FindMetricFamilyByName(gatheredMetrics, opts.Name); m == nil {
 		t.Errorf("Metric was not found : %v", opts.Name)
-	}
-	if m := metrics.FindMetricFamilyByName(gatheredMetrics, counterOpts.Name); m == nil {
-		t.Errorf("Metric was not found : %v", counterOpts.Name)
+	} else {
+		labels := prometheus.Labels{}
+		for _, label := range m.Metric[0].Label {
+			labels[*label.Name] = *label.Value
+		}
+		if labels[metrics.HEALTHCHECK_LABEL] != "status" {
+			t.Errorf("label was not found (%v=status) in (%v) ", metrics.HEALTHCHECK_LABEL, labels)
+		}
 	}
 	if m := metrics.FindMetricFamilyByName(gatheredMetrics, durationOpts.Name); m == nil {
-		t.Errorf("Metric was not found : %v", counterOpts.Name)
+		t.Errorf("Metric was not found : %v", durationOpts.Name)
+		labels := prometheus.Labels{}
+		for _, label := range m.Metric[0].Label {
+			labels[*label.Name] = *label.Value
+		}
+		if labels[metrics.HEALTHCHECK_LABEL] != "duration" {
+			t.Errorf("label was not found (%v=duration) in (%v) ", metrics.HEALTHCHECK_LABEL, labels)
+		}
 	}
 
 }

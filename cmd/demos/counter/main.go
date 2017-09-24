@@ -20,6 +20,7 @@ import (
 	"os"
 
 	"github.com/oysterpack/oysterpack.go/cmd/demos/services/counter"
+	_ "github.com/oysterpack/oysterpack.go/pkg/metrics/http"
 	"github.com/oysterpack/oysterpack.go/pkg/service"
 )
 
