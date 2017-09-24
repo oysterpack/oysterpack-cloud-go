@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // Package logging initializes zerolog and redirects golang's std global logger to zerolog's global logger.
-// The global log level can be specified via the command line flag "-loglevel". If not specified, the defaul log level is INFO.
+// The global log level can be specified via the command line flag "-loglevel". If not specified, the default log level is INFO.
 package logging
 
 import (

@@ -12,36 +12,42 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package service provides support to build high quality application services. An application is composed of services.
-// Application services must be easy to configure, deploy, monitor, operate, scale. Application services must be designed
-// to be cloud native.
+// Package service is used to design an application as a set of services. Think of an application merely as a service
+// container. The application functionality is defined by its services.
 //
-// High quality application services must address the following design and operational concerns :
-// - services must be designed to be used concurrently safe
-// - interfaces must be used to define a service
-//    - the interface defines the service's functionality and must be clearly documented
-// - services must have a clearly defined lifecycle, i.e., init -> run -> destroy
-// - service configuration management must be versioned and managed outside the application.
-// - service configuration should have a clearly defined schema, which is versioned
-// - each service must have its own logger, i.e., it must be easy to identify and isolate a service's log events
-//    - each service must document its log events
-//    - log events should be as structural as possible, enabling it to be easily searched
-// - services should provide metrics and be instrumented for monitoring and alerting
-// - service Dependencies must be defined
-// - services must provide health checks
-// - service issues, i.e., bugs, must be tracked
-// - services must be scalable
-// - services must be versioned - the deployed version must be available at runtime
-// - services must be secure
-// - distributed service requests must be traceable
+// Service Design Goals:
 //
-// - applications must be versioned and retain build information
-// - applications must be packaged and deployed as containers
-// - applications must be able to be deployed via kubernetes
-// - applications must expose readiness and liveliness probes
-// - applications must define the resources they need, i.e., cpu, memory, disk
-//     - each service must define its resource needs - the application resources are then the sum of the service resources
-//     - external resources must also be defined, i.e., database, queues, etc
+//  1. Services are defined by an interface.
+//  2. Services must be versioned.
+//  3. Services must be easy to monitor. Services must expose health checks and metrics. Metrics must be published to prometheus.
+//     Alarms should be configurable and driven by metrics.
+//  4. Service logging must be standardized per service. The service log events must be documented.
+//  5. Logging must be efficient.
+//  6. Services have a standard life cyle (init -> run -> destroy) that is manageable. Service state transitions can be observed.
+//  7. Services must define their dependencies to other services.
+//  8. Services must be designed to be concurrency safe. The recommended approach is to design services as message
+//     processors leveraging go channels and goroutines.
+//  9. Services must be easy to configure. Service configuration management must be versioned and managed outside the application.
+//     The service configuration must be defined by a schema. Configuration also includes secrets.
+//  10. Clients can invoke a service through its interface locally or remotely. The client service interface proxy should
+//      be easily configured for local or remote access.
+//  11. Services must be secured for remote access.
+//  12. Service issues, i.e., bugs, must be tracked.
+//  13. Distributed service requests must be traceable
+//  14. Services can publish events. The service events must be defined. The events should be made available as a stream.
+//  15. Services expose a DevOps interface, which must be securely remotely accessible.
+//  16. The deployment topology must be discoverable. Services should register with a centralized service registry.
+//  17. Services can have dashboards - Grafana or Prometheus template based dashboards.
+//
+// Additional Application Design Considerations and Goals:
+//
+//  1. Applications must be deployable as containers
+//  2. Applications must be deployable via kubernetes.
+//  3. Applications deployments should be defined as Helm charts.
+//  4. Applications must expose readiness and liveliness probes for kubernetes.
+//  5. Applications must define the resources they need, i.e., cpu, memory, disk.
+//     Each service must define its resource needs - the application resources are then the sum of the service resources.
+//     External resources must also be defined, i.e., database, queues, etc.
 //
 // *** Services must provide documentation for all of the above.
 //
@@ -49,13 +55,13 @@
 //
 // Key Interfaces
 //
-// - Service
-// - Client
-// - Application
+// 	Service
+// 	Client
+// 	Application
 //
 // Key Functions
 //
-// - App() Application
+//	App() Application
 //
 // All exported functions and methods are safe to be used concurrently unless specified otherwise.
 package service
