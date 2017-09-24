@@ -34,9 +34,13 @@ import (
 //
 // The unique identifier for a HealthCheck is the combination of name and labels.
 //
-// Metrics are also collected for the healthchecks themselves :
-// 1. health check run time -> status
-// 2. health check run counter
+// The health check run duration is also recorded as histogram metric.
+// This can help identify health checks that are taking too long to execute.
+// The run duration may also be used to configure alerts. For example, health checks that are passing but taking longer
+// to run may be an early warning sign.
+//
+// The naming convention for the run duration histogram metric is : {health_check_name}_duration_seconds_bucket
+// The buckets are : {.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10}
 type HealthCheck interface {
 	// Name is the base health check name
 	Name() string
