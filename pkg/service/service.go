@@ -251,9 +251,7 @@ func checkSettings(settings *Settings) {
 	}
 }
 
-func logSettings(log *zerolog.Event, settings *Settings) *zerolog.Event {
-	log.Str("Version", settings.Version.String())
-
+func logInterfaceDependencies(log *zerolog.Event, settings *Settings) {
 	if settings.InterfaceDependencies != nil {
 		deps := make([]string, len(settings.InterfaceDependencies))
 		i := 0
@@ -263,7 +261,9 @@ func logSettings(log *zerolog.Event, settings *Settings) *zerolog.Event {
 		}
 		log.Strs("InterfaceDependencies", deps)
 	}
+}
 
+func logHealthChecks(log *zerolog.Event, settings *Settings) {
 	if len(settings.HealthChecks) > 0 {
 		names := make([]string, len(settings.HealthChecks))
 		for i, v := range settings.HealthChecks {
@@ -272,75 +272,114 @@ func logSettings(log *zerolog.Event, settings *Settings) *zerolog.Event {
 
 		log.Strs("HealthChecks", names)
 	}
+}
 
+func logCounterOpts(dict *zerolog.Event, settings *Settings) {
+	if len(settings.Metrics.CounterOpts) > 0 {
+		names := make([]string, len(settings.Metrics.CounterOpts))
+		for i, v := range settings.Metrics.CounterOpts {
+			names[i] = metrics.CounterFQName(v)
+		}
+		dict.Strs("Counters", names)
+	}
+}
+
+func logCounterVecOpts(dict *zerolog.Event, settings *Settings) {
+	if len(settings.Metrics.CounterVecOpts) > 0 {
+		names := make([]string, len(settings.Metrics.CounterVecOpts))
+		for i, v := range settings.Metrics.CounterVecOpts {
+			names[i] = metrics.CounterFQName(v.CounterOpts)
+		}
+		dict.Strs("CounterVecss", names)
+	}
+}
+
+func logGaugeOpts(dict *zerolog.Event, settings *Settings) {
+	if len(settings.Metrics.GaugeOpts) > 0 {
+		names := make([]string, len(settings.Metrics.GaugeOpts))
+		for i, v := range settings.Metrics.GaugeOpts {
+			names[i] = metrics.GaugeFQName(v)
+		}
+		dict.Strs("Gauges", names)
+	}
+}
+
+func logGaugeVecOpts(dict *zerolog.Event, settings *Settings) {
+	if len(settings.Metrics.GaugeVecOpts) > 0 {
+		names := make([]string, len(settings.Metrics.GaugeVecOpts))
+		for i, v := range settings.Metrics.GaugeVecOpts {
+			names[i] = metrics.GaugeFQName(v.GaugeOpts)
+		}
+		dict.Strs("GaugeVecs", names)
+	}
+}
+
+func logHistogramOpts(dict *zerolog.Event, settings *Settings) {
+	if len(settings.Metrics.HistogramOpts) > 0 {
+		names := make([]string, len(settings.Metrics.HistogramOpts))
+		for i, v := range settings.Metrics.HistogramOpts {
+			names[i] = metrics.HistogramFQName(v)
+		}
+		dict.Strs("Histograms", names)
+	}
+}
+
+func logHistogramVecOpts(dict *zerolog.Event, settings *Settings) {
+	if len(settings.Metrics.HistogramVecOpts) > 0 {
+		names := make([]string, len(settings.Metrics.HistogramVecOpts))
+		for i, v := range settings.Metrics.HistogramVecOpts {
+			names[i] = metrics.HistogramFQName(v.HistogramOpts)
+		}
+		dict.Strs("HistogramVecs", names)
+	}
+}
+
+func logSummaryOpts(dict *zerolog.Event, settings *Settings) {
+	if len(settings.Metrics.SummaryOpts) > 0 {
+		names := make([]string, len(settings.Metrics.SummaryOpts))
+		for i, v := range settings.Metrics.SummaryOpts {
+			names[i] = metrics.SummaryFQName(v)
+		}
+		dict.Strs("Summaries", names)
+	}
+}
+
+func logSummaryVecOpts(dict *zerolog.Event, settings *Settings) {
+	if len(settings.Metrics.SummaryVecOpts) > 0 {
+		names := make([]string, len(settings.Metrics.SummaryVecOpts))
+		for i, v := range settings.Metrics.SummaryVecOpts {
+			names[i] = metrics.SummaryFQName(v.SummaryOpts)
+		}
+		dict.Strs("SummaryVecs", names)
+	}
+}
+
+func logMetrics(log *zerolog.Event, settings *Settings) {
 	if settings.Metrics != nil {
 		dict := zerolog.Dict()
-		if len(settings.Metrics.CounterOpts) > 0 {
-			names := make([]string, len(settings.Metrics.CounterOpts))
-			for i, v := range settings.Metrics.CounterOpts {
-				names[i] = metrics.CounterFQName(v)
-			}
-			dict.Strs("Counters", names)
-		}
 
-		if len(settings.Metrics.CounterVecOpts) > 0 {
-			names := make([]string, len(settings.Metrics.CounterVecOpts))
-			for i, v := range settings.Metrics.CounterVecOpts {
-				names[i] = metrics.CounterFQName(v.CounterOpts)
-			}
-			dict.Strs("CounterVecss", names)
-		}
+		logCounterOpts(dict, settings)
+		logCounterVecOpts(dict, settings)
 
-		if len(settings.Metrics.GaugeOpts) > 0 {
-			names := make([]string, len(settings.Metrics.GaugeOpts))
-			for i, v := range settings.Metrics.GaugeOpts {
-				names[i] = metrics.GaugeFQName(v)
-			}
-			dict.Strs("Gauges", names)
-		}
+		logGaugeOpts(dict, settings)
+		logGaugeVecOpts(dict, settings)
 
-		if len(settings.Metrics.GaugeVecOpts) > 0 {
-			names := make([]string, len(settings.Metrics.GaugeVecOpts))
-			for i, v := range settings.Metrics.GaugeVecOpts {
-				names[i] = metrics.GaugeFQName(v.GaugeOpts)
-			}
-			dict.Strs("GaugeVecs", names)
-		}
+		logHistogramOpts(dict, settings)
+		logHistogramVecOpts(dict, settings)
 
-		if len(settings.Metrics.HistogramOpts) > 0 {
-			names := make([]string, len(settings.Metrics.HistogramOpts))
-			for i, v := range settings.Metrics.HistogramOpts {
-				names[i] = metrics.HistogramFQName(v)
-			}
-			dict.Strs("Histograms", names)
-		}
-
-		if len(settings.Metrics.HistogramVecOpts) > 0 {
-			names := make([]string, len(settings.Metrics.HistogramVecOpts))
-			for i, v := range settings.Metrics.HistogramVecOpts {
-				names[i] = metrics.HistogramFQName(v.HistogramOpts)
-			}
-			dict.Strs("HistogramVecs", names)
-		}
-
-		if len(settings.Metrics.SummaryOpts) > 0 {
-			names := make([]string, len(settings.Metrics.SummaryOpts))
-			for i, v := range settings.Metrics.SummaryOpts {
-				names[i] = metrics.SummaryFQName(v)
-			}
-			dict.Strs("Summaries", names)
-		}
-
-		if len(settings.Metrics.SummaryVecOpts) > 0 {
-			names := make([]string, len(settings.Metrics.SummaryVecOpts))
-			for i, v := range settings.Metrics.SummaryVecOpts {
-				names[i] = metrics.SummaryFQName(v.SummaryOpts)
-			}
-			dict.Strs("SummaryVecs", names)
-		}
+		logSummaryOpts(dict, settings)
+		logSummaryVecOpts(dict, settings)
 
 		log.Dict("Metrics", dict)
 	}
+}
+
+func logSettings(log *zerolog.Event, settings *Settings) *zerolog.Event {
+	log.Str("Version", settings.Version.String())
+
+	logInterfaceDependencies(log, settings)
+	logHealthChecks(log, settings)
+	logMetrics(log, settings)
 
 	return log
 }
