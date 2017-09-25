@@ -95,10 +95,10 @@ func (e *ServiceNotFoundError) Error() string {
 	return fmt.Sprintf("Service not found : %v.%v", e.ServiceKey.PackagePath, e.ServiceKey.TypeName)
 }
 
-// DependencyMappings maps a ServiceInterface to its ServiceInterface dependencies
+// DependencyMappings maps a Interface to its Interface dependencies
 type DependencyMappings struct {
-	ServiceInterface
-	Dependencies []ServiceInterface
+	Interface
+	Dependencies []Interface
 }
 
 // AddDependency will add the missing dependency, if it has not yet already been added
@@ -119,7 +119,7 @@ func (a *DependencyMappings) contains(dependency reflect.InterfaceType) bool {
 }
 
 func (a *DependencyMappings) String() string {
-	return fmt.Sprintf("%v -> %v", a.ServiceInterface, a.Dependencies)
+	return fmt.Sprintf("%v -> %v", a.Interface, a.Dependencies)
 }
 
 // ServiceDependenciesMissing indicates that a service's Dependencies are missing at runtime

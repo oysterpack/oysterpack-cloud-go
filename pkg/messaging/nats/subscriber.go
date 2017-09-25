@@ -15,8 +15,6 @@
 package nats
 
 import (
-	"bytes"
-	"encoding/gob"
 
 	"github.com/nats-io/go-nats"
 	"github.com/oysterpack/oysterpack.go/pkg/commons"
@@ -24,24 +22,26 @@ import (
 
 // MessageProcessor used to process messages received from NATS
 // The nats connection is provided if needed to send a reply message.
-// The provided decoder is provided for decoding the msg data into an app specific struct.
-type MessageProcessor func(conn *nats.Conn, msg *nats.Msg, decoder *gob.Decoder)
+// The provided decoder is provided for decoding the gob encoded msg data into an app specific struct.
+type MessageProcessor func(conn *nats.Conn, msg *nats.Msg)
 
-type GobSubscriber struct {
+// Subscriber subcribes to the specified subject and relays messages to the associated MessageProcessor
+type Subscriber struct {
 	conn         *nats.Conn
 	subscription *nats.Subscription
 	subject      string
+	queue        string
 
-	buf      bytes.Buffer
+
 	messages chan *nats.Msg
-	decoder  *gob.Decoder
 	process  MessageProcessor
 
 	shutdown chan struct{}
 }
 
-func NewGobSubscriber(conn *nats.Conn, subject string, chanBufSize int, process MessageProcessor) (subscriber *GobSubscriber, err error) {
-	subscriber = &GobSubscriber{
+// NewSubscriber creates a new Subscriber
+func NewSubscriber(conn *nats.Conn, subject string, chanBufSize int, process MessageProcessor) (subscriber *Subscriber, err error) {
+	subscriber = &Subscriber{
 		conn:    conn,
 		subject: subject,
 
@@ -50,7 +50,6 @@ func NewGobSubscriber(conn *nats.Conn, subject string, chanBufSize int, process 
 
 		shutdown: make(chan struct{}),
 	}
-	subscriber.decoder = gob.NewDecoder(&subscriber.buf)
 	subscriber.subscription, err = subscriber.conn.ChanSubscribe(subject, subscriber.messages)
 	if err != nil {
 		subscriber = nil
@@ -60,7 +59,28 @@ func NewGobSubscriber(conn *nats.Conn, subject string, chanBufSize int, process 
 	return
 }
 
-func (a *GobSubscriber) run() {
+// NewSubscriber creates a new Subscriber
+func NewQueueSubscriber(conn *nats.Conn, subject string, queue string, chanBufSize int, process MessageProcessor) (subscriber *Subscriber, err error) {
+	subscriber = &Subscriber{
+		conn:    conn,
+		subject: subject,
+		queue:   queue,
+
+		messages: make(chan *nats.Msg, chanBufSize),
+		process:  process,
+
+		shutdown: make(chan struct{}),
+	}
+	subscriber.subscription, err = subscriber.conn.ChanQueueSubscribe(subject, queue, subscriber.messages)
+	if err != nil {
+		subscriber = nil
+		return
+	}
+	go subscriber.run()
+	return
+}
+
+func (a *Subscriber) run() {
 	for {
 		select {
 		case msg := <-a.messages:
@@ -70,18 +90,18 @@ func (a *GobSubscriber) run() {
 			for msg := range a.messages {
 				a.receive(msg)
 			}
+			close(a.messages)
 			return
 		}
 	}
 }
 
-func (a *GobSubscriber) receive(msg *nats.Msg) {
-	a.buf.Reset()
-	a.buf.Write(msg.Data)
-	a.process(a.conn, msg, a.decoder)
+func (a *Subscriber) receive(msg *nats.Msg) {
+	a.process(a.conn, msg)
 }
 
-func (a *GobSubscriber) Close() {
+// Close triggers the goroutine to shutdown and cancels the NATS subject subscription.
+func (a *Subscriber) Close() {
 	commons.CloseQuietly(a.shutdown)
 	func() {
 		defer commons.IgnorePanic()

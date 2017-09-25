@@ -64,9 +64,9 @@ func TestService_HealthChecks(t *testing.T) {
 	}
 
 	server := service.NewService(service.Settings{
-		ServiceInterface: EchoServiceInterface,
-		Version:          service.NewVersion("1.0.0"),
-		HealthChecks:     healthchecks,
+		Interface:    EchoServiceInterface,
+		Version:      service.NewVersion("1.0.0"),
+		HealthChecks: healthchecks,
 	})
 
 	serviceHealthChecks := server.(service.HealthChecks)
@@ -118,9 +118,9 @@ func TestService_RunAllHealthChecks(t *testing.T) {
 	}
 
 	server := service.NewService(service.Settings{
-		ServiceInterface: EchoServiceInterface,
-		Version:          service.NewVersion("1.0.0"),
-		HealthChecks:     healthchecks,
+		Interface:    EchoServiceInterface,
+		Version:      service.NewVersion("1.0.0"),
+		HealthChecks: healthchecks,
 	})
 
 	serviceHealthChecks := server.(service.HealthChecks)
@@ -178,9 +178,9 @@ func TestService_RunAllFailedHealthChecks(t *testing.T) {
 	}
 
 	server := service.NewService(service.Settings{
-		ServiceInterface: EchoServiceInterface,
-		Version:          service.NewVersion("1.0.0"),
-		HealthChecks:     healthchecks,
+		Interface:    EchoServiceInterface,
+		Version:      service.NewVersion("1.0.0"),
+		HealthChecks: healthchecks,
 	})
 
 	serviceHealthChecks := server.(service.HealthChecks)

@@ -14,6 +14,3 @@
 
 package messaging
 
-type Publisher interface {
-	Publish(msg interface{}) error
-}

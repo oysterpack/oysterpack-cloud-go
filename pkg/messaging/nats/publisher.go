@@ -15,14 +15,13 @@
 package nats
 
 import (
-	"bytes"
-	"encoding/gob"
-
 	"github.com/nats-io/go-nats"
 	"github.com/oysterpack/oysterpack.go/pkg/commons"
+	"encoding/json"
+	"fmt"
 )
 
-// GobPublisher encodes messages as gobs and publishes them to a subject
+// Publisher encodes messages as gobs and publishes them to a subject
 //
 // The gobs implementation compiles a custom codec for each data type in the stream and is most efficient when a single
 // Encoder is used to transmit a stream of values, amortizing the cost of compilation. In order to have a single Encoder,
@@ -31,26 +30,23 @@ import (
 //
 // For concurrent publishing, create a pool of publishers - each publishing from separate goroutines.
 //
-type GobPublisher struct {
+type Publisher struct {
 	conn    *nats.Conn
 	subject string
 
-	buf      bytes.Buffer
 	messages chan *message
-	encoder  *gob.Encoder
 
 	shutdown chan struct{}
 }
 
-// NewGobPublisher creates a new GobPublisher.
-func NewGobPublisher(conn *nats.Conn, subject string, chanBufSize int) *GobPublisher {
-	publisher := &GobPublisher{
+// NewPublisher creates a new Publisher.
+func NewPublisher(conn *nats.Conn, subject string, chanBufSize int) *Publisher {
+	publisher := &Publisher{
 		conn:     conn,
 		subject:  subject,
 		messages: make(chan *message, chanBufSize),
 		shutdown: make(chan struct{}),
 	}
-	publisher.encoder = gob.NewEncoder(&publisher.buf)
 	go publisher.run()
 	return publisher
 }
@@ -60,29 +56,39 @@ type message struct {
 	replyTo chan error
 }
 
-func (a *GobPublisher) run() {
+func (a *Publisher) run() {
 	for {
 		select {
 		case msg := <-a.messages:
 			a.publish(msg)
 		case <-a.shutdown:
+			a.closeMessagesChan()
+			// drain queued messages
+			for msg := range a.messages {
+				a.publish(msg)
+			}
 			return
 		}
 	}
 }
 
 // Close is used to shutdown the backend goroutine that is publishing messages to NATS
-func (a *GobPublisher) Close() {
+func (a *Publisher) Close() {
 	commons.CloseQuietly(a.shutdown)
 }
 
-func (a *GobPublisher) publish(msg *message) {
-	a.buf.Reset()
-	if err := a.encoder.Encode(msg.data); err != nil {
+func (a *Publisher) closeMessagesChan() {
+	defer commons.IgnorePanic()
+	close(a.messages)
+}
+
+func (a *Publisher) publish(msg *message) {
+	bytes, err := json.Marshal(msg.data)
+	if err != nil {
 		msg.replyTo <- err
 		return
 	}
-	if err := a.conn.Publish(a.subject, a.buf.Bytes()); err != nil {
+	if err := a.conn.Publish(a.subject, bytes); err != nil {
 		msg.replyTo <- err
 		return
 	}
@@ -91,8 +97,14 @@ func (a *GobPublisher) publish(msg *message) {
 
 // Publish encodes the message as a gob and publishes it on the configured subject to NATS.
 // An error is returned if encoding fails, or for a NATS publishing error.
-func (a *GobPublisher) Publish(msg interface{}) error {
+func (a *Publisher) Publish(msg interface{}) (err error) {
+	defer func() {
+		if p := recover();p!= nil {
+			err = fmt.Errorf("%v",p)
+		}
+	}()
 	replyTo := make(chan error)
 	a.messages <- &message{msg, replyTo}
-	return <-replyTo
+	err = <-replyTo
+	return
 }

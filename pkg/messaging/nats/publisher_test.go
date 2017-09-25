@@ -28,7 +28,7 @@ func TestNewGobPublisher(t *testing.T) {
 
 	subject := "ping"
 
-	publisher := natsop.NewGobPublisher(nc, subject, 10)
+	publisher := natsop.NewPublisher(nc, subject, 10)
 	defer publisher.Close()
 
 	for i := 1; i <= 100; i++ {

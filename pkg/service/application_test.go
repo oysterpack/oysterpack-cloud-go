@@ -199,7 +199,7 @@ func TestApplicationContext_RegisterService_ServiceClientNotAssignableToServiceI
 				RestartableService: service.NewRestartableService(func() service.Service {
 					var svc EchoService = &SimpleEchoService{}
 					serviceInterface, _ := reflect.ObjectInterface(&svc)
-					return service.NewService(service.Settings{ServiceInterface: serviceInterface})
+					return service.NewService(service.Settings{Interface: serviceInterface})
 				}),
 			}
 		})
@@ -433,8 +433,8 @@ func TestApplicationContext_CheckAllServiceDependenciesRegistered(t *testing.T) 
 	}
 
 	checkMissingDepencencyServiceA := func(err *service.ServiceDependenciesMissing) {
-		if err.ServiceInterface != bService.Service().Interface() {
-			t.Errorf("ServiceInterface should be: %v , but was %v", bService.Service().Interface(), err.ServiceInterface)
+		if err.Interface != bService.Service().Interface() {
+			t.Errorf("Interface should be: %v , but was %v", bService.Service().Interface(), err.Interface)
 		}
 		if len(err.Dependencies) != 1 {
 			t.Errorf("There shold be i missing Dependencies : %v", err.Dependencies)
@@ -618,8 +618,8 @@ func TestApplicationContext_CheckAllServiceDependenciesRunning(t *testing.T) {
 	}
 
 	checkMissingDepencencyServiceA := func(err *service.ServiceDependenciesNotRunning) {
-		if err.ServiceInterface != bService.Service().Interface() {
-			t.Errorf("ServiceInterface should be: %v , but was %v", bService.Service().Interface(), err.ServiceInterface)
+		if err.Interface != bService.Service().Interface() {
+			t.Errorf("Interface should be: %v , but was %v", bService.Service().Interface(), err.Interface)
 		}
 		if len(err.Dependencies) != 1 {
 			t.Errorf("There shold be i missing Dependencies : %v", err.Dependencies)
@@ -902,10 +902,10 @@ func (a *testApplication_RestartAllFailedServices_client) run(ctx *service.Conte
 }
 
 func (a *testApplication_RestartAllFailedServices_client) newService() service.Service {
-	return service.NewService(service.Settings{ServiceInterface: testApplication_RestartAllFailedServices_interface, Version: service.NewVersion("1.0.0"), Run: a.run})
+	return service.NewService(service.Settings{Interface: testApplication_RestartAllFailedServices_interface, Version: service.NewVersion("1.0.0"), Run: a.run})
 }
 
-var testApplication_RestartAllFailedServices_interface service.ServiceInterface = func() service.ServiceInterface {
+var testApplication_RestartAllFailedServices_interface service.Interface = func() service.Interface {
 	var o testApplication_RestartAllFailedServices = &testApplication_RestartAllFailedServices_client{}
 	i, _ := reflect.ObjectInterface(&o)
 	return i

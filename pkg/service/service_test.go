@@ -41,7 +41,7 @@ type Bar struct{}
 var bar BarService = Bar{}
 
 func TestNewService_WithNilLifeCycleFunctions(t *testing.T) {
-	server := service.NewService(service.Settings{ServiceInterface: stdreflect.TypeOf(&foo), Version: service.NewVersion("1.0.0")})
+	server := service.NewService(service.Settings{Interface: stdreflect.TypeOf(&foo), Version: service.NewVersion("1.0.0")})
 	t.Logf("new service : %v", server)
 	if !server.State().New() {
 		t.Errorf("Service state should be 'New', but instead was : %q", server.State())
@@ -91,7 +91,7 @@ func TestNewService_WithNilLifeCycleFunctions(t *testing.T) {
 }
 
 func TestNewService_AwaitRunningForStoppedService(t *testing.T) {
-	server := service.NewService(service.Settings{ServiceInterface: stdreflect.TypeOf(&foo), Version: service.NewVersion("1.0.0")})
+	server := service.NewService(service.Settings{Interface: stdreflect.TypeOf(&foo), Version: service.NewVersion("1.0.0")})
 	server.Stop()
 
 	if err := server.AwaitUntilRunning(); err == nil {
@@ -106,7 +106,7 @@ func TestNewService_AwaitRunningForStoppedService(t *testing.T) {
 }
 
 func TestNewService_StoppingNewService(t *testing.T) {
-	server := service.NewService(service.Settings{ServiceInterface: stdreflect.TypeOf(&foo), Version: service.NewVersion("1.0.0")})
+	server := service.NewService(service.Settings{Interface: stdreflect.TypeOf(&foo), Version: service.NewVersion("1.0.0")})
 	if !stopService(server, t) {
 		t.Error("The service should have stopped")
 	}
@@ -120,7 +120,7 @@ func TestNewService_StoppingNewService(t *testing.T) {
 }
 
 func TestNewService_AwaitBlocking(t *testing.T) {
-	server := service.NewService(service.Settings{ServiceInterface: stdreflect.TypeOf(&foo), Version: service.NewVersion("1.0.0")})
+	server := service.NewService(service.Settings{Interface: stdreflect.TypeOf(&foo), Version: service.NewVersion("1.0.0")})
 	server.StartAsync()
 	server.AwaitRunning(0)
 	if !server.State().Running() {
@@ -156,7 +156,7 @@ func TestNewService_WithNonNilLifeCycleFunctions(t *testing.T) {
 		return nil
 	}
 
-	server := service.NewService(service.Settings{ServiceInterface: stdreflect.TypeOf(&foo), Version: service.NewVersion("1.0.0"), Init: init, Run: run, Destroy: destroy})
+	server := service.NewService(service.Settings{Interface: stdreflect.TypeOf(&foo), Version: service.NewVersion("1.0.0"), Init: init, Run: run, Destroy: destroy})
 	if !server.State().New() {
 		t.Errorf("Service state should be 'New', but instead was : %q", server.State())
 	}
@@ -194,7 +194,7 @@ func TestNewService_InitPanics(t *testing.T) {
 		return nil
 	}
 
-	server := service.NewService(service.Settings{ServiceInterface: stdreflect.TypeOf(&foo), Version: service.NewVersion("1.0.0"), Init: init, Run: run, Destroy: destroy})
+	server := service.NewService(service.Settings{Interface: stdreflect.TypeOf(&foo), Version: service.NewVersion("1.0.0"), Init: init, Run: run, Destroy: destroy})
 	if !server.State().New() {
 		t.Errorf("Service state should be 'New', but instead was : %q", server.State())
 	}
@@ -243,7 +243,7 @@ func TestNewService_RunPanics(t *testing.T) {
 		return nil
 	}
 
-	server := service.NewService(service.Settings{ServiceInterface: stdreflect.TypeOf(&foo), Version: service.NewVersion("1.0.0"), Init: init, Run: run, Destroy: destroy})
+	server := service.NewService(service.Settings{Interface: stdreflect.TypeOf(&foo), Version: service.NewVersion("1.0.0"), Init: init, Run: run, Destroy: destroy})
 	if !server.State().New() {
 		t.Errorf("Service state should be 'New', but instead was : %q", server.State())
 	}
@@ -299,7 +299,7 @@ func TestNewService_DestroyPanics(t *testing.T) {
 		panic("Destroy is panicking")
 	}
 
-	server := service.NewService(service.Settings{ServiceInterface: stdreflect.TypeOf(&foo), Version: service.NewVersion("1.0.0"), Init: init, Run: run, Destroy: destroy})
+	server := service.NewService(service.Settings{Interface: stdreflect.TypeOf(&foo), Version: service.NewVersion("1.0.0"), Init: init, Run: run, Destroy: destroy})
 	if !server.State().New() {
 		t.Errorf("Service state should be 'New', but instead was : %q", server.State())
 	}
@@ -322,7 +322,7 @@ func TestNewService_DestroyPanics(t *testing.T) {
 func TestService_ServiceDependencies(t *testing.T) {
 	serviceDependency, _ := reflect.ObjectInterface(&bar)
 	service := service.NewService(service.Settings{
-		ServiceInterface:      stdreflect.TypeOf(&foo),
+		Interface:             stdreflect.TypeOf(&foo),
 		Version:               service.NewVersion("1.0.0"),
 		InterfaceDependencies: service.InterfaceDependencies{serviceDependency: nil},
 	})
@@ -356,7 +356,7 @@ func TestNewService_WithHealthChecks(t *testing.T) {
 	}()
 
 	service.NewService(service.Settings{
-		ServiceInterface: stdreflect.TypeOf(&foo), Version: service.NewVersion("1.0.0"),
+		Interface:    stdreflect.TypeOf(&foo), Version: service.NewVersion("1.0.0"),
 		HealthChecks: []metrics.HealthCheck{metrics.NewHealthCheck(opts, 0, ping)},
 	})
 
@@ -388,7 +388,7 @@ func TestNewService_WithDupHealthChecks(t *testing.T) {
 			}
 		}()
 		service.NewService(service.Settings{
-			ServiceInterface: stdreflect.TypeOf(&foo), Version: service.NewVersion("1.0.0"),
+			Interface: stdreflect.TypeOf(&foo), Version: service.NewVersion("1.0.0"),
 			HealthChecks: []metrics.HealthCheck{
 				metrics.NewHealthCheck(opts, 0, ping),
 				metrics.NewHealthCheck(opts, 0, ping),
@@ -400,7 +400,7 @@ func TestNewService_WithDupHealthChecks(t *testing.T) {
 func TestNewService_WithNilServiceInterface(t *testing.T) {
 	defer func() {
 		if p := recover(); p == nil {
-			t.Error("registering service wilth nil ServiceInterface should have triggered a panic")
+			t.Error("registering service wilth nil Interface should have triggered a panic")
 		} else {
 			t.Log(p)
 		}
@@ -411,7 +411,7 @@ func TestNewService_WithNilServiceInterface(t *testing.T) {
 func TestNewService_WithInvalidServiceInterface(t *testing.T) {
 	defer func() {
 		if p := recover(); p == nil {
-			t.Error("registering service wilth nil ServiceInterface should have triggered a panic")
+			t.Error("registering service wilth nil Interface should have triggered a panic")
 		} else {
 			t.Log(p)
 		}
@@ -419,7 +419,7 @@ func TestNewService_WithInvalidServiceInterface(t *testing.T) {
 
 	t.Logf("stdreflect.TypeOf(struct{}{}).Kind : %v", stdreflect.TypeOf(struct{}{}).Kind())
 
-	service.NewService(service.Settings{ServiceInterface: stdreflect.TypeOf(&struct{}{}), Version: service.NewVersion("1.0.0")})
+	service.NewService(service.Settings{Interface: stdreflect.TypeOf(&struct{}{}), Version: service.NewVersion("1.0.0")})
 }
 
 func TestNewService_WithLogSettings(t *testing.T) {
@@ -430,7 +430,7 @@ func TestNewService_WithLogSettings(t *testing.T) {
 	logLevel := zerolog.WarnLevel
 
 	server := service.NewService(service.Settings{
-		ServiceInterface: stdreflect.TypeOf(&foo), Version: service.NewVersion("1.0.0"),
+		Interface: stdreflect.TypeOf(&foo), Version: service.NewVersion("1.0.0"),
 		LogSettings: service.LogSettings{
 			LogLevel:  &logLevel,
 			LogOutput: logOutput,

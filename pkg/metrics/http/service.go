@@ -39,7 +39,7 @@ type Service interface {
 }
 
 // MetricsServiceInterface service interface instance that can be used to lookup the registered service
-var MetricsServiceInterface service.ServiceInterface = func() service.ServiceInterface {
+var MetricsServiceInterface service.Interface = func() service.Interface {
 	var c Service = &server{}
 	serviceInterface, err := reflect.ObjectInterface(&c)
 	if err != nil {
@@ -98,10 +98,10 @@ func (a *server) newService() service.Service {
 	}
 
 	settings := service.Settings{
-		ServiceInterface: MetricsServiceInterface,
-		Version:          version,
-		Init:             a.init,
-		Destroy:          a.destroy,
+		Interface: MetricsServiceInterface,
+		Version:   version,
+		Init:      a.init,
+		Destroy:   a.destroy,
 	}
 	return service.NewService(settings)
 }

@@ -26,7 +26,7 @@ import (
 type Settings struct {
 	// REQUIRED - represents the service interface from the client's perspective
 	// If the service has no direct client API, e.g., a network based service, then use an empty interface{}
-	ServiceInterface
+	Interface
 
 	*semver.Version
 

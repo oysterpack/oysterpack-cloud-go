@@ -33,8 +33,8 @@ type Service interface {
 	NextInt() uint64
 }
 
-// CounterServiceInterface is the ServiceInterface
-var CounterServiceInterface service.ServiceInterface = func() service.ServiceInterface {
+// CounterServiceInterface is the Interface
+var CounterServiceInterface service.Interface = func() service.Interface {
 	var c Service = &server{}
 	serviceInterface, err := reflect.ObjectInterface(&c)
 	if err != nil {
@@ -100,11 +100,11 @@ func (a *server) newService() service.Service {
 	}
 
 	return service.NewService(service.Settings{
-		ServiceInterface: CounterServiceInterface,
-		Version:          service.NewVersion(Version),
-		Run:              a.run,
-		Metrics:          metricOpts,
-		HealthChecks:     healthchecks,
+		Interface:    CounterServiceInterface,
+		Version:      service.NewVersion(Version),
+		Run:          a.run,
+		Metrics:      metricOpts,
+		HealthChecks: healthchecks,
 	})
 }
 

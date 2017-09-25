@@ -19,7 +19,7 @@ package service
 type StopRestartServices interface {
 
 	// returns ServiceNotFoundError if the service is not registered
-	RestartServiceByType(serviceInterface ServiceInterface) error
+	RestartServiceByType(serviceInterface Interface) error
 	RestartServiceByKey(key ServiceKey) error
 
 	RestartAllServices()
@@ -29,6 +29,6 @@ type StopRestartServices interface {
 
 	// returns ServiceNotFoundError if the service is not registered
 	// returns ServiceError if the service stopped in a failed state
-	StopServiceByType(serviceInterface ServiceInterface) error
+	StopServiceByType(serviceInterface Interface) error
 	StopServiceByKey(key ServiceKey) error
 }

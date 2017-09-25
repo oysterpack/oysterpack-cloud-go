@@ -32,7 +32,7 @@ import (
 // Service represents the backend service.
 // use NewService() to create a new instance
 type Service interface {
-	Interface() ServiceInterface
+	Interface() Interface
 
 	Version() *semver.Version
 
@@ -64,7 +64,7 @@ type Service interface {
 }
 
 // InterfaceDependencies represents a service's interface dependencies with version constraints
-type InterfaceDependencies map[ServiceInterface]*semver.Constraints
+type InterfaceDependencies map[Interface]*semver.Constraints
 
 // Service interface implementation
 //
@@ -98,7 +98,7 @@ type InterfaceDependencies map[ServiceInterface]*semver.Constraints
 // TODO: security
 // TODO: gRPC - frontend
 type service struct {
-	serviceInterface ServiceInterface
+	serviceInterface Interface
 
 	version *semver.Version
 
@@ -113,8 +113,8 @@ type service struct {
 	metricOpts *metrics.MetricOpts
 }
 
-// ServiceInterface represents the interface from the client's perspective, i.e., it defines the service's functionality.
-type ServiceInterface reflect.InterfaceType
+// Interface represents the interface from the client's perspective, i.e., it defines the service's functionality.
+type Interface reflect.InterfaceType
 
 // LifeCycle encapsulates the service lifecycle, including the service's backend functions, i.e., Init, Run, Destroy
 type lifeCycle struct {
@@ -146,13 +146,13 @@ type Destroy func(*Context) error
 
 // NewService creates and returns a new Service instance in the 'New' state.
 //
-// ServiceInterface:
+// Interface:
 // - must be an interface which defines the service's interface
 // - if nil or not an interface, then the method panics
 // All service life cycle functions are optional.
 // Any panic that occurs in the supplied functions is converted to a PanicError.
 func NewService(settings Settings) Service {
-	serviceInterface := settings.ServiceInterface
+	serviceInterface := settings.Interface
 	init := settings.Init
 	run := settings.Run
 	destroy := settings.Destroy
@@ -233,15 +233,15 @@ func NewService(settings Settings) Service {
 
 // panics if settings are invalid
 func checkSettings(settings *Settings) {
-	serviceInterface := settings.ServiceInterface
+	serviceInterface := settings.Interface
 	if serviceInterface == nil {
-		logger.Panic().Msg("Failed to create new service because ServiceInterface is required")
+		logger.Panic().Msg("Failed to create new service because Interface is required")
 	}
 	switch serviceInterface.Kind() {
 	case stdreflect.Interface:
 	default:
 		if kind := serviceInterface.Elem().Kind(); kind != stdreflect.Interface {
-			logger.Panic().Msgf("ServiceInterface (%T) must be an interface, but was a %v", serviceInterface, kind)
+			logger.Panic().Msgf("Interface (%T) must be an interface, but was a %v", serviceInterface, kind)
 		}
 		serviceInterface = serviceInterface.Elem()
 	}
@@ -600,7 +600,7 @@ func (a *service) StopTriggered() bool {
 }
 
 // Interface returns the service interface which defines the service functionality
-func (a *service) Interface() ServiceInterface {
+func (a *service) Interface() Interface {
 	return a.serviceInterface
 }
 

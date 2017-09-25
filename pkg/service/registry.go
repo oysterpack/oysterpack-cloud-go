@@ -24,13 +24,13 @@ import (
 // It is used to register/unregister Client(s) and lookup Client(s).
 type Registry interface {
 	// ServiceByType looks up a service and returns nil if the service is not founc.
-	ServiceByType(serviceInterface ServiceInterface) Client
+	ServiceByType(serviceInterface Interface) Client
 
 	// ServiceByTypeAsync returns a ServiceTicket that can be used to receive the service client via a channel.
-	ServiceByTypeAsync(serviceInterface ServiceInterface) *ServiceTicket
+	ServiceByTypeAsync(serviceInterface Interface) *ServiceTicket
 
-	// Returns a snapshot of the number of open ServiceTicket(s) per ServiceInterface
-	ServiceTicketCounts() map[ServiceInterface]int
+	// Returns a snapshot of the number of open ServiceTicket(s) per Interface
+	ServiceTicketCounts() map[Interface]int
 
 	// ServiceByKey looks up a service and returns nil if the service is not founc.
 	ServiceByKey(key ServiceKey) Client
@@ -42,7 +42,7 @@ type Registry interface {
 	ServiceCount() int
 
 	// ServiceInterfaces returns the service interfaces for all registered services
-	ServiceInterfaces() []ServiceInterface
+	ServiceInterfaces() []Interface
 
 	// ServiceKeys returns the ServiceKey(s) for all registered services
 	ServiceKeys() []ServiceKey
@@ -54,7 +54,7 @@ type Registry interface {
 	// NOTE: only a single version of the service may be registered
 	//
 	// A panic occurs if registration fails for any of the following reasons:
-	// 1. ServiceInterface is nil
+	// 1. Interface is nil
 	// 2. Version is nil
 	// 3. the Client instance type is not assignable to the Service.
 	MustRegisterService(newService ClientConstructor) Client
@@ -79,7 +79,7 @@ func (s *ServiceKey) String() string {
 }
 
 // InterfaceToServiceKey converts an interface type to a ServiceKey
-func InterfaceToServiceKey(serviceInterface ServiceInterface) ServiceKey {
+func InterfaceToServiceKey(serviceInterface Interface) ServiceKey {
 	return ServiceKey{
 		reflect.PackagePath(serviceInterface.PkgPath()),
 		reflect.TypeName(serviceInterface.Name()),

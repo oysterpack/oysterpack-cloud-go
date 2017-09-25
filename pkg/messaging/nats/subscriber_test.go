@@ -19,77 +19,104 @@ import (
 
 	"github.com/nats-io/go-nats"
 
-	"encoding/gob"
-	"fmt"
 	"sync"
 
 	natsop "github.com/oysterpack/oysterpack.go/pkg/messaging/nats"
+	"encoding/json"
 )
 
-func TestNewGobSubscriber(t *testing.T) {
+func TestNewSubscriber(t *testing.T) {
+	subject := "ping"
+
+	wait := sync.WaitGroup{}
+
+
+	// http://nats.io/documentation/server/gnatsd-prune/
+	// NATS automatically handles a slow consumer. If a client is not processing messages quick enough, the NATS server cuts it off.
+	// because the publisher1 is firing messages at full speed, if it takes too long for NATS to deliver a message to the subscriber, the messages will be dropped
+	const subscriberCount = 3
+	for i := 0; i < subscriberCount; i++ {
+		nc, _ := nats.Connect(nats.DefaultURL)
+		defer nc.Close()
+		subscriber, err := natsop.NewSubscriber(nc, subject, 256, logMessage(&wait,i,t))
+		if err != nil {
+			t.Errorf("Failed to create subscriber : %v", err)
+			return
+		}
+		defer subscriber.Close()
+	}
+
+	nc, _ := nats.Connect(nats.DefaultURL)
+	defer nc.Close()
+	publisher1 := natsop.NewPublisher(nc, subject, 0)
+	defer publisher1.Close()
+
+	publisher2 := natsop.NewPublisher(nc, subject, 0)
+	defer publisher2.Close()
+
+	for i := 1; i <= 100; i++ {
+		wait.Add(subscriberCount)
+		person := &Person{"alfio", "zappala", i}
+		if err := publisher1.Publish(person); err != nil {
+			t.Errorf("Publish failed : %v", err)
+		} else {
+			t.Logf("published message : %v", *person)
+		}
+
+		wait.Add(subscriberCount)
+		if err := publisher2.Publish(person); err != nil {
+			t.Errorf("Publish failed : %v", err)
+		} else {
+			t.Logf("published message : %v", *person)
+		}
+	}
+	wait.Wait()
+}
+
+func TestNewQueueSubscriber(t *testing.T) {
 	nc, _ := nats.Connect(nats.DefaultURL)
 	defer nc.Close()
 
 	subject := "ping"
+	queue := "ping_queue"
 
 	wait := sync.WaitGroup{}
 
 	// http://nats.io/documentation/server/gnatsd-prune/
 	// NATS automatically handles a slow consumer. If a client is not processing messages quick enough, the NATS server cuts it off.
 	// because the publisher is firing messages at full speed, if it takes too long for NATS to deliver a message to the subscriber, the messages will be dropped
-	msgReceviedCounter := 0
-	subscriber, err := natsop.NewGobSubscriber(nc, subject, 100, func(conn *nats.Conn, msg *nats.Msg, decoder *gob.Decoder) {
-		defer wait.Done()
-		person := &Person{}
-		decoder.Decode(person)
-		msgReceviedCounter++
-		fmt.Printf("Received message #%d: %v\n", msgReceviedCounter, *person)
-	})
-	if err != nil {
-		t.Errorf("Failed to create subscriber : %v", err)
-		return
+	const subscriberCount = 3
+	for i := 0; i < subscriberCount; i++ {
+		subscriber, err := natsop.NewQueueSubscriber(nc, subject, queue, 100, logMessage(&wait,i,t) )
+		if err != nil {
+			t.Errorf("Failed to create subscriber : %v", err)
+			return
+		}
+		defer subscriber.Close()
 	}
-	defer subscriber.Close()
 
-	publisher := natsop.NewGobPublisher(nc, subject, 0)
+	publisher := natsop.NewPublisher(nc, subject, 100)
 	defer publisher.Close()
 
-	const msgCount = 100
-
-	for i := 1; i <= msgCount; i++ {
+	for i := 1; i <= 100; i++ {
 		wait.Add(1)
-		person := &Person{"alfio", "zappala", i}
+		person := Person{"alfio", "zappala", i}
 		if err := publisher.Publish(person); err != nil {
 			t.Errorf("Publish failed : %v", err)
 		} else {
-			fmt.Printf("published message : %v\n", *person)
+			t.Logf("published message : %v", person)
 		}
 	}
 	wait.Wait()
 }
 
-func TestChannels(t *testing.T) {
-	nc, _ := nats.Connect(nats.DefaultURL)
-	ec, _ := nats.NewEncodedConn(nc, nats.GOB_ENCODER)
-	defer ec.Close()
-
-	type person struct {
-		Name    string
-		Address string
-		Age     int
+func logMessage(wait *sync.WaitGroup, id int,t *testing.T) natsop.MessageProcessor {
+	msgReceivedCounter := 0
+	return func(conn *nats.Conn, msg *nats.Msg) {
+		defer wait.Done()
+		person := &Person{}
+		json.Unmarshal(msg.Data,person)
+		msgReceivedCounter++
+		t.Logf("[%d] Received message #%d: %v : %d", id, msgReceivedCounter, *person, len(msg.Data))
 	}
-
-	recvCh := make(chan *person)
-	ec.BindRecvChan("hello", recvCh)
-
-	sendCh := make(chan *person)
-	ec.BindSendChan("hello", sendCh)
-
-	me := &person{Name: "derek", Age: 22, Address: "140 New Montgomery Street"}
-
-	// Send via Go channels
-	sendCh <- me
-
-	// Receive via Go channels
-	t.Logf("%v", <-recvCh)
 }

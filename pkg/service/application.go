@@ -42,7 +42,7 @@ type Application interface {
 	ServiceDependencies
 
 	// ServiceStates returns a snapshot of the current states for all registered services
-	ServiceStates() map[ServiceInterface]State
+	ServiceStates() map[Interface]State
 
 	StopRestartServices
 
@@ -70,7 +70,7 @@ type registeredService struct {
 type application struct {
 	mutex sync.RWMutex
 	// once a service is stopped, it will be removed from this map
-	services map[ServiceInterface]*registeredService
+	services map[Interface]*registeredService
 
 	// application can be managed itself as a service
 	service Service
@@ -83,7 +83,7 @@ type application struct {
 // ServiceTicket represents a ticket issued to a user waiting for a service
 type ServiceTicket struct {
 	// the type of service the user is waiting for
-	ServiceInterface
+	Interface
 	// used to deliver the Client to the user
 	channel chan Client
 
@@ -98,12 +98,12 @@ func (a *ServiceTicket) Channel() <-chan Client {
 }
 
 // ServiceTicketCounts returns the number of tickets that have been issued per service
-func (a *application) ServiceTicketCounts() map[ServiceInterface]int {
+func (a *application) ServiceTicketCounts() map[Interface]int {
 	a.serviceTicketsMutex.RLock()
 	defer a.serviceTicketsMutex.RUnlock()
-	counts := make(map[ServiceInterface]int)
+	counts := make(map[Interface]int)
 	for _, ticket := range a.serviceTickets {
-		counts[ticket.ServiceInterface]++
+		counts[ticket.Interface]++
 	}
 	return counts
 }
@@ -123,30 +123,30 @@ type ApplicationSettings struct {
 // NewApplication returns a new application
 func NewApplication(settings ApplicationSettings) Application {
 	app := &application{
-		services: make(map[ServiceInterface]*registeredService),
+		services: make(map[Interface]*registeredService),
 	}
 
 	var service Application = app
 	serviceInterface, _ := reflect.ObjectInterface(&service)
 	app.service = NewService(Settings{
-		ServiceInterface: serviceInterface,
-		Run:              app.run,
-		Destroy:          app.destroy,
-		LogSettings:      LogSettings{LogOutput: settings.LogOutput, LogLevel: settings.LogLevel},
-		Version:          ApplicationVersion,
+		Interface:   serviceInterface,
+		Run:         app.run,
+		Destroy:     app.destroy,
+		LogSettings: LogSettings{LogOutput: settings.LogOutput, LogLevel: settings.LogLevel},
+		Version:     ApplicationVersion,
 	})
 	return service
 }
 
 // ServiceByType looks up a service via its service interface.
 // If exists is true, then the service was found.
-func (a *application) ServiceByType(serviceInterface ServiceInterface) Client {
+func (a *application) ServiceByType(serviceInterface Interface) Client {
 	a.mutex.RLock()
 	defer a.mutex.RUnlock()
 	return a.serviceByType(serviceInterface)
 }
 
-func (a *application) serviceByType(serviceInterface ServiceInterface) Client {
+func (a *application) serviceByType(serviceInterface Interface) Client {
 	if s, exists := a.services[serviceInterface]; exists {
 		return s.Client
 	}
@@ -154,7 +154,7 @@ func (a *application) serviceByType(serviceInterface ServiceInterface) Client {
 }
 
 // ServiceByTypeAsync returns channel that will be used to send the Client, when one is available
-func (a *application) ServiceByTypeAsync(serviceInterface ServiceInterface) *ServiceTicket {
+func (a *application) ServiceByTypeAsync(serviceInterface Interface) *ServiceTicket {
 	ticket := &ServiceTicket{serviceInterface, make(chan Client, 1), time.Now()}
 	serviceClient := a.ServiceByType(serviceInterface)
 	if serviceClient != nil {
@@ -175,7 +175,7 @@ func (a *application) checkServiceTickets() {
 	a.serviceTicketsMutex.RLock()
 	defer a.serviceTicketsMutex.RUnlock()
 	for _, ticket := range a.serviceTickets {
-		serviceClient := a.ServiceByType(ticket.ServiceInterface)
+		serviceClient := a.ServiceByType(ticket.Interface)
 		if serviceClient != nil {
 			go func(ticket *ServiceTicket) {
 				defer commons.IgnorePanic()
@@ -235,10 +235,10 @@ func (a *application) Services() []Client {
 }
 
 // ServiceInterfaces returns all service interfaces for all registered services
-func (a *application) ServiceInterfaces() []ServiceInterface {
+func (a *application) ServiceInterfaces() []Interface {
 	a.mutex.RLock()
 	defer a.mutex.RUnlock()
-	interfaces := []ServiceInterface{}
+	interfaces := []Interface{}
 	for k := range a.services {
 		interfaces = append(interfaces, k)
 	}
@@ -263,14 +263,14 @@ func (a *application) ServiceKeys() []ServiceKey {
 
 // MustRegisterService will register the service and start it, if it is not already registered.
 // A panic occurs if registration fails for any of the following reasons:
-// 1. ServiceInterface is nil
+// 1. Interface is nil
 // 2. Version is nil
 // 3. the Client instance type is not assignable to the Service.
-// 4. A service with the same ServiceInterface is already registered.
+// 4. A service with the same Interface is already registered.
 func (a *application) MustRegisterService(create ClientConstructor) Client {
 	validate := func(service Client) {
 		if service.Service().Interface() == nil {
-			a.Service().Logger().Panic().Msg("Service failed to register because it has no ServiceInterface")
+			a.Service().Logger().Panic().Msg("Service failed to register because it has no Interface")
 		}
 
 		if service.Service().Version() == nil {
@@ -374,7 +374,7 @@ func (a *application) CheckServiceDependenciesRegistered(serviceClient Client) *
 }
 
 func (a *application) checkServiceDependenciesRegistered(serviceClient Client) *ServiceDependenciesMissing {
-	missingDependencies := &ServiceDependenciesMissing{&DependencyMappings{ServiceInterface: serviceClient.Service().Interface()}}
+	missingDependencies := &ServiceDependenciesMissing{&DependencyMappings{Interface: serviceClient.Service().Interface()}}
 	for dependency, constraints := range serviceClient.Service().Dependencies() {
 		b := a.serviceByType(dependency)
 		if b == nil {
@@ -415,7 +415,7 @@ func (a *application) CheckServiceDependenciesRunning(serviceClient Client) *Ser
 }
 
 func (a *application) checkServiceDependenciesRunning(serviceClient Client) *ServiceDependenciesNotRunning {
-	notRunning := &ServiceDependenciesNotRunning{&DependencyMappings{ServiceInterface: serviceClient.Service().Interface()}}
+	notRunning := &ServiceDependenciesNotRunning{&DependencyMappings{Interface: serviceClient.Service().Interface()}}
 	for dependency, constraints := range serviceClient.Service().Dependencies() {
 		if client := a.serviceByType(dependency); client == nil ||
 			(constraints != nil && !constraints.Check(client.Service().Version())) ||
@@ -464,17 +464,17 @@ func (a *application) CheckServiceDependencies(client Client) *ServiceDependency
 	return nil
 }
 
-func (a *application) ServiceStates() map[ServiceInterface]State {
+func (a *application) ServiceStates() map[Interface]State {
 	a.mutex.RLock()
 	defer a.mutex.RUnlock()
-	serviceStates := make(map[ServiceInterface]State)
+	serviceStates := make(map[Interface]State)
 	for k, s := range a.services {
 		serviceStates[k] = s.Service().State()
 	}
 	return serviceStates
 }
 
-func (a *application) StopServiceByType(serviceInterface ServiceInterface) error {
+func (a *application) StopServiceByType(serviceInterface Interface) error {
 	client := a.ServiceByType(serviceInterface)
 	if client == nil {
 		return &ServiceNotFoundError{InterfaceToServiceKey(serviceInterface)}
@@ -492,7 +492,7 @@ func (a *application) StopServiceByKey(key ServiceKey) error {
 	return nil
 }
 
-func (a *application) RestartServiceByType(serviceInterface ServiceInterface) error {
+func (a *application) RestartServiceByType(serviceInterface Interface) error {
 	client := a.ServiceByType(serviceInterface)
 	if client == nil {
 		return &ServiceNotFoundError{InterfaceToServiceKey(serviceInterface)}

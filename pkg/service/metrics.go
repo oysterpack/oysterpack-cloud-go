@@ -23,7 +23,7 @@ import (
 
 // standard service metric labels
 const (
-	// METRIC_LABEL_SERVICE svc="ServiceInterface" - used to group metrics by service
+	// METRIC_LABEL_SERVICE svc="Interface" - used to group metrics by service
 	// the label value format is : serviceInterface.PkgPath()/serviceInterface.Name()
 	METRIC_LABEL_SERVICE = "svc"
 	// METRIC_LABEL_SERVICE_VERSION svc-ver="X.Y.Z" - used to group service metrics by service version
@@ -34,7 +34,7 @@ const (
 //
 //		svc="github.com/oysterpack/oysterpack.go/cmd/demos/services/counter/Service",svc_ver="1.0.0"
 //
-func AddServiceMetricLabels(labels prometheus.Labels, serviceInterface ServiceInterface, version *semver.Version) prometheus.Labels {
+func AddServiceMetricLabels(labels prometheus.Labels, serviceInterface Interface, version *semver.Version) prometheus.Labels {
 	labels[METRIC_LABEL_SERVICE] = fmt.Sprintf("%v/%v", serviceInterface.PkgPath(), serviceInterface.Name())
 	labels[METRIC_LABEL_SERVICE_VERSION] = version.String()
 	return labels
