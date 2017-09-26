@@ -27,6 +27,7 @@ import (
 // this app will increment and print the counter value each time the user hits the return key
 func main() {
 	defer service.App().Stop()
+	service.App().UpdateDescriptor("oysterpack", "demos", "counter", "0.1.0")
 	service.App().Start()
 	client := service.App().MustRegisterService(counter.ClientConstructor)
 	client.Service().AwaitUntilRunning()

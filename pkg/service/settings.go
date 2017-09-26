@@ -17,18 +17,13 @@ package service
 import (
 	"io"
 
-	"github.com/Masterminds/semver"
 	"github.com/oysterpack/oysterpack.go/pkg/metrics"
 	"github.com/rs/zerolog"
 )
 
 // Settings is used by NewService to create a new service instance
 type Settings struct {
-	// REQUIRED - represents the service interface from the client's perspective
-	// If the service has no direct client API, e.g., a network based service, then use an empty interface{}
-	Interface
-
-	*semver.Version
+	*Descriptor
 
 	// OPTIONAL - functions that define the service lifecycle
 	Init

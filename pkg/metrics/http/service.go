@@ -22,7 +22,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/Masterminds/semver"
 	"github.com/oysterpack/oysterpack.go/pkg/commons/reflect"
 	"github.com/oysterpack/oysterpack.go/pkg/metrics"
 	"github.com/oysterpack/oysterpack.go/pkg/service"
@@ -30,8 +29,16 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-// Version is the service version
-const Version = "1.0.0"
+const (
+	// Namespace name
+	Namespace = "oysterpack"
+	// System name
+	System = "metrics"
+	// Component name
+	Component = "http"
+	// Version is the service version
+	Version = "1.0.0"
+)
 
 // Service interface
 type Service interface {
@@ -92,16 +99,10 @@ func (a *server) Println(v ...interface{}) {
 }
 
 func (a *server) newService() service.Service {
-	version, err := semver.NewVersion(Version)
-	if err != nil {
-		panic(err)
-	}
-
 	settings := service.Settings{
-		Interface: MetricsServiceInterface,
-		Version:   version,
-		Init:      a.init,
-		Destroy:   a.destroy,
+		Descriptor: service.NewDescriptor(Namespace, System, Component, Version, MetricsServiceInterface),
+		Init:       a.init,
+		Destroy:    a.destroy,
 	}
 	return service.NewService(settings)
 }

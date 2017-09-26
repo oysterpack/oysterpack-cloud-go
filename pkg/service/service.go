@@ -21,6 +21,9 @@ import (
 
 	"sync"
 
+	"strings"
+	"unicode"
+
 	"github.com/Masterminds/semver"
 	"github.com/oysterpack/oysterpack.go/pkg/commons"
 	"github.com/oysterpack/oysterpack.go/pkg/commons/reflect"
@@ -32,8 +35,13 @@ import (
 // Service represents the backend service.
 // use NewService() to create a new instance
 type Service interface {
-	Interface() Interface
+	Desc() *Descriptor
 
+	Namespace() string
+	System() string
+	Component() string
+
+	Interface() Interface
 	Version() *semver.Version
 
 	StartAsync() error
@@ -61,6 +69,97 @@ type Service interface {
 
 	// MetricOpts define the service related metrics
 	MetricOpts() *metrics.MetricOpts
+}
+
+// Descriptor is used to describe the service
+// Think of the service as a component that is part of a system which belongs to a namespace.
+// The service functionality is defined by its Interface.
+// The service is versioned.
+type Descriptor struct {
+	namespace string
+	system    string
+	component string
+	version   *semver.Version
+
+	serviceInterface Interface
+}
+
+// NewDescriptor creates a new descriptor.
+// namespace, system, and component must not be blank, and must only consist of letters.
+// They will be trimmed and lower cased.
+func NewDescriptor(
+	namespace string,
+	system string,
+	component string,
+	version string,
+	serviceInterface Interface) *Descriptor {
+
+	validate := func(name, s string) (string, error) {
+		s = strings.TrimSpace(s)
+		if len(s) == 0 {
+			return s, fmt.Errorf("%q cannot be blank", name)
+		}
+		for _, c := range s {
+			if !unicode.IsLetter(c) {
+				return s, fmt.Errorf("%q [%v] contains a non-letter character : %q", name, s, c)
+			}
+		}
+		return strings.ToLower(s), nil
+	}
+	namespace, err := validate("namespace", namespace)
+	if err != nil {
+		panic(err)
+	}
+	system, err = validate("system", system)
+	if err != nil {
+		panic(err)
+	}
+	component, err = validate("component", component)
+	if err != nil {
+
+	}
+
+	return &Descriptor{
+		namespace:        namespace,
+		system:           system,
+		component:        component,
+		serviceInterface: checkInterface(serviceInterface),
+		version:          NewVersion(version),
+	}
+}
+
+// ID return the unique service id composed of its {namespace}-{system}-{component}-{version}
+func (a *Descriptor) ID() string {
+	return strings.Join([]string{a.namespace, a.system, a.component, a.version.String()}, "-")
+}
+
+func (a *Descriptor) String() string {
+	return fmt.Sprintf("%v :: %v.%v", a.Interface(), a.serviceInterface.PkgPath(), a.serviceInterface.Name())
+}
+
+// Namespace returns the namespace that the service belongs to
+func (a *Descriptor) Namespace() string {
+	return a.namespace
+}
+
+// System returns the name of the system that the service belongs to
+func (a *Descriptor) System() string {
+	return a.system
+}
+
+// Component returns the name of the component
+func (a *Descriptor) Component() string {
+	return a.component
+}
+
+// Interface returns the service interface which defines the service functionality
+func (a *Descriptor) Interface() Interface {
+	return a.serviceInterface
+}
+
+// Version returns the service version
+func (a *Descriptor) Version() *semver.Version {
+	return a.version
 }
 
 // InterfaceDependencies represents a service's interface dependencies with version constraints
@@ -98,9 +197,7 @@ type InterfaceDependencies map[Interface]*semver.Constraints
 // TODO: security
 // TODO: gRPC - frontend
 type service struct {
-	serviceInterface Interface
-
-	version *semver.Version
+	*Descriptor
 
 	lifeCycle
 
@@ -144,6 +241,10 @@ type Run func(*Context) error
 // Destroy is a function that is used to perform any cleanup during service shutdown.
 type Destroy func(*Context) error
 
+func (a *service) Desc() *Descriptor {
+	return a.Descriptor
+}
+
 // NewService creates and returns a new Service instance in the 'New' state.
 //
 // Interface:
@@ -152,7 +253,7 @@ type Destroy func(*Context) error
 // All service life cycle functions are optional.
 // Any panic that occurs in the supplied functions is converted to a PanicError.
 func NewService(settings Settings) Service {
-	serviceInterface := settings.Interface
+	serviceInterface := settings.Interface()
 	init := settings.Init
 	run := settings.Run
 	destroy := settings.Destroy
@@ -201,8 +302,7 @@ func NewService(settings Settings) Service {
 		logSettings(svcLog.Info().Str(logging.FUNC, "NewService"), &settings).Msg("")
 
 		svc := &service{
-			serviceInterface: serviceInterface,
-			version:          settings.Version,
+			Descriptor: settings.Descriptor,
 			lifeCycle: lifeCycle{
 				serviceState: NewServiceState(),
 				init:         init,
@@ -233,9 +333,15 @@ func NewService(settings Settings) Service {
 
 // panics if settings are invalid
 func checkSettings(settings *Settings) {
-	serviceInterface := settings.Interface
+	settings.Descriptor.serviceInterface = checkInterface(settings.Interface())
+	if settings.Version == nil {
+		logger.Panic().Str(logging.SERVICE, settings.Interface().String()).Msgf("Version is required")
+	}
+}
+
+func checkInterface(serviceInterface Interface) Interface {
 	if serviceInterface == nil {
-		logger.Panic().Msg("Failed to create new service because Interface is required")
+		logger.Panic().Msg("Interface is required")
 	}
 	switch serviceInterface.Kind() {
 	case stdreflect.Interface:
@@ -245,10 +351,7 @@ func checkSettings(settings *Settings) {
 		}
 		serviceInterface = serviceInterface.Elem()
 	}
-
-	if settings.Version == nil {
-		logger.Panic().Str(logging.SERVICE, serviceInterface.String()).Msgf("Failed to create new service because it has no version")
-	}
+	return serviceInterface
 }
 
 func logInterfaceDependencies(log *zerolog.Event, settings *Settings) {
@@ -375,7 +478,7 @@ func logMetrics(log *zerolog.Event, settings *Settings) {
 }
 
 func logSettings(log *zerolog.Event, settings *Settings) *zerolog.Event {
-	log.Str("Version", settings.Version.String())
+	log.Str("Version", settings.Version().String())
 
 	logInterfaceDependencies(log, settings)
 	logHealthChecks(log, settings)
@@ -597,16 +700,6 @@ func (a *service) Stop() {
 // StopTriggered returns true if the service was triggered to stop.
 func (a *service) StopTriggered() bool {
 	return a.stopTriggered
-}
-
-// Interface returns the service interface which defines the service functionality
-func (a *service) Interface() Interface {
-	return a.serviceInterface
-}
-
-// Version returns the service version
-func (a *service) Version() *semver.Version {
-	return a.version
 }
 
 // StopTrigger returns the channel to listen for the stopping

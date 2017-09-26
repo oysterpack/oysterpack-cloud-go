@@ -15,7 +15,6 @@
 package nats
 
 import (
-
 	"github.com/nats-io/go-nats"
 	"github.com/oysterpack/oysterpack.go/pkg/commons"
 )
@@ -31,7 +30,6 @@ type Subscriber struct {
 	subscription *nats.Subscription
 	subject      string
 	queue        string
-
 
 	messages chan *nats.Msg
 	process  MessageProcessor

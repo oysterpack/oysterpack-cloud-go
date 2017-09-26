@@ -34,6 +34,9 @@ import (
 
 // Application is a service, which serves as a container for other services.
 type Application interface {
+	Descriptor() *Descriptor
+	UpdateDescriptor(namespace string, system string, component string, version string)
+
 	// refers to the application service - used to manage the application lifecycle
 	ServiceReference
 
@@ -115,9 +118,21 @@ func (a *application) Service() Service {
 
 // ApplicationSettings provides application settings used to create a new application
 type ApplicationSettings struct {
-	LogOutput io.Writer
+	*Descriptor
 
-	LogLevel *zerolog.Level
+	LogOutput io.Writer
+	LogLevel  *zerolog.Level
+}
+
+func NewApplicationDesc(
+	namespace string,
+	system string,
+	component string,
+	version string,
+) *Descriptor {
+	var service Application = &application{}
+	serviceInterface, _ := reflect.ObjectInterface(&service)
+	return NewDescriptor(namespace, system, component, version, serviceInterface)
 }
 
 // NewApplication returns a new application
@@ -125,17 +140,34 @@ func NewApplication(settings ApplicationSettings) Application {
 	app := &application{
 		services: make(map[Interface]*registeredService),
 	}
-
 	var service Application = app
-	serviceInterface, _ := reflect.ObjectInterface(&service)
+
+	if settings.Descriptor == nil {
+		settings.Descriptor = NewApplicationDesc("oysterpack", "service", "application", "1.0.0")
+	} else {
+		serviceInterface, _ := reflect.ObjectInterface(&service)
+		settings.Descriptor.serviceInterface = serviceInterface
+	}
+
 	app.service = NewService(Settings{
-		Interface:   serviceInterface,
+		Descriptor:  settings.Descriptor,
+		LogSettings: LogSettings{LogOutput: settings.LogOutput, LogLevel: settings.LogLevel},
 		Run:         app.run,
 		Destroy:     app.destroy,
-		LogSettings: LogSettings{LogOutput: settings.LogOutput, LogLevel: settings.LogLevel},
-		Version:     ApplicationVersion,
 	})
 	return service
+}
+
+func (a *application) Descriptor() *Descriptor {
+	return a.service.Desc()
+}
+
+func (a *application) UpdateDescriptor(namespace string, system string, component string, version string) {
+	desc := NewApplicationDesc(namespace, system, component, version)
+	a.Descriptor().namespace = desc.namespace
+	a.Descriptor().system = desc.system
+	a.Descriptor().component = desc.component
+	a.Descriptor().version = desc.version
 }
 
 // ServiceByType looks up a service via its service interface.
@@ -323,6 +355,7 @@ func (a *application) UnRegisterService(service Client) bool {
 }
 
 func (a *application) run(ctx *Context) error {
+	a.service.Logger().Info().Msg(a.Descriptor().ID())
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 	for {

@@ -21,15 +21,18 @@ import (
 
 	"sync"
 
-	natsop "github.com/oysterpack/oysterpack.go/pkg/messaging/nats"
 	"encoding/json"
+
+	natsop "github.com/oysterpack/oysterpack.go/pkg/messaging/nats"
 )
 
 func TestNewSubscriber(t *testing.T) {
+	ts := RunServer()
+	defer ts.Shutdown()
+
 	subject := "ping"
 
 	wait := sync.WaitGroup{}
-
 
 	// http://nats.io/documentation/server/gnatsd-prune/
 	// NATS automatically handles a slow consumer. If a client is not processing messages quick enough, the NATS server cuts it off.
@@ -38,7 +41,7 @@ func TestNewSubscriber(t *testing.T) {
 	for i := 0; i < subscriberCount; i++ {
 		nc, _ := nats.Connect(nats.DefaultURL)
 		defer nc.Close()
-		subscriber, err := natsop.NewSubscriber(nc, subject, 256, logMessage(&wait,i,t))
+		subscriber, err := natsop.NewSubscriber(nc, subject, 256, logMessage(&wait, i, t))
 		if err != nil {
 			t.Errorf("Failed to create subscriber : %v", err)
 			return
@@ -74,6 +77,9 @@ func TestNewSubscriber(t *testing.T) {
 }
 
 func TestNewQueueSubscriber(t *testing.T) {
+	ts := RunServer()
+	defer ts.Shutdown()
+
 	nc, _ := nats.Connect(nats.DefaultURL)
 	defer nc.Close()
 
@@ -87,7 +93,7 @@ func TestNewQueueSubscriber(t *testing.T) {
 	// because the publisher is firing messages at full speed, if it takes too long for NATS to deliver a message to the subscriber, the messages will be dropped
 	const subscriberCount = 3
 	for i := 0; i < subscriberCount; i++ {
-		subscriber, err := natsop.NewQueueSubscriber(nc, subject, queue, 100, logMessage(&wait,i,t) )
+		subscriber, err := natsop.NewQueueSubscriber(nc, subject, queue, 100, logMessage(&wait, i, t))
 		if err != nil {
 			t.Errorf("Failed to create subscriber : %v", err)
 			return
@@ -110,12 +116,12 @@ func TestNewQueueSubscriber(t *testing.T) {
 	wait.Wait()
 }
 
-func logMessage(wait *sync.WaitGroup, id int,t *testing.T) natsop.MessageProcessor {
+func logMessage(wait *sync.WaitGroup, id int, t *testing.T) natsop.MessageProcessor {
 	msgReceivedCounter := 0
 	return func(conn *nats.Conn, msg *nats.Msg) {
 		defer wait.Done()
 		person := &Person{}
-		json.Unmarshal(msg.Data,person)
+		json.Unmarshal(msg.Data, person)
 		msgReceivedCounter++
 		t.Logf("[%d] Received message #%d: %v : %d", id, msgReceivedCounter, *person, len(msg.Data))
 	}

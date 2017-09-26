@@ -25,8 +25,16 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-// Version is the service version
-const Version = "1.0.0"
+const (
+	// Namespace name
+	Namespace = "oysterpack"
+	// System name
+	System = "metrics"
+	// Component name
+	Component = "http"
+	// Version is the service version
+	Version = "1.0.0"
+)
 
 // Service is the service server interface
 type Service interface {
@@ -100,8 +108,7 @@ func (a *server) newService() service.Service {
 	}
 
 	return service.NewService(service.Settings{
-		Interface:    CounterServiceInterface,
-		Version:      service.NewVersion(Version),
+		Descriptor:   service.NewDescriptor(Namespace, System, Component, Version, CounterServiceInterface),
 		Run:          a.run,
 		Metrics:      metricOpts,
 		HealthChecks: healthchecks,

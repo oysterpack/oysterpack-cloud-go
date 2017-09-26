@@ -23,8 +23,9 @@ import (
 
 func TestRestartableService_RestartService(t *testing.T) {
 
+	desc := service.NewDescriptor("oysterpack", "test", "foo", "1.0.0", reflect.TypeOf(&foo))
 	service := service.NewRestartableService(func() service.Service {
-		return service.NewService(service.Settings{Interface: reflect.TypeOf(&foo), Version: service.NewVersion("1.0.0")})
+		return service.NewService(service.Settings{Descriptor: desc})
 	})
 
 	if !service.Service().State().New() {

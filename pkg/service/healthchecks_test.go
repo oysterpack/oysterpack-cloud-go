@@ -64,8 +64,7 @@ func TestService_HealthChecks(t *testing.T) {
 	}
 
 	server := service.NewService(service.Settings{
-		Interface:    EchoServiceInterface,
-		Version:      service.NewVersion("1.0.0"),
+		Descriptor:   service.NewDescriptor("oysterpack", "test", "echo", "1.0.0", EchoServiceInterface),
 		HealthChecks: healthchecks,
 	})
 
@@ -118,8 +117,7 @@ func TestService_RunAllHealthChecks(t *testing.T) {
 	}
 
 	server := service.NewService(service.Settings{
-		Interface:    EchoServiceInterface,
-		Version:      service.NewVersion("1.0.0"),
+		Descriptor:   service.NewDescriptor("oysterpack", "test", "echo", "1.0.0", EchoServiceInterface),
 		HealthChecks: healthchecks,
 	})
 
@@ -178,8 +176,7 @@ func TestService_RunAllFailedHealthChecks(t *testing.T) {
 	}
 
 	server := service.NewService(service.Settings{
-		Interface:    EchoServiceInterface,
-		Version:      service.NewVersion("1.0.0"),
+		Descriptor:   service.NewDescriptor("oysterpack", "test", "echo", "1.0.0", EchoServiceInterface),
 		HealthChecks: healthchecks,
 	})
 

@@ -23,6 +23,9 @@ import (
 )
 
 func TestNewGobPublisher(t *testing.T) {
+	ts := RunServer()
+	defer ts.Shutdown()
+
 	nc, _ := nats.Connect(nats.DefaultURL)
 	defer nc.Close()
 

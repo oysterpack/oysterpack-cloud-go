@@ -15,10 +15,11 @@
 package nats
 
 import (
-	"github.com/nats-io/go-nats"
-	"github.com/oysterpack/oysterpack.go/pkg/commons"
 	"encoding/json"
 	"fmt"
+
+	"github.com/nats-io/go-nats"
+	"github.com/oysterpack/oysterpack.go/pkg/commons"
 )
 
 // Publisher encodes messages as gobs and publishes them to a subject
@@ -99,8 +100,8 @@ func (a *Publisher) publish(msg *message) {
 // An error is returned if encoding fails, or for a NATS publishing error.
 func (a *Publisher) Publish(msg interface{}) (err error) {
 	defer func() {
-		if p := recover();p!= nil {
-			err = fmt.Errorf("%v",p)
+		if p := recover(); p != nil {
+			err = fmt.Errorf("%v", p)
 		}
 	}()
 	replyTo := make(chan error)

@@ -72,15 +72,9 @@ func (a *EchoServiceClient) Echo(msg interface{}) interface{} {
 
 // ServiceConstructor
 func (a *EchoServiceClient) newService() service.Service {
-	version, err := semver.NewVersion("1.0.0")
-	if err != nil {
-		panic(err)
-	}
-
 	return service.NewService(service.Settings{
-		Interface: EchoServiceInterface,
-		Version:   version,
-		Run:       a.run,
+		Descriptor: service.NewDescriptor("oysterpack", "test", "echo", "1.0.0", EchoServiceInterface),
+		Run:        a.run,
 	})
 }
 
@@ -157,11 +151,10 @@ func (a *HeartbeatServiceClient) run(ctx *service.Context) error {
 }
 
 func (a *HeartbeatServiceClient) newService() service.Service {
-	version, err := semver.NewVersion("1.0.0")
-	if err != nil {
-		panic(err)
-	}
-	return service.NewService(service.Settings{Interface: HeartbeatServiceInterface, Version: version, Run: a.run})
+	return service.NewService(service.Settings{
+		Descriptor: service.NewDescriptor("oysterpack", "test", "heartbeat", "1.0.0", HeartbeatServiceInterface),
+		Run:        a.run,
+	})
 }
 
 func HeartbeatServiceClientConstructor(application service.Application) service.Client {
@@ -195,11 +188,7 @@ func AServiceClientConstructorFactory(version string) service.ClientConstructor 
 	return func(application service.Application) service.Client {
 		serviceClient := &AServiceClient{}
 		serviceClient.RestartableService = service.NewRestartableService(func() service.Service {
-			version, err := semver.NewVersion(version)
-			if err != nil {
-				panic(err)
-			}
-			return service.NewService(service.Settings{Interface: AServiceInterface, Version: version})
+			return service.NewService(service.Settings{Descriptor: service.NewDescriptor("oysterpack", "test", "aservice", version, AServiceInterface)})
 		})
 		return serviceClient
 	}
@@ -237,21 +226,15 @@ func BServiceClientConstructor(app service.Application) service.Client {
 			}
 		}
 
-		version, err := semver.NewVersion("1.0.0")
-		if err != nil {
-			panic(err)
-		}
-
 		aServiceVersionConstraint, err := semver.NewConstraint(">= 1.0, < 2")
 		if err != nil {
 			panic(err)
 		}
 
 		return service.NewService(service.Settings{
-			Interface:             BServiceInterface,
-			Version:               version,
+			Descriptor:            service.NewDescriptor("oysterpack", "test", "bservice", "1.0.0", BServiceInterface),
 			InterfaceDependencies: service.InterfaceDependencies{AServiceInterface: aServiceVersionConstraint},
-			Init:                  init,
+			Init: init,
 		})
 	})
 	return serviceClient

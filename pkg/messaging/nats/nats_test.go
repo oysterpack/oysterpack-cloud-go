@@ -12,14 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package service
+package nats_test
 
-var app Application = NewApplication(ApplicationSettings{})
+import (
+	"github.com/nats-io/gnatsd/server"
+	gnatsd "github.com/nats-io/gnatsd/test"
+)
 
-// App exposes the Application globally.
-//
-// Use cases:
-// 1. Package init functions use it to to register services when the package is loaded
-// 2. Used to register services in the main function
-// 3. Used to integrate application services with third party libraries.
-func App() Application { return app }
+func RunServer() *server.Server {
+	return RunServerWithOptions(gnatsd.DefaultTestOptions)
+}
+
+func RunServerOnPort(port int) *server.Server {
+	opts := gnatsd.DefaultTestOptions
+	opts.Port = port
+	return RunServerWithOptions(opts)
+}
+
+func RunServerWithOptions(opts server.Options) *server.Server {
+	return gnatsd.RunServer(&opts)
+}
