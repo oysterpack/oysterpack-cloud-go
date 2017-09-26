@@ -69,15 +69,14 @@ func TestRegisterHealthCheck_CheckMetricsAreRegistered(t *testing.T) {
 		t.Error("Registration should have failed")
 	}
 
-	durationOpts := prometheus.HistogramOpts{
+	durationOpts := prometheus.GaugeOpts{
 		Namespace:   opts.Namespace,
 		Subsystem:   opts.Subsystem,
 		Name:        fmt.Sprintf("%s_duration_seconds", opts.Name),
 		Help:        "healthcheck run duration",
 		ConstLabels: opts.ConstLabels,
-		Buckets:     prometheus.DefBuckets,
 	}
-	if metrics.Registry.Register(prometheus.NewHistogram(durationOpts)) == nil {
+	if metrics.Registry.Register(prometheus.NewGauge(durationOpts)) == nil {
 		t.Error("Registration should have failed")
 	}
 

@@ -15,27 +15,29 @@
 package service
 
 import (
-	"fmt"
-
-	"github.com/Masterminds/semver"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
 // standard service metric labels
 const (
-	// METRIC_LABEL_SERVICE svc="Interface" - used to group metrics by service
-	// the label value format is : serviceInterface.PkgPath()/serviceInterface.Name()
-	METRIC_LABEL_SERVICE = "svc"
-	// METRIC_LABEL_SERVICE_VERSION svc-ver="X.Y.Z" - used to group service metrics by service version
-	METRIC_LABEL_SERVICE_VERSION = "svc_ver"
+	// METRIC_LABEL_NAMESPACE ns -> Descriptor.NameSpace
+	METRIC_LABEL_NAMESPACE = "ns"
+	// METRIC_LABEL_SYSTEM  sys -> Descriptor.System
+	METRIC_LABEL_SYSTEM = "sys"
+	// METRIC_LABEL_COMPONENT comp -> Descriptor.Component
+	METRIC_LABEL_COMPONENT = "comp"
+	// METRIC_LABEL_VERSION ver -> Descriptor.Version
+	METRIC_LABEL_VERSION = "ver"
 )
 
 // AddServiceMetricLabels adds labels to help identify service metrics. The above constants define the labels that are added, e.g.,
 //
-//		svc="github.com/oysterpack/oysterpack.go/cmd/demos/services/counter/Service",svc_ver="1.0.0"
+//		ns="oysterpack",sys="metrics",comp="http",ver="1.0.0"
 //
-func AddServiceMetricLabels(labels prometheus.Labels, serviceInterface Interface, version *semver.Version) prometheus.Labels {
-	labels[METRIC_LABEL_SERVICE] = fmt.Sprintf("%v/%v", serviceInterface.PkgPath(), serviceInterface.Name())
-	labels[METRIC_LABEL_SERVICE_VERSION] = version.String()
+func AddServiceMetricLabels(labels prometheus.Labels, desc *Descriptor) prometheus.Labels {
+	labels[METRIC_LABEL_NAMESPACE] = desc.Namespace()
+	labels[METRIC_LABEL_SYSTEM] = desc.System()
+	labels[METRIC_LABEL_COMPONENT] = desc.Component()
+	labels[METRIC_LABEL_VERSION] = desc.Version().String()
 	return labels
 }

@@ -54,7 +54,7 @@ the -benchmem flag will include memory allocation statistics in the report
 
         GO15VENDOREXPERIMENT=1 go get github.com/prometheus/prometheus/cmd/prometheus
         
-2. prometheus -config-file <prometheus.yml>
+2. prometheus -config.file <prometheus.yml>
 
    **NOTE**: run prometheus outside of the workspace because by default prometheus will create its data directory in the current working directory.
 

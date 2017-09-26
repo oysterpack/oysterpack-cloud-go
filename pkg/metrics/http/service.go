@@ -35,7 +35,7 @@ const (
 	// System name
 	System = "metrics"
 	// Component name
-	Component = "http"
+	Component = "prometheus_http"
 	// Version is the service version
 	Version = "1.0.0"
 )

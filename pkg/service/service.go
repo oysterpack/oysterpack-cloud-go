@@ -21,9 +21,6 @@ import (
 
 	"sync"
 
-	"strings"
-	"unicode"
-
 	"github.com/Masterminds/semver"
 	"github.com/oysterpack/oysterpack.go/pkg/commons"
 	"github.com/oysterpack/oysterpack.go/pkg/commons/reflect"
@@ -69,97 +66,6 @@ type Service interface {
 
 	// MetricOpts define the service related metrics
 	MetricOpts() *metrics.MetricOpts
-}
-
-// Descriptor is used to describe the service
-// Think of the service as a component that is part of a system which belongs to a namespace.
-// The service functionality is defined by its Interface.
-// The service is versioned.
-type Descriptor struct {
-	namespace string
-	system    string
-	component string
-	version   *semver.Version
-
-	serviceInterface Interface
-}
-
-// NewDescriptor creates a new descriptor.
-// namespace, system, and component must not be blank, and must only consist of letters.
-// They will be trimmed and lower cased.
-func NewDescriptor(
-	namespace string,
-	system string,
-	component string,
-	version string,
-	serviceInterface Interface) *Descriptor {
-
-	validate := func(name, s string) (string, error) {
-		s = strings.TrimSpace(s)
-		if len(s) == 0 {
-			return s, fmt.Errorf("%q cannot be blank", name)
-		}
-		for _, c := range s {
-			if !unicode.IsLetter(c) {
-				return s, fmt.Errorf("%q [%v] contains a non-letter character : %q", name, s, c)
-			}
-		}
-		return strings.ToLower(s), nil
-	}
-	namespace, err := validate("namespace", namespace)
-	if err != nil {
-		panic(err)
-	}
-	system, err = validate("system", system)
-	if err != nil {
-		panic(err)
-	}
-	component, err = validate("component", component)
-	if err != nil {
-
-	}
-
-	return &Descriptor{
-		namespace:        namespace,
-		system:           system,
-		component:        component,
-		serviceInterface: checkInterface(serviceInterface),
-		version:          NewVersion(version),
-	}
-}
-
-// ID return the unique service id composed of its {namespace}-{system}-{component}-{version}
-func (a *Descriptor) ID() string {
-	return strings.Join([]string{a.namespace, a.system, a.component, a.version.String()}, "-")
-}
-
-func (a *Descriptor) String() string {
-	return fmt.Sprintf("%v :: %v.%v", a.Interface(), a.serviceInterface.PkgPath(), a.serviceInterface.Name())
-}
-
-// Namespace returns the namespace that the service belongs to
-func (a *Descriptor) Namespace() string {
-	return a.namespace
-}
-
-// System returns the name of the system that the service belongs to
-func (a *Descriptor) System() string {
-	return a.system
-}
-
-// Component returns the name of the component
-func (a *Descriptor) Component() string {
-	return a.component
-}
-
-// Interface returns the service interface which defines the service functionality
-func (a *Descriptor) Interface() Interface {
-	return a.serviceInterface
-}
-
-// Version returns the service version
-func (a *Descriptor) Version() *semver.Version {
-	return a.version
 }
 
 // InterfaceDependencies represents a service's interface dependencies with version constraints

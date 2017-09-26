@@ -34,13 +34,12 @@ import (
 //
 // The unique identifier for a HealthCheck is the combination of name and labels.
 //
-// The health check run duration is also recorded as histogram metric.
+// The health check run duration is also recorded as a gauge metric.
 // This can help identify health checks that are taking too long to execute.
 // The run duration may also be used to configure alerts. For example, health checks that are passing but taking longer
 // to run may be an early warning sign.
 //
-// The naming convention for the run duration histogram metric is : {health_check_name}_duration_seconds_bucket
-// The buckets are : {.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10}
+// The naming convention for the run duration gauge metric is : {health_check_name}_duration_seconds
 type HealthCheck interface {
 	// Name is the base health check name
 	Name() string
@@ -117,8 +116,6 @@ var (
 	healthcheckLabelsStatus = prometheus.Labels{HEALTHCHECK_LABEL: "status"}
 	// marks the healthcheck run duration metric
 	healthcheckLabelsDuration = prometheus.Labels{HEALTHCHECK_LABEL: "duration"}
-
-	healthcheckDurationBuckets = []float64{.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10}
 )
 
 // Success returns true if there was no error
@@ -148,7 +145,7 @@ type healthcheck struct {
 	run RunHealthCheck
 
 	status      prometheus.Gauge
-	runDuration prometheus.Histogram
+	runDuration prometheus.Gauge
 
 	runInterval time.Duration
 	ticker      *time.Ticker
@@ -215,7 +212,7 @@ func (a *healthcheck) Run() (result *HealthCheckResult) {
 		}
 
 		a.status.Set(float64(result.Value()))
-		a.runDuration.Observe(result.Duration.Seconds())
+		a.runDuration.Set(result.Duration.Seconds())
 
 		a.lastResult = result
 	}()
@@ -303,20 +300,19 @@ func NewHealthCheck(opts prometheus.GaugeOpts, runInterval time.Duration, check 
 		runInterval: runInterval,
 	}
 
-	durationOpts := prometheus.HistogramOpts{
+	durationOpts := prometheus.GaugeOpts{
 		Namespace:   opts.Namespace,
 		Subsystem:   opts.Subsystem,
 		Name:        fmt.Sprintf("%s_duration_seconds", opts.Name),
 		Help:        "The healthckeck run duration in seconds",
 		ConstLabels: addLabels(healthcheckLabelsDuration, opts.ConstLabels),
-		Buckets:     healthcheckDurationBuckets,
 	}
 	// check for metric collision
-	if Registered(HistogramFQName(&durationOpts)) {
+	if Registered(GaugeFQName(&durationOpts)) {
 		logger.Panic().Err(ErrMetricAlreadyRegistered).Msg("")
 	}
 
-	a.runDuration = GetOrMustRegisterHistogram(&durationOpts)
+	a.runDuration = GetOrMustRegisterGauge(&durationOpts)
 	a.StartTicker()
 	return a
 }

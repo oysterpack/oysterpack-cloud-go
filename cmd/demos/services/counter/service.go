@@ -81,10 +81,12 @@ func (a *server) NextInt() (i uint64) {
 }
 
 var (
+	desc = service.NewDescriptor(Namespace, System, Component, Version, CounterServiceInterface)
+
 	msgCounterOpts = &prometheus.CounterOpts{
 		Name:        "msgs_processed",
 		Help:        "The number of messages that have been processed",
-		ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, CounterServiceInterface, service.NewVersion(Version)),
+		ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, desc),
 	}
 
 	msgCounter = metrics.GetOrMustRegisterCounter(msgCounterOpts)
@@ -108,7 +110,7 @@ func (a *server) newService() service.Service {
 	}
 
 	return service.NewService(service.Settings{
-		Descriptor:   service.NewDescriptor(Namespace, System, Component, Version, CounterServiceInterface),
+		Descriptor:   desc,
 		Run:          a.run,
 		Metrics:      metricOpts,
 		HealthChecks: healthchecks,
