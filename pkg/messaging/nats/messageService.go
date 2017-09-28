@@ -22,7 +22,7 @@ import (
 	"github.com/oysterpack/oysterpack.go/pkg/messaging"
 )
 
-func NewMessagingService(connect Connect) (messaging.MessageService, error) {
+func NewMessagingService(connect Connect) (messaging.Conn, error) {
 	conn, err := connect()
 	if err != nil {
 		return nil, err

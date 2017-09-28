@@ -85,7 +85,7 @@ type QueueSubscription interface {
 	Queue() Queue
 }
 
-type MessageService interface {
+type Conn interface {
 	Publish(topic Topic, data []byte) error
 
 	PublishRequest(topic Topic, replyTo ReplyTo, data []byte) error

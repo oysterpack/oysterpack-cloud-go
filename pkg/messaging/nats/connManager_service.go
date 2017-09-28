@@ -30,7 +30,7 @@ const (
 	Version = "1.0.0"
 )
 
-var ConnectionManagerInterface service.Interface = func() service.Interface {
+var ConnManagerInterface service.Interface = func() service.Interface {
 	var c ConnManager = &connManager{}
 	serviceInterface, err := reflect.ObjectInterface(&c)
 	if err != nil {
@@ -41,7 +41,7 @@ var ConnectionManagerInterface service.Interface = func() service.Interface {
 
 func (a *connManager) newService() service.Service {
 	settings := service.Settings{
-		Descriptor: service.NewDescriptor(Namespace, System, Component, Version, ConnectionManagerInterface),
+		Descriptor: service.NewDescriptor(Namespace, System, Component, Version, ConnManagerInterface),
 		Init: func(ctx *service.Context) error {
 			a.init()
 			return nil
@@ -59,4 +59,8 @@ func NewConnManagerClient(app service.Application) service.Client {
 	c := &connManager{}
 	c.RestartableService = service.NewRestartableService(c.newService)
 	return c
+}
+
+func init() {
+	service.App().MustRegisterService(NewConnManagerClient)
 }
