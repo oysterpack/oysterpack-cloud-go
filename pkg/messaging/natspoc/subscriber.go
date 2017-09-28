@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package nats
+package natspoc
 
 import (
 	"github.com/nats-io/go-nats"
@@ -88,7 +88,6 @@ func (a *Subscriber) run() {
 			for msg := range a.messages {
 				a.receive(msg)
 			}
-			close(a.messages)
 			return
 		}
 	}

@@ -39,6 +39,9 @@ const (
 	TYPE        = "type"
 	FUNC        = "func"
 	SERVICE     = "svc"
+	NAMESPACE   = "ns"
+	SYSTEM      = "sys"
+	COMPONENT   = "comp"
 	EVENT       = "event"
 	ID          = "id"
 	CODE        = "code"
@@ -46,6 +49,7 @@ const (
 	METRIC      = "metric"
 	HEALTHCHECK = "healthcheck"
 	ERRORS      = "errors"
+	VERSION     = "ver"
 )
 
 // NewTypeLogger returns a new logger with pkg={pkg}, type={type}

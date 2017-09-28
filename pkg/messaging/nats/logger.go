@@ -12,4 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package messaging
+package nats
+
+import (
+	"github.com/oysterpack/oysterpack.go/pkg/logging"
+)
+
+var logger = logging.NewPackageLogger(ConnIsRequired)

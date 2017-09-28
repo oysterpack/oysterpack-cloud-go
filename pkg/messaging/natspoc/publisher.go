@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package nats
+package natspoc
 
 import (
 	"encoding/json"
@@ -22,7 +22,7 @@ import (
 	"github.com/oysterpack/oysterpack.go/pkg/commons"
 )
 
-// Publisher encodes messages as gobs and publishes them to a subject
+// Publisher encodes messages as JSON and publishes them to a subject
 //
 // The gobs implementation compiles a custom codec for each data type in the stream and is most efficient when a single
 // Encoder is used to transmit a stream of values, amortizing the cost of compilation. In order to have a single Encoder,

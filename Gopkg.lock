@@ -20,9 +20,33 @@
   revision = "130e6b02ab059e7b717a096f397c5b60111cae74"
 
 [[projects]]
+  name = "github.com/json-iterator/go"
+  packages = ["."]
+  revision = "6ed27152e0428abfde127acb33b08b03a1e67cac"
+  version = "1.0.2"
+
+[[projects]]
   name = "github.com/matttproud/golang_protobuf_extensions"
   packages = ["pbutil"]
   revision = "3247c84500bff8d9fb6d579d800f20b3e091582c"
+  version = "v1.0.0"
+
+[[projects]]
+  name = "github.com/nats-io/gnatsd"
+  packages = ["conf","logger","server","server/pse","test","util"]
+  revision = "12a5ced612f30aa511906c0de12a124233752f70"
+  version = "v1.0.4"
+
+[[projects]]
+  name = "github.com/nats-io/go-nats"
+  packages = [".","encoders/builtin","util"]
+  revision = "29f9728a183bf3fa7e809e14edac00b33be72088"
+  version = "v1.3.0"
+
+[[projects]]
+  name = "github.com/nats-io/nuid"
+  packages = ["."]
+  revision = "289cccf02c178dc782430d534e3c1f5b72af807f"
   version = "v1.0.0"
 
 [[projects]]
@@ -55,9 +79,21 @@
   revision = "3ac71fc58dbd43122668a912b755b0979ba9ce1f"
   version = "v1.3.0"
 
+[[projects]]
+  branch = "master"
+  name = "golang.org/x/crypto"
+  packages = ["bcrypt","blowfish","ssh/terminal"]
+  revision = "847319b7fc94cab682988f93da778204da164588"
+
+[[projects]]
+  branch = "master"
+  name = "golang.org/x/sys"
+  packages = ["unix","windows","windows/registry","windows/svc","windows/svc/debug","windows/svc/eventlog","windows/svc/mgr"]
+  revision = "314a259e304ff91bd6985da2a7149bbf91237993"
+
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "f78adbe5e8d207ccc95b2fe38727b7d86924a5a2e15fee064c87336aecfce09f"
+  inputs-digest = "dfac31af8100bfa4b55665cdf0c45427344f909586e51ec8e54a1afe59724fcd"
   solver-name = "gps-cdcl"
   solver-version = 1

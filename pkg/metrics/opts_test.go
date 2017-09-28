@@ -246,7 +246,7 @@ func TestNewHistogramVecOpts_ChecksFail(t *testing.T) {
 }
 
 func TestNewSummaryVecOpts_TrimmingAndSortingLabelAndDefaultObjectives(t *testing.T) {
-	opts := metrics.NewSummaryVecOpts(prometheus.SummaryOpts{Name: " ABC ", Help: " XYZ"}, "  b  ", " a   ")
+	opts := metrics.NewSummaryVecOpts(&prometheus.SummaryOpts{Name: " ABC ", Help: " XYZ"}, "  b  ", " a   ")
 	if opts.Name != "ABC" {
 		t.Errorf("Name have been trimmed, but was %q", opts.Name)
 	}
@@ -261,7 +261,7 @@ func TestNewSummaryVecOpts_TrimmingAndSortingLabelAndDefaultObjectives(t *testin
 		t.Errorf("default objectives should have been set")
 	}
 
-	metrics.NewSummaryVecOpts(prometheus.SummaryOpts{Name: " ABC ", Help: " XYZ"}, "  b")
+	metrics.NewSummaryVecOpts(&prometheus.SummaryOpts{Name: " ABC ", Help: " XYZ"}, "  b")
 }
 
 func TestNewSummaryVecOpts_ChecksFail(t *testing.T) {
@@ -271,7 +271,7 @@ func TestNewSummaryVecOpts_ChecksFail(t *testing.T) {
 				t.Error("Opts should have failed checks and triggered panic")
 			}
 		}()
-		metrics.NewSummaryVecOpts(prometheus.SummaryOpts{}, "  b  ")
+		metrics.NewSummaryVecOpts(&prometheus.SummaryOpts{}, "  b  ")
 	}()
 
 	func() {
@@ -280,7 +280,7 @@ func TestNewSummaryVecOpts_ChecksFail(t *testing.T) {
 				t.Error("Opts should have failed checks and triggered panic")
 			}
 		}()
-		metrics.NewSummaryVecOpts(prometheus.SummaryOpts{Name: "sfsdf"}, "  b  ", " a   ")
+		metrics.NewSummaryVecOpts(&prometheus.SummaryOpts{Name: "sfsdf"}, "  b  ", " a   ")
 	}()
 
 	func() {
@@ -289,7 +289,7 @@ func TestNewSummaryVecOpts_ChecksFail(t *testing.T) {
 				t.Error("Opts should have failed checks and triggered panic")
 			}
 		}()
-		metrics.NewSummaryVecOpts(prometheus.SummaryOpts{Name: "   "}, "  b  ", " a   ")
+		metrics.NewSummaryVecOpts(&prometheus.SummaryOpts{Name: "   "}, "  b  ", " a   ")
 	}()
 
 	func() {
@@ -298,7 +298,7 @@ func TestNewSummaryVecOpts_ChecksFail(t *testing.T) {
 				t.Error("Opts should have failed checks and triggered panic")
 			}
 		}()
-		metrics.NewSummaryVecOpts(prometheus.SummaryOpts{Help: "sdfsdfsdf"}, "  b  ", " a   ")
+		metrics.NewSummaryVecOpts(&prometheus.SummaryOpts{Help: "sdfsdfsdf"}, "  b  ", " a   ")
 	}()
 
 	func() {
@@ -307,7 +307,7 @@ func TestNewSummaryVecOpts_ChecksFail(t *testing.T) {
 				t.Error("Opts should have failed checks and triggered panic")
 			}
 		}()
-		metrics.NewSummaryVecOpts(prometheus.SummaryOpts{Help: "   "}, "  b  ", " a   ")
+		metrics.NewSummaryVecOpts(&prometheus.SummaryOpts{Help: "   "}, "  b  ", " a   ")
 	}()
 
 	func() {
@@ -316,7 +316,7 @@ func TestNewSummaryVecOpts_ChecksFail(t *testing.T) {
 				t.Error("Opts should have failed checks and triggered panic")
 			}
 		}()
-		metrics.NewSummaryVecOpts(prometheus.SummaryOpts{Name: "a", Help: "a"}, "  ", " a   ")
+		metrics.NewSummaryVecOpts(&prometheus.SummaryOpts{Name: "a", Help: "a"}, "  ", " a   ")
 	}()
 
 	func() {
@@ -325,6 +325,6 @@ func TestNewSummaryVecOpts_ChecksFail(t *testing.T) {
 				t.Error("Opts should have failed checks and triggered panic")
 			}
 		}()
-		metrics.NewSummaryVecOpts(prometheus.SummaryOpts{Name: "a", Help: "a"}, " g ", "    ")
+		metrics.NewSummaryVecOpts(&prometheus.SummaryOpts{Name: "a", Help: "a"}, " g ", "    ")
 	}()
 }

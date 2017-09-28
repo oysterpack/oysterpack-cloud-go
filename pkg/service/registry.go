@@ -74,7 +74,7 @@ type ServiceKey struct {
 	reflect.TypeName
 }
 
-func (s *ServiceKey) String() string {
+func (s ServiceKey) String() string {
 	return fmt.Sprintf("%v.%v", s.PackagePath, s.TypeName)
 }
 

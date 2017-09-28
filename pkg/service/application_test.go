@@ -74,6 +74,12 @@ func TestApplicationContext_RegisterService(t *testing.T) {
 			}
 		}
 	}
+
+	metrics := serviceClient.Service().MetricOpts()
+	if metrics == nil {
+		t.Error("metrics should have been set")
+	}
+
 }
 
 func TestApplicationContext_ServiceClientIsStableReferenceAfterRestarting(t *testing.T) {
@@ -819,6 +825,7 @@ func TestApplication_StopRestartServices_OnEmptyApp(t *testing.T) {
 		t.Helper()
 		switch err.(type) {
 		case *service.ServiceNotFoundError:
+			t.Logf("ServiceNotFoundError : %v", err)
 		default:
 			t.Errorf("ERROR: Expected ServiceNotFoundError, but was %v", err)
 		}
@@ -874,6 +881,22 @@ func TestApplication_RestartAllFailedServices(t *testing.T) {
 		time.Sleep(time.Millisecond)
 	}
 
+}
+
+func TestApplication_RegisterShutdownHook(t *testing.T) {
+	app := service.NewApplication(service.ApplicationSettings{})
+	app.Start()
+
+	shutdown := false
+
+	app.RegisterShutdownHook(func() { panic("PANIC TEST") })
+	app.RegisterShutdownHook(func() { shutdown = true })
+
+	app.Stop()
+
+	if !shutdown {
+		t.Errorf("shutdown hook did not run")
+	}
 }
 
 type testApplication_RestartAllFailedServices interface {

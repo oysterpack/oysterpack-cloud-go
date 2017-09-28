@@ -19,7 +19,9 @@ import (
 
 	"github.com/Masterminds/semver"
 	"github.com/oysterpack/oysterpack.go/pkg/commons/reflect"
+	"github.com/oysterpack/oysterpack.go/pkg/metrics"
 	"github.com/oysterpack/oysterpack.go/pkg/service"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 // EchoService defines the Service interface
@@ -27,7 +29,10 @@ type EchoService interface {
 	Echo(msg interface{}) interface{}
 }
 
-var EchoServiceInterface reflect.InterfaceType = echoServiceInterfaceType()
+var (
+	EchoServiceInterface reflect.InterfaceType = echoServiceInterfaceType()
+	desc                                       = service.NewDescriptor("oysterpack", "test", "echo", "1.0.0", EchoServiceInterface)
+)
 
 func echoServiceInterfaceType() reflect.InterfaceType {
 	var echoServicePrototype EchoService = &EchoServiceClient{}
@@ -68,13 +73,96 @@ func (a *EchoServiceClient) Echo(msg interface{}) interface{} {
 	return <-req.ReplyTo
 }
 
+//////// service metrics ///////////////
+
+var (
+	counterOpts = &prometheus.CounterOpts{
+		Name:        "msgs_processed",
+		Help:        "The number of messages that have been processed",
+		ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, desc),
+	}
+	counter = metrics.GetOrMustRegisterCounter(counterOpts)
+
+	counterVecOpts = metrics.NewCounterVecOpts(
+		&prometheus.CounterOpts{
+			Name:        "echo_counter_vec",
+			Help:        "The number of messages that have been processed",
+			ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, desc),
+		}, "success")
+	counterVec = metrics.GetOrMustRegisterCounterVec(counterVecOpts)
+
+	gaugeOpts = &prometheus.GaugeOpts{
+		Name:        "echo_gauge",
+		Help:        "The number of messages that have been processed",
+		ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, desc),
+	}
+	gauge = metrics.GetOrMustRegisterGauge(gaugeOpts)
+
+	gaugeVecOpts = metrics.NewGaugeVecOpts(
+		&prometheus.GaugeOpts{
+			Name:        "echo_gauge_vec",
+			Help:        "The number of messages that have been processed",
+			ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, desc),
+		}, "success")
+	gaugeVec = metrics.GetOrMustRegisterCounterVec(counterVecOpts)
+
+	histOpts = &prometheus.HistogramOpts{
+		Name:        "echo_hist",
+		Help:        "The number of messages that have been processed",
+		ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, desc),
+		Buckets:     prometheus.DefBuckets,
+	}
+	hist = metrics.GetOrMustRegisterGauge(gaugeOpts)
+
+	histVecOpts = metrics.NewHistogramVecOpts(
+		&prometheus.HistogramOpts{
+			Name:        "echo_hist_vec",
+			Help:        "The number of messages that have been processed",
+			ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, desc),
+			Buckets:     prometheus.DefBuckets,
+		}, "success")
+	histVec = metrics.GetOrMustRegisterHistogramVec(histVecOpts)
+
+	summaryOpts = &prometheus.SummaryOpts{
+		Name:        "echo_summary",
+		Help:        "The number of messages that have been processed",
+		ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, desc),
+		Objectives:  prometheus.DefObjectives,
+	}
+	summary = metrics.GetOrMustRegisterSummary(summaryOpts)
+
+	summaryVecOpts = metrics.NewSummaryVecOpts(
+		&prometheus.SummaryOpts{
+			Name:        "echo_summary_vec",
+			Help:        "The number of messages that have been processed",
+			ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, desc),
+			Objectives:  prometheus.DefObjectives,
+		}, "success")
+	summaryVec = metrics.GetOrMustRegisterSummaryVec(summaryVecOpts)
+
+	metricOpts = &metrics.MetricOpts{
+		CounterOpts:    []*prometheus.CounterOpts{counterOpts},
+		CounterVecOpts: []*metrics.CounterVecOpts{counterVecOpts},
+
+		GaugeOpts:    []*prometheus.GaugeOpts{gaugeOpts},
+		GaugeVecOpts: []*metrics.GaugeVecOpts{gaugeVecOpts},
+
+		HistogramOpts:    []*prometheus.HistogramOpts{histOpts},
+		HistogramVecOpts: []*metrics.HistogramVecOpts{histVecOpts},
+
+		SummaryOpts:    []*prometheus.SummaryOpts{summaryOpts},
+		SummaryVecOpts: []*metrics.SummaryVecOpts{summaryVecOpts},
+	}
+)
+
 ////////// service constructor //////////////////
 
 // ServiceConstructor
 func (a *EchoServiceClient) newService() service.Service {
 	return service.NewService(service.Settings{
-		Descriptor: service.NewDescriptor("oysterpack", "test", "echo", "1.0.0", EchoServiceInterface),
+		Descriptor: desc,
 		Run:        a.run,
+		Metrics:    metricOpts,
 	})
 }
 
@@ -91,7 +179,11 @@ func (a *EchoServiceClient) run(ctx *service.Context) error {
 	for {
 		select {
 		case req := <-a.echo:
-			go func() { req.ReplyTo <- req.Message }()
+			counter.Inc()
+			counterVec.WithLabelValues("true")
+			go func() {
+				req.ReplyTo <- req.Message
+			}()
 		case <-ctx.StopTrigger():
 			return nil
 		}

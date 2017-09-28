@@ -92,7 +92,7 @@ type ServiceNotFoundError struct {
 }
 
 func (e *ServiceNotFoundError) Error() string {
-	return fmt.Sprintf("Service not found : %v.%v", e.ServiceKey.PackagePath, e.ServiceKey.TypeName)
+	return fmt.Sprintf("Service not found : %v", e.ServiceKey)
 }
 
 // DependencyMappings maps a Interface to its Interface dependencies

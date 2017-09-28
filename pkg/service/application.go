@@ -34,7 +34,10 @@ import (
 
 // Application is a service, which serves as a container for other services.
 type Application interface {
+	// Descriptor exposes the application Descriptor
 	Descriptor() *Descriptor
+	// UpdateDescriptor is exposed to set the application name and version before the application starts running.
+	// This should be set in the application main() method before the application is started.
 	UpdateDescriptor(namespace string, system string, component string, version string)
 
 	// refers to the application service - used to manage the application lifecycle
@@ -54,6 +57,8 @@ type Application interface {
 
 	// Stop the application and waits until the app is stopped
 	Stop()
+
+	RegisterShutdownHook(f func())
 }
 
 // application.services map entry type
@@ -81,6 +86,8 @@ type application struct {
 	// used to keep track of users who are waiting on services
 	serviceTicketsMutex sync.RWMutex
 	serviceTickets      []*ServiceTicket
+
+	shutdownHooks []func()
 }
 
 // ServiceTicket represents a ticket issued to a user waiting for a service
@@ -92,6 +99,19 @@ type ServiceTicket struct {
 
 	// when the ticket was created
 	time.Time
+}
+
+func (a *application) RegisterShutdownHook(f func()) {
+	a.mutex.Lock()
+	defer a.mutex.Unlock()
+	a.shutdownHooks = append(a.shutdownHooks, func() {
+		defer func() {
+			if p := recover(); p != nil {
+				a.service.Logger().Error().Err(fmt.Errorf("%v", p)).Msg("shutdown hook panic")
+			}
+		}()
+		f()
+	})
 }
 
 // Channel used to wait for the Client
@@ -158,10 +178,13 @@ func NewApplication(settings ApplicationSettings) Application {
 	return service
 }
 
+// Descriptor exposes the application Descriptor
 func (a *application) Descriptor() *Descriptor {
 	return a.service.Desc()
 }
 
+// UpdateDescriptor is exposed to set the application name and version before the application starts running.
+// This should be set in the application main() method before the application is started.
 func (a *application) UpdateDescriptor(namespace string, system string, component string, version string) {
 	desc := NewApplicationDesc(namespace, system, component, version)
 	a.Descriptor().namespace = desc.namespace
@@ -381,6 +404,10 @@ func (a *application) destroy(ctx *Context) error {
 			}
 			v.Service().Logger().Warn().Msg("Waiting for service to stop")
 		}
+	}
+
+	for _, f := range a.shutdownHooks {
+		f()
 	}
 	return nil
 }

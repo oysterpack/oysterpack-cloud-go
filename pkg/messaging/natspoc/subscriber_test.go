@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package nats_test
+package natspoc_test
 
 import (
 	"testing"
@@ -23,11 +23,13 @@ import (
 
 	"encoding/json"
 
-	natsop "github.com/oysterpack/oysterpack.go/pkg/messaging/nats"
+	natsop "github.com/oysterpack/oysterpack.go/pkg/messaging/natspoc"
+
+	"github.com/oysterpack/oysterpack.go/pkg/messaging/natstest"
 )
 
 func TestNewSubscriber(t *testing.T) {
-	ts := RunServer()
+	ts := natstest.RunServer()
 	defer ts.Shutdown()
 
 	subject := "ping"
@@ -77,7 +79,7 @@ func TestNewSubscriber(t *testing.T) {
 }
 
 func TestNewQueueSubscriber(t *testing.T) {
-	ts := RunServer()
+	ts := natstest.RunServer()
 	defer ts.Shutdown()
 
 	nc, _ := nats.Connect(nats.DefaultURL)

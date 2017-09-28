@@ -69,7 +69,7 @@ func (a *Descriptor) ID() string {
 }
 
 func (a *Descriptor) String() string {
-	return fmt.Sprintf("%v :: %v.%v", a.Interface(), a.serviceInterface.PkgPath(), a.serviceInterface.Name())
+	return fmt.Sprintf("%v :: %v.%v", a.ID(), a.serviceInterface.PkgPath(), a.serviceInterface.Name())
 }
 
 // Namespace returns the namespace that the service belongs to

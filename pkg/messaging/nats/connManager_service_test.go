@@ -14,21 +14,8 @@
 
 package nats_test
 
-import (
-	"github.com/nats-io/gnatsd/server"
-	gnatsd "github.com/nats-io/gnatsd/test"
-)
+import "testing"
 
-func RunServer() *server.Server {
-	return RunServerWithOptions(gnatsd.DefaultTestOptions)
-}
+func TestNewConnManagerClient(t *testing.T) {
 
-func RunServerOnPort(port int) *server.Server {
-	opts := gnatsd.DefaultTestOptions
-	opts.Port = port
-	return RunServerWithOptions(opts)
-}
-
-func RunServerWithOptions(opts server.Options) *server.Server {
-	return gnatsd.RunServer(&opts)
 }

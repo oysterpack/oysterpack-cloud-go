@@ -214,8 +214,8 @@ func CheckSummaryOpts(opts *prometheus.SummaryOpts) *prometheus.SummaryOpts {
 //
 // All string fields will be trimmed, i.e., opts and labels may be modified.
 // If there were no objectives set, then default objectives for the 50th, 90th, 95th, and 99th percentiles are set.
-func NewSummaryVecOpts(opts prometheus.SummaryOpts, label string, labels ...string) *SummaryVecOpts {
-	return &SummaryVecOpts{SummaryOpts: CheckSummaryOpts(&opts), Labels: labelNames(label, labels...)}
+func NewSummaryVecOpts(opts *prometheus.SummaryOpts, label string, labels ...string) *SummaryVecOpts {
+	return &SummaryVecOpts{SummaryOpts: CheckSummaryOpts(opts), Labels: labelNames(label, labels...)}
 }
 
 // LabelSet is an alias for a set of strings that represent a set of labels

@@ -384,7 +384,10 @@ func logMetrics(log *zerolog.Event, settings *Settings) {
 }
 
 func logSettings(log *zerolog.Event, settings *Settings) *zerolog.Event {
-	log.Str("Version", settings.Version().String())
+	log.Str(logging.NAMESPACE, settings.Namespace()).
+		Str(logging.SYSTEM, settings.System()).
+		Str(logging.COMPONENT, settings.Component()).
+		Str(logging.VERSION, settings.Version().String())
 
 	logInterfaceDependencies(log, settings)
 	logHealthChecks(log, settings)
