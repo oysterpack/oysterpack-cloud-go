@@ -19,6 +19,7 @@ import (
 
 	"time"
 
+	natsio "github.com/nats-io/go-nats"
 	"github.com/oysterpack/oysterpack.go/pkg/messaging/nats"
 	"github.com/oysterpack/oysterpack.go/pkg/messaging/natstest"
 )
@@ -27,17 +28,8 @@ func TestNewConnectionManager(t *testing.T) {
 	server := natstest.RunServer()
 	defer server.Shutdown()
 
-	connMgr := nats.NewConnectionManager()
-	conn, err := connMgr.Connect()
-	if err != nil {
-		t.Errorf("Connect() failed : %v", err)
-	} else {
-		t.Logf("conn : %v", conn)
-	}
-
-	if !conn.IsConnected() {
-		t.Errorf("should be connected")
-	}
+	connMgr := nats.NewConnManager()
+	conn := mustConnect(t, connMgr)
 
 	if connMgr.ConnCount() != 1 {
 		t.Errorf("Expected ConnCount() == 1, but was %d", connMgr.ConnCount())
@@ -46,18 +38,14 @@ func TestNewConnectionManager(t *testing.T) {
 	if connMgr.ConnInfo(conn.ConnInfo().Id) == nil {
 		t.Errorf("should have been found")
 	}
-
 }
 
 func TestConnManager_CloseAll(t *testing.T) {
 	server := natstest.RunServer()
 	defer server.Shutdown()
 
-	connMgr := nats.NewConnectionManager()
-	conn, err := connMgr.Connect()
-	if err != nil {
-		t.Fatal("should have connected")
-	}
+	connMgr := nats.NewConnManager()
+	conn := mustConnect(t, connMgr)
 
 	connMgr.CloseAll()
 
@@ -80,4 +68,120 @@ func TestConnManager_CloseAll(t *testing.T) {
 	if connMgr.ConnInfo(conn.ConnInfo().Id) != nil {
 		t.Errorf("should have been removed")
 	}
+}
+
+func TestManagedConn_ClosingConn(t *testing.T) {
+	server := natstest.RunServer()
+	defer server.Shutdown()
+
+	connMgr := nats.NewConnManager()
+	conns := []*nats.ManagedConn{}
+	const COUNT = 5
+	for i := 0; i < COUNT; i++ {
+		conns = append(conns, mustConnect(t, connMgr))
+	}
+
+	if connMgr.ConnCount() != COUNT {
+		t.Errorf("There should be %d conns, but the ConnManager reported : %d", COUNT, connMgr.ConnCount())
+	}
+
+	conn := conns[0]
+	conn.Close()
+	// the connection is removed async via the connection closed handler - so let's give it some time
+	for i := 0; connMgr.ConnCount() != COUNT-1 && i < 3; i++ {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if connMgr.ConnCount() != COUNT-1 {
+		t.Errorf("There should be %d conns, but the ConnManager reported : %d", COUNT-1, connMgr.ConnCount())
+	}
+
+	conns = conns[1:]
+	server.Shutdown()
+
+	for i := 0; i < 3; i++ {
+		if count, _ := connMgr.ConnectedCount(); count == 0 {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if count, _ := connMgr.ConnectedCount(); count != 0 {
+		t.Errorf("All connections should be disconnected because the server is down")
+	}
+
+}
+
+func TestManagedConn_DisconnectReconnect(t *testing.T) {
+	backup := nats.DefaultReConnectTimeout
+	const ReConnectTimeout = 10 * time.Millisecond
+	nats.DefaultReConnectTimeout = natsio.ReconnectWait(ReConnectTimeout)
+	defer func() { nats.DefaultReConnectTimeout = backup }()
+
+	server := natstest.RunServer()
+	defer server.Shutdown()
+
+	now := time.Now()
+
+	connMgr := nats.NewConnManager()
+	conns := []*nats.ManagedConn{}
+	const COUNT = 5
+	for i := 0; i < COUNT; i++ {
+		conns = append(conns, mustConnect(t, connMgr))
+	}
+
+	if count, total := connMgr.ConnectedCount(); count != 5 {
+		t.Fatalf("Connected count is less than expected : connected = %d, total = %d", count, total)
+	}
+
+	for _, c := range conns {
+		t.Logf("after reconnect : %v", c)
+		if !c.Created().After(now) {
+			t.Errorf("Created (%v) should be after (%v)", c.Created(), now)
+		}
+	}
+
+	server.Shutdown()
+
+	for i := 0; i < 3; i++ {
+		if count, _ := connMgr.ConnectedCount(); count == 0 {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if count, total := connMgr.ConnectedCount(); count != 0 {
+		t.Errorf("All connections should be disconnected because the server is down : connected = %d, total = %d", count, total)
+	}
+	if count, total := connMgr.DisconnectedCount(); count != len(conns) {
+		t.Errorf("All connections should be disconnected because the server is down : connected = %d, total = %d", count, total)
+	}
+
+	server = natstest.RunServer()
+	conn := mustConnect(t, connMgr)
+	t.Logf("new connection after server restarted: %v", conn)
+
+	time.Sleep(ReConnectTimeout)
+	if count, _ := connMgr.DisconnectedCount(); count != 0 {
+		t.Errorf("All connections should be reconnected")
+	}
+	for _, c := range conns {
+		t.Logf("after reconnect : %v", c)
+		if !c.LastDisconnectTime().After(c.Created()) {
+			t.Errorf("LastDisconnectTime (%v) should be after Created (%v)", c.LastDisconnectTime(), c.Created())
+		}
+		if !c.LastReconnectTime().After(c.LastDisconnectTime()) {
+			t.Errorf("LastReconnectTime (%v) should be after LastDisconnectTime (%v)", c.LastReconnectTime(), c.LastDisconnectTime())
+		}
+	}
+}
+
+func mustConnect(t *testing.T, connMgr nats.ConnManager) *nats.ManagedConn {
+	t.Helper()
+	conn, err := connMgr.Connect()
+	if err != nil {
+		t.Fatalf("Connect() failed : %v", err)
+	}
+	t.Logf("conn : %v", conn)
+	if !conn.IsConnected() {
+		t.Fatalf("should be connected")
+	}
+	return conn
 }

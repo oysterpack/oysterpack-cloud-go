@@ -26,8 +26,9 @@ type Connect func() (conn *nats.Conn, err error)
 // Connect Options
 var (
 	// DefaultConnectTimeout is the default timeout used when creating a new NATS connection
-	DefaultConnectTimeout = nats.Timeout(5 * time.Second)
-	AlwaysReconnect       = nats.MaxReconnects(-1)
+	DefaultConnectTimeout   = nats.Timeout(5 * time.Second)
+	DefaultReConnectTimeout = nats.ReconnectWait(2 * time.Second)
+	AlwaysReconnect         = nats.MaxReconnects(-1)
 )
 
 var json = jsoniter.ConfigCompatibleWithStandardLibrary
@@ -56,4 +57,5 @@ const (
 	DELIVERED          = "delivered"
 	DROPPED            = "dropped"
 	DISCONNECTS        = "disconnects"
+	RECONNECTS         = "reconnects"
 )

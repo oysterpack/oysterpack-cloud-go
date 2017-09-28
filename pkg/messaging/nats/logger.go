@@ -18,4 +18,6 @@ import (
 	"github.com/oysterpack/oysterpack.go/pkg/logging"
 )
 
-var logger = logging.NewPackageLogger(ConnIsRequired)
+type pkgobject struct{}
+
+var logger = logging.NewPackageLogger(pkgobject{})

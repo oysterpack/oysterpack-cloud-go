@@ -26,9 +26,16 @@ import (
 	"github.com/oysterpack/oysterpack.go/pkg/service"
 )
 
-// ConnectionManager manages NATS connections.
 // TODO: metrics
-type ConnectionManager interface {
+
+// ConnManager tracks connections that are created through it.
+// The following connection lifecycle events are tracked:
+//
+// 1. Connection disconnects
+// 2. Connection reconnects
+// 3. Connection errors
+// 4. Connection closed - when closed, it is no longer tracked and removed async from its managed list
+type ConnManager interface {
 	Connect(tags ...string) (conn *ManagedConn, err error)
 
 	ManagedConn(id string) *ManagedConn
@@ -40,9 +47,14 @@ type ConnectionManager interface {
 	ConnInfos() []*ConnInfo
 
 	CloseAll()
+
+	ConnectedCount() (count int, total int)
+
+	DisconnectedCount() (count int, total int)
 }
 
-func NewConnectionManager() ConnectionManager {
+// NewConnManager factory method
+func NewConnManager() ConnManager {
 	connMgr := &connManager{}
 	connMgr.init()
 	return connMgr
@@ -58,7 +70,6 @@ type ManagedConn struct {
 	created time.Time
 	tags    []string
 
-	reconnects        int
 	lastReconnectTime time.Time
 
 	disconnects        int
@@ -68,10 +79,47 @@ type ManagedConn struct {
 	lastErrorTime time.Time
 }
 
+func (a *ManagedConn) Created() time.Time {
+	a.mutex.RLock()
+	defer a.mutex.RUnlock()
+	return a.created
+}
+
+func (a *ManagedConn) Tags() []string {
+	a.mutex.RLock()
+	defer a.mutex.RUnlock()
+	return a.tags
+}
+
 func (a *ManagedConn) Disconnects() int {
 	a.mutex.RLock()
 	defer a.mutex.RUnlock()
 	return a.disconnects
+}
+
+func (a *ManagedConn) LastDisconnectTime() time.Time {
+	a.mutex.RLock()
+	defer a.mutex.RUnlock()
+	return a.lastDisconnectTime
+}
+
+func (a *ManagedConn) LastReconnectTime() time.Time {
+	a.mutex.RLock()
+	defer a.mutex.RUnlock()
+	return a.lastReconnectTime
+}
+
+func (a *ManagedConn) LastErrorTime() time.Time {
+	a.mutex.RLock()
+	defer a.mutex.RUnlock()
+	return a.lastErrorTime
+}
+
+// Errors returns the number of errors that have occurred on this connection
+func (a *ManagedConn) Errors() int {
+	a.mutex.RLock()
+	defer a.mutex.RUnlock()
+	return a.errors
 }
 
 // updates are protected by a mutex to make changes concurrency safe
@@ -89,8 +137,7 @@ func (a *ManagedConn) disconnected() {
 
 func (a *ManagedConn) reconnected() {
 	a.lastReconnectTime = time.Now()
-	a.Reconnects++
-	event := logger.Info().Str(logging.EVENT, EVENT_CONN_RECONNECT).Str(CONN_ID, a.id)
+	event := logger.Info().Str(logging.EVENT, EVENT_CONN_RECONNECT).Str(CONN_ID, a.id).Uint64(RECONNECTS, a.Reconnects)
 	if len(a.tags) > 0 {
 		event.Strs(CONN_TAGS, a.tags)
 	}
@@ -156,7 +203,7 @@ func (a *ManagedConn) ConnInfo() *ConnInfo {
 		Created: a.created,
 		Tags:    a.tags,
 
-		Reconnects:        a.reconnects,
+		Statistics:        a.Stats(),
 		LastReconnectTime: a.lastReconnectTime,
 
 		Disconnects:        a.disconnects,
@@ -172,7 +219,7 @@ type ConnInfo struct {
 	Created time.Time
 	Tags    []string
 
-	Reconnects        int
+	nats.Statistics
 	LastReconnectTime time.Time
 
 	Disconnects        int
@@ -192,7 +239,7 @@ func (a *ConnInfo) String() string {
 	return string(bytes)
 }
 
-// NewManagedConn is used to create a new ManagedConn
+// NewManagedConn factory method
 func NewManagedConn(connId string, conn *nats.Conn, tags []string) *ManagedConn {
 	return &ManagedConn{
 		Conn:    conn,
@@ -221,13 +268,20 @@ type connManager struct {
 	conns map[string]*ManagedConn
 }
 
-// Connect creates a new managed NATS connection.
+// Connect creates a new managed NATS connection that connects to a NATS server running on the localhost.
 // Tags are used to help identify how the connection is being used by the app. Some common Tags are provided, but
 // additional application specific Tags can also be added, e.g., the name of the service using the connection.
+// Connections are configured to always reconnect.
+//
+// Use Case : A gnatsd process runs on each server node, forming cluster mesh. Applications connect to the local gnatsd
+// server to communicate remotely, thus forming a service mesh. The apps are not network aware, i.e., they always connect
+// to localhost.
+//
+// TODO: TLS and client certificates
 func (a *connManager) Connect(tags ...string) (*ManagedConn, error) {
 	a.mutex.Lock()
 	defer a.mutex.Unlock()
-	nc, err := nats.Connect(nats.DefaultURL, DefaultConnectTimeout, AlwaysReconnect)
+	nc, err := nats.Connect(nats.DefaultURL, DefaultConnectTimeout, DefaultReConnectTimeout, AlwaysReconnect)
 	if err != nil {
 		return nil, err
 	}
@@ -237,12 +291,10 @@ func (a *connManager) Connect(tags ...string) (*ManagedConn, error) {
 
 	nc.SetClosedHandler(func(conn *nats.Conn) {
 		logger.Info().Str(logging.EVENT, EVENT_CONN_CLOSED).Str(CONN_ID, connId).Msg("")
-		go func() {
-			a.mutex.Lock()
-			defer a.mutex.Unlock()
-			delete(a.conns, connId)
-			logger.Info().Str(logging.EVENT, EVENT_CONN_CLOSED).Str(CONN_ID, connId).Msg("deleted")
-		}()
+		a.mutex.Lock()
+		defer a.mutex.Unlock()
+		delete(a.conns, connId)
+		logger.Info().Str(logging.EVENT, EVENT_CONN_CLOSED).Str(CONN_ID, connId).Msg("deleted")
 	})
 
 	nc.SetDisconnectHandler(func(conn *nats.Conn) { managedConn.disconnected() })
@@ -302,4 +354,28 @@ func (a *connManager) ManagedConn(id string) *ManagedConn {
 	a.mutex.RLock()
 	defer a.mutex.RUnlock()
 	return a.conns[id]
+}
+
+func (a *connManager) ConnectedCount() (count int, total int) {
+	a.mutex.RLock()
+	defer a.mutex.RUnlock()
+	total = len(a.conns)
+	for _, c := range a.conns {
+		if c.Conn.IsConnected() {
+			count++
+		}
+	}
+	return
+}
+
+func (a *connManager) DisconnectedCount() (count int, total int) {
+	a.mutex.RLock()
+	defer a.mutex.RUnlock()
+	total = len(a.conns)
+	for _, c := range a.conns {
+		if !c.Conn.IsConnected() {
+			count++
+		}
+	}
+	return
 }

@@ -31,7 +31,7 @@ const (
 )
 
 var ConnectionManagerInterface service.Interface = func() service.Interface {
-	var c ConnectionManager = &connManager{}
+	var c ConnManager = &connManager{}
 	serviceInterface, err := reflect.ObjectInterface(&c)
 	if err != nil {
 		panic(err)
