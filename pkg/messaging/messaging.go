@@ -99,6 +99,8 @@ type Conn interface {
 	Subscribe(topic Topic, bufferSize int) (Subscription, error)
 
 	QueueSubscribe(topic Topic, queue Queue, bufferSize int) (QueueSubscription, error)
+
+
 }
 
 type TopicPublisher interface {

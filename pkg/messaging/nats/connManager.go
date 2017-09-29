@@ -79,6 +79,10 @@ type ManagedConn struct {
 	lastErrorTime time.Time
 }
 
+func (a *ManagedConn) ID() string {
+	return a.id
+}
+
 func (a *ManagedConn) Created() time.Time {
 	a.mutex.RLock()
 	defer a.mutex.RUnlock()

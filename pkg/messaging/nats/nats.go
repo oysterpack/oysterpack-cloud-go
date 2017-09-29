@@ -21,7 +21,7 @@ import (
 	"github.com/nats-io/go-nats"
 )
 
-type Connect func() (conn *nats.Conn, err error)
+type Connect func() (conn *ManagedConn, err error)
 
 // Connect Options
 var (

@@ -19,6 +19,8 @@ import (
 
 	"time"
 
+	"fmt"
+
 	natsio "github.com/nats-io/go-nats"
 	"github.com/oysterpack/oysterpack.go/pkg/messaging/nats"
 	"github.com/oysterpack/oysterpack.go/pkg/messaging/natstest"
@@ -31,6 +33,14 @@ func TestNewConnectionManager(t *testing.T) {
 	connMgr := nats.NewConnManager()
 	conn := mustConnect(t, connMgr)
 
+	conn2 := connMgr.ManagedConn(conn.ID())
+	if conn2 == nil {
+		t.Error("No connection was returned")
+	}
+	if conn2.ID() != conn.ID() {
+		t.Errorf("The wrong conn was returned : %v != %v", conn.ID(), conn2.ID())
+	}
+
 	if connMgr.ConnCount() != 1 {
 		t.Errorf("Expected ConnCount() == 1, but was %d", connMgr.ConnCount())
 	}
@@ -38,6 +48,44 @@ func TestNewConnectionManager(t *testing.T) {
 	if connMgr.ConnInfo(conn.ConnInfo().Id) == nil {
 		t.Errorf("should have been found")
 	}
+}
+
+func TestConnManager_ConnInfo(t *testing.T) {
+	server := natstest.RunServer()
+	defer server.Shutdown()
+
+	connMgr := nats.NewConnManager()
+	conn := mustConnect(t, connMgr, "a", "b", "c")
+	conn2 := connMgr.ManagedConn(conn.ID())
+
+	const (
+		topic = "TestConnManager_ConnInfo"
+		count = 10
+	)
+	ch := make(chan *natsio.Msg)
+	conn.ChanSubscribe(topic, ch)
+
+	for i := 0; i < count; i++ {
+		conn.Publish(topic, []byte(fmt.Sprintf("%v", i)))
+		msg := <-ch
+		t.Logf("received msg %v", string(msg.Data))
+	}
+
+	connInfo := conn.ConnInfo()
+	t.Logf("connInfo : %v", connInfo)
+	if len(conn.Tags()) != 3 || connInfo.Tags[0] != "a" || connInfo.Tags[1] != "b" || connInfo.Tags[2] != "c" {
+		t.Error("Tags are not matching")
+	}
+	if connInfo.InMsgs != count || connInfo.OutMsgs != count || connInfo.InBytes != count || connInfo.OutBytes != count {
+		t.Error("stats are not lining up")
+	}
+
+	connInfo2 := conn2.ConnInfo()
+	t.Logf("connInfo2 : %v", connInfo2)
+	if connInfo.InBytes != connInfo2.InBytes {
+		t.Error("cnnInfo2 did not match connInfo")
+	}
+
 }
 
 func TestConnManager_CloseAll(t *testing.T) {
@@ -83,6 +131,9 @@ func TestManagedConn_ClosingConn(t *testing.T) {
 
 	if connMgr.ConnCount() != COUNT {
 		t.Errorf("There should be %d conns, but the ConnManager reported : %d", COUNT, connMgr.ConnCount())
+	}
+	if len(connMgr.ConnInfos()) != COUNT {
+		t.Errorf("The number of ConnInfo(s) returned did not match the expected count : %d != %d", len(connMgr.ConnInfos()), COUNT)
 	}
 
 	conn := conns[0]
@@ -173,9 +224,9 @@ func TestManagedConn_DisconnectReconnect(t *testing.T) {
 	}
 }
 
-func mustConnect(t *testing.T, connMgr nats.ConnManager) *nats.ManagedConn {
+func mustConnect(t *testing.T, connMgr nats.ConnManager, tags ...string) *nats.ManagedConn {
 	t.Helper()
-	conn, err := connMgr.Connect()
+	conn, err := connMgr.Connect(tags...)
 	if err != nil {
 		t.Fatalf("Connect() failed : %v", err)
 	}
