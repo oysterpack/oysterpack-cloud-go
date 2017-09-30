@@ -15,6 +15,7 @@
 package service
 
 import (
+	"github.com/oysterpack/oysterpack.go/pkg/metrics"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -40,4 +41,13 @@ func AddServiceMetricLabels(labels prometheus.Labels, desc *Descriptor) promethe
 	labels[METRIC_LABEL_COMPONENT] = desc.Component()
 	labels[METRIC_LABEL_VERSION] = desc.Version().String()
 	return labels
+}
+
+func SkipHealthCheckDuringAppShutdown(f metrics.RunHealthCheck) metrics.RunHealthCheck {
+	return func() error {
+		if App().Service().StopTriggered() {
+			return nil
+		}
+		return f()
+	}
 }

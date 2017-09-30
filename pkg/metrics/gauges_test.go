@@ -110,3 +110,77 @@ func TestGauges_GetOrMustRegisterGauge_NameCollisionWithGaugeVec(t *testing.T) {
 	}()
 
 }
+
+func TestGauges_GetOrMustRegisterGaugeFunc(t *testing.T) {
+	defer metrics.ResetRegistry()
+
+	opts := &prometheus.GaugeOpts{
+		Name: "gauge1",
+		Help: "Gauge #1",
+	}
+
+	metrics.GetOrMustRegisterGaugeFunc(opts, func() float64 {
+		return 1
+	})
+	metrics.GetOrMustRegisterGaugeFunc(opts, func() float64 {
+		return 1
+	})
+}
+
+func TestGauges_GetOrMustRegisterGaugeFunc_withNameCollision(t *testing.T) {
+	defer metrics.ResetRegistry()
+
+	opts := &prometheus.GaugeOpts{
+		Name: "gauge1",
+		Help: "Gauge #1",
+	}
+
+	metrics.GetOrMustRegisterGauge(opts)
+	metrics.GetOrMustRegisterGauge(opts)
+
+	func() {
+		defer func() {
+			if p := recover(); p == nil {
+				t.Errorf("name collision should ahve triggered panic")
+			} else {
+				t.Logf("panic : %v", p)
+			}
+
+		}()
+		metrics.GetOrMustRegisterGaugeFunc(opts, func() float64 {
+			return 1
+		})
+	}()
+}
+
+func TestGauges_GetOrMustRegisterGaugeFunc_WithDifferentOpts(t *testing.T) {
+	defer metrics.ResetRegistry()
+
+	opts := &prometheus.GaugeOpts{
+		Name: "gauge1",
+		Help: "Gauge #1",
+	}
+
+	metrics.GetOrMustRegisterGaugeFunc(opts, func() float64 {
+		return 1
+	})
+
+	func() {
+		defer func() {
+			if p := recover(); p == nil {
+				t.Errorf("panic should have been triggered because the opts don't match")
+			} else {
+				t.Logf("panic : %v", p)
+			}
+
+		}()
+		opts := &prometheus.GaugeOpts{
+			Name: "gauge1",
+			Help: "sdfsdfsdf",
+		}
+		metrics.GetOrMustRegisterGaugeFunc(opts, func() float64 {
+			return 1
+		})
+	}()
+
+}

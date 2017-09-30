@@ -17,13 +17,15 @@ package nats
 import (
 	"sync"
 
+	"fmt"
+
 	"github.com/nats-io/go-nats"
 	"github.com/nats-io/nuid"
+	"github.com/oysterpack/oysterpack.go/pkg/commons"
 	"github.com/oysterpack/oysterpack.go/pkg/logging"
+	"github.com/oysterpack/oysterpack.go/pkg/metrics"
 	"github.com/oysterpack/oysterpack.go/pkg/service"
 )
-
-// TODO: metrics
 
 // ConnManager tracks connections that are created through it.
 // The following connection lifecycle events are tracked:
@@ -48,7 +50,26 @@ type ConnManager interface {
 	ConnectedCount() (count int, total int)
 
 	DisconnectedCount() (count int, total int)
+
+	// TotalMsgsIn returns the total number of messages that have been received on all current connections
+	TotalMsgsIn() float64
+
+	// TotalMsgsOut returns the total number of messages that have been sent on all current connections
+	TotalMsgsOut() float64
+
+	// TotalBytesIn returns the total number of bytes that have been received on all current connections
+	TotalBytesIn() float64
+
+	// TotalBytesOut returns the total number of bytes that have been sent on all current connections
+	TotalBytesOut() float64
+
+	HealthChecks() []metrics.HealthCheck
 }
+
+const (
+	MetricsNamespace = "nats"
+	MetricsSubSystem = "conn"
+)
 
 func DefaultOptions() nats.Options {
 	options := nats.GetDefaultOptions()
@@ -85,6 +106,12 @@ type connManager struct {
 
 	n     nuid.NUID
 	conns map[string]*ManagedConn
+
+	healthChecks []metrics.HealthCheck
+}
+
+func (a *connManager) HealthChecks() []metrics.HealthCheck {
+	return a.healthChecks
 }
 
 // Connect creates a new managed NATS connection that connects to a NATS server running on the localhost.
@@ -109,6 +136,8 @@ func (a *connManager) Connect(tags ...string) (*ManagedConn, error) {
 	a.conns[connId] = managedConn
 
 	nc.SetClosedHandler(func(conn *nats.Conn) {
+		connCount.Dec()
+		closedCounter.Inc()
 		logger.Info().Str(logging.EVENT, EVENT_CONN_CLOSED).Str(CONN_ID, connId).Msg("")
 		a.mutex.Lock()
 		defer a.mutex.Unlock()
@@ -123,6 +152,9 @@ func (a *connManager) Connect(tags ...string) (*ManagedConn, error) {
 		managedConn.subscriptionError(subscription, err)
 	})
 
+	createdCounter.Inc()
+	connCount.Inc()
+
 	return managedConn, nil
 }
 
@@ -136,14 +168,83 @@ func (a *connManager) init() {
 	a.mutex.Lock()
 	defer a.mutex.Unlock()
 	a.conns = make(map[string]*ManagedConn)
+
+	metrics.GetOrMustRegisterGaugeFunc(MsgsInGauge, a.TotalMsgsIn)
+	metrics.GetOrMustRegisterGaugeFunc(MsgsOutGauge, a.TotalMsgsOut)
+	metrics.GetOrMustRegisterGaugeFunc(BytesInGauge, a.TotalBytesIn)
+	metrics.GetOrMustRegisterGaugeFunc(BytesOutGauge, a.TotalBytesOut)
+
+	if len(a.healthChecks) == 0 {
+		a.healthChecks = []metrics.HealthCheck{
+			metrics.NewHealthCheck(connectivityHealthCheck, runinterval,
+				service.SkipHealthCheckDuringAppShutdown(func() error {
+					connected, total := a.ConnectedCount()
+					if connected != total {
+						return fmt.Errorf("%d / %d connections are disconnected", total-connected, total)
+					}
+					return nil
+				})),
+		}
+	}
+}
+
+// TotalMsgsIn returns the total number of messages that have been received on all current connections.
+func (a *connManager) TotalMsgsIn() float64 {
+	a.mutex.RLock()
+	defer a.mutex.RUnlock()
+	var count uint64 = 0
+	for _, conn := range a.conns {
+		count += conn.InMsgs
+	}
+	return float64(count)
+}
+
+// TotalMsgsOut returns the total number of messages that have been sent on all current connections.
+func (a *connManager) TotalMsgsOut() float64 {
+	a.mutex.RLock()
+	defer a.mutex.RUnlock()
+	var count uint64 = 0
+	for _, conn := range a.conns {
+		count += conn.OutMsgs
+	}
+	return float64(count)
+}
+
+// TotalMsgsIn returns the total number of bytes that have been received on all current connections.
+func (a *connManager) TotalBytesIn() float64 {
+	a.mutex.RLock()
+	defer a.mutex.RUnlock()
+	var count uint64 = 0
+	for _, conn := range a.conns {
+		count += conn.InBytes
+	}
+	return float64(count)
+}
+
+// TotalMsgsOut returns the total number of bytes that have been sent on all current connections.
+func (a *connManager) TotalBytesOut() float64 {
+	a.mutex.RLock()
+	defer a.mutex.RUnlock()
+	var count uint64 = 0
+	for _, conn := range a.conns {
+		count += conn.OutBytes
+	}
+	return float64(count)
 }
 
 func (a *connManager) CloseAll() {
 	a.mutex.Lock()
 	defer a.mutex.Unlock()
 	for _, nc := range a.conns {
-		nc.Conn.SetClosedHandler(nil)
-		nc.Conn.Close()
+		nc.Conn.SetClosedHandler(func(conn *nats.Conn) {
+			connCount.Dec()
+			closedCounter.Inc()
+			logger.Info().Str(logging.EVENT, EVENT_CONN_CLOSED).Str(CONN_ID, nc.ID()).Msg("CloseAll")
+		})
+		func() {
+			defer commons.IgnorePanic()
+			nc.Conn.Close()
+		}()
 	}
 	a.conns = make(map[string]*ManagedConn)
 }

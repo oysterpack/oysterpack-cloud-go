@@ -99,7 +99,11 @@ var (
 func (a *server) newService() service.Service {
 	healthchecks := []metrics.HealthCheck{
 		metrics.NewHealthCheck(
-			prometheus.GaugeOpts{Name: "running", Help: "Checks is the backend server is running"},
+			prometheus.GaugeOpts{
+				Name:        "running",
+				Help:        "Checks the backend server is running",
+				ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, desc),
+			},
 			15*time.Second,
 			func() error {
 				if state := a.Service().State(); !state.Running() {

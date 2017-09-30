@@ -19,10 +19,10 @@ import (
 	"sort"
 )
 
-// State is a simple hight-level summary of where the Service is in its lifecycle
+// State is an enum representing the service lifecycle state
 type State int
 
-// Possible State values
+// State enum values
 // Normal service life cycle : New -> Starting -> Running -> Stopping -> Terminated
 // If the service fails while starting, running, or stopping, then it goes into state Service.State.FAILED.
 // A stopped service may not be restarted.
@@ -113,7 +113,8 @@ func (s State) String() string {
 	}
 }
 
-// States implements sort.Interface
+// States implements sort.Interface.
+// When sorted, states will be sorted in by the state int value in increasing order, which represents the service lifecycle order.
 type States []State
 
 func (a States) Len() int           { return len(a) }

@@ -18,7 +18,7 @@ import (
 	"context"
 	"time"
 
-	"errors"
+	"fmt"
 
 	"github.com/nats-io/go-nats"
 	"github.com/oysterpack/oysterpack.go/pkg/messaging"
@@ -68,10 +68,7 @@ func (a *conn) Subscribe(topic messaging.Topic, settings messaging.SubscriptionS
 	if err := checkSubscriptionSettings(settings); err != nil {
 		return nil, err
 	}
-	if settings.ChanBufSize < 0 {
-		settings.ChanBufSize = 0
-	}
-	c := make(chan *messaging.Message, settings.ChanBufSize)
+	c := make(chan *messaging.Message)
 	sub, err := a.nc.Subscribe(string(topic), func(msg *nats.Msg) {
 		c <- toMessage(msg)
 	})
@@ -88,10 +85,7 @@ func (a *conn) QueueSubscribe(topic messaging.Topic, queue messaging.Queue, sett
 	if err := checkSubscriptionSettings(settings); err != nil {
 		return nil, err
 	}
-	if settings.ChanBufSize < 0 {
-		settings.ChanBufSize = 0
-	}
-	c := make(chan *messaging.Message, settings.ChanBufSize)
+	c := make(chan *messaging.Message)
 	sub, err := a.nc.QueueSubscribe(string(topic), string(queue), func(msg *nats.Msg) {
 		c <- toMessage(msg)
 	})
@@ -106,11 +100,12 @@ func (a *conn) QueueSubscribe(topic messaging.Topic, queue messaging.Queue, sett
 
 func checkSubscriptionSettings(settings messaging.SubscriptionSettings) error {
 	if settings.PendingLimits != nil {
+		errorMsgFormat := " %q : Zero is not allowed. Any negative value means that the given metric is not limited."
 		if settings.MsgLimit == 0 {
-			return errors.New("MsgLimit : Zero is not allowed. Any negative value means that the given metric is not limited.")
+			return fmt.Errorf(errorMsgFormat, "MsgLimit")
 		}
 		if settings.BytesLimit == 0 {
-			return errors.New("BytesLimit : Zero is not allowed. Any negative value means that the given metric is not limited.")
+			return fmt.Errorf(errorMsgFormat, "BytesLimit")
 		}
 	}
 	return nil

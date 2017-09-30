@@ -34,6 +34,8 @@ var (
 	gaugesMap    = map[string]*Gauge{}
 	gaugeVecsMap = map[string]*GaugeVec{}
 
+	gaugeFuncsMap = map[string]*GaugeFunc{}
+
 	histogramsMap    = map[string]*Histogram{}
 	histogramVecsMap = map[string]*HistogramVec{}
 
@@ -63,6 +65,7 @@ func ResetRegistry() {
 	counterVecsMap = map[string]*CounterVec{}
 	gaugesMap = map[string]*Gauge{}
 	gaugeVecsMap = map[string]*GaugeVec{}
+	gaugeFuncsMap = map[string]*GaugeFunc{}
 	histogramsMap = map[string]*Histogram{}
 	histogramVecsMap = map[string]*HistogramVec{}
 	summariesMap = map[string]*Summary{}
@@ -88,6 +91,9 @@ func registered(name string) bool {
 		return true
 	}
 	if _, exists := gaugeVecsMap[name]; exists {
+		return true
+	}
+	if _, exists := gaugeFuncsMap[name]; exists {
 		return true
 	}
 

@@ -34,13 +34,6 @@ import (
 type Service interface {
 	Desc() *Descriptor
 
-	Namespace() string
-	System() string
-	Component() string
-
-	Interface() Interface
-	Version() *semver.Version
-
 	StartAsync() error
 
 	Stop()

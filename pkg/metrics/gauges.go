@@ -21,10 +21,10 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-// GetOrMustRegisterGauge first checks if a status with the same name is already registered.
-// If the status is already registered, and was registered with the same opts, then the cached status is returned.
-// If the status is already registered, and was registered with the different opts, then a panic is triggered.
-// If not such status exists, then it is registered and cached along with its opts.
+// GetOrMustRegisterGauge first checks if a gauge with the same name is already registered.
+// If the gauge is already registered, and was registered with the same opts, then the cached status is returned.
+// If the gauge is already registered, and was registered with the different opts, then a panic is triggered.
+// If not such gauge exists, then it is registered and cached along with its opts.
 func GetOrMustRegisterGauge(opts *prometheus.GaugeOpts) prometheus.Gauge {
 	const FUNC = "GetOrMustRegisterGauge"
 	mutex.RLock()
@@ -33,7 +33,6 @@ func GetOrMustRegisterGauge(opts *prometheus.GaugeOpts) prometheus.Gauge {
 	if gauge := gaugesMap[name]; gauge != nil {
 		if GaugeOptsMatch(opts, gauge.GaugeOpts) {
 			return gauge
-
 		}
 		logger.Panic().Str(logging.FUNC, FUNC).
 			Str("registered", fmt.Sprintf("%v", gauge.GaugeOpts)).
@@ -55,6 +54,37 @@ func GetOrMustRegisterGauge(opts *prometheus.GaugeOpts) prometheus.Gauge {
 	Registry.MustRegister(gauge)
 	gaugesMap[name] = &Gauge{gauge, opts}
 	return gauge
+}
+
+func GetOrMustRegisterGaugeFunc(opts *prometheus.GaugeOpts, f func() float64) prometheus.GaugeFunc {
+	const FUNC = "GetOrMustRegisterGauge"
+	mutex.RLock()
+	defer mutex.RUnlock()
+	name := GaugeFQName(opts)
+	if gaugeFunc := gaugeFuncsMap[name]; gaugeFunc != nil {
+		if GaugeOptsMatch(opts, gaugeFunc.GaugeOpts) {
+			return gaugeFunc
+		}
+		logger.Panic().Str(logging.FUNC, FUNC).
+			Str("registered", fmt.Sprintf("%v", gaugeFunc.GaugeOpts)).
+			Str("dup", fmt.Sprintf("%v", opts)).
+			Err(ErrMetricAlreadyRegisteredWithDifferentOpts).
+			Msg("")
+	}
+
+	if registered(name) {
+		logger.Panic().Str(logging.FUNC, FUNC).
+			Str("name", name).
+			Int("type", GAUGE.Value()).
+			Int("registered_type", GAUGEVEC.Value()).
+			Err(ErrMetricNameUsedByDifferentMetricType).
+			Msg("")
+	}
+
+	gaugeFunc := prometheus.NewGaugeFunc(*opts, f)
+	Registry.MustRegister(gaugeFunc)
+	gaugeFuncsMap[name] = &GaugeFunc{gaugeFunc, opts}
+	return gaugeFunc
 }
 
 // GaugeNames returns names of all registered gauges

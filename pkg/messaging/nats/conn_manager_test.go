@@ -24,9 +24,11 @@ import (
 	natsio "github.com/nats-io/go-nats"
 	"github.com/oysterpack/oysterpack.go/pkg/messaging/nats"
 	"github.com/oysterpack/oysterpack.go/pkg/messaging/natstest"
+	"github.com/oysterpack/oysterpack.go/pkg/metrics"
 )
 
 func TestNewConnectionManager(t *testing.T) {
+	metrics.ResetRegistry()
 	server := natstest.RunServer()
 	defer server.Shutdown()
 
@@ -52,6 +54,7 @@ func TestNewConnectionManager(t *testing.T) {
 }
 
 func TestConnManager_ConnInfo(t *testing.T) {
+	metrics.ResetRegistry()
 	server := natstest.RunServer()
 	defer server.Shutdown()
 
@@ -91,6 +94,7 @@ func TestConnManager_ConnInfo(t *testing.T) {
 }
 
 func TestConnManager_CloseAll(t *testing.T) {
+	metrics.ResetRegistry()
 	server := natstest.RunServer()
 	defer server.Shutdown()
 
@@ -122,6 +126,7 @@ func TestConnManager_CloseAll(t *testing.T) {
 }
 
 func TestManagedConn_CloseConn(t *testing.T) {
+	metrics.ResetRegistry()
 	server := natstest.RunServer()
 	defer server.Shutdown()
 
@@ -157,6 +162,7 @@ func TestManagedConn_CloseConn(t *testing.T) {
 }
 
 func TestNewConnManager_CreatedTimestamp(t *testing.T) {
+	metrics.ResetRegistry()
 	server := natstest.RunServer()
 	defer server.Shutdown()
 
@@ -171,6 +177,7 @@ func TestNewConnManager_CreatedTimestamp(t *testing.T) {
 }
 
 func TestManagedConn_DisconnectReconnect(t *testing.T) {
+	metrics.ResetRegistry()
 	backup := nats.DefaultReConnectTimeout
 	const ReConnectTimeout = 10 * time.Millisecond
 	nats.DefaultReConnectTimeout = natsio.ReconnectWait(ReConnectTimeout)
@@ -240,6 +247,7 @@ func TestManagedConn_DisconnectReconnect(t *testing.T) {
 }
 
 func TestManagedConn_SubscribingWhileDisconnected(t *testing.T) {
+	metrics.ResetRegistry()
 	backup := nats.DefaultReConnectTimeout
 	const ReConnectTimeout = 5 * time.Millisecond
 	nats.DefaultReConnectTimeout = natsio.ReconnectWait(ReConnectTimeout)
@@ -351,6 +359,7 @@ func TestManagedConn_SubscribingWhileDisconnected(t *testing.T) {
 // When using a channel based subscription, messages will be dropped if they cannot be sent on the channel, i.e., if the
 // subscriber is not ready to receive the message on the channel, then the message is dropped.
 func TestManagedConn_UnbufferedChanSubscribingWhileDisconnected(t *testing.T) {
+	metrics.ResetRegistry()
 	backup := nats.DefaultReConnectTimeout
 	const ReConnectTimeout = 5 * time.Millisecond
 	nats.DefaultReConnectTimeout = natsio.ReconnectWait(ReConnectTimeout)
@@ -439,6 +448,7 @@ func TestManagedConn_UnbufferedChanSubscribingWhileDisconnected(t *testing.T) {
 }
 
 func TestManagedConn_BufferedChanSubscribingWhileDisconnected(t *testing.T) {
+	metrics.ResetRegistry()
 	backup := nats.DefaultReConnectTimeout
 	const ReConnectTimeout = 5 * time.Millisecond
 	nats.DefaultReConnectTimeout = natsio.ReconnectWait(ReConnectTimeout)
@@ -523,6 +533,7 @@ func TestManagedConn_BufferedChanSubscribingWhileDisconnected(t *testing.T) {
 // When using an async subscriber, NATS will buffer pending messages based on the subscription's pending limits.
 // Thus messages won't be dropped until the pending limits have been exceeded
 func TestManagedConn_AsyncSubscribingWhileDisconnected(t *testing.T) {
+	metrics.ResetRegistry()
 	backup := nats.DefaultReConnectTimeout
 	const ReConnectTimeout = 5 * time.Millisecond
 	nats.DefaultReConnectTimeout = natsio.ReconnectWait(ReConnectTimeout)
@@ -617,6 +628,7 @@ func TestManagedConn_AsyncSubscribingWhileDisconnected(t *testing.T) {
 // When using an async subscriber, NATS will buffer pending messages based on the subscription's pending limits.
 // Thus messages won't be dropped until the pending limits have been exceeded
 func TestManagedConn_AsyncSubscribingWhileDisconnected_WithPendingLimitsExceeded(t *testing.T) {
+	metrics.ResetRegistry()
 	backup := nats.DefaultReConnectTimeout
 	const ReConnectTimeout = 5 * time.Millisecond
 	nats.DefaultReConnectTimeout = natsio.ReconnectWait(ReConnectTimeout)

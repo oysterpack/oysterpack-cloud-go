@@ -90,6 +90,7 @@ func (a *ManagedConn) Errors() int {
 
 // updates are protected by a mutex to make changes concurrency safe
 func (a *ManagedConn) disconnected() {
+	disconnectedCounter.Inc()
 	a.mutex.Lock()
 	defer a.mutex.Unlock()
 	a.lastDisconnectTime = time.Now()
@@ -102,6 +103,7 @@ func (a *ManagedConn) disconnected() {
 }
 
 func (a *ManagedConn) reconnected() {
+	reconnectedCounter.Inc()
 	a.lastReconnectTime = time.Now()
 	event := logger.Info().Str(logging.EVENT, EVENT_CONN_RECONNECT).Str(CONN_ID, a.id).Uint64(RECONNECTS, a.Reconnects)
 	if len(a.tags) > 0 {
@@ -111,6 +113,7 @@ func (a *ManagedConn) reconnected() {
 }
 
 func (a *ManagedConn) subscriptionError(subscription *nats.Subscription, err error) {
+	errorCounter.Inc()
 	a.errors++
 	a.lastErrorTime = time.Now()
 

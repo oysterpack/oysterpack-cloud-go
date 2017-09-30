@@ -96,6 +96,12 @@ type GaugeVec struct {
 	*GaugeVecOpts
 }
 
+// Gauge aggregates the metric along with its opts
+type GaugeFunc struct {
+	prometheus.GaugeFunc
+	*prometheus.GaugeOpts
+}
+
 // Histogram aggregates the metric along with its opts
 type Histogram struct {
 	prometheus.Histogram

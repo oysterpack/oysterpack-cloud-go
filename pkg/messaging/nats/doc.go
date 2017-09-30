@@ -19,4 +19,35 @@
 // ConnManager
 // 	- manages nats connections
 //	- auto-registers itself with the global service.App
+//
+// Metrics
+//
+//		MetricOpts = &metrics.MetricOpts{
+//			CounterOpts: []*prometheus.CounterOpts{
+//				CreatedCounterOpts,
+//				DisconnectedCounterOpts,
+//				ReconnectedCounterOpts,
+//				SubscriberErrorCounterOpts,
+//				ClosedCounterOpts,
+//			},
+//			GaugeOpts: []*prometheus.GaugeOpts{
+//				ConnCountOpts,
+//				MsgsInGauge,
+//				MsgsOutGauge,
+//				BytesInGauge,
+//				BytesOutGauge,
+//			},
+//		}
+//
+// HealthChecks
+//
+//	// every 15 seconds check connectivity
+// 	connectivityHealthCheck := prometheus.GaugeOpts{
+//		Namespace:   MetricsNamespace,
+//		Subsystem:   MetricsSubSystem,
+//		Name:        "connectivity",
+//		Help:        "The healthcheck fails if any connections are disconnected.",
+//		ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, ConnManagerDescriptor),
+//	}
+//
 package nats

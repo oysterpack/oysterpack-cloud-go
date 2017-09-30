@@ -102,7 +102,6 @@ type Conn interface {
 }
 
 type SubscriptionSettings struct {
-	ChanBufSize int
 	*PendingLimits
 }
 

@@ -271,7 +271,7 @@ func (a *application) ServiceByKey(serviceKey ServiceKey) Client {
 	a.mutex.RLock()
 	defer a.mutex.RUnlock()
 	for _, s := range a.services {
-		if InterfaceToServiceKey(s.Service().Interface()) == serviceKey {
+		if InterfaceToServiceKey(s.Service().Desc().Interface()) == serviceKey {
 			return s.Client
 		}
 	}
@@ -324,20 +324,20 @@ func (a *application) ServiceKeys() []ServiceKey {
 // 4. A service with the same Interface is already registered.
 func (a *application) MustRegisterService(create ClientConstructor) Client {
 	validate := func(service Client) {
-		if service.Service().Interface() == nil {
+		if service.Service().Desc().Interface() == nil {
 			a.Service().Logger().Panic().Msg("Service failed to register because it has no Interface")
 		}
 
-		if service.Service().Version() == nil {
+		if service.Service().Desc().Version() == nil {
 			a.Service().Logger().Panic().
-				Str(logging.SERVICE, service.Service().Interface().String()).
+				Str(logging.SERVICE, service.Service().Desc().Interface().String()).
 				Msgf("Service failed to register because it has no version")
 		}
 
-		if !stdreflect.TypeOf(service).AssignableTo(service.Service().Interface()) {
+		if !stdreflect.TypeOf(service).AssignableTo(service.Service().Desc().Interface()) {
 			a.Service().Logger().Panic().
-				Str(logging.SERVICE, service.Service().Interface().String()).
-				Msgf("Service failed to register because %T is not assignable to %v", stdreflect.TypeOf(service), service.Service().Interface())
+				Str(logging.SERVICE, service.Service().Desc().Interface().String()).
+				Msgf("Service failed to register because %T is not assignable to %v", stdreflect.TypeOf(service), service.Service().Desc().Interface())
 		}
 	}
 
@@ -345,12 +345,12 @@ func (a *application) MustRegisterService(create ClientConstructor) Client {
 	defer a.mutex.Unlock()
 	service := create(Application(a))
 	validate(service)
-	if _, exists := a.services[service.Service().Interface()]; exists {
+	if _, exists := a.services[service.Service().Desc().Interface()]; exists {
 		a.Service().Logger().Panic().
-			Str(logging.SERVICE, service.Service().Interface().String()).
-			Msgf("Service is already registered : %v", service.Service().Interface())
+			Str(logging.SERVICE, service.Service().Desc().Interface().String()).
+			Msgf("Service is already registered : %v", service.Service().Desc().Interface())
 	}
-	a.services[service.Service().Interface()] = &registeredService{NewService: create, Client: service}
+	a.services[service.Service().Desc().Interface()] = &registeredService{NewService: create, Client: service}
 	service.Service().StartAsync()
 	go a.checkServiceTickets()
 	return service
@@ -370,8 +370,8 @@ func (a *application) RegisterService(create ClientConstructor) (client Client, 
 func (a *application) UnRegisterService(service Client) bool {
 	a.mutex.Lock()
 	defer a.mutex.Unlock()
-	if _, exists := a.services[service.Service().Interface()]; exists {
-		delete(a.services, service.Service().Interface())
+	if _, exists := a.services[service.Service().Desc().Interface()]; exists {
+		delete(a.services, service.Service().Desc().Interface())
 		return true
 	}
 	return false
@@ -434,14 +434,14 @@ func (a *application) CheckServiceDependenciesRegistered(serviceClient Client) *
 }
 
 func (a *application) checkServiceDependenciesRegistered(serviceClient Client) *ServiceDependenciesMissing {
-	missingDependencies := &ServiceDependenciesMissing{&DependencyMappings{Interface: serviceClient.Service().Interface()}}
+	missingDependencies := &ServiceDependenciesMissing{&DependencyMappings{Interface: serviceClient.Service().Desc().Interface()}}
 	for dependency, constraints := range serviceClient.Service().Dependencies() {
 		b := a.serviceByType(dependency)
 		if b == nil {
 			missingDependencies.AddMissingDependency(dependency)
 		} else {
 			if constraints != nil {
-				if !constraints.Check(b.Service().Version()) {
+				if !constraints.Check(b.Service().Desc().Version()) {
 					missingDependencies.AddMissingDependency(dependency)
 				}
 			}
@@ -475,10 +475,10 @@ func (a *application) CheckServiceDependenciesRunning(serviceClient Client) *Ser
 }
 
 func (a *application) checkServiceDependenciesRunning(serviceClient Client) *ServiceDependenciesNotRunning {
-	notRunning := &ServiceDependenciesNotRunning{&DependencyMappings{Interface: serviceClient.Service().Interface()}}
+	notRunning := &ServiceDependenciesNotRunning{&DependencyMappings{Interface: serviceClient.Service().Desc().Interface()}}
 	for dependency, constraints := range serviceClient.Service().Dependencies() {
 		if client := a.serviceByType(dependency); client == nil ||
-			(constraints != nil && !constraints.Check(client.Service().Version())) ||
+			(constraints != nil && !constraints.Check(client.Service().Desc().Version())) ||
 			!client.Service().State().Running() {
 			notRunning.AddDependencyNotRunning(dependency)
 		}
