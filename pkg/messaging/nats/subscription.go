@@ -19,14 +19,6 @@ import (
 	"github.com/oysterpack/oysterpack.go/pkg/messaging"
 )
 
-func NewSubscription(sub *nats.Subscription, c chan *messaging.Message) messaging.Subscription {
-	return &subscription{sub, c}
-}
-
-func NewQueueSubscription(sub *nats.Subscription, c chan *messaging.Message, queue messaging.Queue) messaging.QueueSubscription {
-	return &queueSubscription{NewSubscription(sub, c), queue}
-}
-
 type subscription struct {
 	sub *nats.Subscription
 	c   chan *messaging.Message

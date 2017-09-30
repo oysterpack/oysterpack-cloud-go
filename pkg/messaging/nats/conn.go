@@ -18,6 +18,8 @@ import (
 	"context"
 	"time"
 
+	"errors"
+
 	"github.com/nats-io/go-nats"
 	"github.com/oysterpack/oysterpack.go/pkg/messaging"
 )
@@ -62,32 +64,56 @@ func (a *conn) RequestWithContext(ctx context.Context, topic messaging.Topic, da
 	return toMessage(msg), nil
 }
 
-func (a *conn) Subscribe(topic messaging.Topic, bufferSize int) (messaging.Subscription, error) {
-	if bufferSize < 0 {
-		bufferSize = 0
+func (a *conn) Subscribe(topic messaging.Topic, settings messaging.SubscriptionSettings) (messaging.Subscription, error) {
+	if err := checkSubscriptionSettings(settings); err != nil {
+		return nil, err
 	}
-	c := make(chan *messaging.Message, bufferSize)
+	if settings.ChanBufSize < 0 {
+		settings.ChanBufSize = 0
+	}
+	c := make(chan *messaging.Message, settings.ChanBufSize)
 	sub, err := a.nc.Subscribe(string(topic), func(msg *nats.Msg) {
 		c <- toMessage(msg)
 	})
+	if settings.PendingLimits != nil {
+		sub.SetPendingLimits(settings.MsgLimit, settings.BytesLimit)
+	}
 	if err != nil {
 		return nil, err
 	}
-	return NewSubscription(sub, c), nil
+	return &subscription{sub, c}, nil
 }
 
-func (a *conn) QueueSubscribe(topic messaging.Topic, queue messaging.Queue, bufferSize int) (messaging.QueueSubscription, error) {
-	if bufferSize < 0 {
-		bufferSize = 0
+func (a *conn) QueueSubscribe(topic messaging.Topic, queue messaging.Queue, settings messaging.SubscriptionSettings) (messaging.QueueSubscription, error) {
+	if err := checkSubscriptionSettings(settings); err != nil {
+		return nil, err
 	}
-	c := make(chan *messaging.Message, bufferSize)
+	if settings.ChanBufSize < 0 {
+		settings.ChanBufSize = 0
+	}
+	c := make(chan *messaging.Message, settings.ChanBufSize)
 	sub, err := a.nc.QueueSubscribe(string(topic), string(queue), func(msg *nats.Msg) {
 		c <- toMessage(msg)
 	})
+	if settings.PendingLimits != nil {
+		sub.SetPendingLimits(settings.MsgLimit, settings.BytesLimit)
+	}
 	if err != nil {
 		return nil, err
 	}
-	return NewQueueSubscription(sub, c, queue), nil
+	return &queueSubscription{&subscription{sub, c}, queue}, nil
+}
+
+func checkSubscriptionSettings(settings messaging.SubscriptionSettings) error {
+	if settings.PendingLimits != nil {
+		if settings.MsgLimit == 0 {
+			return errors.New("MsgLimit : Zero is not allowed. Any negative value means that the given metric is not limited.")
+		}
+		if settings.BytesLimit == 0 {
+			return errors.New("BytesLimit : Zero is not allowed. Any negative value means that the given metric is not limited.")
+		}
+	}
+	return nil
 }
 
 func toMessage(msg *nats.Msg) *messaging.Message {

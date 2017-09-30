@@ -13,3 +13,35 @@
 // limitations under the License.
 
 package nats
+
+import (
+	"fmt"
+	"time"
+
+	"github.com/nats-io/go-nats"
+)
+
+type ConnInfo struct {
+	Id      string
+	Created time.Time
+	Tags    []string
+
+	nats.Statistics
+	LastReconnectTime time.Time
+
+	Disconnects        int
+	LastDisconnectTime time.Time
+
+	Errors        int
+	LastErrorTime time.Time
+}
+
+func (a *ConnInfo) String() string {
+	bytes, err := json.Marshal(a)
+	if err != nil {
+		// should never happen
+		logger.Warn().Err(err).Msg("json.Marshal() failed")
+		return fmt.Sprintf("%v", *a)
+	}
+	return string(bytes)
+}

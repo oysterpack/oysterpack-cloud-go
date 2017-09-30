@@ -96,11 +96,19 @@ type Conn interface {
 
 	RequestWithContext(ctx context.Context, topic Topic, data []byte) (response *Message, err error)
 
-	Subscribe(topic Topic, bufferSize int) (Subscription, error)
+	Subscribe(topic Topic, settings SubscriptionSettings) (Subscription, error)
 
-	QueueSubscribe(topic Topic, queue Queue, bufferSize int) (QueueSubscription, error)
+	QueueSubscribe(topic Topic, queue Queue, settings SubscriptionSettings) (QueueSubscription, error)
+}
 
+type SubscriptionSettings struct {
+	ChanBufSize int
+	*PendingLimits
+}
 
+type PendingLimits struct {
+	MsgLimit int
+	BytesLimit int
 }
 
 type TopicPublisher interface {

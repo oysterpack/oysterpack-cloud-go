@@ -15,9 +15,6 @@
 package nats
 
 import (
-	"fmt"
-	"time"
-
 	"sync"
 
 	"github.com/nats-io/go-nats"
@@ -53,217 +50,35 @@ type ConnManager interface {
 	DisconnectedCount() (count int, total int)
 }
 
-// NewConnManager factory method
-func NewConnManager() ConnManager {
-	connMgr := &connManager{}
+func DefaultOptions() nats.Options {
+	options := nats.GetDefaultOptions()
+	options.Url = nats.DefaultURL
+	DefaultConnectTimeout(&options)
+	DefaultReConnectTimeout(&options)
+	AlwaysReconnect(&options)
+	return options
+}
+
+// NewConnManager factory method.
+// Default connection options are : DefaultConnectTimeout, DefaultReConnectTimeout, AlwaysReconnect
+func NewConnManager(options ...nats.Option) ConnManager {
+	connOptions := DefaultOptions()
+	for _, option := range options {
+		if err := option(&connOptions); err != nil {
+			logger.Panic().Err(err).Msg("Failed to apply option")
+		}
+	}
+
+	connMgr := &connManager{options: connOptions}
 	connMgr.init()
 	return connMgr
 }
 
 // ManagedConn is a managed NATS connection.
-type ManagedConn struct {
-	mutex sync.RWMutex
-
-	*nats.Conn
-
-	id      string
-	created time.Time
-	tags    []string
-
-	lastReconnectTime time.Time
-
-	disconnects        int
-	lastDisconnectTime time.Time
-
-	errors        int
-	lastErrorTime time.Time
-}
-
-func (a *ManagedConn) ID() string {
-	return a.id
-}
-
-func (a *ManagedConn) Created() time.Time {
-	a.mutex.RLock()
-	defer a.mutex.RUnlock()
-	return a.created
-}
-
-func (a *ManagedConn) Tags() []string {
-	a.mutex.RLock()
-	defer a.mutex.RUnlock()
-	return a.tags
-}
-
-func (a *ManagedConn) Disconnects() int {
-	a.mutex.RLock()
-	defer a.mutex.RUnlock()
-	return a.disconnects
-}
-
-func (a *ManagedConn) LastDisconnectTime() time.Time {
-	a.mutex.RLock()
-	defer a.mutex.RUnlock()
-	return a.lastDisconnectTime
-}
-
-func (a *ManagedConn) LastReconnectTime() time.Time {
-	a.mutex.RLock()
-	defer a.mutex.RUnlock()
-	return a.lastReconnectTime
-}
-
-func (a *ManagedConn) LastErrorTime() time.Time {
-	a.mutex.RLock()
-	defer a.mutex.RUnlock()
-	return a.lastErrorTime
-}
-
-// Errors returns the number of errors that have occurred on this connection
-func (a *ManagedConn) Errors() int {
-	a.mutex.RLock()
-	defer a.mutex.RUnlock()
-	return a.errors
-}
-
-// updates are protected by a mutex to make changes concurrency safe
-func (a *ManagedConn) disconnected() {
-	a.mutex.Lock()
-	defer a.mutex.Unlock()
-	a.lastDisconnectTime = time.Now()
-	a.disconnects++
-	event := logger.Info().Str(logging.EVENT, EVENT_CONN_DISCONNECT).Str(CONN_ID, a.id).Int(DISCONNECTS, a.disconnects)
-	if len(a.tags) > 0 {
-		event.Strs(CONN_TAGS, a.tags)
-	}
-	event.Msg("")
-}
-
-func (a *ManagedConn) reconnected() {
-	a.lastReconnectTime = time.Now()
-	event := logger.Info().Str(logging.EVENT, EVENT_CONN_RECONNECT).Str(CONN_ID, a.id).Uint64(RECONNECTS, a.Reconnects)
-	if len(a.tags) > 0 {
-		event.Strs(CONN_TAGS, a.tags)
-	}
-	event.Msg("")
-}
-
-func (a *ManagedConn) subscriptionError(subscription *nats.Subscription, err error) {
-	a.errors++
-	a.lastErrorTime = time.Now()
-
-	event := logger.Error().Str(logging.EVENT, EVENT_CONN_ERR).Str(CONN_ID, a.id).Err(err).Bool(SUBSCRIPTION_VALID, subscription.IsValid())
-	if len(a.tags) > 0 {
-		event.Strs(CONN_TAGS, a.tags)
-	}
-
-	subscriptionErrors := []error{}
-	if maxQueuedMsgs, maxQueuedBytes, e := subscription.MaxPending(); e != nil {
-		subscriptionErrors = append(subscriptionErrors, e)
-	} else {
-		event.Int(MAX_QUEUED_MSGS, maxQueuedMsgs).Int(MAX_QUEUED_BYTES, maxQueuedBytes)
-	}
-	if queuedMsgs, queuedBytes, e := subscription.Pending(); e != nil {
-		subscriptionErrors = append(subscriptionErrors, e)
-	} else {
-		event.Int(QUEUED_MSGS, queuedMsgs).Int(QUEUED_BYTES, queuedBytes)
-	}
-	if queuedMsgLimit, queuedBytesLimit, e := subscription.PendingLimits(); e != nil {
-		subscriptionErrors = append(subscriptionErrors, e)
-	} else {
-		event.Int(QUEUED_MSGS_LIMIT, queuedMsgLimit).Int(QUEUED_BYTES_LIMIT, queuedBytesLimit)
-	}
-	if delivered, e := subscription.Delivered(); e != nil {
-		subscriptionErrors = append(subscriptionErrors, e)
-	} else {
-		event.Int64(DELIVERED, delivered)
-	}
-	if dropped, e := subscription.Dropped(); e != nil {
-		subscriptionErrors = append(subscriptionErrors, e)
-	} else {
-		event.Int(DROPPED, dropped)
-	}
-
-	if len(subscriptionErrors) > 0 {
-		event.Errs("sub", subscriptionErrors)
-	}
-
-	event.Msg("")
-}
-
-func (a *ManagedConn) discoveredServers() {
-	event := logger.Info().Str(logging.EVENT, EVENT_CONN_DISCOVERED_SERVERS).Str(CONN_ID, a.id).Strs(DISCOVERED_SERVERS, a.Conn.DiscoveredServers())
-	if len(a.tags) > 0 {
-		event.Strs(CONN_TAGS, a.tags)
-	}
-	event.Msg("")
-}
-
-func (a *ManagedConn) ConnInfo() *ConnInfo {
-	a.mutex.RLock()
-	defer a.mutex.RUnlock()
-	return &ConnInfo{
-		Id:      a.id,
-		Created: a.created,
-		Tags:    a.tags,
-
-		Statistics:        a.Stats(),
-		LastReconnectTime: a.lastReconnectTime,
-
-		Disconnects:        a.disconnects,
-		LastDisconnectTime: a.lastDisconnectTime,
-
-		Errors:        a.errors,
-		LastErrorTime: a.lastErrorTime,
-	}
-}
-
-type ConnInfo struct {
-	Id      string
-	Created time.Time
-	Tags    []string
-
-	nats.Statistics
-	LastReconnectTime time.Time
-
-	Disconnects        int
-	LastDisconnectTime time.Time
-
-	Errors        int
-	LastErrorTime time.Time
-}
-
-func (a *ConnInfo) String() string {
-	bytes, err := json.Marshal(a)
-	if err != nil {
-		// should never happen
-		logger.Warn().Err(err).Msg("json.Marshal() failed")
-		return fmt.Sprintf("%v", *a)
-	}
-	return string(bytes)
-}
-
-// NewManagedConn factory method
-func NewManagedConn(connId string, conn *nats.Conn, tags []string) *ManagedConn {
-	return &ManagedConn{
-		Conn:    conn,
-		id:      connId,
-		created: time.Now(),
-		tags:    tags,
-	}
-}
-
-func (a *ManagedConn) String() string {
-	bytes, err := json.Marshal(a.ConnInfo())
-	if err != nil {
-		// should never happen
-		logger.Warn().Err(err).Msg("json.Marshal() failed")
-		return fmt.Sprintf("%v", *a.ConnInfo())
-	}
-	return string(bytes)
-}
 
 type connManager struct {
+	options nats.Options
+
 	*service.RestartableService
 
 	mutex sync.RWMutex
@@ -281,11 +96,11 @@ type connManager struct {
 // server to communicate remotely, thus forming a service mesh. The apps are not network aware, i.e., they always connect
 // to localhost.
 //
-// TODO: TLS and client certificates
 func (a *connManager) Connect(tags ...string) (*ManagedConn, error) {
 	a.mutex.Lock()
 	defer a.mutex.Unlock()
-	nc, err := nats.Connect(nats.DefaultURL, DefaultConnectTimeout, DefaultReConnectTimeout, AlwaysReconnect)
+
+	nc, err := a.options.Connect()
 	if err != nil {
 		return nil, err
 	}
