@@ -34,6 +34,8 @@ type ConnInfo struct {
 
 	Errors        int
 	LastErrorTime time.Time
+
+	nats.Status
 }
 
 func (a *ConnInfo) String() string {

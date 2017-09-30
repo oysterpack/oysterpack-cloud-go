@@ -120,21 +120,26 @@ func (a *ManagedConn) subscriptionError(subscription *nats.Subscription, err err
 	}
 
 	subscriptionErrors := []error{}
-	if maxQueuedMsgs, maxQueuedBytes, e := subscription.MaxPending(); e != nil {
-		subscriptionErrors = append(subscriptionErrors, e)
-	} else {
-		event.Int(MAX_QUEUED_MSGS, maxQueuedMsgs).Int(MAX_QUEUED_BYTES, maxQueuedBytes)
+	// pending does not apply to channel based subscriptions
+	// if a message is not ready to be received on the channel, then it is dropped.
+	if subscription.Type() != nats.ChanSubscription {
+		if maxQueuedMsgs, maxQueuedBytes, e := subscription.MaxPending(); e != nil {
+			subscriptionErrors = append(subscriptionErrors, e)
+		} else {
+			event.Int(MAX_QUEUED_MSGS, maxQueuedMsgs).Int(MAX_QUEUED_BYTES, maxQueuedBytes)
+		}
+		if queuedMsgs, queuedBytes, e := subscription.Pending(); e != nil {
+			subscriptionErrors = append(subscriptionErrors, e)
+		} else {
+			event.Int(QUEUED_MSGS, queuedMsgs).Int(QUEUED_BYTES, queuedBytes)
+		}
+		if queuedMsgLimit, queuedBytesLimit, e := subscription.PendingLimits(); e != nil {
+			subscriptionErrors = append(subscriptionErrors, e)
+		} else {
+			event.Int(QUEUED_MSGS_LIMIT, queuedMsgLimit).Int(QUEUED_BYTES_LIMIT, queuedBytesLimit)
+		}
 	}
-	if queuedMsgs, queuedBytes, e := subscription.Pending(); e != nil {
-		subscriptionErrors = append(subscriptionErrors, e)
-	} else {
-		event.Int(QUEUED_MSGS, queuedMsgs).Int(QUEUED_BYTES, queuedBytes)
-	}
-	if queuedMsgLimit, queuedBytesLimit, e := subscription.PendingLimits(); e != nil {
-		subscriptionErrors = append(subscriptionErrors, e)
-	} else {
-		event.Int(QUEUED_MSGS_LIMIT, queuedMsgLimit).Int(QUEUED_BYTES_LIMIT, queuedBytesLimit)
-	}
+
 	if delivered, e := subscription.Delivered(); e != nil {
 		subscriptionErrors = append(subscriptionErrors, e)
 	} else {
@@ -177,6 +182,8 @@ func (a *ManagedConn) ConnInfo() *ConnInfo {
 
 		Errors:        a.errors,
 		LastErrorTime: a.lastErrorTime,
+
+		Status: a.Conn.Status(),
 	}
 }
 

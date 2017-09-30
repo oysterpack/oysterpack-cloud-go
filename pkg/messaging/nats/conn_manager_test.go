@@ -121,18 +121,21 @@ func TestConnManager_CloseAll(t *testing.T) {
 	}
 }
 
-func TestManagedConn_ClosingConn(t *testing.T) {
+func TestManagedConn_CloseConn(t *testing.T) {
 	server := natstest.RunServer()
 	defer server.Shutdown()
 
 	connMgr := nats.NewConnManager()
 	defer connMgr.CloseAll()
 	conns := []*nats.ManagedConn{}
+
+	// create some connections
 	const COUNT = 5
 	for i := 0; i < COUNT; i++ {
 		conns = append(conns, mustConnect(t, connMgr))
 	}
 
+	// make sure they are registered with the ConnManager
 	if connMgr.ConnCount() != COUNT {
 		t.Errorf("There should be %d conns, but the ConnManager reported : %d", COUNT, connMgr.ConnCount())
 	}
@@ -140,30 +143,31 @@ func TestManagedConn_ClosingConn(t *testing.T) {
 		t.Errorf("The number of ConnInfo(s) returned did not match the expected count : %d != %d", len(connMgr.ConnInfos()), COUNT)
 	}
 
+	// Close a connectio
 	conn := conns[0]
 	conn.Close()
 	// the connection is removed async via the connection closed handler - so let's give it some time
 	for i := 0; connMgr.ConnCount() != COUNT-1 && i < 3; i++ {
 		time.Sleep(10 * time.Millisecond)
 	}
+	// verify that ConnManager has removed the closed conn
 	if connMgr.ConnCount() != COUNT-1 {
 		t.Errorf("There should be %d conns, but the ConnManager reported : %d", COUNT-1, connMgr.ConnCount())
 	}
+}
 
-	conns = conns[1:]
-	server.Shutdown()
+func TestNewConnManager_CreatedTimestamp(t *testing.T) {
+	server := natstest.RunServer()
 	defer server.Shutdown()
 
-	for i := 0; i < 3; i++ {
-		if count, _ := connMgr.ConnectedCount(); count == 0 {
-			break
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
-	if count, _ := connMgr.ConnectedCount(); count != 0 {
-		t.Errorf("All connections should be disconnected because the server is down")
-	}
+	connMgr := nats.NewConnManager()
+	defer connMgr.CloseAll()
 
+	now := time.Now()
+	conn := mustConnect(t, connMgr)
+	if !conn.Created().After(now) {
+		t.Errorf("Created (%v) should be after (%v)", conn.Created(), now)
+	}
 }
 
 func TestManagedConn_DisconnectReconnect(t *testing.T) {
@@ -175,51 +179,55 @@ func TestManagedConn_DisconnectReconnect(t *testing.T) {
 	server := natstest.RunServer()
 	defer server.Shutdown()
 
-	now := time.Now()
-
 	connMgr := nats.NewConnManager()
 	defer connMgr.CloseAll()
+
+	// create some connection
 	conns := []*nats.ManagedConn{}
 	const COUNT = 5
 	for i := 0; i < COUNT; i++ {
 		conns = append(conns, mustConnect(t, connMgr))
 	}
-
+	// make sure they all connected
 	if count, total := connMgr.ConnectedCount(); count != 5 {
 		t.Fatalf("Connected count is less than expected : connected = %d, total = %d", count, total)
 	}
 
-	for _, c := range conns {
-		t.Logf("after reconnect : %v", c)
-		if !c.Created().After(now) {
-			t.Errorf("Created (%v) should be after (%v)", c.Created(), now)
-		}
-	}
-
 	server.Shutdown()
 
+	// wait for all of the connections to report as disconnected
 	for i := 0; i < 3; i++ {
 		if count, _ := connMgr.ConnectedCount(); count == 0 {
 			break
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
+	// check that none are connected
 	if count, total := connMgr.ConnectedCount(); count != 0 {
 		t.Errorf("All connections should be disconnected because the server is down : connected = %d, total = %d", count, total)
 	}
+	// check that all are disconnected
 	if count, total := connMgr.DisconnectedCount(); count != len(conns) {
 		t.Errorf("All connections should be disconnected because the server is down : connected = %d, total = %d", count, total)
 	}
 
 	server = natstest.RunServer()
 	defer server.Shutdown()
+
+	// create a new connection the server - verifying that we can connect to the new server
 	conn := mustConnect(t, connMgr)
 	t.Logf("new connection after server restarted: %v", conn)
 
+	// wait until the reconnect wait period expires
 	time.Sleep(ReConnectTimeout)
+	// check that all connections are connected
 	if count, _ := connMgr.DisconnectedCount(); count != 0 {
 		t.Errorf("All connections should be reconnected")
 	}
+	if count, _ := connMgr.ConnectedCount(); count != len(connMgr.ConnInfos()) {
+		t.Errorf("All connections should be reconnected")
+	}
+	// check that LastDisconnectTime and LastReconnectTime were updated
 	for _, c := range conns {
 		t.Logf("after reconnect : %v", c)
 		if !c.LastDisconnectTime().After(c.Created()) {
@@ -339,7 +347,10 @@ func TestManagedConn_SubscribingWhileDisconnected(t *testing.T) {
 
 }
 
-func TestManagedConn_ChanSubscribingWhileDisconnected(t *testing.T) {
+// Observed behaivor :
+// When using a channel based subscription, messages will be dropped if they cannot be sent on the channel, i.e., if the
+// subscriber is not ready to receive the message on the channel, then the message is dropped.
+func TestManagedConn_UnbufferedChanSubscribingWhileDisconnected(t *testing.T) {
 	backup := nats.DefaultReConnectTimeout
 	const ReConnectTimeout = 5 * time.Millisecond
 	nats.DefaultReConnectTimeout = natsio.ReconnectWait(ReConnectTimeout)
@@ -350,78 +361,68 @@ func TestManagedConn_ChanSubscribingWhileDisconnected(t *testing.T) {
 
 	connMgr := nats.NewConnManager()
 	defer connMgr.CloseAll()
+
+	// create separate publisher and subscriber connections
 	subConn := mustConnect(t, connMgr)
 	pubConn := mustConnect(t, connMgr)
 
-	const SUBJECT = "TestManagedConn_Errors"
+	const SUBJECT = "TestManagedConn_UnbufferedChanSubscribingWhileDisconnected"
 
 	server.Shutdown()
+
 	time.Sleep(ReConnectTimeout)
 	if pubConn.IsConnected() || subConn.IsConnected() {
 		t.Fatal("conns should not be connected because the server is shutdown")
 	}
 
-	// expecting messages to be dropped on unbuffered channel subscription after reconnecting
-	unbufferedChan := make(chan *natsio.Msg)
-	unbufferedChanSub, err := subConn.ChanSubscribe(SUBJECT, unbufferedChan)
+	// subscribe using an unbuffered channel
+	msgChan := make(chan *natsio.Msg)
+	chanSub, err := subConn.ChanSubscribe(SUBJECT, msgChan)
 	if err == nil {
 		t.Logf("Subscription was created on disconnected conn")
 	} else {
-		t.Errorf("Failed to subscribe on disconnected conn : %v", err)
+		t.Fatalf("Failed to subscribe on disconnected conn : %v", err)
 	}
 
-	// expecting messages to be delivered on buffered channel subscription after reconnecting
-	bufferedChan := make(chan *natsio.Msg, 10)
-	bufferedChanSub, err := subConn.ChanSubscribe(SUBJECT, bufferedChan)
-	if !bufferedChanSub.IsValid() {
-		t.Errorf("subcription should be valid as long as the connection is not closed")
-	}
-	if err != nil {
-		t.Errorf("There should not have been an err : %v", err)
-	}
-
-	logSubcriptionInfo(t, "unbufferedChanSub", unbufferedChanSub)
-	logSubcriptionInfo(t, "bufferedChanSub", bufferedChanSub)
-
-	for _, ch := range []chan *natsio.Msg{bufferedChan, unbufferedChan} {
-		select {
-		case <-ch:
-			t.Error("no msg should have been received")
-		default:
-			t.Log("as expected, no message was received while disconnected")
-		}
-	}
+	logSubcriptionInfo(t, "chanSub", chanSub)
 
 	// publish message while disconnected
 	if err := pubConn.Publish(SUBJECT, []byte("TEST MSG")); err != nil {
-		t.Errorf("Did not expect an error because the conn will buffer messages whil disconnected : %v", err)
+		t.Errorf("Did not expect an error because the conn will buffer messages while disconnected : %v", err)
+	}
+
+	t.Logf("publisher conn stats after publishing the message while disconnected : %v", pubConn.ConnInfo())
+
+	// try receiving a message while disconnected should not cause any errors - simply no messages to receive
+	select {
+	case <-msgChan:
+		t.Error("no msg should have been received")
+	default:
+		t.Log("as expected, no message was received while disconnected")
 	}
 
 	server = natstest.RunServer()
 	time.Sleep(ReConnectTimeout)
-
 	if !pubConn.IsConnected() || !subConn.IsConnected() {
 		t.Fatalf("Expected conns to be reconnected")
 	} else {
 		t.Logf("after restarting the server :\npub: %v\nsub: %v", pubConn, subConn)
 	}
 
+	// flush messages that may be sitting on the publisher connection
+	pubConn.Flush()
+
 	select {
-	case msg := <-unbufferedChan:
+	case msg := <-msgChan:
 		t.Logf("msg was received on channel after reconnected : %v", string(msg.Data))
-		t.Errorf("Expected msg to be dropped because the message was not received on the channel in a timely manner")
+		t.Error("Expected msg to be dropped because the message was not received on the channel in a timely manner")
 	default:
-		t.Logf("As expected msg was dropped because the message was not received on the channel in a timely manner")
+		t.Log("As expected msg was dropped because the subscriber was not ready to recieve the message when it was delivered - simulating slow consumer")
+		t.Log("The message was dropped because the channel is not buffered. There was no one ready to receive the message when it was delivered.")
 	}
 
-	select {
-	case msg := <-bufferedChan:
-		t.Logf("msg was received on buffered channel after reconnected : %v", string(msg.Data))
-	default:
-		t.Errorf("No msg was received on buffered channel")
-	}
-
-	t.Logf("pub :%v\nsub : %v", pubConn, subConn)
+	t.Logf("pubConn : %v", pubConn)
+	t.Logf("subConn : %v", subConn)
 
 	if pubConn.LastError() != nil {
 		t.Errorf("Unexpected error : %v", pubConn.LastError())
@@ -432,10 +433,95 @@ func TestManagedConn_ChanSubscribingWhileDisconnected(t *testing.T) {
 	} else {
 		t.Errorf("Expected error due to message slow consumer")
 	}
+
 	connMgr.CloseAll()
 	server.Shutdown()
 }
 
+func TestManagedConn_BufferedChanSubscribingWhileDisconnected(t *testing.T) {
+	backup := nats.DefaultReConnectTimeout
+	const ReConnectTimeout = 5 * time.Millisecond
+	nats.DefaultReConnectTimeout = natsio.ReconnectWait(ReConnectTimeout)
+	defer func() { nats.DefaultReConnectTimeout = backup }()
+
+	server := natstest.RunServer()
+	defer server.Shutdown()
+
+	connMgr := nats.NewConnManager()
+	defer connMgr.CloseAll()
+
+	// create separate publisher and subscriber connections
+	subConn := mustConnect(t, connMgr)
+	pubConn := mustConnect(t, connMgr)
+
+	const SUBJECT = "TestManagedConn_BufferedChanSubscribingWhileDisconnected"
+
+	server.Shutdown()
+
+	time.Sleep(ReConnectTimeout)
+	if pubConn.IsConnected() || subConn.IsConnected() {
+		t.Fatal("conns should not be connected because the server is shutdown")
+	}
+
+	// subscribe using a buffered channel
+	msgChan := make(chan *natsio.Msg, 10)
+	chanSub, err := subConn.ChanSubscribe(SUBJECT, msgChan)
+	if !chanSub.IsValid() {
+		t.Errorf("subcription should be valid as long as the connection is not closed")
+	}
+	if err != nil {
+		t.Errorf("There should not have been an err : %v", err)
+	}
+
+	// publish message while disconnected
+	if err := pubConn.Publish(SUBJECT, []byte("TEST MSG")); err != nil {
+		t.Errorf("Did not expect an error because the conn will buffer messages whil disconnected : %v", err)
+	}
+
+	select {
+	case <-msgChan:
+		t.Error("no msg should have been received")
+	default:
+		t.Log("as expected, no message was received while disconnected")
+	}
+
+	server = natstest.RunServer()
+	time.Sleep(ReConnectTimeout)
+	// ensure the connetions are reconnected
+	if !pubConn.IsConnected() || !subConn.IsConnected() {
+		t.Fatalf("Expected conns to be reconnected")
+	} else {
+		t.Logf("after restarting the server :\npub: %v\nsub: %v", pubConn, subConn)
+	}
+
+	pubConn.Flush()
+	subConn.Flush()
+
+	select {
+	case msg := <-msgChan:
+		t.Logf("msg was received on buffered channel after reconnected : %v", string(msg.Data))
+	default:
+		t.Errorf("No msg was received on buffered channel")
+	}
+
+	t.Logf("pubConn : %v", pubConn)
+	t.Logf("subConn : %v", subConn)
+
+	if pubConn.LastError() != nil {
+		t.Errorf("Unexpected error : %v", pubConn.LastError())
+	}
+
+	if subConn.LastError() != nil {
+		t.Errorf("Unexpected error : %v", subConn.LastError())
+		t.Logf("subscriber conn error : %v", subConn.LastError())
+	}
+
+	connMgr.CloseAll()
+	server.Shutdown()
+}
+
+// When using an async subscriber, NATS will buffer pending messages based on the subscription's pending limits.
+// Thus messages won't be dropped until the pending limits have been exceeded
 func TestManagedConn_AsyncSubscribingWhileDisconnected(t *testing.T) {
 	backup := nats.DefaultReConnectTimeout
 	const ReConnectTimeout = 5 * time.Millisecond
@@ -451,7 +537,8 @@ func TestManagedConn_AsyncSubscribingWhileDisconnected(t *testing.T) {
 	pubConn := mustConnect(t, connMgr)
 
 	const SUBJECT = "TestManagedConn_Errors"
-	ch := make(chan *natsio.Msg, 10)
+	// the channel is used to pull messages from the message handler
+	ch := make(chan *natsio.Msg)
 	sub, err := subConn.Subscribe(SUBJECT, func(msg *natsio.Msg) {
 		ch <- msg
 	})
@@ -466,9 +553,14 @@ func TestManagedConn_AsyncSubscribingWhileDisconnected(t *testing.T) {
 		t.Fatal("conns should not be connected because the server is shutdown")
 	}
 
-	// publish message while disconnected
-	if err := pubConn.Publish(SUBJECT, []byte("TEST MSG")); err != nil {
-		t.Errorf("Did not expect an error because the conn will buffer messages whil disconnected : %v", err)
+	// publish messages while disconnected
+	const SEND_COUNT = 20
+	for i := 1; i <= SEND_COUNT; i++ {
+		if err := pubConn.Publish(SUBJECT, []byte(fmt.Sprintf("TEST MSG #%d", i))); err != nil {
+			t.Fatalf("%d : Did not expect an error because the conn will buffer messages whil disconnected : %v", i, err)
+		} else {
+			t.Logf("published msg #%d", i)
+		}
 	}
 
 	server = natstest.RunServer()
@@ -481,24 +573,84 @@ func TestManagedConn_AsyncSubscribingWhileDisconnected(t *testing.T) {
 		t.Logf("after restarting the server :\npub: %v\nsub: %v", pubConn, subConn)
 	}
 
-	select {
-	case msg := <-ch:
-		t.Logf("msg was received after reconnected : %v", string(msg.Data))
-	default:
-		t.Errorf("No msg was received on buffered channel")
-	}
+	pubConn.Flush()
 
-	t.Logf("pub :%v\nsub : %v", pubConn, subConn)
+	t.Logf("pubConn : %v", pubConn)
+	t.Logf("subConn : %v", subConn)
+	logSubcriptionInfo(t, "async sub", sub)
+	msgs, bytes, err := sub.Pending()
+	if err != nil {
+		t.Errorf("Error while retrieving pending info : %v", err)
+	}
+	if msgs != SEND_COUNT-1 {
+		t.Logf("The message handler should be blocked on 1 message and the reset should be pending : %v, %v", msgs, bytes)
+	}
 
 	if pubConn.LastError() != nil {
-		t.Errorf("Expected no errors to have recorded")
+		t.Errorf("Expected no errors")
+	}
+	if subConn.LastError() != nil {
+		t.Errorf("Expected no errors")
 	}
 
-	if subConn.LastError() != nil {
-		t.Errorf("Expected no errors to have recorded")
+	receivedCount := 0
+	for i := 0; i < SEND_COUNT; i++ {
+		msg := <-ch
+		t.Logf("%v", string(msg.Data))
+		receivedCount++
+	}
+
+	t.Logf("receivedCount = %d", receivedCount)
+	logSubcriptionInfo(t, "async sub", sub)
+	msgs, bytes, err = sub.Pending()
+	if err != nil {
+		t.Errorf("Error while retrieving pending info : %v", err)
+	}
+	if msgs != 0 && bytes != 0 {
+		t.Logf("There should be none pending : %v, %v", msgs, bytes)
+	}
+
+	connMgr.CloseAll()
+	server.Shutdown()
+}
+
+// When using an async subscriber, NATS will buffer pending messages based on the subscription's pending limits.
+// Thus messages won't be dropped until the pending limits have been exceeded
+func TestManagedConn_AsyncSubscribingWhileDisconnected_WithPendingLimitsExceeded(t *testing.T) {
+	backup := nats.DefaultReConnectTimeout
+	const ReConnectTimeout = 5 * time.Millisecond
+	nats.DefaultReConnectTimeout = natsio.ReconnectWait(ReConnectTimeout)
+	defer func() { nats.DefaultReConnectTimeout = backup }()
+
+	server := natstest.RunServer()
+	defer server.Shutdown()
+
+	connMgr := nats.NewConnManager()
+	defer connMgr.CloseAll()
+	subConn := mustConnect(t, connMgr)
+	pubConn := mustConnect(t, connMgr)
+
+	const SUBJECT = "TestManagedConn_Errors"
+	// the channel is used to pull messages from the message handler
+	ch := make(chan *natsio.Msg)
+	sub, err := subConn.Subscribe(SUBJECT, func(msg *natsio.Msg) {
+		ch <- msg
+	})
+	if err != nil {
+		t.Fatalf("Failed to create subscription")
 	}
 
 	const SEND_COUNT = 20
+	sub.SetPendingLimits(SEND_COUNT/2, 1024)
+	logSubcriptionInfo(t, "async sub", sub)
+
+	server.Shutdown()
+	time.Sleep(ReConnectTimeout)
+	if pubConn.IsConnected() || subConn.IsConnected() {
+		t.Fatal("conns should not be connected because the server is shutdown")
+	}
+
+	// publish messages while disconnected
 	for i := 1; i <= SEND_COUNT; i++ {
 		if err := pubConn.Publish(SUBJECT, []byte(fmt.Sprintf("TEST MSG #%d", i))); err != nil {
 			t.Fatalf("%d : Did not expect an error because the conn will buffer messages whil disconnected : %v", i, err)
@@ -506,15 +658,55 @@ func TestManagedConn_AsyncSubscribingWhileDisconnected(t *testing.T) {
 			t.Logf("published msg #%d", i)
 		}
 	}
+
+	server = natstest.RunServer()
+	defer server.Shutdown()
+	time.Sleep(ReConnectTimeout)
+
+	if !pubConn.IsConnected() || !subConn.IsConnected() {
+		t.Fatalf("Expected conns to be reconnected")
+	} else {
+		t.Logf("after restarting the server :\npub: %v\nsub: %v", pubConn, subConn)
+	}
+
+	pubConn.Flush()
+
+	t.Logf("pubConn : %v", pubConn)
+	t.Logf("subConn : %v", subConn)
 	logSubcriptionInfo(t, "async sub", sub)
+	msgs, bytes, err := sub.Pending()
+	if err != nil {
+		t.Errorf("Error while retrieving pending info : %v", err)
+	}
+	if msgs != SEND_COUNT-1 {
+		t.Logf("The message handler should be blocked on 1 message and the reset should be pending : %v, %v", msgs, bytes)
+	}
+
+	if pubConn.LastError() != nil {
+		t.Errorf("Expected no errors")
+	}
+	if subConn.LastError() == nil {
+		t.Errorf("Expected errors because subscriber should have been flagged as slow consumer")
+	} else {
+		t.Logf("%v : %v", subConn.LastError(), subConn.ConnInfo())
+	}
+
 	receivedCount := 0
-	for i := 1; i <= SEND_COUNT; i++ {
+	for i := 0; i < SEND_COUNT/2; i++ {
 		msg := <-ch
 		t.Logf("%v", string(msg.Data))
 		receivedCount++
 	}
+
 	t.Logf("receivedCount = %d", receivedCount)
 	logSubcriptionInfo(t, "async sub", sub)
+	msgs, bytes, err = sub.Pending()
+	if err != nil {
+		t.Errorf("Error while retrieving pending info : %v", err)
+	}
+	if msgs != 0 && bytes != 0 {
+		t.Logf("There should be none pending : %v, %v", msgs, bytes)
+	}
 
 	connMgr.CloseAll()
 	server.Shutdown()
