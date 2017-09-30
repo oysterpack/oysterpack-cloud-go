@@ -107,7 +107,7 @@ type SubscriptionSettings struct {
 }
 
 type PendingLimits struct {
-	MsgLimit int
+	MsgLimit   int
 	BytesLimit int
 }
 

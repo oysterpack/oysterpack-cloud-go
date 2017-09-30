@@ -12,26 +12,35 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package nats
+package http
 
 import (
 	"github.com/oysterpack/oysterpack.go/pkg/commons/reflect"
+
 	"github.com/oysterpack/oysterpack.go/pkg/service"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 const (
 	// Namespace name
 	Namespace = "oysterpack"
 	// System name
-	System = "messaging"
+	System = "metrics"
 	// Component name
-	Component = "nats_conn_manager"
+	Component = "prometheus_http"
 	// Version is the service version
 	Version = "1.0.0"
 )
 
-var ConnManagerInterface service.Interface = func() service.Interface {
-	var c ConnManager = &connManager{}
+// Reporter interface
+type Reporter interface {
+	// Registry is the registry that is used to report metrics
+	Registry() *prometheus.Registry
+}
+
+// ReporterInterface is the service interface instance that can be used to lookup the registered service
+var ReporterInterface service.Interface = func() service.Interface {
+	var c Reporter = &reporter{}
 	serviceInterface, err := reflect.ObjectInterface(&c)
 	if err != nil {
 		panic(err)
@@ -39,28 +48,23 @@ var ConnManagerInterface service.Interface = func() service.Interface {
 	return serviceInterface
 }()
 
-func (a *connManager) newService() service.Service {
-	settings := service.Settings{
-		Descriptor: service.NewDescriptor(Namespace, System, Component, Version, ConnManagerInterface),
-		Init: func(ctx *service.Context) error {
-			a.init()
-			return nil
-		},
-		Destroy: func(ctx *service.Context) error {
-			a.CloseAll()
-			return nil
-		},
-	}
-	return service.NewService(settings)
-}
-
-// NewConnManagerClient service.ClientConstructor
-func NewConnManagerClient(app service.Application) service.Client {
-	c := &connManager{}
+// NewReporterClient service.ClientConstructor
+func NewReporterClient(app service.Application) service.Client {
+	c := &reporter{}
 	c.RestartableService = service.NewRestartableService(c.newService)
 	return c
 }
 
+func (a *reporter) newService() service.Service {
+	settings := service.Settings{
+		Descriptor: service.NewDescriptor(Namespace, System, Component, Version, ReporterInterface),
+		Init:       a.init,
+		Destroy:    a.destroy,
+	}
+	return service.NewService(settings)
+}
+
 func init() {
-	service.App().MustRegisterService(NewConnManagerClient)
+	// auto-register the service with the app
+	service.App().MustRegisterService(NewReporterClient)
 }

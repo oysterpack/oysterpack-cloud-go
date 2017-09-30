@@ -15,57 +15,30 @@
 package http
 
 import (
-	"net/http"
-
-	"fmt"
-
 	"context"
+	"fmt"
+	"net/http"
 	"time"
 
-	"github.com/oysterpack/oysterpack.go/pkg/commons/reflect"
 	"github.com/oysterpack/oysterpack.go/pkg/metrics"
 	"github.com/oysterpack/oysterpack.go/pkg/service"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-const (
-	// Namespace name
-	Namespace = "oysterpack"
-	// System name
-	System = "metrics"
-	// Component name
-	Component = "prometheus_http"
-	// Version is the service version
-	Version = "1.0.0"
-)
-
-// Service interface
-type Service interface {
-	Registry() *prometheus.Registry
-}
-
-// MetricsServiceInterface service interface instance that can be used to lookup the registered service
-var MetricsServiceInterface service.Interface = func() service.Interface {
-	var c Service = &server{}
-	serviceInterface, err := reflect.ObjectInterface(&c)
-	if err != nil {
-		panic(err)
-	}
-	return serviceInterface
-}()
-
-type server struct {
+// reporter reports prometheus metrics via HTTP
+// endpoint : /metrics
+type reporter struct {
 	*service.RestartableService
 
 	httpServer *http.Server
 }
 
-func (a *server) Registry() *prometheus.Registry {
+func (a *reporter) Registry() *prometheus.Registry {
 	return metrics.Registry
 }
 
-func (a *server) init(ctx *service.Context) error {
+func (a *reporter) init(ctx *service.Context) error {
 	metricsHandler := promhttp.HandlerFor(
 		a.Registry(),
 		promhttp.HandlerOpts{
@@ -82,7 +55,7 @@ func (a *server) init(ctx *service.Context) error {
 	return nil
 }
 
-func (a *server) destroy(ctx *service.Context) error {
+func (a *reporter) destroy(ctx *service.Context) error {
 	background := context.Background()
 	shutdownContext, cancel := context.WithTimeout(background, time.Second*30)
 	defer cancel()
@@ -93,27 +66,8 @@ func (a *server) destroy(ctx *service.Context) error {
 	return nil
 }
 
-// Println implements promhttp.Logger interface
-func (a *server) Println(v ...interface{}) {
+// Println implements promhttp.Logger interface.
+// It is used to log any errors reported by the prometheus http handler
+func (a *reporter) Println(v ...interface{}) {
 	a.Service().Logger().Error().Msg(fmt.Sprint(v))
-}
-
-func (a *server) newService() service.Service {
-	settings := service.Settings{
-		Descriptor: service.NewDescriptor(Namespace, System, Component, Version, MetricsServiceInterface),
-		Init:       a.init,
-		Destroy:    a.destroy,
-	}
-	return service.NewService(settings)
-}
-
-// NewClient service.ClientConstructor
-func NewClient(app service.Application) service.Client {
-	c := &server{}
-	c.RestartableService = service.NewRestartableService(c.newService)
-	return c
-}
-
-func init() {
-	service.App().MustRegisterService(NewClient)
 }

@@ -29,7 +29,7 @@ import (
 
 func TestService(t *testing.T) {
 	// service is auto registered
-	client := <-service.App().ServiceByTypeAsync(metricsService.MetricsServiceInterface).Channel()
+	client := <-service.App().ServiceByTypeAsync(metricsService.ReporterInterface).Channel()
 	client.Service().AwaitUntilRunning()
 
 	var ping metrics.RunHealthCheck = func() error {
