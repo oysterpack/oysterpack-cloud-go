@@ -141,7 +141,7 @@ func TestGauges_GetOrMustRegisterGaugeFunc_withNameCollision(t *testing.T) {
 	func() {
 		defer func() {
 			if p := recover(); p == nil {
-				t.Errorf("name collision should ahve triggered panic")
+				t.Errorf("name collision should have triggered panic")
 			} else {
 				t.Logf("panic : %v", p)
 			}

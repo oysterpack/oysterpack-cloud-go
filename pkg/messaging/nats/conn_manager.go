@@ -192,7 +192,7 @@ func (a *connManager) init() {
 func (a *connManager) TotalMsgsIn() float64 {
 	a.mutex.RLock()
 	defer a.mutex.RUnlock()
-	var count uint64 = 0
+	var count uint64
 	for _, conn := range a.conns {
 		count += conn.InMsgs
 	}
@@ -203,7 +203,7 @@ func (a *connManager) TotalMsgsIn() float64 {
 func (a *connManager) TotalMsgsOut() float64 {
 	a.mutex.RLock()
 	defer a.mutex.RUnlock()
-	var count uint64 = 0
+	var count uint64
 	for _, conn := range a.conns {
 		count += conn.OutMsgs
 	}
@@ -214,7 +214,7 @@ func (a *connManager) TotalMsgsOut() float64 {
 func (a *connManager) TotalBytesIn() float64 {
 	a.mutex.RLock()
 	defer a.mutex.RUnlock()
-	var count uint64 = 0
+	var count uint64
 	for _, conn := range a.conns {
 		count += conn.InBytes
 	}
@@ -225,7 +225,7 @@ func (a *connManager) TotalBytesIn() float64 {
 func (a *connManager) TotalBytesOut() float64 {
 	a.mutex.RLock()
 	defer a.mutex.RUnlock()
-	var count uint64 = 0
+	var count uint64
 	for _, conn := range a.conns {
 		count += conn.OutBytes
 	}

@@ -39,6 +39,7 @@ var (
 		},
 	}
 
+	// CreatedCounterOpts tracks the number of connections that ahve been created
 	CreatedCounterOpts = &prometheus.CounterOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubSystem,
@@ -48,6 +49,7 @@ var (
 	}
 	createdCounter = metrics.GetOrMustRegisterCounter(CreatedCounterOpts)
 
+	// ClosedCounterOpts tracks the number of connection that have been closed
 	ClosedCounterOpts = &prometheus.CounterOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubSystem,
@@ -57,6 +59,7 @@ var (
 	}
 	closedCounter = metrics.GetOrMustRegisterCounter(ClosedCounterOpts)
 
+	// ConnCountOpts tracks the number of current connections
 	ConnCountOpts = &prometheus.GaugeOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubSystem,
@@ -66,6 +69,7 @@ var (
 	}
 	connCount = metrics.GetOrMustRegisterGauge(ConnCountOpts)
 
+	// DisconnectedCounterOpts tracks when connections have disconnected
 	DisconnectedCounterOpts = &prometheus.CounterOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubSystem,
@@ -75,6 +79,7 @@ var (
 	}
 	disconnectedCounter = metrics.GetOrMustRegisterCounter(DisconnectedCounterOpts)
 
+	// ReconnectedCounterOpts tracks when connections have reconnected
 	ReconnectedCounterOpts = &prometheus.CounterOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubSystem,
@@ -84,6 +89,7 @@ var (
 	}
 	reconnectedCounter = metrics.GetOrMustRegisterCounter(ReconnectedCounterOpts)
 
+	// SubscriberErrorCounterOpts tracks when subscriber related errors occur
 	SubscriberErrorCounterOpts = &prometheus.CounterOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubSystem,
@@ -93,6 +99,7 @@ var (
 	}
 	errorCounter = metrics.GetOrMustRegisterCounter(SubscriberErrorCounterOpts)
 
+	// MsgsInGauge tracks the total number of messages that have been received on current connections
 	MsgsInGauge = &prometheus.GaugeOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubSystem,
@@ -100,6 +107,7 @@ var (
 		Help:        "The number of messages that have been received on all current connections.",
 		ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, ConnManagerDescriptor),
 	}
+	// MsgsOutGauge tracks the total number of messages that have been published on current connections
 	MsgsOutGauge = &prometheus.GaugeOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubSystem,
@@ -107,6 +115,7 @@ var (
 		Help:        "The number of messages that have been sent on all current connections.",
 		ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, ConnManagerDescriptor),
 	}
+	// BytesInGauge tracks the total number of bytes that have been received on current connections
 	BytesInGauge = &prometheus.GaugeOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubSystem,
@@ -114,6 +123,7 @@ var (
 		Help:        "The number of bytes that have been received on all current connections.",
 		ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, ConnManagerDescriptor),
 	}
+	// BytesOutGauge tracks the total number of bytes that have been published on current connections
 	BytesOutGauge = &prometheus.GaugeOpts{
 		Namespace:   MetricsNamespace,
 		Subsystem:   MetricsSubSystem,

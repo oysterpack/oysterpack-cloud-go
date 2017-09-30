@@ -17,6 +17,6 @@ package nats
 import "errors"
 
 var (
-	ConnIsRequired = errors.New("Conn is required")
-	ConnIsClosed   = errors.New("Conn is closed")
+	ErrConnIsRequired = errors.New("Conn is required")
+	ErrConnIsClosed   = errors.New("Conn is closed")
 )

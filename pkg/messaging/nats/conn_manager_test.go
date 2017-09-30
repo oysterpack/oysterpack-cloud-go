@@ -355,7 +355,7 @@ func TestManagedConn_SubscribingWhileDisconnected(t *testing.T) {
 
 }
 
-// Observed behaivor :
+// Observed behavior :
 // When using a channel based subscription, messages will be dropped if they cannot be sent on the channel, i.e., if the
 // subscriber is not ready to receive the message on the channel, then the message is dropped.
 func TestManagedConn_UnbufferedChanSubscribingWhileDisconnected(t *testing.T) {
@@ -426,7 +426,7 @@ func TestManagedConn_UnbufferedChanSubscribingWhileDisconnected(t *testing.T) {
 		t.Logf("msg was received on channel after reconnected : %v", string(msg.Data))
 		t.Error("Expected msg to be dropped because the message was not received on the channel in a timely manner")
 	default:
-		t.Log("As expected msg was dropped because the subscriber was not ready to recieve the message when it was delivered - simulating slow consumer")
+		t.Log("As expected msg was dropped because the subscriber was not ready to receive the message when it was delivered - simulating slow consumer")
 		t.Log("The message was dropped because the channel is not buffered. There was no one ready to receive the message when it was delivered.")
 	}
 

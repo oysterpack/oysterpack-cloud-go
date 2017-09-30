@@ -233,7 +233,7 @@ func NewService(settings Settings) Service {
 // panics if settings are invalid
 func checkSettings(settings *Settings) {
 	settings.Descriptor.serviceInterface = checkInterface(settings.Interface())
-	if settings.Version == nil {
+	if settings.Version() == nil {
 		logger.Panic().Str(logging.SERVICE, settings.Interface().String()).Msgf("Version is required")
 	}
 }
