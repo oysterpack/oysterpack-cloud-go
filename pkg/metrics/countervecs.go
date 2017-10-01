@@ -72,6 +72,8 @@ func CounterVecNames() []string {
 
 // CounterVecs returns all registered counterVecs
 func CounterVecs() []*CounterVec {
+	mutex.RLock()
+	defer mutex.RUnlock()
 	c := make([]*CounterVec, len(counterVecsMap))
 	i := 0
 	for _, v := range counterVecsMap {
@@ -83,5 +85,7 @@ func CounterVecs() []*CounterVec {
 
 // GetCounterVec looks up the counterVec by its fully qualified name
 func GetCounterVec(name string) *CounterVec {
+	mutex.RLock()
+	defer mutex.RUnlock()
 	return counterVecsMap[name]
 }

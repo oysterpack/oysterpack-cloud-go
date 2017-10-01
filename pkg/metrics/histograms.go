@@ -72,6 +72,8 @@ func HistogramNames() []string {
 
 // Histograms returns all registered histograms
 func Histograms() []*Histogram {
+	mutex.RLock()
+	defer mutex.RUnlock()
 	c := make([]*Histogram, len(histogramsMap))
 	i := 0
 	for _, v := range histogramsMap {
@@ -83,5 +85,7 @@ func Histograms() []*Histogram {
 
 // GetHistogram looks up the histogram by its fully qualified name
 func GetHistogram(name string) *Histogram {
+	mutex.RLock()
+	defer mutex.RUnlock()
 	return histogramsMap[name]
 }

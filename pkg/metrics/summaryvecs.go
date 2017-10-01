@@ -72,6 +72,8 @@ func SummaryVecNames() []string {
 
 // SummaryVecs returns all registered summaryVecs
 func SummaryVecs() []*SummaryVec {
+	mutex.RLock()
+	defer mutex.RUnlock()
 	c := make([]*SummaryVec, len(summaryVecsMap))
 	i := 0
 	for _, v := range summaryVecsMap {
@@ -83,5 +85,7 @@ func SummaryVecs() []*SummaryVec {
 
 // GetSummaryVec looks up the summaryVec by its fully qualified name
 func GetSummaryVec(name string) *SummaryVec {
+	mutex.RLock()
+	defer mutex.RUnlock()
 	return summaryVecsMap[name]
 }

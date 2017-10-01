@@ -144,7 +144,6 @@ func TestRegisterHealthCheck_WithLabels(t *testing.T) {
 	pingCheck := metrics.NewHealthCheck(opts, 0, ping)
 	t.Log(pingCheck)
 
-	t.Log(pingCheck)
 	if pingCheck.Name() != prometheus.BuildFQName(opts.Namespace, opts.Subsystem, opts.Name) {
 		t.Errorf("%v != %v", pingCheck.Name(), prometheus.BuildFQName(opts.Namespace, opts.Subsystem, opts.Name))
 	}
@@ -152,6 +151,49 @@ func TestRegisterHealthCheck_WithLabels(t *testing.T) {
 		t.Errorf("ERROR: labels are not matching", pingCheck.Labels())
 	}
 	pingCheck.Run()
+}
+
+func TestRegisterHealthCheckVector(t *testing.T) {
+	defer metrics.ResetRegistry()
+	var ping metrics.RunHealthCheck = func() error {
+		return nil
+	}
+
+	opts := &metrics.GaugeVecOpts{&prometheus.GaugeOpts{
+		Name: "ping",
+		Help: "ping always succeeds",
+	}, []string{"service"},
+	}
+
+	pingCheck := metrics.NewHealthCheckVector(opts, 0, ping, []string{"Foo"})
+	t.Log(pingCheck)
+
+	if pingCheck.Name() != prometheus.BuildFQName(opts.Namespace, opts.Subsystem, opts.Name) {
+		t.Errorf("%v != %v", pingCheck.Name(), prometheus.BuildFQName(opts.Namespace, opts.Subsystem, opts.Name))
+	}
+	if len(pingCheck.Labels()) != 1 && pingCheck.Labels()["service"] != "Foo" {
+		t.Errorf("ERROR: labels are not matching", pingCheck.Labels())
+	}
+	pingCheck.Run()
+
+	pingCheck2 := metrics.NewHealthCheckVector(opts, 0, ping, []string{"Bar"})
+	t.Log(pingCheck2)
+	pingCheck2.Run()
+
+	func() {
+		defer func() {
+			if p := recover(); p == nil {
+				t.Error("registering a dup healthcheck vector with the same label values should have failed")
+			} else {
+				t.Logf("%v", p)
+			}
+		}()
+		metrics.NewHealthCheckVector(opts, 0, ping, []string{"Bar"})
+	}()
+
+	if count := len(metrics.HealthChecks()); count != 2 {
+		t.Errorf("registered healthcheck count did not match : %d", count)
+	}
 
 }
 

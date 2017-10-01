@@ -7,6 +7,10 @@
 - [zerolog](https://github.com/rs/zerolog) - Zero Allocation JSON Logger
 - [Collecting Logs with Apache NiFi](https://bryanbende.com/development/2015/05/17/collecting-logs-with-apache-nifi)
 
+## JSON
+- [json-iterator](https://github.com/json-iterator/go)
+  - A high-performance 100% compatible drop-in replacement of "encoding/json"
+
 ## Metrics
 - [go-metrics](https://github.com/rcrowley/go-metrics)
   - used to collect application metrics

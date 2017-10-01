@@ -23,19 +23,24 @@ const (
 	// Namespace name
 	Namespace = "oysterpack"
 	// System name
-	System = "messaging"
+	System = "nats"
 	// Component name
-	Component = "nats_conn_manager"
+	Component = "conn_manager_registry"
 	// Version is the service version
 	Version = "1.0.0"
 )
 
 var (
-	ConnManagerDescriptor = service.NewDescriptor(Namespace, System, Component, Version, ConnManagerInterface)
+	registry = &connManagerRegistry{
+		registry: make(map[ClusterName]ConnManager),
+	}
 
-	ConnManagerInterface service.Interface = func() service.Interface {
-		var c ConnManager = &connManager{}
-		serviceInterface, err := reflect.ObjectInterface(&c)
+	ConnManagerRegistryService ConnManagerRegistry = registry
+
+	ConnManagerRegistryDescriptor = service.NewDescriptor(Namespace, System, Component, Version, ConnManagerRegistryInterface)
+
+	ConnManagerRegistryInterface service.Interface = func() service.Interface {
+		serviceInterface, err := reflect.ObjectInterface(&ConnManagerRegistryService)
 		if err != nil {
 			panic(err)
 		}
@@ -43,30 +48,24 @@ var (
 	}()
 )
 
-// NewConnManagerClient service.ClientConstructor
-func NewConnManagerClient(app service.Application) service.Client {
-	c := &connManager{}
-	c.RestartableService = service.NewRestartableService(c.newService)
-	return c
+// NewConnManagerRegistryClient service.ClientConstructor
+func NewConnManagerRegistryClient(app service.Application) service.Client {
+	registry.RestartableService = service.NewRestartableService(registry.newService)
+	return registry
 }
 
-func (a *connManager) newService() service.Service {
+func (a *connManagerRegistry) newService() service.Service {
 	settings := service.Settings{
-		Descriptor: ConnManagerDescriptor,
-		Init: func(ctx *service.Context) error {
-			a.init()
-			return nil
-		},
+		Descriptor: ConnManagerRegistryDescriptor,
 		Destroy: func(ctx *service.Context) error {
 			a.CloseAll()
 			return nil
 		},
-		Metrics:      MetricOpts,
-		HealthChecks: a.healthChecks,
+		Metrics: ConnManagerMetrics,
 	}
 	return service.NewService(settings)
 }
 
 func init() {
-	service.App().MustRegisterService(NewConnManagerClient)
+	service.App().MustRegisterService(NewConnManagerRegistryClient)
 }

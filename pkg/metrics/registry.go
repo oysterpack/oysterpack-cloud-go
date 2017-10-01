@@ -56,7 +56,9 @@ func NewRegistry(collectProcessMetrics bool) *prometheus.Registry {
 	return registry
 }
 
-// ResetRegistry resets the prometheus Registry and clears all cached metrics
+// ResetRegistry resets the prometheus Registry and clears all cached metrics.
+// All registered healthchecks are cleared as well.
+// This is provided to help with unit testing.
 func ResetRegistry() {
 	mutex.Lock()
 	defer mutex.Unlock()
@@ -70,6 +72,10 @@ func ResetRegistry() {
 	histogramVecsMap = map[string]*HistogramVec{}
 	summariesMap = map[string]*Summary{}
 	summaryVecsMap = map[string]*SummaryVec{}
+
+	registeredHealthChecks.Lock()
+	defer registeredHealthChecks.Unlock()
+	registeredHealthChecks.healthchecks = map[string]HealthCheck{}
 }
 
 // Registered returns true if a metric is registered with the same name

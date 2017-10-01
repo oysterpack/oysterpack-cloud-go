@@ -21,7 +21,22 @@ import (
 
 	"github.com/nats-io/go-nats"
 	"github.com/oysterpack/oysterpack.go/pkg/logging"
+	"github.com/prometheus/client_golang/prometheus"
 )
+
+// NewManagedConn factory method
+func NewManagedConn(cluster ClusterName, connId string, conn *nats.Conn, tags []string) *ManagedConn {
+	return &ManagedConn{
+		Conn:                conn,
+		id:                  connId,
+		created:             time.Now(),
+		tags:                tags,
+		cluster:             cluster,
+		disconnectedCounter: disconnectedCounter.WithLabelValues(cluster.String()),
+		reconnectedCounter:  reconnectedCounter.WithLabelValues(cluster.String()),
+		errorCounter:        errorCounter.WithLabelValues(cluster.String()),
+	}
+}
 
 type ManagedConn struct {
 	mutex sync.RWMutex
@@ -31,6 +46,7 @@ type ManagedConn struct {
 	id      string
 	created time.Time
 	tags    []string
+	cluster ClusterName
 
 	lastReconnectTime time.Time
 
@@ -39,6 +55,10 @@ type ManagedConn struct {
 
 	errors        int
 	lastErrorTime time.Time
+
+	disconnectedCounter prometheus.Counter
+	reconnectedCounter  prometheus.Counter
+	errorCounter        prometheus.Counter
 }
 
 func (a *ManagedConn) ID() string {
@@ -90,7 +110,7 @@ func (a *ManagedConn) Errors() int {
 
 // updates are protected by a mutex to make changes concurrency safe
 func (a *ManagedConn) disconnected() {
-	disconnectedCounter.Inc()
+	a.disconnectedCounter.Inc()
 	a.mutex.Lock()
 	defer a.mutex.Unlock()
 	a.lastDisconnectTime = time.Now()
@@ -103,7 +123,7 @@ func (a *ManagedConn) disconnected() {
 }
 
 func (a *ManagedConn) reconnected() {
-	reconnectedCounter.Inc()
+	a.reconnectedCounter.Inc()
 	a.lastReconnectTime = time.Now()
 	event := logger.Info().Str(logging.EVENT, EVENT_CONN_RECONNECT).Str(CONN_ID, a.id).Uint64(RECONNECTS, a.Reconnects)
 	if len(a.tags) > 0 {
@@ -113,7 +133,7 @@ func (a *ManagedConn) reconnected() {
 }
 
 func (a *ManagedConn) subscriptionError(subscription *nats.Subscription, err error) {
-	errorCounter.Inc()
+	a.errorCounter.Inc()
 	a.errors++
 	a.lastErrorTime = time.Now()
 
@@ -187,16 +207,6 @@ func (a *ManagedConn) ConnInfo() *ConnInfo {
 		LastErrorTime: a.lastErrorTime,
 
 		Status: a.Conn.Status(),
-	}
-}
-
-// NewManagedConn factory method
-func NewManagedConn(connId string, conn *nats.Conn, tags []string) *ManagedConn {
-	return &ManagedConn{
-		Conn:    conn,
-		id:      connId,
-		created: time.Now(),
-		tags:    tags,
 	}
 }
 

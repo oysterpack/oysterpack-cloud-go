@@ -15,22 +15,21 @@
 package nats
 
 import (
-	"time"
-
-	"github.com/oysterpack/oysterpack.go/pkg/metrics"
-	"github.com/oysterpack/oysterpack.go/pkg/service"
-	"github.com/prometheus/client_golang/prometheus"
+	"fmt"
+	"regexp"
 )
 
-var connectivityHealthCheck = &metrics.GaugeVecOpts{
-	&prometheus.GaugeOpts{
-		Namespace:   MetricsNamespace,
-		Subsystem:   MetricsSubSystem,
-		Name:        "connectivity",
-		Help:        "The healthcheck fails if any connections are disconnected.",
-		ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, ConnManagerRegistryDescriptor),
-	},
-	MetricLabels,
+type ClusterName string
+
+var clusterRegex = regexp.MustCompile(`^[a-z][0-9a-z_\-]+$`)
+
+func (a ClusterName) Validate() error {
+	if !clusterRegex.MatchString(a.String()) {
+		return fmt.Errorf("ClusterName %q did not match against regex : %s", a, clusterRegex)
+	}
+	return nil
 }
 
-const runinterval = 15 * time.Second
+func (a ClusterName) String() string {
+	return string(a)
+}

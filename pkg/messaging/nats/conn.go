@@ -100,7 +100,7 @@ func (a *conn) QueueSubscribe(topic messaging.Topic, queue messaging.Queue, sett
 
 func checkSubscriptionSettings(settings messaging.SubscriptionSettings) error {
 	if settings.PendingLimits != nil {
-		errorMsgFormat := " %q : Zero is not allowed. Any negative value means that the given metric is not limited."
+		errorMsgFormat := " %q : Zero is not allowed. Any negative value means there is no limit."
 		if settings.MsgLimit == 0 {
 			return fmt.Errorf(errorMsgFormat, "MsgLimit")
 		}

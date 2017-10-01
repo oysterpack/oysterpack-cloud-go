@@ -57,6 +57,15 @@ func GetOrMustRegisterGaugeVec(opts *GaugeVecOpts) *prometheus.GaugeVec {
 	return gaugeVec
 }
 
+// GaugeVecRegistered returns true is a GaugeVec with the same fully qualified name is registered.
+func GaugeVecRegistered(opts *GaugeVecOpts) bool {
+	mutex.RLock()
+	defer mutex.RUnlock()
+	name := GaugeFQName(opts.GaugeOpts)
+	_, exists := gaugeVecsMap[name]
+	return exists
+}
+
 // GaugeVecNames returns names of all registered gaugeVecs
 func GaugeVecNames() []string {
 	mutex.RLock()
@@ -72,6 +81,8 @@ func GaugeVecNames() []string {
 
 // GaugeVecs returns all registered gaugeVecs
 func GaugeVecs() []*GaugeVec {
+	mutex.RLock()
+	defer mutex.RUnlock()
 	c := make([]*GaugeVec, len(gaugeVecsMap))
 	i := 0
 	for _, v := range gaugeVecsMap {
@@ -83,5 +94,7 @@ func GaugeVecs() []*GaugeVec {
 
 // GetGaugeVec looks up the gaugeVec by its fully qualified name
 func GetGaugeVec(name string) *GaugeVec {
+	mutex.RLock()
+	defer mutex.RUnlock()
 	return gaugeVecsMap[name]
 }

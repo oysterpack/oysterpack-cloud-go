@@ -45,7 +45,7 @@ const (
 // log event fields
 const (
 	CONN_ID            = "conn_id"
-	CONN_TAGS          = "Tags"
+	CONN_TAGS          = "tags"
 	DISCOVERED_SERVERS = "discovered_servers"
 	SUBSCRIPTION_VALID = "sub_valid"
 	MAX_QUEUED_MSGS    = "max_queued_msgs"
@@ -58,4 +58,11 @@ const (
 	DROPPED            = "dropped"
 	DISCONNECTS        = "disconnects"
 	RECONNECTS         = "reconnects"
+)
+
+// common Conn tags
+const (
+	PUBLISHER        = "publisher"
+	TOPIC_SUBSCRIBER = "topic_subscriber"
+	QUEUE_SUBSCRIBER = "queue_subscriber"
 )

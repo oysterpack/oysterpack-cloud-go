@@ -22,9 +22,9 @@ import (
 )
 
 // GetOrMustRegisterGauge first checks if a gauge with the same name is already registered.
-// If the gauge is already registered, and was registered with the same opts, then the cached status is returned.
+// If the gauge is already registered, and was registered with the same opts, then the cached metric is returned.
 // If the gauge is already registered, and was registered with the different opts, then a panic is triggered.
-// If not such gauge exists, then it is registered and cached along with its opts.
+// If no such gauge exists, then it is registered and cached along with its opts.
 func GetOrMustRegisterGauge(opts *prometheus.GaugeOpts) prometheus.Gauge {
 	const FUNC = "GetOrMustRegisterGauge"
 	mutex.RLock()
@@ -102,6 +102,8 @@ func GaugeNames() []string {
 
 // Gauges returns all registered gauges
 func Gauges() []*Gauge {
+	mutex.RLock()
+	defer mutex.RUnlock()
 	c := make([]*Gauge, len(gaugesMap))
 	i := 0
 	for _, v := range gaugesMap {
@@ -113,5 +115,7 @@ func Gauges() []*Gauge {
 
 // GetGauge looks up the status by its fully qualified name
 func GetGauge(name string) *Gauge {
+	mutex.RLock()
+	defer mutex.RUnlock()
 	return gaugesMap[name]
 }

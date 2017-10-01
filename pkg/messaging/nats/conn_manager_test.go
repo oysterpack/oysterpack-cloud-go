@@ -27,12 +27,14 @@ import (
 	"github.com/oysterpack/oysterpack.go/pkg/metrics"
 )
 
+var TestConnManagerSettings = nats.ConnManagerSettings{ClusterName: "test"}
+
 func TestNewConnectionManager(t *testing.T) {
 	metrics.ResetRegistry()
 	server := natstest.RunServer()
 	defer server.Shutdown()
 
-	connMgr := nats.NewConnManager()
+	connMgr := nats.NewConnManager(TestConnManagerSettings)
 	defer connMgr.CloseAll()
 	conn := mustConnect(t, connMgr)
 
@@ -58,7 +60,7 @@ func TestConnManager_ConnInfo(t *testing.T) {
 	server := natstest.RunServer()
 	defer server.Shutdown()
 
-	connMgr := nats.NewConnManager()
+	connMgr := nats.NewConnManager(TestConnManagerSettings)
 	defer connMgr.CloseAll()
 	conn := mustConnect(t, connMgr, "a", "b", "c")
 	conn2 := connMgr.ManagedConn(conn.ID())
@@ -98,7 +100,7 @@ func TestConnManager_CloseAll(t *testing.T) {
 	server := natstest.RunServer()
 	defer server.Shutdown()
 
-	connMgr := nats.NewConnManager()
+	connMgr := nats.NewConnManager(TestConnManagerSettings)
 	defer connMgr.CloseAll()
 	conn := mustConnect(t, connMgr)
 
@@ -130,7 +132,7 @@ func TestManagedConn_CloseConn(t *testing.T) {
 	server := natstest.RunServer()
 	defer server.Shutdown()
 
-	connMgr := nats.NewConnManager()
+	connMgr := nats.NewConnManager(TestConnManagerSettings)
 	defer connMgr.CloseAll()
 	conns := []*nats.ManagedConn{}
 
@@ -166,7 +168,7 @@ func TestNewConnManager_CreatedTimestamp(t *testing.T) {
 	server := natstest.RunServer()
 	defer server.Shutdown()
 
-	connMgr := nats.NewConnManager()
+	connMgr := nats.NewConnManager(TestConnManagerSettings)
 	defer connMgr.CloseAll()
 
 	now := time.Now()
@@ -186,7 +188,7 @@ func TestManagedConn_DisconnectReconnect(t *testing.T) {
 	server := natstest.RunServer()
 	defer server.Shutdown()
 
-	connMgr := nats.NewConnManager()
+	connMgr := nats.NewConnManager(TestConnManagerSettings)
 	defer connMgr.CloseAll()
 
 	// create some connection
@@ -256,7 +258,7 @@ func TestManagedConn_SubscribingWhileDisconnected(t *testing.T) {
 	server := natstest.RunServer()
 	defer server.Shutdown()
 
-	connMgr := nats.NewConnManager()
+	connMgr := nats.NewConnManager(TestConnManagerSettings)
 	defer connMgr.CloseAll()
 	subConn := mustConnect(t, connMgr)
 	pubConn := mustConnect(t, connMgr)
@@ -368,7 +370,7 @@ func TestManagedConn_UnbufferedChanSubscribingWhileDisconnected(t *testing.T) {
 	server := natstest.RunServer()
 	defer server.Shutdown()
 
-	connMgr := nats.NewConnManager()
+	connMgr := nats.NewConnManager(TestConnManagerSettings)
 	defer connMgr.CloseAll()
 
 	// create separate publisher and subscriber connections
@@ -457,7 +459,7 @@ func TestManagedConn_BufferedChanSubscribingWhileDisconnected(t *testing.T) {
 	server := natstest.RunServer()
 	defer server.Shutdown()
 
-	connMgr := nats.NewConnManager()
+	connMgr := nats.NewConnManager(TestConnManagerSettings)
 	defer connMgr.CloseAll()
 
 	// create separate publisher and subscriber connections
@@ -542,7 +544,7 @@ func TestManagedConn_AsyncSubscribingWhileDisconnected(t *testing.T) {
 	server := natstest.RunServer()
 	defer server.Shutdown()
 
-	connMgr := nats.NewConnManager()
+	connMgr := nats.NewConnManager(TestConnManagerSettings)
 	defer connMgr.CloseAll()
 	subConn := mustConnect(t, connMgr)
 	pubConn := mustConnect(t, connMgr)
@@ -637,7 +639,7 @@ func TestManagedConn_AsyncSubscribingWhileDisconnected_WithPendingLimitsExceeded
 	server := natstest.RunServer()
 	defer server.Shutdown()
 
-	connMgr := nats.NewConnManager()
+	connMgr := nats.NewConnManager(TestConnManagerSettings)
 	defer connMgr.CloseAll()
 	subConn := mustConnect(t, connMgr)
 	pubConn := mustConnect(t, connMgr)

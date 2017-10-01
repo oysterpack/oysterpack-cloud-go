@@ -15,88 +15,53 @@
 package pkg_test
 
 import (
-	"net"
-	"sync"
 	"testing"
-	"time"
+
+	"regexp"
+
+	"github.com/json-iterator/go"
 )
 
-type Foo struct{}
+var json = jsoniter.ConfigCompatibleWithStandardLibrary
 
-func (f Foo) String() string {
-	return "Foo"
+type Name string
+
+type Foo struct {
+	Name
 }
 
-func TestClosingBufferedChannel(t *testing.T) {
-	c := make(chan int, 10)
-	for i := 0; i < 10; i++ {
-		c <- i
+var clusterRegex = regexp.MustCompile(`^[a-z][0-9a-z_\-]+$`)
+
+func TestRegex(t *testing.T) {
+	t.Logf("%v", clusterRegex)
+
+	if !clusterRegex.MatchString("oysterpack-nats") {
+		t.Error("match failed")
 	}
-	close(c)
-	t.Log("closed channel")
-	for i := 0; i <= 11; i++ {
-		t.Logf("receiving on closed channel [%d]: %v", i, <-c)
+
+	if clusterRegex.MatchString("oysterpack-nats:") {
+		t.Error("should not have matched")
 	}
 }
 
-func TestClosingClosedChannel(t *testing.T) {
-	defer func() {
-		if p := recover(); p == nil {
-			t.Error("closing a closed channel should have triggered a panic")
-		}
-	}()
-	c := make(chan struct{})
-	close(c)
-	close(c)
-}
+func TestMarshalCustomAlias(t *testing.T) {
 
-func TestClosingBlockedChannelOnSend(t *testing.T) {
-	msgs := make(chan string)
-	wait1 := sync.WaitGroup{}
-	wait1.Add(1)
-	msgSent := sync.WaitGroup{}
-	msgSent.Add(1)
-	go func() {
-		defer func() {
-			switch p := recover().(type) {
-			case nil:
-				t.Errorf("this should have caused a panic when the channel is closed - message delivery should have failed")
-			case error:
-				t.Logf("error(%[1]T) : %[1]s", p)
-			}
-			msgSent.Done()
-		}()
-		wait1.Done()
-		t.Log("msgs <- MSG")
-		msgs <- "MSG"
-	}()
-	wait1.Wait()
-	time.Sleep(100 * time.Millisecond)
-	t.Log("close(msgs) ...")
-	close(msgs)
-	t.Log("close(msgs) !!!")
-	if msg := <-msgs; msg != "" {
-		t.Errorf("Zero value should be received on closed channel : %v", msg)
-	}
-	msgSent.Wait()
-}
+	foo := Foo{Name: "Alfio Zappala"}
 
-func TestGetLocalIP(t *testing.T) {
-	t.Logf(GetLocalIP())
-}
-
-func GetLocalIP() string {
-	addrs, err := net.InterfaceAddrs()
+	bytes, err := json.Marshal(&foo)
 	if err != nil {
-		return ""
+		t.Fatalf("Marshal failed : %v", err)
 	}
-	for _, address := range addrs {
-		// check the address type and if it is not a loopback the display it
-		if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
-			if ipnet.IP.To4() != nil {
-				return ipnet.IP.String()
-			}
-		}
+
+	foo2 := &Foo{}
+	if err := json.Unmarshal(bytes, foo2); err != nil {
+		t.Fatalf("Unmarshal failed : %v", err)
 	}
-	return ""
+
+	t.Logf("foo2 : %v", foo2)
+
+	if foo.Name != foo2.Name {
+		t.Errorf("Marshal / Unmarshal did not work : [%v] != [%v]", foo, foo2)
+	}
+
 }

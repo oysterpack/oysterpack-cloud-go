@@ -102,11 +102,15 @@ type Conn interface {
 }
 
 type SubscriptionSettings struct {
+	// OPTIONAL - if nil, then defaults are applied
 	*PendingLimits
 }
 
+// PendingLimits are used to configure message buffering on the client subscriber side.
 type PendingLimits struct {
-	MsgLimit   int
+	// Zero is not allowed. Any negative value means there is no limit.
+	MsgLimit int
+	// Zero is not allowed. Any negative value means tehre is no limit.
 	BytesLimit int
 }
 

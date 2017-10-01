@@ -72,6 +72,8 @@ func CounterNames() []string {
 
 // Counters returns all registered counters
 func Counters() []*Counter {
+	mutex.RLock()
+	defer mutex.RUnlock()
 	c := make([]*Counter, len(countersMap))
 	i := 0
 	for _, v := range countersMap {
@@ -83,5 +85,7 @@ func Counters() []*Counter {
 
 // GetCounter looks up the counter by its fully qualified name
 func GetCounter(name string) *Counter {
+	mutex.RLock()
+	defer mutex.RUnlock()
 	return countersMap[name]
 }

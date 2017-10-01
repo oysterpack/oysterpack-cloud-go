@@ -15,22 +15,20 @@
 package nats
 
 import (
-	"time"
+	"errors"
+	"strings"
 
-	"github.com/oysterpack/oysterpack.go/pkg/metrics"
-	"github.com/oysterpack/oysterpack.go/pkg/service"
-	"github.com/prometheus/client_golang/prometheus"
+	"github.com/nats-io/go-nats"
 )
 
-var connectivityHealthCheck = &metrics.GaugeVecOpts{
-	&prometheus.GaugeOpts{
-		Namespace:   MetricsNamespace,
-		Subsystem:   MetricsSubSystem,
-		Name:        "connectivity",
-		Help:        "The healthcheck fails if any connections are disconnected.",
-		ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, ConnManagerRegistryDescriptor),
-	},
-	MetricLabels,
+// ConnectUrl - if not specified, then the default will be used : "nats://localhost:4222"
+func ConnectUrl(url string) nats.Option {
+	return func(options *nats.Options) error {
+		url = strings.TrimSpace(url)
+		if len(url) == 0 {
+			return errors.New("url cannot be blank")
+		}
+		options.Url = url
+		return nil
+	}
 }
-
-const runinterval = 15 * time.Second

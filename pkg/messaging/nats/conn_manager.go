@@ -25,6 +25,7 @@ import (
 	"github.com/oysterpack/oysterpack.go/pkg/logging"
 	"github.com/oysterpack/oysterpack.go/pkg/metrics"
 	"github.com/oysterpack/oysterpack.go/pkg/service"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 // ConnManager tracks connections that are created through it.
@@ -35,6 +36,10 @@ import (
 // 3. Connection errors
 // 4. Connection closed - when closed, it is no longer tracked and removed async from its managed list
 type ConnManager interface {
+	// ClusterName returns the name of the NATS cluster we are connecting to/
+	// The name is a logical name from the application's perspective.
+	Cluster() ClusterName
+
 	Connect(tags ...string) (conn *ManagedConn, err error)
 
 	ManagedConn(id string) *ManagedConn
@@ -52,45 +57,58 @@ type ConnManager interface {
 	DisconnectedCount() (count int, total int)
 
 	// TotalMsgsIn returns the total number of messages that have been received on all current connections
-	TotalMsgsIn() float64
+	TotalMsgsIn() uint64
 
 	// TotalMsgsOut returns the total number of messages that have been sent on all current connections
-	TotalMsgsOut() float64
+	TotalMsgsOut() uint64
 
 	// TotalBytesIn returns the total number of bytes that have been received on all current connections
-	TotalBytesIn() float64
+	TotalBytesIn() uint64
 
 	// TotalBytesOut returns the total number of bytes that have been sent on all current connections
-	TotalBytesOut() float64
+	TotalBytesOut() uint64
 
 	HealthChecks() []metrics.HealthCheck
 }
 
-const (
-	MetricsNamespace = "nats"
-	MetricsSubSystem = "conn"
-)
-
 func DefaultOptions() nats.Options {
 	options := nats.GetDefaultOptions()
-	options.Url = nats.DefaultURL
 	DefaultConnectTimeout(&options)
 	DefaultReConnectTimeout(&options)
 	AlwaysReconnect(&options)
 	return options
 }
 
+type ConnManagerSettings struct {
+	ClusterName
+	Options []nats.Option
+}
+
 // NewConnManager factory method.
 // Default connection options are : DefaultConnectTimeout, DefaultReConnectTimeout, AlwaysReconnect
-func NewConnManager(options ...nats.Option) ConnManager {
+func NewConnManager(settings ConnManagerSettings) ConnManager {
+	return newConnManager(settings)
+}
+
+func newConnManager(settings ConnManagerSettings) *connManager {
+	if err := settings.ClusterName.Validate(); err != nil {
+		logger.Panic().Err(err).Msg("Failed to create ConnManager")
+	}
+
 	connOptions := DefaultOptions()
-	for _, option := range options {
+	for _, option := range settings.Options {
 		if err := option(&connOptions); err != nil {
 			logger.Panic().Err(err).Msg("Failed to apply option")
 		}
 	}
 
-	connMgr := &connManager{options: connOptions}
+	connMgr := &connManager{
+		cluster:        settings.ClusterName,
+		options:        connOptions,
+		createdCounter: createdCounter.WithLabelValues(settings.ClusterName.String()),
+		connCount:      connCount.WithLabelValues(settings.ClusterName.String()),
+		closedCounter:  closedCounter.WithLabelValues(settings.ClusterName.String()),
+	}
 	connMgr.init()
 	return connMgr
 }
@@ -98,6 +116,7 @@ func NewConnManager(options ...nats.Option) ConnManager {
 // ManagedConn is a managed NATS connection.
 
 type connManager struct {
+	cluster ClusterName
 	options nats.Options
 
 	*service.RestartableService
@@ -108,20 +127,24 @@ type connManager struct {
 	conns map[string]*ManagedConn
 
 	healthChecks []metrics.HealthCheck
+
+	createdCounter prometheus.Counter
+	connCount      prometheus.Gauge
+	closedCounter  prometheus.Counter
+}
+
+func (a *connManager) Cluster() ClusterName {
+	return a.cluster
 }
 
 func (a *connManager) HealthChecks() []metrics.HealthCheck {
 	return a.healthChecks
 }
 
-// Connect creates a new managed NATS connection that connects to a NATS server running on the localhost.
-// Tags are used to help identify how the connection is being used by the app. Some common Tags are provided, but
-// additional application specific Tags can also be added, e.g., the name of the service using the connection.
-// Connections are configured to always reconnect.
+// Connect creates a new managed NATS connection.
+// Tags are used to help identify how the connection is being used by the app. Tags are currently used to augment logging.
 //
-// Use Case : A gnatsd process runs on each server node, forming cluster mesh. Applications connect to the local gnatsd
-// server to communicate remotely, thus forming a service mesh. The apps are not network aware, i.e., they always connect
-// to localhost.
+// Connections are configured to always reconnect.
 //
 func (a *connManager) Connect(tags ...string) (*ManagedConn, error) {
 	a.mutex.Lock()
@@ -132,28 +155,50 @@ func (a *connManager) Connect(tags ...string) (*ManagedConn, error) {
 		return nil, err
 	}
 	connId := nuid.Next()
-	managedConn := NewManagedConn(connId, nc, tags)
+	managedConn := NewManagedConn(a.cluster, connId, nc, tags)
 	a.conns[connId] = managedConn
 
 	nc.SetClosedHandler(func(conn *nats.Conn) {
-		connCount.Dec()
-		closedCounter.Inc()
+		a.connCount.Dec()
+		a.closedCounter.Inc()
 		logger.Info().Str(logging.EVENT, EVENT_CONN_CLOSED).Str(CONN_ID, connId).Msg("")
 		a.mutex.Lock()
 		defer a.mutex.Unlock()
 		delete(a.conns, connId)
 		logger.Info().Str(logging.EVENT, EVENT_CONN_CLOSED).Str(CONN_ID, connId).Msg("deleted")
+
+		if a.options.ClosedCB != nil {
+			a.options.ClosedCB(conn)
+		}
 	})
 
-	nc.SetDisconnectHandler(func(conn *nats.Conn) { managedConn.disconnected() })
-	nc.SetReconnectHandler(func(conn *nats.Conn) { managedConn.reconnected() })
-	nc.SetDiscoveredServersHandler(func(conn *nats.Conn) { managedConn.discoveredServers() })
+	nc.SetDisconnectHandler(func(conn *nats.Conn) {
+		managedConn.disconnected()
+		if a.options.DisconnectedCB != nil {
+			a.options.DisconnectedCB(conn)
+		}
+	})
+	nc.SetReconnectHandler(func(conn *nats.Conn) {
+		managedConn.reconnected()
+		if a.options.ReconnectedCB != nil {
+			a.options.ReconnectedCB(conn)
+		}
+	})
+	nc.SetDiscoveredServersHandler(func(conn *nats.Conn) {
+		managedConn.discoveredServers()
+		if a.options.DisconnectedCB != nil {
+			a.options.DisconnectedCB(conn)
+		}
+	})
 	nc.SetErrorHandler(func(conn *nats.Conn, subscription *nats.Subscription, err error) {
 		managedConn.subscriptionError(subscription, err)
+		if a.options.AsyncErrorCB != nil {
+			a.options.AsyncErrorCB(conn, subscription, err)
+		}
 	})
 
-	createdCounter.Inc()
-	connCount.Inc()
+	a.createdCounter.Inc()
+	a.connCount.Inc()
 
 	return managedConn, nil
 }
@@ -169,67 +214,62 @@ func (a *connManager) init() {
 	defer a.mutex.Unlock()
 	a.conns = make(map[string]*ManagedConn)
 
-	metrics.GetOrMustRegisterGaugeFunc(MsgsInGauge, a.TotalMsgsIn)
-	metrics.GetOrMustRegisterGaugeFunc(MsgsOutGauge, a.TotalMsgsOut)
-	metrics.GetOrMustRegisterGaugeFunc(BytesInGauge, a.TotalBytesIn)
-	metrics.GetOrMustRegisterGaugeFunc(BytesOutGauge, a.TotalBytesOut)
-
 	if len(a.healthChecks) == 0 {
 		a.healthChecks = []metrics.HealthCheck{
-			metrics.NewHealthCheck(connectivityHealthCheck, runinterval,
+			metrics.NewHealthCheckVector(connectivityHealthCheck, runinterval,
 				service.SkipHealthCheckDuringAppShutdown(func() error {
 					connected, total := a.ConnectedCount()
 					if connected != total {
 						return fmt.Errorf("%d / %d connections are disconnected", total-connected, total)
 					}
 					return nil
-				})),
+				}), []string{a.cluster.String()}),
 		}
 	}
 }
 
 // TotalMsgsIn returns the total number of messages that have been received on all current connections.
-func (a *connManager) TotalMsgsIn() float64 {
+func (a *connManager) TotalMsgsIn() uint64 {
 	a.mutex.RLock()
 	defer a.mutex.RUnlock()
 	var count uint64
 	for _, conn := range a.conns {
 		count += conn.InMsgs
 	}
-	return float64(count)
+	return count
 }
 
 // TotalMsgsOut returns the total number of messages that have been sent on all current connections.
-func (a *connManager) TotalMsgsOut() float64 {
+func (a *connManager) TotalMsgsOut() uint64 {
 	a.mutex.RLock()
 	defer a.mutex.RUnlock()
 	var count uint64
 	for _, conn := range a.conns {
 		count += conn.OutMsgs
 	}
-	return float64(count)
+	return count
 }
 
 // TotalMsgsIn returns the total number of bytes that have been received on all current connections.
-func (a *connManager) TotalBytesIn() float64 {
+func (a *connManager) TotalBytesIn() uint64 {
 	a.mutex.RLock()
 	defer a.mutex.RUnlock()
 	var count uint64
 	for _, conn := range a.conns {
 		count += conn.InBytes
 	}
-	return float64(count)
+	return count
 }
 
 // TotalMsgsOut returns the total number of bytes that have been sent on all current connections.
-func (a *connManager) TotalBytesOut() float64 {
+func (a *connManager) TotalBytesOut() uint64 {
 	a.mutex.RLock()
 	defer a.mutex.RUnlock()
 	var count uint64
 	for _, conn := range a.conns {
 		count += conn.OutBytes
 	}
-	return float64(count)
+	return count
 }
 
 func (a *connManager) CloseAll() {
@@ -237,8 +277,8 @@ func (a *connManager) CloseAll() {
 	defer a.mutex.Unlock()
 	for _, nc := range a.conns {
 		nc.Conn.SetClosedHandler(func(conn *nats.Conn) {
-			connCount.Dec()
-			closedCounter.Inc()
+			a.connCount.Dec()
+			a.closedCounter.Inc()
 			logger.Info().Str(logging.EVENT, EVENT_CONN_CLOSED).Str(CONN_ID, nc.ID()).Msg("CloseAll")
 		})
 		func() {

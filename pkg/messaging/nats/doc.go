@@ -22,7 +22,7 @@
 //
 // Metrics
 //
-//		MetricOpts = &metrics.MetricOpts{
+//		ConnManagerMetrics = &metrics.ConnManagerMetrics{
 //			CounterOpts: []*prometheus.CounterOpts{
 //				CreatedCounterOpts,
 //				DisconnectedCounterOpts,
@@ -47,7 +47,7 @@
 //		Subsystem:   MetricsSubSystem,
 //		Name:        "connectivity",
 //		Help:        "The healthcheck fails if any connections are disconnected.",
-//		ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, ConnManagerDescriptor),
+//		ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, ConnManagerRegistryDescriptor),
 //	}
 //
 package nats

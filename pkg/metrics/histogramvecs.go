@@ -72,6 +72,8 @@ func HistogramVecNames() []string {
 
 // HistogramVecs returns all registered histogramVecs
 func HistogramVecs() []*HistogramVec {
+	mutex.RLock()
+	defer mutex.RUnlock()
 	c := make([]*HistogramVec, len(histogramVecsMap))
 	i := 0
 	for _, v := range histogramVecsMap {
@@ -83,5 +85,7 @@ func HistogramVecs() []*HistogramVec {
 
 // GetHistogramVec looks up the histogramVec by its fully qualified name
 func GetHistogramVec(name string) *HistogramVec {
+	mutex.RLock()
+	defer mutex.RUnlock()
 	return histogramVecsMap[name]
 }

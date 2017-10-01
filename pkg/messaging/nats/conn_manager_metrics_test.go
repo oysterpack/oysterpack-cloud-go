@@ -39,7 +39,7 @@ func TestConnManager_Metrics(t *testing.T) {
 
 	nats.RegisterMetrics()
 
-	connMgr := nats.NewConnManager()
+	connMgr := nats.NewConnManager(TestConnManagerSettings)
 	defer connMgr.CloseAll()
 	pubConn := mustConnect(t, connMgr)
 	subConn := mustConnect(t, connMgr)
@@ -90,7 +90,7 @@ func TestConnManager_Metrics_Registered(t *testing.T) {
 	server := natstest.RunServer()
 	defer server.Shutdown()
 
-	connMgr := nats.NewConnManager()
+	connMgr := nats.NewConnManager(TestConnManagerSettings)
 	defer connMgr.CloseAll()
 	pubConn := mustConnect(t, connMgr)
 	subConn := mustConnect(t, connMgr)
@@ -121,19 +121,6 @@ func TestConnManager_Metrics_Registered(t *testing.T) {
 		t.Errorf("conn count is wrong : %v", value)
 	}
 
-	if value := *gauge(gatheredMetrics, nats.MsgsInGauge).GetMetric()[0].GetGauge().Value; uint64(value) != subConn.InMsgs {
-		t.Errorf("msgs in is wrong : %v", value)
-	}
-	if value := *gauge(gatheredMetrics, nats.MsgsOutGauge).GetMetric()[0].GetGauge().Value; uint64(value) != pubConn.OutMsgs {
-		t.Errorf("msgs out is wrong : %v", value)
-	}
-	if value := *gauge(gatheredMetrics, nats.BytesInGauge).GetMetric()[0].GetGauge().Value; uint64(value) != subConn.InBytes {
-		t.Errorf("bytes in is wrong : %v", value)
-	}
-	if value := *gauge(gatheredMetrics, nats.BytesOutGauge).GetMetric()[0].GetGauge().Value; uint64(value) != pubConn.OutBytes {
-		t.Errorf("bytes out is wrong : %v", value)
-	}
-
 	connMgr.CloseAll()
 	time.Sleep(10 * time.Millisecond)
 
@@ -149,13 +136,13 @@ func TestConnManager_Metrics_Registered(t *testing.T) {
 		}
 	}
 
-	for _, opts := range nats.MetricOpts.CounterOpts {
+	for _, opts := range nats.ConnManagerMetrics.CounterVecOpts {
 		if counter(gatheredMetrics, opts) == nil {
 			t.Errorf("Metric was not gathered : %v", prometheus.BuildFQName(opts.Namespace, opts.Subsystem, opts.Name))
 		}
 	}
 
-	for _, opts := range nats.MetricOpts.GaugeOpts {
+	for _, opts := range nats.ConnManagerMetrics.GaugeVecOpts {
 		if gauge(gatheredMetrics, opts) == nil {
 			t.Errorf("Metric was not gathered : %v", prometheus.BuildFQName(opts.Namespace, opts.Subsystem, opts.Name))
 		}
@@ -188,22 +175,9 @@ func TestConnManager_Metrics_Registered(t *testing.T) {
 	if value := *counter(gatheredMetrics, nats.SubscriberErrorCounterOpts).GetMetric()[0].GetCounter().Value; int(value) != subConn.Errors() {
 		t.Errorf("subscriber error count is wrong : %v", value)
 	}
-
-	if value := *gauge(gatheredMetrics, nats.MsgsInGauge).GetMetric()[0].GetGauge().Value; uint64(value) != 0 {
-		t.Errorf("msgs in is wrong : %v", value)
-	}
-	if value := *gauge(gatheredMetrics, nats.MsgsOutGauge).GetMetric()[0].GetGauge().Value; uint64(value) != 0 {
-		t.Errorf("msgs out is wrong : %v", value)
-	}
-	if value := *gauge(gatheredMetrics, nats.BytesInGauge).GetMetric()[0].GetGauge().Value; uint64(value) != 0 {
-		t.Errorf("bytes in is wrong : %v", value)
-	}
-	if value := *gauge(gatheredMetrics, nats.BytesOutGauge).GetMetric()[0].GetGauge().Value; uint64(value) != 0 {
-		t.Errorf("bytes out is wrong : %v", value)
-	}
 }
 
-func counter(metricFamilies []*io_prometheus_client.MetricFamily, opts *prometheus.CounterOpts) *io_prometheus_client.MetricFamily {
+func counter(metricFamilies []*io_prometheus_client.MetricFamily, opts *metrics.CounterVecOpts) *io_prometheus_client.MetricFamily {
 	name := prometheus.BuildFQName(opts.Namespace, opts.Subsystem, opts.Name)
 	for _, metric := range metricFamilies {
 		if name == *metric.Name {
@@ -213,7 +187,7 @@ func counter(metricFamilies []*io_prometheus_client.MetricFamily, opts *promethe
 	return nil
 }
 
-func gauge(metricFamilies []*io_prometheus_client.MetricFamily, opts *prometheus.GaugeOpts) *io_prometheus_client.MetricFamily {
+func gauge(metricFamilies []*io_prometheus_client.MetricFamily, opts *metrics.GaugeVecOpts) *io_prometheus_client.MetricFamily {
 	name := prometheus.BuildFQName(opts.Namespace, opts.Subsystem, opts.Name)
 	for _, metric := range metricFamilies {
 		if name == *metric.Name {

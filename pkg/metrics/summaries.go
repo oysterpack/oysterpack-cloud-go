@@ -72,6 +72,8 @@ func SummaryNames() []string {
 
 // Summaries returns all registered summarys
 func Summaries() []*Summary {
+	mutex.RLock()
+	defer mutex.RUnlock()
 	c := make([]*Summary, len(summariesMap))
 	i := 0
 	for _, v := range summariesMap {
@@ -83,5 +85,7 @@ func Summaries() []*Summary {
 
 // GetSummary looks up the summary by its fully qualified name
 func GetSummary(name string) *Summary {
+	mutex.RLock()
+	defer mutex.RUnlock()
 	return summariesMap[name]
 }
