@@ -35,11 +35,13 @@ var (
 		registry: make(map[ClusterName]ConnManager),
 	}
 
-	// ConnManagerRegistry service singleton
+	// ConnManagerRegistryService service singleton
 	ConnManagerRegistryService ConnManagerRegistry = registry
 
+	// ConnManagerRegistryDescriptor service descriptor
 	ConnManagerRegistryDescriptor = service.NewDescriptor(Namespace, System, Component, Version, ConnManagerRegistryInterface)
 
+	// ConnManagerRegistryInterface service interface
 	ConnManagerRegistryInterface service.Interface = func() service.Interface {
 		serviceInterface, err := reflect.ObjectInterface(&ConnManagerRegistryService)
 		if err != nil {

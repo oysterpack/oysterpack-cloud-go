@@ -198,7 +198,7 @@ func (a *ManagedConn) discoveredServers() {
 	event.Msg("")
 }
 
-// ConnInfo retuns information regarding the conn
+// ConnInfo returns information regarding the conn
 func (a *ManagedConn) ConnInfo() *ConnInfo {
 	a.mutex.RLock()
 	defer a.mutex.RUnlock()
