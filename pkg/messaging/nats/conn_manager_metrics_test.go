@@ -121,6 +121,19 @@ func TestConnManager_Metrics_Registered(t *testing.T) {
 		t.Errorf("conn count is wrong : %v", value)
 	}
 
+	if value := *gauge(gatheredMetrics, nats.MsgsInGauge).GetMetric()[0].GetGauge().Value; uint64(value) != subConn.InMsgs {
+		t.Errorf("msgs in is wrong : %v", value)
+	}
+	if value := *gauge(gatheredMetrics, nats.MsgsOutGauge).GetMetric()[0].GetGauge().Value; uint64(value) != pubConn.OutMsgs {
+		t.Errorf("msgs out is wrong : %v", value)
+	}
+	if value := *gauge(gatheredMetrics, nats.BytesInGauge).GetMetric()[0].GetGauge().Value; uint64(value) != subConn.InBytes {
+		t.Errorf("bytes in is wrong : %v", value)
+	}
+	if value := *gauge(gatheredMetrics, nats.BytesOutGauge).GetMetric()[0].GetGauge().Value; uint64(value) != pubConn.OutBytes {
+		t.Errorf("bytes out is wrong : %v", value)
+	}
+
 	connMgr.CloseAll()
 	time.Sleep(10 * time.Millisecond)
 
@@ -174,6 +187,19 @@ func TestConnManager_Metrics_Registered(t *testing.T) {
 
 	if value := *counter(gatheredMetrics, nats.SubscriberErrorCounterOpts).GetMetric()[0].GetCounter().Value; int(value) != subConn.Errors() {
 		t.Errorf("subscriber error count is wrong : %v", value)
+	}
+
+	if value := *gauge(gatheredMetrics, nats.MsgsInGauge).GetMetric()[0].GetGauge().Value; uint64(value) != 0 {
+		t.Errorf("msgs in is wrong : %v", value)
+	}
+	if value := *gauge(gatheredMetrics, nats.MsgsOutGauge).GetMetric()[0].GetGauge().Value; uint64(value) != 0 {
+		t.Errorf("msgs out is wrong : %v", value)
+	}
+	if value := *gauge(gatheredMetrics, nats.BytesInGauge).GetMetric()[0].GetGauge().Value; uint64(value) != 0 {
+		t.Errorf("bytes in is wrong : %v", value)
+	}
+	if value := *gauge(gatheredMetrics, nats.BytesOutGauge).GetMetric()[0].GetGauge().Value; uint64(value) != 0 {
+		t.Errorf("bytes out is wrong : %v", value)
 	}
 }
 

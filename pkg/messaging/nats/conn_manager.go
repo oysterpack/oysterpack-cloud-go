@@ -103,13 +103,20 @@ func newConnManager(settings ConnManagerSettings) *connManager {
 	}
 
 	connMgr := &connManager{
-		cluster:        settings.ClusterName,
-		options:        connOptions,
+		cluster: settings.ClusterName,
+		options: connOptions,
+
 		createdCounter: createdCounter.WithLabelValues(settings.ClusterName.String()),
 		connCount:      connCount.WithLabelValues(settings.ClusterName.String()),
 		closedCounter:  closedCounter.WithLabelValues(settings.ClusterName.String()),
+
+		msgsInDesc:   prometheus.NewDesc(metrics.GaugeFQName(MsgsInGauge.GaugeOpts), MsgsInGauge.GaugeOpts.Help, MetricLabels, MsgsInGauge.GaugeOpts.ConstLabels),
+		msgsOutDesc:  prometheus.NewDesc(metrics.GaugeFQName(MsgsOutGauge.GaugeOpts), MsgsOutGauge.GaugeOpts.Help, MetricLabels, MsgsOutGauge.GaugeOpts.ConstLabels),
+		bytesInDesc:  prometheus.NewDesc(metrics.GaugeFQName(BytesInGauge.GaugeOpts), BytesInGauge.GaugeOpts.Help, MetricLabels, BytesInGauge.GaugeOpts.ConstLabels),
+		bytesOutDesc: prometheus.NewDesc(metrics.GaugeFQName(BytesOutGauge.GaugeOpts), BytesOutGauge.GaugeOpts.Help, MetricLabels, BytesOutGauge.GaugeOpts.ConstLabels),
 	}
 	connMgr.init()
+	metrics.Registry.MustRegister(connMgr)
 	return connMgr
 }
 
@@ -131,6 +138,62 @@ type connManager struct {
 	createdCounter prometheus.Counter
 	connCount      prometheus.Gauge
 	closedCounter  prometheus.Counter
+
+	msgsInDesc   *prometheus.Desc
+	msgsOutDesc  *prometheus.Desc
+	bytesInDesc  *prometheus.Desc
+	bytesOutDesc *prometheus.Desc
+}
+
+// Describe implements prometheus.Collector
+func (a *connManager) Describe(ch chan<- *prometheus.Desc) {
+	ch <- a.msgsInDesc
+	ch <- a.msgsOutDesc
+	ch <- a.bytesInDesc
+	ch <- a.bytesOutDesc
+}
+
+// Collect implements prometheus.Collector
+func (a *connManager) Collect(ch chan<- prometheus.Metric) {
+	a.mutex.RLock()
+	defer a.mutex.RUnlock()
+
+	var msgsIn, msgsOut, bytesIn, bytesOut uint64
+
+	for _, conn := range a.conns {
+		msgsIn += conn.InMsgs
+		msgsOut += conn.OutMsgs
+		bytesIn += conn.InBytes
+		bytesOut += conn.OutBytes
+	}
+
+	ch <- prometheus.MustNewConstMetric(
+		a.msgsInDesc,
+		prometheus.GaugeValue,
+		float64(msgsIn),
+		a.cluster.String(),
+	)
+
+	ch <- prometheus.MustNewConstMetric(
+		a.msgsOutDesc,
+		prometheus.GaugeValue,
+		float64(msgsOut),
+		a.cluster.String(),
+	)
+
+	ch <- prometheus.MustNewConstMetric(
+		a.bytesInDesc,
+		prometheus.GaugeValue,
+		float64(bytesIn),
+		a.cluster.String(),
+	)
+
+	ch <- prometheus.MustNewConstMetric(
+		a.bytesOutDesc,
+		prometheus.GaugeValue,
+		float64(bytesOut),
+		a.cluster.String(),
+	)
 }
 
 func (a *connManager) Cluster() ClusterName {
