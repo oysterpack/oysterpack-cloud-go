@@ -144,6 +144,7 @@ type ApplicationSettings struct {
 	LogLevel  *zerolog.Level
 }
 
+// NewApplicationDesc creates a new ApplicationDesc
 func NewApplicationDesc(
 	namespace string,
 	system string,

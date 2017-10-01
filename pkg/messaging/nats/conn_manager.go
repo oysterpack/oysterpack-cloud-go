@@ -71,6 +71,7 @@ type ConnManager interface {
 	HealthChecks() []metrics.HealthCheck
 }
 
+// DefaultOptions that are applied when creating a new ConnManager
 func DefaultOptions() nats.Options {
 	options := nats.GetDefaultOptions()
 	DefaultConnectTimeout(&options)
@@ -79,6 +80,7 @@ func DefaultOptions() nats.Options {
 	return options
 }
 
+// ConnManagerSettings are used to create new ConnManager instances
 type ConnManagerSettings struct {
 	ClusterName
 	Options []nats.Option

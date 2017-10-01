@@ -38,6 +38,8 @@ func NewManagedConn(cluster ClusterName, connId string, conn *nats.Conn, tags []
 	}
 }
 
+// ManagedConn represents a managed NATS connection
+// It tracks connection lifecycle events and collects metrics.
 type ManagedConn struct {
 	mutex sync.RWMutex
 
@@ -61,40 +63,47 @@ type ManagedConn struct {
 	errorCounter        prometheus.Counter
 }
 
+// ID is the unique id assigned to the connection for tracking purposes
 func (a *ManagedConn) ID() string {
 	return a.id
 }
 
+// Created is when the conn was created
 func (a *ManagedConn) Created() time.Time {
 	a.mutex.RLock()
 	defer a.mutex.RUnlock()
 	return a.created
 }
 
+// Tags are used for tracking connections based on application needs
 func (a *ManagedConn) Tags() []string {
 	a.mutex.RLock()
 	defer a.mutex.RUnlock()
 	return a.tags
 }
 
+// Disconnects tracks when the connection is disconnected
 func (a *ManagedConn) Disconnects() int {
 	a.mutex.RLock()
 	defer a.mutex.RUnlock()
 	return a.disconnects
 }
 
+// LastDisconnectTime records the last time a disconnect happened
 func (a *ManagedConn) LastDisconnectTime() time.Time {
 	a.mutex.RLock()
 	defer a.mutex.RUnlock()
 	return a.lastDisconnectTime
 }
 
+// LastReconnectTime records the last time the conn reconnected
 func (a *ManagedConn) LastReconnectTime() time.Time {
 	a.mutex.RLock()
 	defer a.mutex.RUnlock()
 	return a.lastReconnectTime
 }
 
+// LastErrorTime reports when the last error occurred
 func (a *ManagedConn) LastErrorTime() time.Time {
 	a.mutex.RLock()
 	defer a.mutex.RUnlock()
@@ -189,6 +198,7 @@ func (a *ManagedConn) discoveredServers() {
 	event.Msg("")
 }
 
+// ConnInfo retuns information regarding the conn
 func (a *ManagedConn) ConnInfo() *ConnInfo {
 	a.mutex.RLock()
 	defer a.mutex.RUnlock()

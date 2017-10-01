@@ -21,6 +21,7 @@ import (
 	"github.com/nats-io/go-nats"
 )
 
+// Connect is an alias for a NATS connect function
 type Connect func() (conn *ManagedConn, err error)
 
 // Connect Options

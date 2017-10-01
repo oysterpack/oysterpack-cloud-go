@@ -21,6 +21,7 @@ import (
 	"github.com/nats-io/go-nats"
 )
 
+// ConnInfo snapshot
 type ConnInfo struct {
 	Id      string
 	Created time.Time

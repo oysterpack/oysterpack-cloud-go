@@ -19,16 +19,19 @@ import (
 	gnatsd "github.com/nats-io/gnatsd/test"
 )
 
+// RunServer starts a test NATS server
 func RunServer() *server.Server {
 	return RunServerWithOptions(gnatsd.DefaultTestOptions)
 }
 
+// RunServerOnPort starts a test NATS server on the specified port
 func RunServerOnPort(port int) *server.Server {
 	opts := gnatsd.DefaultTestOptions
 	opts.Port = port
 	return RunServerWithOptions(opts)
 }
 
+// RunServerWithOptions starts a test NATS server with the specified options
 func RunServerWithOptions(opts server.Options) *server.Server {
 	return gnatsd.RunServer(&opts)
 }

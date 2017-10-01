@@ -39,6 +39,7 @@ var (
 	}
 )
 
+// HealthChecks returns all current registered healthchecks
 func HealthChecks() []HealthCheck {
 	registeredHealthChecks.RLock()
 	defer registeredHealthChecks.RUnlock()
@@ -360,6 +361,9 @@ func NewHealthCheck(opts prometheus.GaugeOpts, runInterval time.Duration, check 
 	return a
 }
 
+// NewHealthCheckVector creates a new HealthCheck.
+// check is required - panics if nil.
+// The healthcheck metrics are registered. Failing to registering the metrics will trigger a panic.
 func NewHealthCheckVector(opts *GaugeVecOpts, runInterval time.Duration, check RunHealthCheck, labelValues []string) HealthCheck {
 	registeredHealthChecks.Lock()
 	defer registeredHealthChecks.Unlock()

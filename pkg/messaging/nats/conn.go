@@ -24,6 +24,7 @@ import (
 	"github.com/oysterpack/oysterpack.go/pkg/messaging"
 )
 
+// NewConn is a constructor method for new nats based connections
 func NewConn(connect Connect) (messaging.Conn, error) {
 	nc, err := connect()
 	if err != nil {

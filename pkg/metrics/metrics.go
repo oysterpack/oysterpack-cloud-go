@@ -96,7 +96,7 @@ type GaugeVec struct {
 	*GaugeVecOpts
 }
 
-// Gauge aggregates the metric along with its opts
+// GaugeFunc aggregates the metric along with its opts
 type GaugeFunc struct {
 	prometheus.GaugeFunc
 	*prometheus.GaugeOpts

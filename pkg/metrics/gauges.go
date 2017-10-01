@@ -56,6 +56,10 @@ func GetOrMustRegisterGauge(opts *prometheus.GaugeOpts) prometheus.Gauge {
 	return gauge
 }
 
+// GetOrMustRegisterGaugeFunc registers a GaugeFunc, but first checks if a gauge with the same name is already registered.
+// If the gauge is already registered, and was registered with the same opts, then the cached metric is returned.
+// If the gauge is already registered, and was registered with the different opts, then a panic is triggered.
+// If no such gauge exists, then it is registered and cached along with its opts.
 func GetOrMustRegisterGaugeFunc(opts *prometheus.GaugeOpts, f func() float64) prometheus.GaugeFunc {
 	const FUNC = "GetOrMustRegisterGauge"
 	mutex.RLock()

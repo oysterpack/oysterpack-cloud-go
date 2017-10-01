@@ -13,10 +13,3 @@
 // limitations under the License.
 
 package nats
-
-import "errors"
-
-var (
-	ErrConnIsRequired = errors.New("Conn is required")
-	ErrConnIsClosed   = errors.New("Conn is closed")
-)

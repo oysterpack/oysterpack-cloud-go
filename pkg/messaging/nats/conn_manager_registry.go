@@ -20,7 +20,9 @@ import (
 	"github.com/oysterpack/oysterpack.go/pkg/service"
 )
 
+// ConnManagerRegistry is a registry for ConnManager instances
 type ConnManagerRegistry interface {
+	// Clusters returns the names of all registered ConnManager(s)
 	Clusters() []ClusterName
 
 	// ConnManager returns a registered ConnManager
@@ -46,7 +48,7 @@ func (a *connManagerRegistry) Clusters() []ClusterName {
 	defer a.RUnlock()
 	names := make([]ClusterName, len(a.registry))
 	i := 0
-	for name, _ := range a.registry {
+	for name := range a.registry {
 		names[i] = name
 		i++
 	}

@@ -19,10 +19,13 @@ import (
 	"time"
 )
 
+// Topic represents the name of a messaging topic
 type Topic string
 
+// ReplyTo is the topic name to send replies to
 type ReplyTo string
 
+// Message represents the message envelope
 type Message struct {
 	// Topic is the topic that the message is published to or received from
 	Topic
@@ -32,8 +35,12 @@ type Message struct {
 	Data []byte
 }
 
+// Queue represents the name of a messaging queue
 type Queue string
 
+// Subscription represents a topic subscriber's subscription.
+// It is used to receive messages via the Channel.
+// It is also used to track the subscription
 type Subscription interface {
 	// Subject that represents this subscription. This can be different
 	// than the received subject inside a Msg if this is a wildcard.
@@ -77,6 +84,7 @@ type Subscription interface {
 	Channel() <-chan *Message
 }
 
+// QueueSubscription represents a queue subscriber subscription
 type QueueSubscription interface {
 	Subscription
 
@@ -85,6 +93,7 @@ type QueueSubscription interface {
 	Queue() Queue
 }
 
+// Conn represents a messaging connection
 type Conn interface {
 	Publish(topic Topic, data []byte) error
 
@@ -101,6 +110,7 @@ type Conn interface {
 	QueueSubscribe(topic Topic, queue Queue, settings SubscriptionSettings) (QueueSubscription, error)
 }
 
+// SubscriptionSettings are used for subscribing to topics or queues
 type SubscriptionSettings struct {
 	// OPTIONAL - if nil, then defaults are applied
 	*PendingLimits
@@ -114,18 +124,28 @@ type PendingLimits struct {
 	BytesLimit int
 }
 
+// TopicPublisher is used to publish data to the specified topic.
+// Replies is used to communicate to the subscriber where to send replies to.
+// Messages are sent in fire and forget fashion.
 type TopicPublisher interface {
+	// Topic is where messages are published to
 	Topic() Topic
 
+	// ReplyTo
 	ReplyTo() ReplyTo
 
+	// Publish send the data to the above topic
 	Publish(data []byte) error
 }
 
+// RequestPublisher implements a request-response messaging model.
 type RequestPublisher interface {
+	// Topic is where messages are sent to.
 	Topic() Topic
 
+	// Request sends the request and waits for a response based on the specified timeout
 	Request(data []byte, timeout time.Duration) (response *Message, err error)
 
+	// RequestWithContext sends the request and waits for a response based on the context timeout
 	RequestWithContext(ctx context.Context, data []byte) (response *Message, err error)
 }

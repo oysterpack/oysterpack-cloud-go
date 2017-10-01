@@ -35,6 +35,7 @@ var (
 		registry: make(map[ClusterName]ConnManager),
 	}
 
+	// ConnManagerRegistry service singleton
 	ConnManagerRegistryService ConnManagerRegistry = registry
 
 	ConnManagerRegistryDescriptor = service.NewDescriptor(Namespace, System, Component, Version, ConnManagerRegistryInterface)

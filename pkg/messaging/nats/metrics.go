@@ -21,11 +21,14 @@ import (
 )
 
 const (
+	// MetricsNamespace is used as the metric namespace for nats related metrics
 	MetricsNamespace = "nats"
+	// MetricsNamespace is used as the metric subsystem for nats related metrics
 	MetricsSubSystem = "conn"
 )
 
 var (
+	// MetricLabels are the variable metric labels
 	MetricLabels = []string{"nats_cluster"}
 
 	// ConnManagerMetrics are the metrics registered for the ConnManager service
@@ -122,14 +125,6 @@ var (
 )
 
 var (
-	ConnManagerRegistryMetrics = &metrics.MetricOpts{
-		GaugeVecOpts: []*metrics.GaugeVecOpts{
-			MsgsInGauge,
-			MsgsOutGauge,
-			BytesInGauge,
-			BytesOutGauge,
-		},
-	}
 
 	// MsgsInGauge tracks the total number of messages that have been received on current connections
 	MsgsInGauge = &metrics.GaugeVecOpts{
