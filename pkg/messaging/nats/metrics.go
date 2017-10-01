@@ -23,7 +23,7 @@ import (
 const (
 	// MetricsNamespace is used as the metric namespace for nats related metrics
 	MetricsNamespace = "nats"
-	// MetricsNamespace is used as the metric subsystem for nats related metrics
+	// MetricsSubSystem is used as the metric subsystem for nats related metrics
 	MetricsSubSystem = "conn"
 )
 
