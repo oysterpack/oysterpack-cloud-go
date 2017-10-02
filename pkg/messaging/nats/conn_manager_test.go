@@ -329,7 +329,9 @@ func TestManagedConn_SubscribingWhileDisconnected(t *testing.T) {
 	if msg, err := sub.NextMsg(5 * time.Millisecond); err == nil {
 		t.Logf("msg was sent and received after reconnecting: %v", string(msg.Data))
 	} else {
-		t.Errorf("*** ERROR *** no msg was received after reconnected: %v", err)
+		dropped, _ := sub.Dropped()
+		msgs, bytes, _ := sub.Pending()
+		t.Errorf("*** ERROR *** no msg was received after reconnected: %v, dropped = %d, pending(msgs = %d, bytes = %d)", err, dropped, msgs, bytes)
 	}
 
 	select {

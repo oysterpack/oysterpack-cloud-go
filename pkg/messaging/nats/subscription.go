@@ -46,7 +46,7 @@ func (a *subscription) ClearMaxPending() error {
 	return a.sub.ClearMaxPending()
 }
 
-// Pending returns the number of queued messages and queued bytes in the client for this subscription.
+// PendingMessages returns the number of queued messages and queued bytes in the client for this subscription.
 func (a *subscription) Pending() (int, int, error) {
 	return a.sub.Pending()
 }
@@ -54,7 +54,7 @@ func (a *subscription) Pending() (int, int, error) {
 // PendingLimits returns the current limits for this subscription. If no error is returned, a negative value indicates
 // that the given metric is not limited.
 func (a *subscription) PendingLimits() (int, int, error) {
-	return a.sub.Pending()
+	return a.sub.PendingLimits()
 }
 
 // SetPendingLimits sets the limits for pending msgs and bytes for this subscription. Zero is not allowed.
@@ -89,9 +89,41 @@ func (a *subscription) Channel() <-chan *messaging.Message {
 	return a.c
 }
 
+func (a *subscription) SubscriptionInfo() (info *messaging.SubscriptionInfo, err error) {
+	delivered, err := a.Delivered()
+	dropped, err := a.Dropped()
+	maxPendingMsgs, maxPendingBytes, err := a.MaxPending()
+	pendingMsgs, pendingBytes, err := a.Pending()
+	pendingMsgsLimit, pendingBytesLimit, err := a.PendingLimits()
+	if err != nil {
+		return
+	}
+	info = &messaging.SubscriptionInfo{
+		Topic:         a.Topic(),
+		Delivered:     delivered,
+		Dropped:       dropped,
+		Valid:         a.IsValid(),
+		MaxPending:    messaging.PendingMessages{maxPendingMsgs, maxPendingBytes},
+		Pending:       messaging.PendingMessages{pendingMsgs, pendingBytes},
+		PendingLimits: messaging.PendingMessages{pendingMsgsLimit, pendingBytesLimit},
+	}
+	return
+}
+
 type queueSubscription struct {
 	messaging.Subscription
 	queue messaging.Queue
+}
+
+func (a *queueSubscription) QueueSubscriptionInfo() (*messaging.QueueSubscriptionInfo, error) {
+	info, err := a.SubscriptionInfo()
+	if err != nil {
+		return nil, err
+	}
+	return &messaging.QueueSubscriptionInfo{
+		SubscriptionInfo: info,
+		Queue:            a.Queue(),
+	}, nil
 }
 
 // Queue : All subscriptions with the same name will form a distributed queue, and each message will only be

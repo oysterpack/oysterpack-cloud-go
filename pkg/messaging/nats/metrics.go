@@ -42,6 +42,10 @@ var (
 		},
 		GaugeVecOpts: []*metrics.GaugeVecOpts{
 			ConnCountOpts,
+			MsgsInGauge,
+			MsgsOutGauge,
+			BytesInGauge,
+			BytesOutGauge,
 		},
 	}
 

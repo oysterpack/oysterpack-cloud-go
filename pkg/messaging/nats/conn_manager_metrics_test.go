@@ -53,7 +53,7 @@ func TestConnManager_Metrics(t *testing.T) {
 	for _, healthcheck := range connMgr.HealthChecks() {
 		result := healthcheck.Run()
 		if !result.Success() {
-			t.Errorf("healthcheck failed: %v", result)
+			t.Errorf("*** ERROR *** healthcheck failed: %v", result)
 		}
 	}
 
@@ -67,6 +67,7 @@ func TestConnManager_Metrics(t *testing.T) {
 		t.Fatalf("Failed to gather metrics : %v", err)
 	}
 
+	// log the metrics
 	for _, metric := range metrics {
 		if strings.HasPrefix(*metric.Name, nats.MetricsNamespace) {
 			jsonBytes, _ := json.MarshalIndent(metric, "", "   ")
@@ -74,6 +75,27 @@ func TestConnManager_Metrics(t *testing.T) {
 		}
 	}
 
+	t.Logf("pubConn : %v", pubConn)
+	t.Logf("subConn : %v", subConn)
+
+	totalMsgsIn := connMgr.TotalMsgsIn()
+	totalMsgsOut := connMgr.TotalMsgsOut()
+	totalBytesIn := connMgr.TotalBytesIn()
+	totalBytesOut := connMgr.TotalBytesOut()
+	t.Logf("totalMsgsIn = %d, totalMsgsOut = %d, totalBytesIn = %d, totalBytesOut = %d", totalMsgsIn, totalMsgsOut, totalBytesIn, totalBytesOut)
+
+	if totalMsgsIn != pubConn.InMsgs+subConn.InMsgs {
+		t.Errorf("*** ERROR *** counts do not match : %d != %d", totalMsgsIn, pubConn.InMsgs+subConn.InMsgs)
+	}
+	if totalMsgsOut != pubConn.OutMsgs+subConn.OutMsgs {
+		t.Errorf("*** ERROR *** counts do not match : %d != %d", totalMsgsOut, pubConn.OutMsgs+subConn.OutMsgs)
+	}
+	if totalBytesIn != pubConn.InBytes+subConn.InBytes {
+		t.Errorf("*** ERROR *** counts do not match : %d != %d", totalBytesIn, pubConn.InBytes+subConn.InBytes)
+	}
+	if totalBytesOut != pubConn.OutBytes+subConn.OutBytes {
+		t.Errorf("*** ERROR *** counts do not match : %d != %d", totalBytesOut, pubConn.OutBytes+subConn.OutBytes)
+	}
 }
 
 func TestConnManager_Metrics_Registered(t *testing.T) {
@@ -118,20 +140,20 @@ func TestConnManager_Metrics_Registered(t *testing.T) {
 
 	gatheredMetrics, err := metrics.Registry.Gather()
 	if value := *gauge(gatheredMetrics, nats.ConnCountOpts).GetMetric()[0].GetGauge().Value; value != 2 {
-		t.Errorf("conn count is wrong : %v", value)
+		t.Errorf("*** ERROR *** conn count is wrong : %v", value)
 	}
 
 	if value := *gauge(gatheredMetrics, nats.MsgsInGauge).GetMetric()[0].GetGauge().Value; uint64(value) != subConn.InMsgs {
-		t.Errorf("msgs in is wrong : %v", value)
+		t.Errorf("*** ERROR *** msgs in is wrong : %v", value)
 	}
 	if value := *gauge(gatheredMetrics, nats.MsgsOutGauge).GetMetric()[0].GetGauge().Value; uint64(value) != pubConn.OutMsgs {
-		t.Errorf("msgs out is wrong : %v", value)
+		t.Errorf("*** ERROR *** msgs out is wrong : %v", value)
 	}
 	if value := *gauge(gatheredMetrics, nats.BytesInGauge).GetMetric()[0].GetGauge().Value; uint64(value) != subConn.InBytes {
-		t.Errorf("bytes in is wrong : %v", value)
+		t.Errorf("*** ERROR *** bytes in is wrong : %v", value)
 	}
 	if value := *gauge(gatheredMetrics, nats.BytesOutGauge).GetMetric()[0].GetGauge().Value; uint64(value) != pubConn.OutBytes {
-		t.Errorf("bytes out is wrong : %v", value)
+		t.Errorf("*** ERROR *** bytes out is wrong : %v", value)
 	}
 
 	connMgr.CloseAll()
@@ -151,55 +173,55 @@ func TestConnManager_Metrics_Registered(t *testing.T) {
 
 	for _, opts := range nats.ConnManagerMetrics.CounterVecOpts {
 		if counter(gatheredMetrics, opts) == nil {
-			t.Errorf("Metric was not gathered : %v", prometheus.BuildFQName(opts.Namespace, opts.Subsystem, opts.Name))
+			t.Errorf("*** ERROR *** Metric was not gathered : %v", prometheus.BuildFQName(opts.Namespace, opts.Subsystem, opts.Name))
 		}
 	}
 
 	for _, opts := range nats.ConnManagerMetrics.GaugeVecOpts {
 		if gauge(gatheredMetrics, opts) == nil {
-			t.Errorf("Metric was not gathered : %v", prometheus.BuildFQName(opts.Namespace, opts.Subsystem, opts.Name))
+			t.Errorf("*** ERROR *** Metric was not gathered : %v", prometheus.BuildFQName(opts.Namespace, opts.Subsystem, opts.Name))
 		}
 	}
 
 	if value := *counter(gatheredMetrics, nats.CreatedCounterOpts).GetMetric()[0].GetCounter().Value; value != 2 {
-		t.Errorf("created count is wrong : %v", value)
+		t.Errorf("*** ERROR *** created count is wrong : %v", value)
 	}
 
 	if value := *counter(gatheredMetrics, nats.ClosedCounterOpts).GetMetric()[0].GetCounter().Value; value != 2 {
-		t.Errorf("closed count is wrong : %v", value)
+		t.Errorf("*** ERROR *** closed count is wrong : %v", value)
 	}
 
 	if value := *gauge(gatheredMetrics, nats.ConnCountOpts).GetMetric()[0].GetGauge().Value; value != 0 {
-		t.Errorf("closed count is wrong : %v", value)
+		t.Errorf("*** ERROR *** closed count is wrong : %v", value)
 	}
 
 	// disconnect events also occur on closing
 	if value := *counter(gatheredMetrics, nats.DisconnectedCounterOpts).GetMetric()[0].GetCounter().Value; value != 4 {
-		t.Errorf("disconnects count is wrong : %v", value)
+		t.Errorf("*** ERROR *** disconnects count is wrong : %v", value)
 	}
 
 	if value := *counter(gatheredMetrics, nats.ReconnectedCounterOpts).GetMetric()[0].GetCounter().Value; value != 2 {
-		t.Errorf("reconnects count is wrong : %v", value)
+		t.Errorf("*** ERROR *** reconnects count is wrong : %v", value)
 	}
 
 	t.Logf("pubConn : %v", pubConn)
 	t.Logf("subConn : %v", subConn)
 
 	if value := *counter(gatheredMetrics, nats.SubscriberErrorCounterOpts).GetMetric()[0].GetCounter().Value; int(value) != subConn.Errors() {
-		t.Errorf("subscriber error count is wrong : %v", value)
+		t.Errorf("*** ERROR *** subscriber error count is wrong : %v", value)
 	}
 
 	if value := *gauge(gatheredMetrics, nats.MsgsInGauge).GetMetric()[0].GetGauge().Value; uint64(value) != 0 {
-		t.Errorf("msgs in is wrong : %v", value)
+		t.Errorf("*** ERROR *** msgs in is wrong : %v", value)
 	}
 	if value := *gauge(gatheredMetrics, nats.MsgsOutGauge).GetMetric()[0].GetGauge().Value; uint64(value) != 0 {
-		t.Errorf("msgs out is wrong : %v", value)
+		t.Errorf("*** ERROR *** msgs out is wrong : %v", value)
 	}
 	if value := *gauge(gatheredMetrics, nats.BytesInGauge).GetMetric()[0].GetGauge().Value; uint64(value) != 0 {
-		t.Errorf("bytes in is wrong : %v", value)
+		t.Errorf("*** ERROR *** bytes in is wrong : %v", value)
 	}
 	if value := *gauge(gatheredMetrics, nats.BytesOutGauge).GetMetric()[0].GetGauge().Value; uint64(value) != 0 {
-		t.Errorf("bytes out is wrong : %v", value)
+		t.Errorf("*** ERROR *** bytes out is wrong : %v", value)
 	}
 }
 

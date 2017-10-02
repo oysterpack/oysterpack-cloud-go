@@ -56,7 +56,7 @@ type Subscription interface {
 	// ClearMaxPending resets the maximums seen so far.
 	ClearMaxPending() error
 
-	// Pending returns the number of queued messages and queued bytes in the client for this subscription.
+	// PendingMessages returns the number of queued messages and queued bytes in the client for this subscription.
 	Pending() (int, int, error)
 
 	// PendingLimits returns the current limits for this subscription. If no error is returned, a negative value indicates
@@ -82,6 +82,9 @@ type Subscription interface {
 
 	// Channel is used to receive the messages subscribed to
 	Channel() <-chan *Message
+
+	// SubscriptionInfo collects all info at once and returns it
+	SubscriptionInfo() (*SubscriptionInfo, error)
 }
 
 // QueueSubscription represents a queue subscriber subscription
@@ -91,6 +94,9 @@ type QueueSubscription interface {
 	// Queue : All subscriptions with the same name will form a distributed queue, and each message will only be
 	// processed by one member of the group. All messages sent to the corresponding Topic will be delivered to the queue.
 	Queue() Queue
+
+	// QueueSubscriptionInfo collects all info at once and returns it
+	QueueSubscriptionInfo() (*QueueSubscriptionInfo, error)
 }
 
 // Conn represents a messaging connection
@@ -148,4 +154,29 @@ type RequestPublisher interface {
 
 	// RequestWithContext sends the request and waits for a response based on the context timeout
 	RequestWithContext(ctx context.Context, data []byte) (response *Message, err error)
+}
+
+// SubscriptionInfo topic subscription info
+type SubscriptionInfo struct {
+	Topic         Topic
+	Delivered     int64
+	Dropped       int
+	Valid         bool
+	MaxPending    PendingMessages
+	Pending       PendingMessages
+	PendingLimits PendingMessages
+}
+
+// SubscriptionInfo queue subscription info
+type QueueSubscriptionInfo struct {
+	*SubscriptionInfo
+	Queue Queue
+}
+
+// PendingMessages returns counts for the number of pending messages and bytes
+type PendingMessages struct {
+	// number of messages pending
+	Count     int
+	// number of bytes for the pending messages
+	Bytes int
 }
