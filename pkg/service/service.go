@@ -80,11 +80,7 @@ type InterfaceDependencies map[Interface]*semver.Constraints
 // leveraging channels and goroutines.
 //
 //
-// TODO: Dependencies
 // TODO: events
-// TODO: logging
-// TODO: metrics
-// TODO: health checks
 // TODO: alarms
 // TODO: error / panic logging
 // TODO: error / panic handling
@@ -104,7 +100,7 @@ type service struct {
 
 	dependencies InterfaceDependencies
 
-	healthchecks []metrics.HealthCheck
+	*healthchecks
 
 	metricOpts *metrics.MetricOpts
 }
@@ -209,7 +205,7 @@ func NewService(settings Settings) Service {
 				destroy:      destroy,
 			},
 			logger:       svcLog,
-			healthchecks: settings.HealthChecks,
+			healthchecks: &healthchecks{settings.HealthChecks},
 		}
 		if len(settings.InterfaceDependencies) > 0 {
 			svc.dependencies = settings.InterfaceDependencies
@@ -622,89 +618,6 @@ func (a *service) Dependencies() InterfaceDependencies {
 func (a *service) String() string {
 	return fmt.Sprintf("Service : %v.%v", a.serviceInterface.PkgPath(), a.serviceInterface.Name())
 }
-
-/////////////// HealthChecks interface //////////////////////////
-
-func (a *service) HealthChecks() []metrics.HealthCheck {
-	return a.healthchecks
-}
-
-// FailedHealthChecks returns all failed health checks based on the last result.
-// If a HealthCheck has not yet been run, then it will be run.
-func (a *service) FailedHealthChecks() []metrics.HealthCheck {
-	failed := []metrics.HealthCheck{}
-	for _, healthcheck := range a.healthchecks {
-		if healthcheck.LastResult() != nil && !healthcheck.LastResult().Success() {
-			failed = append(failed, healthcheck)
-		}
-	}
-	return failed
-}
-
-// SucceededHealthChecks returns all health checks that succeeded based on the last result.
-// If a HealthCheck has not yet been run, then it will be run.
-func (a *service) SucceededHealthChecks() []metrics.HealthCheck {
-	succeeded := []metrics.HealthCheck{}
-	for _, healthcheck := range a.healthchecks {
-		if healthcheck.LastResult() != nil && healthcheck.LastResult().Success() {
-			succeeded = append(succeeded, healthcheck)
-		}
-	}
-	return succeeded
-}
-
-// RunAllHealthChecks runs all registered health checks.
-// After a health check is run it is delivered on the channel.
-func (a *service) RunAllHealthChecks() <-chan metrics.HealthCheck {
-	count := len(a.healthchecks)
-	c := make(chan metrics.HealthCheck, count)
-	wait := sync.WaitGroup{}
-	wait.Add(count)
-
-	for _, healthcheck := range a.healthchecks {
-		go func(healthcheck metrics.HealthCheck) {
-			defer func() {
-				c <- healthcheck
-				wait.Done()
-			}()
-			healthcheck.Run()
-		}(healthcheck)
-	}
-
-	go func() {
-		wait.Wait()
-		close(c)
-	}()
-
-	return c
-}
-
-// RunAllFailedHealthChecks all failed health checks based on the last result
-func (a *service) RunAllFailedHealthChecks() <-chan metrics.HealthCheck {
-	failedHealthChecks := a.FailedHealthChecks()
-	c := make(chan metrics.HealthCheck, len(failedHealthChecks))
-	wait := sync.WaitGroup{}
-	wait.Add(len(failedHealthChecks))
-
-	for _, healthcheck := range a.FailedHealthChecks() {
-		go func(healthcheck metrics.HealthCheck) {
-			defer func() {
-				c <- healthcheck
-				wait.Done()
-			}()
-			healthcheck.Run()
-		}(healthcheck)
-	}
-
-	go func() {
-		wait.Wait()
-		close(c)
-	}()
-
-	return c
-}
-
-/////////////// END - HealthChecks interface //////////////////////////
 
 // StopTrigger is used to notify the service to stop.
 // Closing the channel is the stop signal

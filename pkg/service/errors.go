@@ -95,7 +95,7 @@ func (e *ServiceNotFoundError) Error() string {
 	return fmt.Sprintf("Service not found : %v", e.ServiceKey)
 }
 
-// DependencyMappings maps a Interface to its Interface dependencies
+// DependencyMappings maps an Interface to its Interface dependencies
 type DependencyMappings struct {
 	Interface
 	Dependencies []Interface

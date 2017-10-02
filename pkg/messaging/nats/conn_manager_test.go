@@ -43,15 +43,15 @@ func TestNewConnectionManager(t *testing.T) {
 		t.Error("No connection was returned")
 	}
 	if conn2.ID() != conn.ID() {
-		t.Errorf("The wrong conn was returned : %v != %v", conn.ID(), conn2.ID())
+		t.Errorf("*** ERROR *** The wrong conn was returned : %v != %v", conn.ID(), conn2.ID())
 	}
 
 	if connMgr.ConnCount() != 1 {
-		t.Errorf("Expected ConnCount() == 1, but was %d", connMgr.ConnCount())
+		t.Errorf("*** ERROR *** Expected ConnCount() == 1, but was %d", connMgr.ConnCount())
 	}
 
 	if connMgr.ConnInfo(conn.ConnInfo().Id) == nil {
-		t.Errorf("should have been found")
+		t.Errorf("*** ERROR *** should have been found")
 	}
 }
 
@@ -107,7 +107,7 @@ func TestConnManager_CloseAll(t *testing.T) {
 	connMgr.CloseAll()
 
 	if conn.IsConnected() {
-		t.Errorf("should be closed")
+		t.Errorf("*** ERROR *** should be closed")
 	}
 
 	for i := 0; conn.Disconnects() != 1 && i < 3; i++ {
@@ -115,15 +115,15 @@ func TestConnManager_CloseAll(t *testing.T) {
 	}
 	t.Logf("after the connection is closed : %v", conn)
 	if conn.Disconnects() != 1 {
-		t.Errorf("The disonnect handler should have run by now")
+		t.Errorf("*** ERROR *** The disonnect handler should have run by now")
 	}
 
 	if connMgr.ConnCount() != 0 {
-		t.Errorf("There should be no conns")
+		t.Errorf("*** ERROR *** There should be no conns")
 	}
 
 	if connMgr.ConnInfo(conn.ConnInfo().Id) != nil {
-		t.Errorf("should have been removed")
+		t.Errorf("*** ERROR *** should have been removed")
 	}
 }
 
@@ -144,10 +144,10 @@ func TestManagedConn_CloseConn(t *testing.T) {
 
 	// make sure they are registered with the ConnManager
 	if connMgr.ConnCount() != COUNT {
-		t.Errorf("There should be %d conns, but the ConnManager reported : %d", COUNT, connMgr.ConnCount())
+		t.Errorf("*** ERROR *** There should be %d conns, but the ConnManager reported : %d", COUNT, connMgr.ConnCount())
 	}
 	if len(connMgr.ConnInfos()) != COUNT {
-		t.Errorf("The number of ConnInfo(s) returned did not match the expected count : %d != %d", len(connMgr.ConnInfos()), COUNT)
+		t.Errorf("*** ERROR *** The number of ConnInfo(s) returned did not match the expected count : %d != %d", len(connMgr.ConnInfos()), COUNT)
 	}
 
 	// Close a connectio
@@ -159,7 +159,7 @@ func TestManagedConn_CloseConn(t *testing.T) {
 	}
 	// verify that ConnManager has removed the closed conn
 	if connMgr.ConnCount() != COUNT-1 {
-		t.Errorf("There should be %d conns, but the ConnManager reported : %d", COUNT-1, connMgr.ConnCount())
+		t.Errorf("*** ERROR *** There should be %d conns, but the ConnManager reported : %d", COUNT-1, connMgr.ConnCount())
 	}
 }
 
@@ -174,7 +174,7 @@ func TestNewConnManager_CreatedTimestamp(t *testing.T) {
 	now := time.Now()
 	conn := mustConnect(t, connMgr)
 	if !conn.Created().After(now) {
-		t.Errorf("Created (%v) should be after (%v)", conn.Created(), now)
+		t.Errorf("*** ERROR *** Created (%v) should be after (%v)", conn.Created(), now)
 	}
 }
 
@@ -213,11 +213,11 @@ func TestManagedConn_DisconnectReconnect(t *testing.T) {
 	}
 	// check that none are connected
 	if count, total := connMgr.ConnectedCount(); count != 0 {
-		t.Errorf("All connections should be disconnected because the server is down : connected = %d, total = %d", count, total)
+		t.Errorf("*** ERROR *** All connections should be disconnected because the server is down : connected = %d, total = %d", count, total)
 	}
 	// check that all are disconnected
 	if count, total := connMgr.DisconnectedCount(); count != len(conns) {
-		t.Errorf("All connections should be disconnected because the server is down : connected = %d, total = %d", count, total)
+		t.Errorf("*** ERROR *** All connections should be disconnected because the server is down : connected = %d, total = %d", count, total)
 	}
 
 	server = natstest.RunServer()
@@ -231,19 +231,19 @@ func TestManagedConn_DisconnectReconnect(t *testing.T) {
 	time.Sleep(ReConnectTimeout)
 	// check that all connections are connected
 	if count, _ := connMgr.DisconnectedCount(); count != 0 {
-		t.Errorf("All connections should be reconnected")
+		t.Errorf("*** ERROR *** All connections should be reconnected")
 	}
 	if count, _ := connMgr.ConnectedCount(); count != len(connMgr.ConnInfos()) {
-		t.Errorf("All connections should be reconnected")
+		t.Errorf("*** ERROR *** All connections should be reconnected")
 	}
 	// check that LastDisconnectTime and LastReconnectTime were updated
 	for _, c := range conns {
 		t.Logf("after reconnect : %v", c)
 		if !c.LastDisconnectTime().After(c.Created()) {
-			t.Errorf("LastDisconnectTime (%v) should be after Created (%v)", c.LastDisconnectTime(), c.Created())
+			t.Errorf("*** ERROR *** LastDisconnectTime (%v) should be after Created (%v)", c.LastDisconnectTime(), c.Created())
 		}
 		if !c.LastReconnectTime().After(c.LastDisconnectTime()) {
-			t.Errorf("LastReconnectTime (%v) should be after LastDisconnectTime (%v)", c.LastReconnectTime(), c.LastDisconnectTime())
+			t.Errorf("*** ERROR *** LastReconnectTime (%v) should be after LastDisconnectTime (%v)", c.LastReconnectTime(), c.LastDisconnectTime())
 		}
 	}
 }
@@ -287,17 +287,17 @@ func TestManagedConn_SubscribingWhileDisconnected(t *testing.T) {
 	if err == nil {
 		t.Logf("Subscription was created on disconnected conn")
 	} else {
-		t.Errorf("Failed to subscribe on disconnected conn : %v", err)
+		t.Errorf("*** ERROR *** Failed to subscribe on disconnected conn : %v", err)
 	}
 
 	// expecting messages to be delivered on buffered channel subscription after reconnecting
 	bufferedChan := make(chan *natsio.Msg, 10)
 	bufferedChanSub, err := subConn.ChanSubscribe(SUBJECT, bufferedChan)
 	if !bufferedChanSub.IsValid() {
-		t.Errorf("subcription should be valid as long as the connection is not closed")
+		t.Errorf("*** ERROR *** subcription should be valid as long as the connection is not closed")
 	}
 	if err != nil {
-		t.Errorf("There should not have been an err : %v", err)
+		t.Errorf("*** ERROR *** There should not have been an err : %v", err)
 	}
 
 	logSubcriptionInfo(t, "unbufferedChanSub", unbufferedChanSub)
@@ -311,7 +311,7 @@ func TestManagedConn_SubscribingWhileDisconnected(t *testing.T) {
 	}
 
 	if err := pubConn.Publish(SUBJECT, []byte("TEST MSG")); err != nil {
-		t.Errorf("Did not expect an error because the conn will buffer messages whil disconnected : %v", err)
+		t.Errorf("*** ERROR *** Did not expect an error because the conn will buffer messages whil disconnected : %v", err)
 	}
 
 	server = natstest.RunServer()
@@ -324,16 +324,18 @@ func TestManagedConn_SubscribingWhileDisconnected(t *testing.T) {
 		t.Logf("after restarting the server :\npub: %v\nsub: %v", pubConn, subConn)
 	}
 
+	pubConn.Flush()
+
 	if msg, err := sub.NextMsg(5 * time.Millisecond); err == nil {
 		t.Logf("msg was sent and received after reconnecting: %v", string(msg.Data))
 	} else {
-		t.Errorf("no msg was received after reconnected: %v", err)
+		t.Errorf("*** ERROR *** no msg was received after reconnected: %v", err)
 	}
 
 	select {
 	case msg := <-unbufferedChan:
 		t.Logf("msg was received on channel after reconnected : %v", string(msg.Data))
-		t.Errorf("Expected msg to be dropped because the message was not received on the channel in a timely manner")
+		t.Errorf("*** ERROR *** Expected msg to be dropped because the message was not received on the channel in a timely manner")
 	default:
 		t.Logf("As expected msg was dropped because the message was not received on the channel in a timely manner")
 	}
@@ -342,13 +344,13 @@ func TestManagedConn_SubscribingWhileDisconnected(t *testing.T) {
 	case msg := <-bufferedChan:
 		t.Logf("msg was received on buffered channel after reconnected : %v", string(msg.Data))
 	default:
-		t.Errorf("No msg was received on buffered channel")
+		t.Errorf("*** ERROR *** No msg was received on buffered channel")
 	}
 
 	t.Logf("pub :%v\nsub : %v", pubConn, subConn)
 
 	if pubConn.LastError() != nil {
-		t.Errorf("Expected no errors to have recorded")
+		t.Errorf("*** ERROR *** Expected no errors to have recorded")
 	}
 
 	if subConn.LastError() != nil {
@@ -399,7 +401,7 @@ func TestManagedConn_UnbufferedChanSubscribingWhileDisconnected(t *testing.T) {
 
 	// publish message while disconnected
 	if err := pubConn.Publish(SUBJECT, []byte("TEST MSG")); err != nil {
-		t.Errorf("Did not expect an error because the conn will buffer messages while disconnected : %v", err)
+		t.Errorf("*** ERROR *** Did not expect an error because the conn will buffer messages while disconnected : %v", err)
 	}
 
 	t.Logf("publisher conn stats after publishing the message while disconnected : %v", pubConn.ConnInfo())
@@ -422,6 +424,7 @@ func TestManagedConn_UnbufferedChanSubscribingWhileDisconnected(t *testing.T) {
 
 	// flush messages that may be sitting on the publisher connection
 	pubConn.Flush()
+	time.Sleep(5 * time.Millisecond)
 
 	select {
 	case msg := <-msgChan:
@@ -436,13 +439,13 @@ func TestManagedConn_UnbufferedChanSubscribingWhileDisconnected(t *testing.T) {
 	t.Logf("subConn : %v", subConn)
 
 	if pubConn.LastError() != nil {
-		t.Errorf("Unexpected error : %v", pubConn.LastError())
+		t.Errorf("*** ERROR *** Unexpected error : %v", pubConn.LastError())
 	}
 
 	if subConn.LastError() != nil {
 		t.Logf("subscriber conn error : %v", subConn.LastError())
 	} else {
-		t.Errorf("Expected error due to message slow consumer")
+		t.Errorf("*** ERROR *** Expected error due to message slow consumer")
 	}
 
 	connMgr.CloseAll()
@@ -479,15 +482,15 @@ func TestManagedConn_BufferedChanSubscribingWhileDisconnected(t *testing.T) {
 	msgChan := make(chan *natsio.Msg, 10)
 	chanSub, err := subConn.ChanSubscribe(SUBJECT, msgChan)
 	if !chanSub.IsValid() {
-		t.Errorf("subcription should be valid as long as the connection is not closed")
+		t.Errorf("*** ERROR *** subcription should be valid as long as the connection is not closed")
 	}
 	if err != nil {
-		t.Errorf("There should not have been an err : %v", err)
+		t.Errorf("*** ERROR *** There should not have been an err : %v", err)
 	}
 
 	// publish message while disconnected
 	if err := pubConn.Publish(SUBJECT, []byte("TEST MSG")); err != nil {
-		t.Errorf("Did not expect an error because the conn will buffer messages whil disconnected : %v", err)
+		t.Errorf("*** ERROR *** Did not expect an error because the conn will buffer messages whil disconnected : %v", err)
 	}
 
 	select {
@@ -513,18 +516,18 @@ func TestManagedConn_BufferedChanSubscribingWhileDisconnected(t *testing.T) {
 	case msg := <-msgChan:
 		t.Logf("msg was received on buffered channel after reconnected : %v", string(msg.Data))
 	default:
-		t.Errorf("No msg was received on buffered channel")
+		t.Errorf("*** ERROR *** No msg was received on buffered channel")
 	}
 
 	t.Logf("pubConn : %v", pubConn)
 	t.Logf("subConn : %v", subConn)
 
 	if pubConn.LastError() != nil {
-		t.Errorf("Unexpected error : %v", pubConn.LastError())
+		t.Errorf("*** ERROR *** Unexpected error : %v", pubConn.LastError())
 	}
 
 	if subConn.LastError() != nil {
-		t.Errorf("Unexpected error : %v", subConn.LastError())
+		t.Errorf("*** ERROR *** Unexpected error : %v", subConn.LastError())
 		t.Logf("subscriber conn error : %v", subConn.LastError())
 	}
 
@@ -593,17 +596,17 @@ func TestManagedConn_AsyncSubscribingWhileDisconnected(t *testing.T) {
 	logSubcriptionInfo(t, "async sub", sub)
 	msgs, bytes, err := sub.Pending()
 	if err != nil {
-		t.Errorf("Error while retrieving pending info : %v", err)
+		t.Errorf("*** ERROR *** Error while retrieving pending info : %v", err)
 	}
 	if msgs != SEND_COUNT-1 {
 		t.Logf("The message handler should be blocked on 1 message and the reset should be pending : %v, %v", msgs, bytes)
 	}
 
 	if pubConn.LastError() != nil {
-		t.Errorf("Expected no errors")
+		t.Errorf("*** ERROR *** Expected no errors")
 	}
 	if subConn.LastError() != nil {
-		t.Errorf("Expected no errors")
+		t.Errorf("*** ERROR *** Expected no errors")
 	}
 
 	receivedCount := 0
@@ -617,7 +620,7 @@ func TestManagedConn_AsyncSubscribingWhileDisconnected(t *testing.T) {
 	logSubcriptionInfo(t, "async sub", sub)
 	msgs, bytes, err = sub.Pending()
 	if err != nil {
-		t.Errorf("Error while retrieving pending info : %v", err)
+		t.Errorf("*** ERROR *** Error while retrieving pending info : %v", err)
 	}
 	if msgs != 0 && bytes != 0 {
 		t.Logf("There should be none pending : %v, %v", msgs, bytes)
@@ -690,17 +693,17 @@ func TestManagedConn_AsyncSubscribingWhileDisconnected_WithPendingLimitsExceeded
 	logSubcriptionInfo(t, "async sub", sub)
 	msgs, bytes, err := sub.Pending()
 	if err != nil {
-		t.Errorf("Error while retrieving pending info : %v", err)
+		t.Errorf("*** ERROR *** Error while retrieving pending info : %v", err)
 	}
 	if msgs != SEND_COUNT-1 {
 		t.Logf("The message handler should be blocked on 1 message and the reset should be pending : %v, %v", msgs, bytes)
 	}
 
 	if pubConn.LastError() != nil {
-		t.Errorf("Expected no errors")
+		t.Errorf("*** ERROR *** Expected no errors")
 	}
 	if subConn.LastError() == nil {
-		t.Errorf("Expected errors because subscriber should have been flagged as slow consumer")
+		t.Errorf("*** ERROR *** Expected errors because subscriber should have been flagged as slow consumer")
 	} else {
 		t.Logf("%v : %v", subConn.LastError(), subConn.ConnInfo())
 	}
@@ -716,7 +719,7 @@ func TestManagedConn_AsyncSubscribingWhileDisconnected_WithPendingLimitsExceeded
 	logSubcriptionInfo(t, "async sub", sub)
 	msgs, bytes, err = sub.Pending()
 	if err != nil {
-		t.Errorf("Error while retrieving pending info : %v", err)
+		t.Errorf("*** ERROR *** Error while retrieving pending info : %v", err)
 	}
 	if msgs != 0 && bytes != 0 {
 		t.Logf("There should be none pending : %v, %v", msgs, bytes)
@@ -748,11 +751,11 @@ func logSubcriptionInfo(t *testing.T, name string, s *natsio.Subscription) {
 	default:
 		pendingMsgs, pendingBytes, err := s.Pending()
 		if err != nil {
-			t.Errorf("There should not have been an err : %v", err)
+			t.Errorf("*** ERROR *** There should not have been an err : %v", err)
 		}
 		pendingMsgLimit, pendingByteLimit, err := s.PendingLimits()
 		if err != nil {
-			t.Errorf("There should not have been an err : %v", err)
+			t.Errorf("*** ERROR *** There should not have been an err : %v", err)
 		}
 		t.Logf("%s : %s : valid = %v, pending : (%d, %d), limits: (%d, %d)", name, "SyncSubscription", s.IsValid(), pendingMsgs, pendingBytes, pendingMsgLimit, pendingByteLimit)
 	}

@@ -23,34 +23,16 @@ import (
 	"bytes"
 	"sort"
 
-	"strings"
-
 	"github.com/oysterpack/oysterpack.go/pkg/commons"
 	"github.com/oysterpack/oysterpack.go/pkg/logging"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
 var (
-	registeredHealthChecks = struct {
-		sync.RWMutex
-		healthchecks map[string]HealthCheck
-	}{
+	healthCheckRegistry = &HealthCheckRegistry{
 		healthchecks: make(map[string]HealthCheck),
 	}
 )
-
-// HealthChecks returns all current registered healthchecks
-func HealthChecks() []HealthCheck {
-	registeredHealthChecks.RLock()
-	defer registeredHealthChecks.RUnlock()
-	healthchecks := make([]HealthCheck, len(registeredHealthChecks.healthchecks))
-	i := 0
-	for _, healthcheck := range registeredHealthChecks.healthchecks {
-		healthchecks[i] = healthcheck
-		i++
-	}
-	return healthchecks
-}
 
 // HealthCheck represents a health check metric - it maps to a prometheus status, where
 // 	0 = FAIL
@@ -317,112 +299,16 @@ func (a *healthcheck) Scheduled() bool {
 // check is required - panics if nil.
 // The healthcheck metrics are registered. Failing to registering the metrics will trigger a panic.
 func NewHealthCheck(opts prometheus.GaugeOpts, runInterval time.Duration, check RunHealthCheck) HealthCheck {
-	registeredHealthChecks.Lock()
-	defer registeredHealthChecks.Unlock()
+	return healthCheckRegistry.NewHealthCheck(opts, runInterval, check)
+}
 
-	key := GaugeFQName(&opts)
-	if _, exists := registeredHealthChecks.healthchecks[key]; exists {
-		logger.Panic().Msgf("HealthCheck is already registered for : %q", key)
-	}
-
-	if check == nil {
-		panic("check is required")
-	}
-
-	// check for metric collision
-	if Registered(key) {
-		logger.Panic().Err(ErrMetricAlreadyRegistered).Msg("")
-	}
-
-	opts.ConstLabels = addLabels(healthcheckLabelsStatus, opts.ConstLabels)
-
-	a := &healthcheck{
-		opts:        opts,
-		run:         check,
-		status:      GetOrMustRegisterGauge(&opts),
-		runInterval: runInterval,
-	}
-
-	durationOpts := prometheus.GaugeOpts{
-		Namespace:   opts.Namespace,
-		Subsystem:   opts.Subsystem,
-		Name:        fmt.Sprintf("%s_duration_seconds", opts.Name),
-		Help:        "The healthckeck run duration in seconds",
-		ConstLabels: addLabels(healthcheckLabelsDuration, opts.ConstLabels),
-	}
-	// check for metric collision
-	if Registered(GaugeFQName(&durationOpts)) {
-		logger.Panic().Err(ErrMetricAlreadyRegistered).Msg("")
-	}
-
-	a.runDuration = GetOrMustRegisterGauge(&durationOpts)
-	a.StartTicker()
-	registeredHealthChecks.healthchecks[key] = a
-	return a
+func HealthChecks() []HealthCheck {
+	return healthCheckRegistry.HealthChecks()
 }
 
 // NewHealthCheckVector creates a new HealthCheck.
 // check is required - panics if nil.
 // The healthcheck metrics are registered. Failing to registering the metrics will trigger a panic.
 func NewHealthCheckVector(opts *GaugeVecOpts, runInterval time.Duration, check RunHealthCheck, labelValues []string) HealthCheck {
-	registeredHealthChecks.Lock()
-	defer registeredHealthChecks.Unlock()
-
-	key := strings.Join([]string{GaugeFQName(opts.GaugeOpts), strings.Join(labelValues, "")}, "")
-	if _, exists := registeredHealthChecks.healthchecks[key]; exists {
-		logger.Panic().Msgf("HealthCheck vector is already registered for : %q -> %q", GaugeFQName(opts.GaugeOpts), labelValues)
-	}
-
-	if check == nil {
-		logger.Panic().Msg("check is required")
-	}
-
-	if len(opts.Labels) == 0 {
-		logger.Panic().Msgf("Labels are required : %v", GaugeFQName(opts.GaugeOpts))
-	}
-
-	if len(labelValues) != len(opts.Labels) {
-		logger.Panic().Msgf("The number of label values must match the number of labels defined in the GaugeVecOpts : %v : %v", opts.Labels, labelValues)
-	}
-
-	opts.ConstLabels = addLabels(healthcheckLabelsStatus, opts.ConstLabels)
-
-	a := &healthcheck{
-		opts:        *opts.GaugeOpts,
-		labels:      opts.Labels,
-		labelValues: labelValues,
-		run:         check,
-		status:      GetOrMustRegisterGaugeVec(opts).WithLabelValues(labelValues...),
-		runInterval: runInterval,
-	}
-
-	durationOpts := &GaugeVecOpts{
-		&prometheus.GaugeOpts{
-			Namespace:   opts.Namespace,
-			Subsystem:   opts.Subsystem,
-			Name:        fmt.Sprintf("%s_duration_seconds", opts.Name),
-			Help:        "The healthckeck run duration in seconds",
-			ConstLabels: addLabels(healthcheckLabelsDuration, opts.ConstLabels),
-		}, opts.Labels,
-	}
-
-	a.runDuration = GetOrMustRegisterGaugeVec(durationOpts).WithLabelValues(labelValues...)
-	a.StartTicker()
-	registeredHealthChecks.healthchecks[key] = a
-	return a
-}
-
-func addLabels(from prometheus.Labels, to prometheus.Labels) prometheus.Labels {
-	if len(to) == 0 {
-		return from
-	}
-
-	labels := prometheus.Labels{}
-	for k, v := range to {
-		labels[k] = v
-	}
-	for k, v := range from {
-		labels[k] = v
-	}
-	return labels
+	return healthCheckRegistry.NewHealthCheckVector(opts, runInterval, check, labelValues)
 }
