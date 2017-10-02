@@ -302,6 +302,7 @@ func NewHealthCheck(opts prometheus.GaugeOpts, runInterval time.Duration, check 
 	return healthCheckRegistry.NewHealthCheck(opts, runInterval, check)
 }
 
+// HealthChecks returns all registered healthchecks
 func HealthChecks() []HealthCheck {
 	return healthCheckRegistry.HealthChecks()
 }

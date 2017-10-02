@@ -40,6 +40,7 @@ type HealthChecks interface {
 	RunAllFailedHealthChecks() <-chan metrics.HealthCheck
 }
 
+// NewHealthChecks is a factory method for HealthChecks
 func NewHealthChecks(checks ...metrics.HealthCheck) HealthChecks {
 	return &healthchecks{checks}
 }
