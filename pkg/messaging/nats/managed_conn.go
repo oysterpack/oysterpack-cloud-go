@@ -21,11 +21,12 @@ import (
 
 	"github.com/nats-io/go-nats"
 	"github.com/oysterpack/oysterpack.go/pkg/logging"
+	"github.com/oysterpack/oysterpack.go/pkg/messaging"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
 // NewManagedConn factory method
-func NewManagedConn(cluster ClusterName, connId string, conn *nats.Conn, tags []string) *ManagedConn {
+func NewManagedConn(cluster messaging.ClusterName, connId string, conn *nats.Conn, tags []string) *ManagedConn {
 	return &ManagedConn{
 		Conn:                conn,
 		id:                  connId,
@@ -48,7 +49,7 @@ type ManagedConn struct {
 	id      string
 	created time.Time
 	tags    []string
-	cluster ClusterName
+	cluster messaging.ClusterName
 
 	lastReconnectTime time.Time
 

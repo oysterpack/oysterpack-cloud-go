@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package nats
+package messaging
 
-import "github.com/oysterpack/oysterpack.go/pkg/messaging"
+import "errors"
 
-type topicPublisher struct {
-	topic messaging.Topic
-}
+var (
+	ErrTopicMustNotBeBlank = errors.New("Topic must not be blank")
+	ErrConnectionIsClosed = errors.New("Conn is closed")
+)

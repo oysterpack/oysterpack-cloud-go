@@ -23,6 +23,7 @@ import (
 	"github.com/nats-io/nuid"
 	"github.com/oysterpack/oysterpack.go/pkg/commons"
 	"github.com/oysterpack/oysterpack.go/pkg/logging"
+	"github.com/oysterpack/oysterpack.go/pkg/messaging"
 	"github.com/oysterpack/oysterpack.go/pkg/metrics"
 	"github.com/oysterpack/oysterpack.go/pkg/service"
 	"github.com/prometheus/client_golang/prometheus"
@@ -38,7 +39,7 @@ import (
 type ConnManager interface {
 	// ClusterName returns the name of the NATS cluster we are connecting to/
 	// The name is a logical name from the application's perspective.
-	Cluster() ClusterName
+	Cluster() messaging.ClusterName
 
 	Connect(tags ...string) (conn *ManagedConn, err error)
 
@@ -82,7 +83,7 @@ func DefaultOptions() nats.Options {
 
 // ConnManagerSettings are used to create new ConnManager instances
 type ConnManagerSettings struct {
-	ClusterName
+	messaging.ClusterName
 	Options []nats.Option
 }
 
@@ -125,7 +126,7 @@ func newConnManager(settings ConnManagerSettings) *connManager {
 // ManagedConn is a managed NATS connection.
 
 type connManager struct {
-	cluster ClusterName
+	cluster messaging.ClusterName
 	options nats.Options
 
 	*service.RestartableService
@@ -198,7 +199,7 @@ func (a *connManager) Collect(ch chan<- prometheus.Metric) {
 	)
 }
 
-func (a *connManager) Cluster() ClusterName {
+func (a *connManager) Cluster() messaging.ClusterName {
 	return a.cluster
 }
 

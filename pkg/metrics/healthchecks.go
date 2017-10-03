@@ -29,7 +29,8 @@ import (
 )
 
 var (
-	healthCheckRegistry = &HealthCheckRegistry{
+	// HealthChecks is the global HealthCheck registry
+	HealthChecks = &HealthCheckRegistry{
 		healthchecks: make(map[string]HealthCheck),
 	}
 )
@@ -81,6 +82,33 @@ type HealthCheck interface {
 type HealthCheckKey struct {
 	Name   string
 	Labels map[string]string
+
+	// used to cache the key
+	key string
+}
+
+func (a HealthCheckKey) String() string {
+	if a.key != "" {
+		return a.key
+	}
+	if len(a.Labels) > 0 {
+		keys := []string{}
+		for k := range a.Labels {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		buf := bytes.Buffer{}
+		for _, key := range keys {
+			buf.WriteString(key)
+			buf.WriteString("=")
+			buf.WriteString(a.Labels[key])
+			buf.WriteString(" ")
+		}
+		labels := string(buf.Bytes()[:len(buf.Bytes())-1])
+		a.key = fmt.Sprintf("%v[%v]", a.Name, labels)
+		return a.key
+	}
+	return a.Name
 }
 
 // RunHealthCheck is used to run the health check.
@@ -165,27 +193,7 @@ type healthcheck struct {
 }
 
 func (a *healthcheck) Key() HealthCheckKey {
-	return HealthCheckKey{a.Name(), a.Labels()}
-}
-
-func (a HealthCheckKey) String() string {
-	if len(a.Labels) > 0 {
-		keys := []string{}
-		for k := range a.Labels {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
-		buf := bytes.Buffer{}
-		for _, key := range keys {
-			buf.WriteString(key)
-			buf.WriteString("=")
-			buf.WriteString(a.Labels[key])
-			buf.WriteString(" ")
-		}
-		labels := string(buf.Bytes()[:len(buf.Bytes())-1])
-		return fmt.Sprintf("%v[%v]", a.Name, labels)
-	}
-	return a.Name
+	return HealthCheckKey{Name: a.Name(), Labels: a.Labels()}
 }
 
 func (a *healthcheck) Name() string {
@@ -299,17 +307,12 @@ func (a *healthcheck) Scheduled() bool {
 // check is required - panics if nil.
 // The healthcheck metrics are registered. Failing to registering the metrics will trigger a panic.
 func NewHealthCheck(opts prometheus.GaugeOpts, runInterval time.Duration, check RunHealthCheck) HealthCheck {
-	return healthCheckRegistry.NewHealthCheck(opts, runInterval, check)
-}
-
-// HealthChecks returns all registered healthchecks
-func HealthChecks() []HealthCheck {
-	return healthCheckRegistry.HealthChecks()
+	return HealthChecks.NewHealthCheck(opts, runInterval, check)
 }
 
 // NewHealthCheckVector creates a new HealthCheck.
 // check is required - panics if nil.
 // The healthcheck metrics are registered. Failing to registering the metrics will trigger a panic.
 func NewHealthCheckVector(opts *GaugeVecOpts, runInterval time.Duration, check RunHealthCheck, labelValues []string) HealthCheck {
-	return healthCheckRegistry.NewHealthCheckVector(opts, runInterval, check, labelValues)
+	return HealthChecks.NewHealthCheckVector(opts, runInterval, check, labelValues)
 }

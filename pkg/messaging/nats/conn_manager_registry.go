@@ -17,17 +17,18 @@ package nats
 import (
 	"sync"
 
+	"github.com/oysterpack/oysterpack.go/pkg/messaging"
 	"github.com/oysterpack/oysterpack.go/pkg/service"
 )
 
 // ConnManagerRegistry is a registry for ConnManager instances
 type ConnManagerRegistry interface {
 	// Clusters returns the names of all registered ConnManager(s)
-	Clusters() []ClusterName
+	Clusters() []messaging.ClusterName
 
 	// ConnManager returns a registered ConnManager
 	// false indicates that there is no ConnManager registered with the specified name
-	ConnManager(cluster ClusterName) (ConnManager, bool)
+	ConnManager(cluster messaging.ClusterName) (ConnManager, bool)
 
 	// MustRegister panics if a ConnManager is already registered with the same ClusterName
 	MustRegister(connManager ConnManager)
@@ -40,13 +41,13 @@ type connManagerRegistry struct {
 	*service.RestartableService
 
 	sync.RWMutex
-	registry map[ClusterName]ConnManager
+	registry map[messaging.ClusterName]ConnManager
 }
 
-func (a *connManagerRegistry) Clusters() []ClusterName {
+func (a *connManagerRegistry) Clusters() []messaging.ClusterName {
 	a.RLock()
 	defer a.RUnlock()
-	names := make([]ClusterName, len(a.registry))
+	names := make([]messaging.ClusterName, len(a.registry))
 	i := 0
 	for name := range a.registry {
 		names[i] = name
@@ -55,7 +56,7 @@ func (a *connManagerRegistry) Clusters() []ClusterName {
 	return names
 }
 
-func (a *connManagerRegistry) ConnManager(cluster ClusterName) (connMgr ConnManager, exists bool) {
+func (a *connManagerRegistry) ConnManager(cluster messaging.ClusterName) (connMgr ConnManager, exists bool) {
 	a.RLock()
 	defer a.RUnlock()
 	connMgr, exists = a.registry[cluster]

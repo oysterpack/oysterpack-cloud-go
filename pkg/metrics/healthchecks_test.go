@@ -191,7 +191,7 @@ func TestRegisterHealthCheckVector(t *testing.T) {
 		metrics.NewHealthCheckVector(opts, 0, ping, []string{"Bar"})
 	}()
 
-	if count := len(metrics.HealthChecks()); count != 2 {
+	if count := len(metrics.HealthChecks.HealthChecks()); count != 2 {
 		t.Errorf("registered healthcheck count did not match : %d", count)
 	}
 

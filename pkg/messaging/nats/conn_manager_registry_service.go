@@ -16,6 +16,7 @@ package nats
 
 import (
 	"github.com/oysterpack/oysterpack.go/pkg/commons/reflect"
+	"github.com/oysterpack/oysterpack.go/pkg/messaging"
 	"github.com/oysterpack/oysterpack.go/pkg/service"
 )
 
@@ -32,7 +33,7 @@ const (
 
 var (
 	registry = &connManagerRegistry{
-		registry: make(map[ClusterName]ConnManager),
+		registry: make(map[messaging.ClusterName]ConnManager),
 	}
 
 	// ConnManagerRegistryService service singleton

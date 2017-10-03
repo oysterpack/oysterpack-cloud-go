@@ -20,8 +20,13 @@ import (
 )
 
 type subscription struct {
-	sub *nats.Subscription
-	c   chan *messaging.Message
+	cluster messaging.ClusterName
+	sub     *nats.Subscription
+	c       chan *messaging.Message
+}
+
+func (a *subscription) Cluster() messaging.ClusterName {
+	return a.cluster
 }
 
 // Subject that represents this subscription. This can be different

@@ -12,4 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package nats
+package messaging
+
+import (
+	"fmt"
+	"regexp"
+)
+
+// ClusterName typesafe alias for a cluster name with built in validation
+type ClusterName string
+
+var clusterRegex = regexp.MustCompile(`^[a-z][0-9a-z_\-]+$`)
+
+// Validate checks the name against the regex `^[a-z][0-9a-z_\-]+$`
+func (a ClusterName) Validate() error {
+	if !clusterRegex.MatchString(a.String()) {
+		return fmt.Errorf("ClusterName %q did not match against regex : %s", a, clusterRegex)
+	}
+	return nil
+}
+
+func (a ClusterName) String() string {
+	return string(a)
+}

@@ -81,7 +81,7 @@ var (
 			Namespace:   MetricsNamespace,
 			Subsystem:   MetricsSubSystem,
 			Name:        "count",
-			Help:        "The number of current connections",
+			Help:        "The number of active connections",
 			ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, ConnManagerRegistryDescriptor),
 		},
 		MetricLabels,
@@ -94,7 +94,7 @@ var (
 			Namespace:   MetricsNamespace,
 			Subsystem:   MetricsSubSystem,
 			Name:        "disconnects",
-			Help:        "The number of times connections disconnected",
+			Help:        "The number of disconnects",
 			ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, ConnManagerRegistryDescriptor),
 		},
 		MetricLabels,
@@ -107,7 +107,7 @@ var (
 			Namespace:   MetricsNamespace,
 			Subsystem:   MetricsSubSystem,
 			Name:        "reconnects",
-			Help:        "The number of times connections reconnected",
+			Help:        "The number of reconnects",
 			ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, ConnManagerRegistryDescriptor),
 		},
 		MetricLabels,
@@ -120,7 +120,7 @@ var (
 			Namespace:   MetricsNamespace,
 			Subsystem:   MetricsSubSystem,
 			Name:        "subscriber_errors",
-			Help:        "The number of errors encountered while processing inbound messages.",
+			Help:        "The number of errors encountered while processing inbound messages",
 			ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, ConnManagerRegistryDescriptor),
 		},
 		MetricLabels,
@@ -128,15 +128,15 @@ var (
 	errorCounter = metrics.GetOrMustRegisterCounterVec(SubscriberErrorCounterOpts)
 )
 
+// These metrics are collected by each ConnManager.
 var (
-
 	// MsgsInGauge tracks the total number of messages that have been received on current connections
 	MsgsInGauge = &metrics.GaugeVecOpts{
 		&prometheus.GaugeOpts{
 			Namespace:   MetricsNamespace,
 			Subsystem:   MetricsSubSystem,
 			Name:        "msgs_in",
-			Help:        "The number of messages that have been received on all current connections.",
+			Help:        "The number of messages that have been received on all active connections.",
 			ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, ConnManagerRegistryDescriptor),
 		},
 		MetricLabels,
@@ -147,7 +147,7 @@ var (
 			Namespace:   MetricsNamespace,
 			Subsystem:   MetricsSubSystem,
 			Name:        "msgs_out",
-			Help:        "The number of messages that have been sent on all current connections.",
+			Help:        "The number of messages that have been sent on all active connections.",
 			ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, ConnManagerRegistryDescriptor),
 		},
 		MetricLabels,
@@ -158,7 +158,7 @@ var (
 			Namespace:   MetricsNamespace,
 			Subsystem:   MetricsSubSystem,
 			Name:        "bytes_in",
-			Help:        "The number of bytes that have been received on all current connections.",
+			Help:        "The number of bytes that have been received on all active connections.",
 			ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, ConnManagerRegistryDescriptor),
 		},
 		MetricLabels,
@@ -169,7 +169,7 @@ var (
 			Namespace:   MetricsNamespace,
 			Subsystem:   MetricsSubSystem,
 			Name:        "bytes_out",
-			Help:        "The number of bytes that have been sent on all current connections.",
+			Help:        "The number of bytes that have been sent on all active connections.",
 			ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, ConnManagerRegistryDescriptor),
 		},
 		MetricLabels,

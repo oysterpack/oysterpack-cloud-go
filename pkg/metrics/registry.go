@@ -73,9 +73,9 @@ func ResetRegistry() {
 	summariesMap = map[string]*Summary{}
 	summaryVecsMap = map[string]*SummaryVec{}
 
-	healthCheckRegistry.Lock()
-	defer healthCheckRegistry.Unlock()
-	healthCheckRegistry.healthchecks = map[string]HealthCheck{}
+	HealthChecks.Lock()
+	defer HealthChecks.Unlock()
+	HealthChecks.healthchecks = map[string]HealthCheck{}
 }
 
 // Registered returns true if a metric is registered with the same name
