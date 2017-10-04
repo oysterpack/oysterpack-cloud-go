@@ -23,14 +23,14 @@ import (
 // Replies is used to communicate to the subscriber where to send replies to.
 // Messages are sent in fire and forget fashion.
 type TopicPublisher struct {
-	conn Conn
-	topic Topic
+	conn    Conn
+	topic   Topic
 	replyTo ReplyTo
 }
 
 // NewTopicPublisher creates a new TopicPublisher
 func NewTopicPublisher(conn Conn, topic Topic, replyTo ReplyTo) *TopicPublisher {
-	return &TopicPublisher{conn,topic,replyTo}
+	return &TopicPublisher{conn, topic, replyTo}
 }
 
 // Cluster returns the name of the cluster that the topic belongs to
@@ -43,20 +43,19 @@ func (a *TopicPublisher) Topic() Topic {
 	return a.topic
 }
 
-// ReplyTo
+// ReplyTo specified the name of the topic to send replies to
 func (a *TopicPublisher) ReplyTo() ReplyTo {
 	return a.replyTo
 }
 
 // Publish send the data to the above topic
 func (a *TopicPublisher) Publish(data []byte) error {
-	return a.conn.Publish(a.topic,data)
+	return a.conn.Publish(a.topic, data)
 }
-
 
 // RequestPublisher implements a request-response messaging model.
 type RequestPublisher struct {
-	conn Conn
+	conn  Conn
 	topic Topic
 }
 
@@ -72,30 +71,30 @@ func (a *RequestPublisher) Topic() Topic {
 
 // Request sends the request and waits for a response based on the specified timeout
 func (a *RequestPublisher) Request(data []byte, timeout time.Duration) (response *Message, err error) {
-	return a.conn.Request(a.topic,data,timeout)
+	return a.conn.Request(a.topic, data, timeout)
 }
 
 // RequestWithContext sends the request and waits for a response based on the context timeout
 func (a *RequestPublisher) RequestWithContext(ctx context.Context, data []byte) (response *Message, err error) {
-	return a.conn.RequestWithContext(ctx,a.topic,data)
+	return a.conn.RequestWithContext(ctx, a.topic, data)
 }
 
 // AsyncRequest sends a message async using a request-response model.
 // The handler is notified async with a response
-func (a *RequestPublisher) AsyncRequest( data []byte, timeout time.Duration, handler func(Response)) {
+func (a *RequestPublisher) AsyncRequest(data []byte, timeout time.Duration, handler func(Response)) {
 	go func() {
 		msg, err := a.Request(data, timeout)
 		handler(Response{msg, err})
 	}()
 }
 
-// AsyncRequest sends a message async using a request-response model.
+// RequestChannel sends a message async using a request-response model.
 // The response is returned on the channel.
 func (a *RequestPublisher) RequestChannel(data []byte, timeout time.Duration) <-chan Response {
 	c := make(chan Response, 1)
 	go func() {
 		defer close(c)
-		msg, err := a.Request( data, timeout)
+		msg, err := a.Request(data, timeout)
 		c <- Response{msg, err}
 	}()
 	return c

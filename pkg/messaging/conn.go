@@ -33,10 +33,10 @@ type Conn interface {
 	// PublishMessage publishes the message data to the specified topic, with an optional reply to
 	PublishMessage(msg *Message) error
 
-	Publisher(topic Topic) (*TopicPublisher,error)
+	Publisher(topic Topic) (*TopicPublisher, error)
 
 	// Request sends a message using a request-response model.
-	// The method will block and wait for a reponse until the timeout expires.
+	// The method will block and wait for a response until the timeout expires.
 	Request(topic Topic, data []byte, timeout time.Duration) (response *Message, err error)
 
 	// AsyncRequest sends a message async using a request-response model.
@@ -48,7 +48,7 @@ type Conn interface {
 	RequestChannel(topic Topic, data []byte, timeout time.Duration) <-chan Response
 
 	// RequestWithContext sends a message using a request-response model.
-	// The method will block and wait for a reponse until the context is cancelled.
+	// The method will block and wait for a response until the context is cancelled.
 	RequestWithContext(ctx context.Context, topic Topic, data []byte) (response *Message, err error)
 
 	// AsyncRequestWithContext sends a message async using a request-response model.
@@ -78,9 +78,14 @@ type Conn interface {
 	Reconnecting() bool
 
 	// LastError reports the last error encountered via the connection and when it occurred
-	LastError() (error,time.Time)
+	LastError() *ConnErr
 
 	// MaxPayload returns the size limit that a message payload can have.
 	// This is set by the server configuration and delivered to the client upon connect.
 	MaxPayload() int64
+}
+
+type ConnErr struct {
+	Error     error
+	Timestamp time.Time
 }

@@ -21,6 +21,7 @@ import (
 // Topic represents the name of a messaging topic
 type Topic string
 
+// Validate checks that the topic is not blank
 func (a Topic) Validate() error {
 	if strings.TrimSpace(string(a)) == "" {
 		return ErrTopicMustNotBeBlank
@@ -44,11 +45,13 @@ type Message struct {
 // ReplyTo is the topic name to send replies to
 type ReplyTo string
 
+// Response is used for request-response messaging
 type Response struct {
 	*Message
 	Error error
 }
 
+// Success returns true if there was no error reported
 func (a *Response) Success() bool {
 	return a.Error == nil
 }

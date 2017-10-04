@@ -170,8 +170,11 @@ func (a *conn) Reconnecting() bool {
 }
 
 // LastError reports the last error encountered via the connection.
-func (a *conn) LastError() (error, time.Time) {
-	return a.nc.LastError(), a.nc.lastErrorTime
+func (a *conn) LastError() (err *messaging.ConnErr) {
+	if a.nc.LastError() != nil {
+		err = &messaging.ConnErr{a.nc.LastError(), a.nc.lastErrorTime}
+	}
+	return
 }
 
 // MaxPayload returns the size limit that a message payload can have.

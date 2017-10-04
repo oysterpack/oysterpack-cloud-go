@@ -103,7 +103,7 @@ type SubscriptionInfo struct {
 	PendingLimits PendingMessages
 }
 
-// SubscriptionInfo queue subscription info
+// QueueSubscriptionInfo queue subscription info
 type QueueSubscriptionInfo struct {
 	*SubscriptionInfo
 	Queue Queue

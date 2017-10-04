@@ -17,6 +17,8 @@ package messaging
 import "errors"
 
 var (
+	// ErrTopicMustNotBeBlank - Topic must not be blank
 	ErrTopicMustNotBeBlank = errors.New("Topic must not be blank")
+	// ErrConnectionIsClosed - Conn is closed
 	ErrConnectionIsClosed = errors.New("Conn is closed")
 )
