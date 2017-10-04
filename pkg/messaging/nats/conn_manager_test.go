@@ -703,29 +703,26 @@ func TestManagedConn_AsyncSubscribingWhileDisconnected_WithPendingLimitsExceeded
 
 	server.Shutdown()
 	time.Sleep(ReConnectTimeout)
-	if pubConn.IsConnected() || subConn.IsConnected() {
-		t.Fatal("conns should not be connected because the server is shutdown")
+	for {
+		if !pubConn.IsConnected() && !subConn.IsConnected() {
+			break
+		}
+		time.Sleep(ReConnectTimeout)
 	}
 
 	// publish messages while disconnected
-	for i := 1; i <= SEND_COUNT; i++ {
-		if err := pubConn.Publish(SUBJECT, []byte(fmt.Sprintf("TEST MSG #%d", i))); err != nil {
-			t.Fatalf("%d : Did not expect an error because the conn will buffer messages whil disconnected : %v", i, err)
-		} else {
-			t.Logf("published msg #%d", i)
-		}
-	}
+	publishTestMessages(t, pubConn, SUBJECT, SEND_COUNT)
 
 	server = natstest.RunServer()
 	defer server.Shutdown()
+	// ensure connections are re-connected
 	time.Sleep(ReConnectTimeout)
-
-	if !pubConn.IsConnected() || !subConn.IsConnected() {
-		t.Fatalf("Expected conns to be reconnected")
-	} else {
-		t.Logf("after restarting the server :\npub: %v\nsub: %v", pubConn, subConn)
+	for {
+		if pubConn.IsConnected() && subConn.IsConnected() {
+			break
+		}
+		time.Sleep(ReConnectTimeout)
 	}
-
 	pubConn.Flush()
 
 	t.Logf("pubConn : %v", pubConn)
@@ -748,22 +745,7 @@ func TestManagedConn_AsyncSubscribingWhileDisconnected_WithPendingLimitsExceeded
 		t.Logf("%v : %v", subConn.LastError(), subConn.ConnInfo())
 	}
 
-	receivedCount := 0
-	for i := 0; i < SEND_COUNT/2; i++ {
-		msg := <-ch
-		t.Logf("%v", string(msg.Data))
-		receivedCount++
-	}
-
-	t.Logf("receivedCount = %d", receivedCount)
-	logSubcriptionInfo(t, "async sub", sub)
-	msgs, bytes, err = sub.Pending()
-	if err != nil {
-		t.Errorf("*** ERROR *** Error while retrieving pending info : %v", err)
-	}
-	if msgs != 0 && bytes != 0 {
-		t.Logf("There should be none pending : %v, %v", msgs, bytes)
-	}
+	checkThatAllMessagesHaveBeenReceived(t, SEND_COUNT/2, ch, sub)
 
 	connMgr.CloseAll()
 	server.Shutdown()
