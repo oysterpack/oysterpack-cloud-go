@@ -29,6 +29,7 @@ import (
 	natsio "github.com/nats-io/go-nats"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_model/go"
+	dto "github.com/prometheus/client_model/go"
 )
 
 func TestConnManager_Metrics(t *testing.T) {
@@ -78,6 +79,7 @@ func TestConnManager_Metrics(t *testing.T) {
 	t.Logf("pubConn : %v", pubConn)
 	t.Logf("subConn : %v", subConn)
 
+	// check msg and bytes related metrics
 	totalMsgsIn := connMgr.TotalMsgsIn()
 	totalMsgsOut := connMgr.TotalMsgsOut()
 	totalBytesIn := connMgr.TotalBytesIn()
@@ -98,10 +100,9 @@ func TestConnManager_Metrics(t *testing.T) {
 	}
 }
 
-func TestConnManager_Metrics_Registered(t *testing.T) {
+func TestConnManager_Metrics_RestartingServer(t *testing.T) {
 	metrics.ResetRegistry()
 	defer metrics.ResetRegistry()
-
 	nats.RegisterMetrics()
 
 	backup := nats.DefaultReConnectTimeout
@@ -117,20 +118,42 @@ func TestConnManager_Metrics_Registered(t *testing.T) {
 	pubConn := mustConnect(t, connMgr)
 	subConn := mustConnect(t, connMgr)
 
+	// restart the server
 	server.Shutdown()
-	time.Sleep(10 * time.Millisecond)
 
-	server = natstest.RunServer()
-	defer server.Shutdown()
+	for {
+		if !pubConn.IsConnected()|| !subConn.IsConnected() {
+			break
+		}
+		t.Logf("server has been shutdown : waiting for connections to disconnect : pubConn.IsConnected() = %v : subConn.IsConnected() = %v", pubConn.IsConnected(), subConn.IsConnected())
+	}
 
-	time.Sleep(10 * time.Millisecond)
 
+	for _, healthcheck := range connMgr.HealthChecks() {
+		result := healthcheck.Run()
+		if result.Success() {
+			t.Error("*** ERROR *** healthcheck should have failed because server was shutdown.")
+		}
+	}
+
+	// subscribe and publish while disconnected
 	const TOPIC = "TestConnManager_Metrics"
 
 	ch := make(chan *natsio.Msg)
 	subConn.ChanSubscribe(TOPIC, ch)
 
 	pubConn.Publish(TOPIC, []byte("TEST"))
+
+	server = natstest.RunServer()
+	defer server.Shutdown()
+
+	// ensure connections are reconnected
+	for {
+		if pubConn.IsConnected() && subConn.IsConnected() {
+			break
+		}
+		t.Logf("waiting for connections to re-connect : pubConn.IsConnected() = %v : subConn.IsConnected() = %v", pubConn.IsConnected(), subConn.IsConnected())
+	}
 	pubConn.Flush()
 
 	select {
@@ -139,10 +162,87 @@ func TestConnManager_Metrics_Registered(t *testing.T) {
 	}
 
 	gatheredMetrics, err := metrics.Registry.Gather()
+	checkMetricsAfterReconnecting(t, gatheredMetrics, pubConn, subConn)
+
+	connMgr.CloseAll()
+	// give some time for conn handler callbacks to be invoked
+	time.Sleep(10 * time.Millisecond)
+
+	gatheredMetrics, err = metrics.Registry.Gather()
+	if err != nil {
+		t.Fatalf("Failed to gather gatheredMetrics : %v", err)
+	}
+
+	logMetrics(t, gatheredMetrics)
+
+	checkMetricsExist(t, gatheredMetrics)
+	checkLifecycleRelatedMetricCounts(t, gatheredMetrics, pubConn, subConn)
+	checkMsgPublishSubscribeStats(t, gatheredMetrics, pubConn, subConn)
+}
+
+func checkMsgPublishSubscribeStats(t *testing.T, gatheredMetrics []*dto.MetricFamily, pubConn *nats.ManagedConn, subConn *nats.ManagedConn) {
+	t.Helper()
+	t.Logf("pubConn : %v", pubConn)
+	t.Logf("subConn : %v", subConn)
+
+	if value := *counter(gatheredMetrics, nats.SubscriberErrorCounterOpts).GetMetric()[0].GetCounter().Value; int(value) != subConn.Errors() {
+		t.Errorf("*** ERROR *** subscriber error count is wrong : %v", value)
+	}
+	if value := *gauge(gatheredMetrics, nats.MsgsInGauge).GetMetric()[0].GetGauge().Value; uint64(value) != 0 {
+		t.Errorf("*** ERROR *** msgs in is wrong : %v", value)
+	}
+	if value := *gauge(gatheredMetrics, nats.MsgsOutGauge).GetMetric()[0].GetGauge().Value; uint64(value) != 0 {
+		t.Errorf("*** ERROR *** msgs out is wrong : %v", value)
+	}
+	if value := *gauge(gatheredMetrics, nats.BytesInGauge).GetMetric()[0].GetGauge().Value; uint64(value) != 0 {
+		t.Errorf("*** ERROR *** bytes in is wrong : %v", value)
+	}
+	if value := *gauge(gatheredMetrics, nats.BytesOutGauge).GetMetric()[0].GetGauge().Value; uint64(value) != 0 {
+		t.Errorf("*** ERROR *** bytes out is wrong : %v", value)
+	}
+}
+
+func checkLifecycleRelatedMetricCounts(t *testing.T, gatheredMetrics []*dto.MetricFamily, pubConn *nats.ManagedConn, subConn *nats.ManagedConn) {
+	t.Helper()
+	if value := *counter(gatheredMetrics, nats.CreatedCounterOpts).GetMetric()[0].GetCounter().Value; value != 2 {
+		t.Errorf("*** ERROR *** created count is wrong : %v", value)
+	}
+
+	if value := *counter(gatheredMetrics, nats.ClosedCounterOpts).GetMetric()[0].GetCounter().Value; value != 2 {
+		t.Errorf("*** ERROR *** closed count is wrong : %v", value)
+	}
+
+	if value := *gauge(gatheredMetrics, nats.ConnCountOpts).GetMetric()[0].GetGauge().Value; value != 0 {
+		t.Errorf("*** ERROR *** closed count is wrong : %v", value)
+	}
+	// disconnect events also occur on closing
+	if value := *counter(gatheredMetrics, nats.DisconnectedCounterOpts).GetMetric()[0].GetCounter().Value; value != 4 {
+		t.Errorf("*** ERROR *** disconnects count is wrong : %v", value)
+	}
+	if value := *counter(gatheredMetrics, nats.ReconnectedCounterOpts).GetMetric()[0].GetCounter().Value; value != 2 {
+		t.Errorf("*** ERROR *** reconnects count is wrong : %v", value)
+	}
+}
+
+func checkMetricsExist(t *testing.T, gatheredMetrics []*dto.MetricFamily) {
+	t.Helper()
+	for _, opts := range nats.ConnManagerMetrics.CounterVecOpts {
+		if counter(gatheredMetrics, opts) == nil {
+			t.Errorf("*** ERROR *** Metric was not gathered : %v", prometheus.BuildFQName(opts.Namespace, opts.Subsystem, opts.Name))
+		}
+	}
+	for _, opts := range nats.ConnManagerMetrics.GaugeVecOpts {
+		if gauge(gatheredMetrics, opts) == nil {
+			t.Errorf("*** ERROR *** Metric was not gathered : %v", prometheus.BuildFQName(opts.Namespace, opts.Subsystem, opts.Name))
+		}
+	}
+}
+
+func checkMetricsAfterReconnecting(t *testing.T, gatheredMetrics []*dto.MetricFamily, pubConn *nats.ManagedConn, subConn *nats.ManagedConn) {
+	t.Helper()
 	if value := *gauge(gatheredMetrics, nats.ConnCountOpts).GetMetric()[0].GetGauge().Value; value != 2 {
 		t.Errorf("*** ERROR *** conn count is wrong : %v", value)
 	}
-
 	if value := *gauge(gatheredMetrics, nats.MsgsInGauge).GetMetric()[0].GetGauge().Value; uint64(value) != subConn.InMsgs {
 		t.Errorf("*** ERROR *** msgs in is wrong : %v", value)
 	}
@@ -155,73 +255,15 @@ func TestConnManager_Metrics_Registered(t *testing.T) {
 	if value := *gauge(gatheredMetrics, nats.BytesOutGauge).GetMetric()[0].GetGauge().Value; uint64(value) != pubConn.OutBytes {
 		t.Errorf("*** ERROR *** bytes out is wrong : %v", value)
 	}
+}
 
-	connMgr.CloseAll()
-	time.Sleep(10 * time.Millisecond)
-
-	gatheredMetrics, err = metrics.Registry.Gather()
-	if err != nil {
-		t.Fatalf("Failed to gather gatheredMetrics : %v", err)
-	}
-
+func logMetrics(t *testing.T, gatheredMetrics []*dto.MetricFamily) {
+	t.Helper()
 	for _, metric := range gatheredMetrics {
 		if strings.HasPrefix(*metric.Name, nats.MetricsNamespace) {
 			jsonBytes, _ := json.MarshalIndent(metric, "", "   ")
 			t.Logf("%v", string(jsonBytes))
 		}
-	}
-
-	for _, opts := range nats.ConnManagerMetrics.CounterVecOpts {
-		if counter(gatheredMetrics, opts) == nil {
-			t.Errorf("*** ERROR *** Metric was not gathered : %v", prometheus.BuildFQName(opts.Namespace, opts.Subsystem, opts.Name))
-		}
-	}
-
-	for _, opts := range nats.ConnManagerMetrics.GaugeVecOpts {
-		if gauge(gatheredMetrics, opts) == nil {
-			t.Errorf("*** ERROR *** Metric was not gathered : %v", prometheus.BuildFQName(opts.Namespace, opts.Subsystem, opts.Name))
-		}
-	}
-
-	if value := *counter(gatheredMetrics, nats.CreatedCounterOpts).GetMetric()[0].GetCounter().Value; value != 2 {
-		t.Errorf("*** ERROR *** created count is wrong : %v", value)
-	}
-
-	if value := *counter(gatheredMetrics, nats.ClosedCounterOpts).GetMetric()[0].GetCounter().Value; value != 2 {
-		t.Errorf("*** ERROR *** closed count is wrong : %v", value)
-	}
-
-	if value := *gauge(gatheredMetrics, nats.ConnCountOpts).GetMetric()[0].GetGauge().Value; value != 0 {
-		t.Errorf("*** ERROR *** closed count is wrong : %v", value)
-	}
-
-	// disconnect events also occur on closing
-	if value := *counter(gatheredMetrics, nats.DisconnectedCounterOpts).GetMetric()[0].GetCounter().Value; value != 4 {
-		t.Errorf("*** ERROR *** disconnects count is wrong : %v", value)
-	}
-
-	if value := *counter(gatheredMetrics, nats.ReconnectedCounterOpts).GetMetric()[0].GetCounter().Value; value != 2 {
-		t.Errorf("*** ERROR *** reconnects count is wrong : %v", value)
-	}
-
-	t.Logf("pubConn : %v", pubConn)
-	t.Logf("subConn : %v", subConn)
-
-	if value := *counter(gatheredMetrics, nats.SubscriberErrorCounterOpts).GetMetric()[0].GetCounter().Value; int(value) != subConn.Errors() {
-		t.Errorf("*** ERROR *** subscriber error count is wrong : %v", value)
-	}
-
-	if value := *gauge(gatheredMetrics, nats.MsgsInGauge).GetMetric()[0].GetGauge().Value; uint64(value) != 0 {
-		t.Errorf("*** ERROR *** msgs in is wrong : %v", value)
-	}
-	if value := *gauge(gatheredMetrics, nats.MsgsOutGauge).GetMetric()[0].GetGauge().Value; uint64(value) != 0 {
-		t.Errorf("*** ERROR *** msgs out is wrong : %v", value)
-	}
-	if value := *gauge(gatheredMetrics, nats.BytesInGauge).GetMetric()[0].GetGauge().Value; uint64(value) != 0 {
-		t.Errorf("*** ERROR *** bytes in is wrong : %v", value)
-	}
-	if value := *gauge(gatheredMetrics, nats.BytesOutGauge).GetMetric()[0].GetGauge().Value; uint64(value) != 0 {
-		t.Errorf("*** ERROR *** bytes out is wrong : %v", value)
 	}
 }
 

@@ -85,6 +85,7 @@ type Conn interface {
 	MaxPayload() int64
 }
 
+// ConnErr contains a conn error and when it happened
 type ConnErr struct {
 	Error     error
 	Timestamp time.Time
