@@ -555,6 +555,17 @@ func TestManagedConn_BufferedChanSubscribingWhileDisconnected(t *testing.T) {
 	server.Shutdown()
 }
 
+func publishTestMessages(t *testing.T, pubConn *nats.ManagedConn, topic string, count int) {
+	t.Helper()
+	for i := 1; i <= count; i++ {
+		if err := pubConn.Publish(topic, []byte(fmt.Sprintf("TEST MSG #%d", i))); err != nil {
+			t.Fatalf("*** ERROR *** %d : %v", i, err)
+		} else {
+			t.Logf("published msg #%d", i)
+		}
+	}
+}
+
 // When using an async subscriber, NATS will buffer pending messages based on the subscription's pending limits.
 // Thus messages won't be dropped until the pending limits have been exceeded
 func TestManagedConn_AsyncSubscribingWhileDisconnected(t *testing.T) {
@@ -584,36 +595,36 @@ func TestManagedConn_AsyncSubscribingWhileDisconnected(t *testing.T) {
 	logSubcriptionInfo(t, "async sub", sub)
 
 	server.Shutdown()
-	time.Sleep(ReConnectTimeout)
-	if pubConn.IsConnected() || subConn.IsConnected() {
-		t.Fatal("conns should not be connected because the server is shutdown")
+
+	for {
+		if !pubConn.IsConnected() && !subConn.IsConnected() {
+			break
+		}
 	}
 
 	// publish messages while disconnected
 	const SEND_COUNT = 20
-	for i := 1; i <= SEND_COUNT; i++ {
-		if err := pubConn.Publish(SUBJECT, []byte(fmt.Sprintf("TEST MSG #%d", i))); err != nil {
-			t.Fatalf("%d : Did not expect an error because the conn will buffer messages whil disconnected : %v", i, err)
-		} else {
-			t.Logf("published msg #%d", i)
-		}
-	}
+	publishTestMessages(t, pubConn, SUBJECT, SEND_COUNT)
 
+	// restart the server
 	server = natstest.RunServer()
 	defer server.Shutdown()
+
+	// ensure connections are re-connected
 	time.Sleep(ReConnectTimeout)
-
-	if !pubConn.IsConnected() || !subConn.IsConnected() {
-		t.Fatalf("Expected conns to be reconnected")
-	} else {
-		t.Logf("after restarting the server :\npub: %v\nsub: %v", pubConn, subConn)
+	for {
+		if pubConn.IsConnected() && subConn.IsConnected() {
+			break
+		}
+		time.Sleep(ReConnectTimeout)
 	}
-
+	// ensure all messages have been flushed to the server
 	pubConn.Flush()
 
 	t.Logf("pubConn : %v", pubConn)
 	t.Logf("subConn : %v", subConn)
 	logSubcriptionInfo(t, "async sub", sub)
+
 	msgs, bytes, err := sub.Pending()
 	if err != nil {
 		t.Errorf("*** ERROR *** Error while retrieving pending info : %v", err)
@@ -621,33 +632,42 @@ func TestManagedConn_AsyncSubscribingWhileDisconnected(t *testing.T) {
 	if msgs != SEND_COUNT-1 {
 		t.Logf("The message handler should be blocked on 1 message and the reset should be pending : %v, %v", msgs, bytes)
 	}
+	checkForErrors(t, pubConn, subConn)
 
-	if pubConn.LastError() != nil {
-		t.Errorf("*** ERROR *** Expected no errors")
-	}
-	if subConn.LastError() != nil {
-		t.Errorf("*** ERROR *** Expected no errors")
-	}
+	checkThatAllMessagesHaveBeenReceived(t, SEND_COUNT, ch, sub)
 
+	connMgr.CloseAll()
+	server.Shutdown()
+}
+
+func checkThatAllMessagesHaveBeenReceived(t *testing.T, count int, ch chan *natsio.Msg, sub *natsio.Subscription) {
+	t.Helper()
 	receivedCount := 0
-	for i := 0; i < SEND_COUNT; i++ {
+	for i := 0; i < count; i++ {
 		msg := <-ch
 		t.Logf("%v", string(msg.Data))
 		receivedCount++
 	}
-
-	t.Logf("receivedCount = %d", receivedCount)
+	if count != receivedCount {
+		t.Errorf("*** ERROR *** not all messages were received : %d != %d", count, receivedCount)
+	}
 	logSubcriptionInfo(t, "async sub", sub)
-	msgs, bytes, err = sub.Pending()
+	msgs, bytes, err := sub.Pending()
 	if err != nil {
 		t.Errorf("*** ERROR *** Error while retrieving pending info : %v", err)
 	}
-	if msgs != 0 && bytes != 0 {
-		t.Logf("There should be none pending : %v, %v", msgs, bytes)
+	if msgs != 0 || bytes != 0 {
+		t.Errorf("There should be none pending : %v, %v", msgs, bytes)
 	}
+}
 
-	connMgr.CloseAll()
-	server.Shutdown()
+func checkForErrors(t *testing.T, conns ...*nats.ManagedConn) {
+	t.Helper()
+	for i, conn := range conns {
+		if conn.LastError() != nil {
+			t.Errorf("*** ERROR *** Expected no errors : %d : %v", i, conn.LastError())
+		}
+	}
 }
 
 // When using an async subscriber, NATS will buffer pending messages based on the subscription's pending limits.
