@@ -248,6 +248,38 @@ func TestManagedConn_DisconnectReconnect(t *testing.T) {
 	}
 }
 
+func checkConnectionsAfterDisonnected(t *testing.T, pubConn *nats.ManagedConn, subConn *nats.ManagedConn, sub *natsio.Subscription) {
+	t.Helper()
+	if pubConn.IsConnected() || subConn.IsConnected() {
+		t.Fatal("conns should not be connected because the server is shutdown")
+	}
+	if _, err := sub.NextMsg(1 * time.Millisecond); err == nil {
+		t.Error("Expected error because the server was shutdown")
+	} else {
+		t.Logf("server was shutdown : sub.NextMsg() err : %v", err)
+		t.Logf("after failing to receive next msg on disconnected pubConn :\n%v\n%v", pubConn, subConn)
+	}
+}
+
+func subscribeOnChannel(t *testing.T, subConn *nats.ManagedConn, topic string, ch chan *natsio.Msg) *natsio.Subscription {
+	t.Helper()
+	sub, err := subConn.ChanSubscribe(topic, ch)
+	if err != nil {
+		t.Fatalf("*** ERROR *** Failed to subscribe on disconnected conn : %v", err)
+	}
+	return sub
+}
+
+func checkNoMessagesWereRecieved(t *testing.T, ch chan *natsio.Msg) {
+	t.Helper()
+	select {
+	case <-ch:
+		t.Fatalf("*** ERROR *** no msg should have been received")
+	default:
+		t.Log("as expected, no message was received while disconnected")
+	}
+}
+
 func TestManagedConn_SubscribingWhileDisconnected(t *testing.T) {
 	metrics.ResetRegistry()
 	backup := nats.DefaultReConnectTimeout
@@ -271,83 +303,43 @@ func TestManagedConn_SubscribingWhileDisconnected(t *testing.T) {
 
 	server.Shutdown()
 	time.Sleep(ReConnectTimeout)
-	if pubConn.IsConnected() || subConn.IsConnected() {
-		t.Fatal("conns should not be connected because the server is shutdown")
-	}
-	if _, err := sub.NextMsg(1 * time.Millisecond); err == nil {
-		t.Error("Expected error because the server was shutdown")
-	} else {
-		t.Logf("server was shutdown : sub.NextMsg() err : %v", err)
-		t.Logf("after failing to receive next msg on disconnected pubConn :\n%v\n%v", pubConn, subConn)
-	}
+	checkConnectionsAfterDisonnected(t, pubConn, subConn, sub)
 
 	// expecting messages to be dropped on unbuffered channel subscription after reconnecting
 	unbufferedChan := make(chan *natsio.Msg)
-	unbufferedChanSub, err := subConn.ChanSubscribe(SUBJECT, unbufferedChan)
-	if err == nil {
-		t.Logf("Subscription was created on disconnected conn")
-	} else {
-		t.Errorf("*** ERROR *** Failed to subscribe on disconnected conn : %v", err)
-	}
+	unbufferedChanSub := subscribeOnChannel(t, subConn, SUBJECT, unbufferedChan)
 
 	// expecting messages to be delivered on buffered channel subscription after reconnecting
 	bufferedChan := make(chan *natsio.Msg, 10)
-	bufferedChanSub, err := subConn.ChanSubscribe(SUBJECT, bufferedChan)
-	if !bufferedChanSub.IsValid() {
-		t.Errorf("*** ERROR *** subcription should be valid as long as the connection is not closed")
-	}
-	if err != nil {
-		t.Errorf("*** ERROR *** There should not have been an err : %v", err)
-	}
+	bufferedChanSub := subscribeOnChannel(t, subConn, SUBJECT, bufferedChan)
 
 	logSubcriptionInfo(t, "unbufferedChanSub", unbufferedChanSub)
 	logSubcriptionInfo(t, "bufferedChanSub", bufferedChanSub)
-
-	select {
-	case <-unbufferedChan:
-		t.Error("no msg should have been received")
-	default:
-		t.Log("as expected, no message was received while disconnected")
-	}
 
 	if err := pubConn.Publish(SUBJECT, []byte("TEST MSG")); err != nil {
 		t.Errorf("*** ERROR *** Did not expect an error because the conn will buffer messages whil disconnected : %v", err)
 	}
 
+	checkNoMessagesWereRecieved(t, unbufferedChan)
+	checkNoMessagesWereRecieved(t, bufferedChan)
+
 	server = natstest.RunServer()
 	defer server.Shutdown()
 	time.Sleep(ReConnectTimeout)
 
-	if !pubConn.IsConnected() || !subConn.IsConnected() {
-		t.Fatalf("Expected conns to be reconnected")
-	} else {
-		t.Logf("after restarting the server :\npub: %v\nsub: %v", pubConn, subConn)
+	for {
+		if pubConn.IsConnected() && subConn.IsConnected() {
+			break
+		}
+		t.Logf("Waiting for conns to reconnect : pubConn.IsConnected = %v : subConn.IsConnected = %v", pubConn.IsConnected(), subConn.IsConnected())
+		time.Sleep(ReConnectTimeout)
 	}
+
+	t.Logf("after restarting the server :\npub: %v\nsub: %v", pubConn, subConn)
 
 	pubConn.Flush()
 
-	if msg, err := sub.NextMsg(5 * time.Millisecond); err == nil {
-		t.Logf("msg was sent and received after reconnecting: %v", string(msg.Data))
-	} else {
-		dropped, _ := sub.Dropped()
-		msgs, bytes, _ := sub.Pending()
-		t.Errorf("*** ERROR *** no msg was received after reconnected: %v, dropped = %d, pending(msgs = %d, bytes = %d)", err, dropped, msgs, bytes)
-	}
-
-	select {
-	case msg := <-unbufferedChan:
-		t.Logf("msg was received on channel after reconnected : %v", string(msg.Data))
-		t.Errorf("*** ERROR *** Expected msg to be dropped because the message was not received on the channel in a timely manner")
-	default:
-		t.Logf("As expected msg was dropped because the message was not received on the channel in a timely manner")
-	}
-
-	select {
-	case msg := <-bufferedChan:
-		t.Logf("msg was received on buffered channel after reconnected : %v", string(msg.Data))
-	default:
-		t.Errorf("*** ERROR *** No msg was received on buffered channel")
-	}
+	receiveMessagesAfterReconnecting(t, sub, unbufferedChan, bufferedChan)
 
 	t.Logf("pub :%v\nsub : %v", pubConn, subConn)
 
@@ -359,6 +351,32 @@ func TestManagedConn_SubscribingWhileDisconnected(t *testing.T) {
 		t.Logf("subscriber conn error : %v", subConn.LastError())
 	}
 
+}
+
+func receiveMessagesAfterReconnecting(t *testing.T, sub *natsio.Subscription, unbufferedChan, bufferedChan chan *natsio.Msg) {
+	t.Helper()
+
+	if msg, err := sub.NextMsg(5 * time.Millisecond); err == nil {
+		t.Logf("msg was sent and received after reconnecting: %v", string(msg.Data))
+	} else {
+		dropped, _ := sub.Dropped()
+		msgs, bytes, _ := sub.Pending()
+		t.Errorf("*** ERROR *** no msg was received after reconnected: %v, dropped = %d, pending(msgs = %d, bytes = %d)", err, dropped, msgs, bytes)
+	}
+
+	select {
+	case msg := <-unbufferedChan:
+		t.Errorf("*** ERROR *** Expected msg to be dropped because the message was not received on the channel in a timely manner : %v", string(msg.Data))
+	default:
+		t.Logf("As expected msg was dropped because the message was not received on the channel in a timely manner")
+	}
+
+	select {
+	case msg := <-bufferedChan:
+		t.Logf("msg was received on buffered channel after reconnected : %v", string(msg.Data))
+	default:
+		t.Errorf("*** ERROR *** No msg was received on buffered channel")
+	}
 }
 
 // Observed behavior :

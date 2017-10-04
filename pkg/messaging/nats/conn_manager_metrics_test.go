@@ -122,12 +122,11 @@ func TestConnManager_Metrics_RestartingServer(t *testing.T) {
 	server.Shutdown()
 
 	for {
-		if !pubConn.IsConnected()|| !subConn.IsConnected() {
+		if !pubConn.IsConnected() || !subConn.IsConnected() {
 			break
 		}
 		t.Logf("server has been shutdown : waiting for connections to disconnect : pubConn.IsConnected() = %v : subConn.IsConnected() = %v", pubConn.IsConnected(), subConn.IsConnected())
 	}
-
 
 	for _, healthcheck := range connMgr.HealthChecks() {
 		result := healthcheck.Run()
