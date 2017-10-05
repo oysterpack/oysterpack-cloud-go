@@ -59,8 +59,9 @@ type RequestPublisher struct {
 	topic Topic
 }
 
+// NewRequestPublisher creates a new RequestPublisher
 func NewRequestPublisher(conn Conn, topic Topic) *RequestPublisher {
-	return &RequestPublisher{conn,topic}
+	return &RequestPublisher{conn, topic}
 }
 
 // Cluster returns the name of the cluster that the topic belongs to

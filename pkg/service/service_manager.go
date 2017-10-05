@@ -14,9 +14,11 @@
 
 package service
 
-// StopRestartServices is used to stop/restart services
+// ServiceManager is used to stop/restart services
 // all operations are async, i.e., they initiate the action, but do not block to wait for the operation to complete
-type StopRestartServices interface {
+type ServiceManager interface {
+	// ServiceStates returns a snapshot of the current states for all registered services
+	ServiceStates() map[Interface]State
 
 	// returns ServiceNotFoundError if the service is not registered
 	RestartServiceByType(serviceInterface Interface) error

@@ -532,10 +532,16 @@ func TestManagedConn_BufferedChanSubscribingWhileDisconnected(t *testing.T) {
 	pubConn.Flush()
 	subConn.Flush()
 
-	select {
-	case msg := <-msgChan:
-		t.Logf("msg was received on buffered channel after reconnected : %v", string(msg.Data))
-	default:
+	var msg *natsio.Msg
+	for i := 0; i < 3; i++ {
+		select {
+		case msg = <-msgChan:
+			t.Logf("msg was received on buffered channel after reconnected : %v", string(msg.Data))
+		default:
+			time.Sleep(10 * time.Millisecond)
+		}
+	}
+	if msg == nil {
 		t.Errorf("*** ERROR *** No msg was received on buffered channel")
 	}
 
@@ -643,12 +649,19 @@ func TestManagedConn_AsyncSubscribingWhileDisconnected(t *testing.T) {
 func checkThatAllMessagesHaveBeenReceived(t *testing.T, count int, ch chan *natsio.Msg, sub *natsio.Subscription) {
 	t.Helper()
 	receivedCount := 0
-	for i := 0; i < count; i++ {
+	for {
 		msg := <-ch
 		t.Logf("%v", string(msg.Data))
 		receivedCount++
+		msgs, _, err := sub.Pending()
+		if err != nil {
+			t.Fatalf("Failed to get pending count : %v", err)
+		}
+		if msgs == 0 {
+			break
+		}
 	}
-	if count != receivedCount {
+	if count < receivedCount {
 		t.Errorf("*** ERROR *** not all messages were received : %d != %d", count, receivedCount)
 	}
 	logSubcriptionInfo(t, "async sub", sub)

@@ -75,6 +75,7 @@ func (a *ManagedConn) ID() string {
 	return a.id
 }
 
+// Cluster returns the name of the cluster that the connection belongs to
 func (a *ManagedConn) Cluster() messaging.ClusterName {
 	return a.cluster
 }
@@ -241,6 +242,8 @@ func (a *ManagedConn) String() string {
 	return string(bytes)
 }
 
+// TopicSubscribe creates a Subscription
+// The Subscription is registered and tracked for metrics collection purposes
 func (a *ManagedConn) TopicSubscribe(topic messaging.Topic, settings *messaging.SubscriptionSettings) (messaging.Subscription, error) {
 	if err := checkSubscriptionSettings(settings); err != nil {
 		return nil, err
@@ -262,6 +265,8 @@ func (a *ManagedConn) TopicSubscribe(topic messaging.Topic, settings *messaging.
 	return topicSubscription, nil
 }
 
+// TopicQueueSubscribe creates a QueueSubscription
+// The QueueSubscription is registered and tracked for metrics collection purposes
 func (a *ManagedConn) TopicQueueSubscribe(topic messaging.Topic, queue messaging.Queue, settings *messaging.SubscriptionSettings) (messaging.QueueSubscription, error) {
 	if err := checkSubscriptionSettings(settings); err != nil {
 		return nil, err
@@ -285,12 +290,14 @@ func (a *ManagedConn) TopicQueueSubscribe(topic messaging.Topic, queue messaging
 	return qSubscription, nil
 }
 
+// TopicSubscriptionCount returns the number of currently tracked subscriptions
 func (a *ManagedConn) TopicSubscriptionCount() int {
 	a.topicSubscriptions.RLock()
 	defer a.topicSubscriptions.RUnlock()
 	return len(a.topicSubscriptions.subscriptions)
 }
 
+// QueueSubscriptionCount returns the number of currently tracked queue subscriptions
 func (a *ManagedConn) QueueSubscriptionCount() int {
 	a.queueSubscriptions.RLock()
 	defer a.queueSubscriptions.RUnlock()

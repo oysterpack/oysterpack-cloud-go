@@ -68,13 +68,13 @@ func TestMarshalCustomAlias(t *testing.T) {
 
 func TestStructKey(t *testing.T) {
 	m := map[Key]int{
-		Key{"a","b"}:1,
-		Key{"a","b"}:2,
-		Key{"a","z"}:3,
+		Key{"a", "b"}: 1,
+		Key{"a", "b"}: 2,
+		Key{"a", "z"}: 3,
 	}
-	t.Logf("%v",m)
-	m[Key{"a","b"}] = 4
-	t.Logf("%v",m)
+	t.Logf("%v", m)
+	m[Key{"a", "b"}] = 4
+	t.Logf("%v", m)
 }
 
 type Key struct {
