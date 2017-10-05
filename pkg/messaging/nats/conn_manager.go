@@ -113,18 +113,91 @@ func newConnManager(settings ConnManagerSettings) *connManager {
 		connCount:      connCount.WithLabelValues(settings.ClusterName.String()),
 		closedCounter:  closedCounter.WithLabelValues(settings.ClusterName.String()),
 
-		msgsInDesc:   prometheus.NewDesc(metrics.GaugeFQName(MsgsInGauge.GaugeOpts), MsgsInGauge.GaugeOpts.Help, MetricLabels, MsgsInGauge.GaugeOpts.ConstLabels),
-		msgsOutDesc:  prometheus.NewDesc(metrics.GaugeFQName(MsgsOutGauge.GaugeOpts), MsgsOutGauge.GaugeOpts.Help, MetricLabels, MsgsOutGauge.GaugeOpts.ConstLabels),
-		bytesInDesc:  prometheus.NewDesc(metrics.GaugeFQName(BytesInGauge.GaugeOpts), BytesInGauge.GaugeOpts.Help, MetricLabels, BytesInGauge.GaugeOpts.ConstLabels),
-		bytesOutDesc: prometheus.NewDesc(metrics.GaugeFQName(BytesOutGauge.GaugeOpts), BytesOutGauge.GaugeOpts.Help, MetricLabels, BytesOutGauge.GaugeOpts.ConstLabels),
+		msgsInDesc:   prometheus.NewDesc(metrics.GaugeFQName(MsgsInGauge.GaugeOpts), MsgsInGauge.GaugeOpts.Help, MsgsInGauge.Labels, MsgsInGauge.GaugeOpts.ConstLabels),
+		msgsOutDesc:  prometheus.NewDesc(metrics.GaugeFQName(MsgsOutGauge.GaugeOpts), MsgsOutGauge.GaugeOpts.Help, MsgsOutGauge.Labels, MsgsOutGauge.GaugeOpts.ConstLabels),
+		bytesInDesc:  prometheus.NewDesc(metrics.GaugeFQName(BytesInGauge.GaugeOpts), BytesInGauge.GaugeOpts.Help, BytesInGauge.Labels, BytesInGauge.GaugeOpts.ConstLabels),
+		bytesOutDesc: prometheus.NewDesc(metrics.GaugeFQName(BytesOutGauge.GaugeOpts), BytesOutGauge.GaugeOpts.Help, BytesOutGauge.Labels, BytesOutGauge.GaugeOpts.ConstLabels),
+
+		topicPendingMessages: prometheus.NewDesc(
+			metrics.GaugeFQName(TopicPendingMessages.GaugeOpts),
+			TopicPendingMessages.GaugeOpts.Help,
+			TopicPendingMessages.Labels,
+			TopicPendingMessages.GaugeOpts.ConstLabels,
+		),
+		topicPendingBytes: prometheus.NewDesc(
+			metrics.GaugeFQName(TopicPendingBytes.GaugeOpts),
+			TopicPendingBytes.GaugeOpts.Help,
+			TopicPendingBytes.Labels,
+			TopicPendingBytes.GaugeOpts.ConstLabels,
+		),
+		topicMaxPendingMessages: prometheus.NewDesc(
+			metrics.GaugeFQName(TopicMaxPendingMessages.GaugeOpts),
+			TopicMaxPendingMessages.GaugeOpts.Help,
+			TopicMaxPendingMessages.Labels,
+			TopicMaxPendingMessages.GaugeOpts.ConstLabels,
+		),
+		topicMaxPendingBytes: prometheus.NewDesc(
+			metrics.GaugeFQName(TopicMaxPendingBytes.GaugeOpts),
+			TopicMaxPendingBytes.GaugeOpts.Help,
+			TopicMaxPendingBytes.Labels,
+			TopicMaxPendingBytes.GaugeOpts.ConstLabels,
+		),
+		topicMessagesDropped: prometheus.NewDesc(
+			metrics.GaugeFQName(TopicMessagesDropped.GaugeOpts),
+			TopicMessagesDropped.GaugeOpts.Help,
+			TopicMessagesDropped.Labels,
+			TopicMessagesDropped.GaugeOpts.ConstLabels,
+		),
+		topicMessagesDelivered: prometheus.NewDesc(
+			metrics.GaugeFQName(TopicMessagesDelivered.GaugeOpts),
+			TopicMessagesDelivered.GaugeOpts.Help,
+			TopicMessagesDelivered.Labels,
+			TopicMessagesDelivered.GaugeOpts.ConstLabels,
+		),
+
+		queuePendingMessages: prometheus.NewDesc(
+			metrics.GaugeFQName(QueuePendingMessages.GaugeOpts),
+			QueuePendingMessages.GaugeOpts.Help,
+			QueuePendingMessages.Labels,
+			QueuePendingMessages.GaugeOpts.ConstLabels,
+		),
+		queuePendingBytes: prometheus.NewDesc(
+			metrics.GaugeFQName(QueuePendingBytes.GaugeOpts),
+			QueuePendingBytes.GaugeOpts.Help,
+			QueuePendingBytes.Labels,
+			QueuePendingBytes.GaugeOpts.ConstLabels,
+		),
+		queueMaxPendingMessages: prometheus.NewDesc(
+			metrics.GaugeFQName(QueueMaxPendingMessages.GaugeOpts),
+			QueueMaxPendingMessages.GaugeOpts.Help,
+			QueueMaxPendingMessages.Labels,
+			QueueMaxPendingMessages.GaugeOpts.ConstLabels,
+		),
+		queueMaxPendingBytes: prometheus.NewDesc(
+			metrics.GaugeFQName(QueueMaxPendingBytes.GaugeOpts),
+			QueueMaxPendingBytes.GaugeOpts.Help,
+			QueueMaxPendingBytes.Labels,
+			QueueMaxPendingBytes.GaugeOpts.ConstLabels,
+		),
+		queueMessagesDropped: prometheus.NewDesc(
+			metrics.GaugeFQName(QueueMessagesDropped.GaugeOpts),
+			QueueMessagesDropped.GaugeOpts.Help,
+			QueueMessagesDropped.Labels,
+			QueueMessagesDropped.GaugeOpts.ConstLabels,
+		),
+		queueMessagesDelivered: prometheus.NewDesc(
+			metrics.GaugeFQName(QueueMessagesDelivered.GaugeOpts),
+			QueueMessagesDelivered.GaugeOpts.Help,
+			QueueMessagesDelivered.Labels,
+			QueueMessagesDelivered.GaugeOpts.ConstLabels,
+		),
 	}
 	connMgr.init()
 	metrics.Registry.MustRegister(connMgr)
 	return connMgr
 }
 
-// ManagedConn is a managed NATS connection.
-
+// implements prometheus.Collector, i.e., it collects connection related metrics
 type connManager struct {
 	cluster messaging.ClusterName
 	options nats.Options
@@ -146,6 +219,20 @@ type connManager struct {
 	msgsOutDesc  *prometheus.Desc
 	bytesInDesc  *prometheus.Desc
 	bytesOutDesc *prometheus.Desc
+
+	topicPendingMessages    *prometheus.Desc
+	topicPendingBytes       *prometheus.Desc
+	topicMaxPendingMessages *prometheus.Desc
+	topicMaxPendingBytes    *prometheus.Desc
+	topicMessagesDelivered  *prometheus.Desc
+	topicMessagesDropped    *prometheus.Desc
+
+	queuePendingMessages    *prometheus.Desc
+	queuePendingBytes       *prometheus.Desc
+	queueMaxPendingMessages *prometheus.Desc
+	queueMaxPendingBytes    *prometheus.Desc
+	queueMessagesDelivered  *prometheus.Desc
+	queueMessagesDropped    *prometheus.Desc
 }
 
 // Describe implements prometheus.Collector
@@ -154,6 +241,20 @@ func (a *connManager) Describe(ch chan<- *prometheus.Desc) {
 	ch <- a.msgsOutDesc
 	ch <- a.bytesInDesc
 	ch <- a.bytesOutDesc
+
+	ch <- a.topicPendingMessages
+	ch <- a.topicPendingBytes
+	ch <- a.topicMaxPendingMessages
+	ch <- a.topicMaxPendingBytes
+	ch <- a.topicMessagesDelivered
+	ch <- a.topicMessagesDropped
+
+	ch <- a.queuePendingMessages
+	ch <- a.queuePendingBytes
+	ch <- a.queueMaxPendingMessages
+	ch <- a.queueMaxPendingBytes
+	ch <- a.queueMessagesDelivered
+	ch <- a.queueMessagesDropped
 }
 
 // Collect implements prometheus.Collector
@@ -162,41 +263,95 @@ func (a *connManager) Collect(ch chan<- prometheus.Metric) {
 	defer a.mutex.RUnlock()
 
 	var msgsIn, msgsOut, bytesIn, bytesOut uint64
+	topicSubscriptionMetrics := map[messaging.Topic]*subscriptionMetrics{}
+	queueSubscriptionMetrics := map[topicQueueKey]*queueSubscriptionMetrics{}
 
 	for _, conn := range a.conns {
 		msgsIn += conn.InMsgs
 		msgsOut += conn.OutMsgs
 		bytesIn += conn.InBytes
 		bytesOut += conn.OutBytes
+
+		for topic, metrics := range conn.topicSubscriptions.collectMetrics() {
+			agg, exists := topicSubscriptionMetrics[topic]
+			if exists {
+				agg.add(metrics)
+			} else {
+				topicSubscriptionMetrics[topic] = metrics
+			}
+		}
+
+		for key, metrics := range conn.queueSubscriptions.collectMetrics() {
+			agg, exists := queueSubscriptionMetrics[key]
+			if exists {
+				agg.add(metrics.subscriptionMetrics)
+			} else {
+				queueSubscriptionMetrics[key] = metrics
+			}
+		}
 	}
 
-	ch <- prometheus.MustNewConstMetric(
-		a.msgsInDesc,
-		prometheus.GaugeValue,
-		float64(msgsIn),
-		a.cluster.String(),
+	ch <- prometheus.MustNewConstMetric(a.msgsInDesc,
+		prometheus.GaugeValue, float64(msgsIn), a.cluster.String(),
+	)
+	ch <- prometheus.MustNewConstMetric(a.msgsOutDesc,
+		prometheus.GaugeValue, float64(msgsOut), a.cluster.String(),
+	)
+	ch <- prometheus.MustNewConstMetric(a.bytesInDesc,
+		prometheus.GaugeValue, float64(bytesIn), a.cluster.String(),
+	)
+	ch <- prometheus.MustNewConstMetric(a.bytesOutDesc,
+		prometheus.GaugeValue, float64(bytesOut), a.cluster.String(),
 	)
 
-	ch <- prometheus.MustNewConstMetric(
-		a.msgsOutDesc,
-		prometheus.GaugeValue,
-		float64(msgsOut),
-		a.cluster.String(),
-	)
+	a.reportTopicSubscriptionMetrics(ch, topicSubscriptionMetrics)
+	a.reportQueueSubscriptionMetrics(ch, queueSubscriptionMetrics)
+}
 
-	ch <- prometheus.MustNewConstMetric(
-		a.bytesInDesc,
-		prometheus.GaugeValue,
-		float64(bytesIn),
-		a.cluster.String(),
-	)
+func (a *connManager) reportTopicSubscriptionMetrics(ch chan<- prometheus.Metric, topicSubscriptionMetrics map[messaging.Topic]*subscriptionMetrics) {
+	for _, metrics := range topicSubscriptionMetrics {
+		ch <- prometheus.MustNewConstMetric(a.topicPendingMessages,
+			prometheus.GaugeValue, float64(metrics.pendingMsgs), a.cluster.String(), string(metrics.topic),
+		)
+		ch <- prometheus.MustNewConstMetric(a.topicPendingBytes,
+			prometheus.GaugeValue, float64(metrics.pendingBytes), a.cluster.String(), string(metrics.topic),
+		)
+		ch <- prometheus.MustNewConstMetric(a.topicMaxPendingMessages,
+			prometheus.GaugeValue, float64(metrics.pendingMsgsMax), a.cluster.String(), string(metrics.topic),
+		)
+		ch <- prometheus.MustNewConstMetric(a.topicMaxPendingBytes,
+			prometheus.GaugeValue, float64(metrics.pendingBytesMax), a.cluster.String(), string(metrics.topic),
+		)
+		ch <- prometheus.MustNewConstMetric(a.topicMessagesDropped,
+			prometheus.GaugeValue, float64(metrics.dropped), a.cluster.String(), string(metrics.topic),
+		)
+		ch <- prometheus.MustNewConstMetric(a.topicMessagesDelivered,
+			prometheus.GaugeValue, float64(metrics.delivered), a.cluster.String(), string(metrics.topic),
+		)
+	}
+}
 
-	ch <- prometheus.MustNewConstMetric(
-		a.bytesOutDesc,
-		prometheus.GaugeValue,
-		float64(bytesOut),
-		a.cluster.String(),
-	)
+func (a *connManager) reportQueueSubscriptionMetrics(ch chan<- prometheus.Metric, queueSubscriptionMetrics map[topicQueueKey]*queueSubscriptionMetrics) {
+	for _, metrics := range queueSubscriptionMetrics {
+		ch <- prometheus.MustNewConstMetric(a.queuePendingMessages,
+			prometheus.GaugeValue, float64(metrics.pendingMsgs), a.cluster.String(), string(metrics.topic), string(metrics.queue),
+		)
+		ch <- prometheus.MustNewConstMetric(a.queuePendingBytes,
+			prometheus.GaugeValue, float64(metrics.pendingBytes), a.cluster.String(), string(metrics.topic), string(metrics.queue),
+		)
+		ch <- prometheus.MustNewConstMetric(a.queueMaxPendingMessages,
+			prometheus.GaugeValue, float64(metrics.pendingMsgsMax), a.cluster.String(), string(metrics.topic), string(metrics.queue),
+		)
+		ch <- prometheus.MustNewConstMetric(a.queueMaxPendingBytes,
+			prometheus.GaugeValue, float64(metrics.pendingBytesMax), a.cluster.String(), string(metrics.topic), string(metrics.queue),
+		)
+		ch <- prometheus.MustNewConstMetric(a.queueMessagesDropped,
+			prometheus.GaugeValue, float64(metrics.dropped), a.cluster.String(), string(metrics.topic), string(metrics.queue),
+		)
+		ch <- prometheus.MustNewConstMetric(a.queueMessagesDelivered,
+			prometheus.GaugeValue, float64(metrics.delivered), a.cluster.String(), string(metrics.topic), string(metrics.queue),
+		)
+	}
 }
 
 func (a *connManager) Cluster() messaging.ClusterName {

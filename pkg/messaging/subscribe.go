@@ -18,6 +18,8 @@ package messaging
 // It is used to receive messages via the Channel.
 // It is also used to track the subscription
 type Subscription interface {
+	ID() string
+
 	// Cluster returns the name of the cluster that the subscription belongs to
 	Cluster() ClusterName
 

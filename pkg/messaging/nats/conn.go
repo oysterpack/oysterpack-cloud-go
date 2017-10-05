@@ -26,27 +26,31 @@ import (
 
 // NewConn is a constructor method for new nats based connections
 func NewConn(connect Connect) (messaging.Conn, error) {
-	nc, err := connect()
+	c, err := connect()
 	if err != nil {
 		return nil, err
 	}
-	return &conn{nc: nc}, nil
+	return &conn{managedConn: c}, nil
 }
 
 type conn struct {
-	nc *ManagedConn
+	managedConn *ManagedConn
+}
+
+func (a *conn) ID() string {
+	return a.managedConn.ID()
 }
 
 func (a *conn) Cluster() messaging.ClusterName {
-	return a.Cluster()
+	return a.managedConn.Cluster()
 }
 
 func (a *conn) Publish(topic messaging.Topic, data []byte) error {
-	return a.nc.Publish(string(topic), data)
+	return a.managedConn.Publish(string(topic), data)
 }
 
 func (a *conn) PublishRequest(topic messaging.Topic, replyTo messaging.ReplyTo, data []byte) error {
-	return a.nc.PublishRequest(string(topic), string(replyTo), data)
+	return a.managedConn.PublishRequest(string(topic), string(replyTo), data)
 }
 
 func (a *conn) PublishMessage(msg *messaging.Message) error {
@@ -54,7 +58,7 @@ func (a *conn) PublishMessage(msg *messaging.Message) error {
 }
 
 func (a *conn) Request(topic messaging.Topic, data []byte, timeout time.Duration) (*messaging.Message, error) {
-	msg, err := a.nc.Request(string(topic), data, timeout)
+	msg, err := a.managedConn.Request(string(topic), data, timeout)
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +83,7 @@ func (a *conn) RequestChannel(topic messaging.Topic, data []byte, timeout time.D
 }
 
 func (a *conn) RequestWithContext(ctx context.Context, topic messaging.Topic, data []byte) (response *messaging.Message, err error) {
-	msg, err := a.nc.RequestWithContext(ctx, string(topic), data)
+	msg, err := a.managedConn.RequestWithContext(ctx, string(topic), data)
 	if err != nil {
 		return nil, err
 	}
@@ -103,38 +107,12 @@ func (a *conn) RequestChannelWithContext(ctx context.Context, topic messaging.To
 	return c
 }
 
-func (a *conn) Subscribe(topic messaging.Topic, settings messaging.SubscriptionSettings) (messaging.Subscription, error) {
-	if err := checkSubscriptionSettings(settings); err != nil {
-		return nil, err
-	}
-	c := make(chan *messaging.Message)
-	sub, err := a.nc.Subscribe(string(topic), func(msg *nats.Msg) {
-		c <- toMessage(msg)
-	})
-	if settings.PendingLimits != nil {
-		sub.SetPendingLimits(settings.MsgLimit, settings.BytesLimit)
-	}
-	if err != nil {
-		return nil, err
-	}
-	return &subscription{a.Cluster(), sub, c}, nil
+func (a *conn) Subscribe(topic messaging.Topic, settings *messaging.SubscriptionSettings) (messaging.Subscription, error) {
+	return a.managedConn.TopicSubscribe(topic, settings)
 }
 
-func (a *conn) QueueSubscribe(topic messaging.Topic, queue messaging.Queue, settings messaging.SubscriptionSettings) (messaging.QueueSubscription, error) {
-	if err := checkSubscriptionSettings(settings); err != nil {
-		return nil, err
-	}
-	c := make(chan *messaging.Message)
-	sub, err := a.nc.QueueSubscribe(string(topic), string(queue), func(msg *nats.Msg) {
-		c <- toMessage(msg)
-	})
-	if settings.PendingLimits != nil {
-		sub.SetPendingLimits(settings.MsgLimit, settings.BytesLimit)
-	}
-	if err != nil {
-		return nil, err
-	}
-	return &queueSubscription{&subscription{a.Cluster(), sub, c}, queue}, nil
+func (a *conn) QueueSubscribe(topic messaging.Topic, queue messaging.Queue, settings *messaging.SubscriptionSettings) (messaging.QueueSubscription, error) {
+	return a.managedConn.TopicQueueSubscribe(topic, queue, settings)
 }
 
 func (a *conn) Publisher(topic messaging.Topic) (*messaging.TopicPublisher, error) {
@@ -142,7 +120,7 @@ func (a *conn) Publisher(topic messaging.Topic) (*messaging.TopicPublisher, erro
 		return nil, err
 	}
 
-	if a.nc.IsClosed() {
+	if a.managedConn.IsClosed() {
 		return nil, messaging.ErrConnectionIsClosed
 	}
 
@@ -151,28 +129,28 @@ func (a *conn) Publisher(topic messaging.Topic) (*messaging.TopicPublisher, erro
 
 // Close will close the connection to the server. This call will release all blocking calls
 func (a *conn) Close() {
-	a.nc.Close()
+	a.managedConn.Close()
 }
 
 // Closed tests if a Conn has been closed.
 func (a *conn) Closed() bool {
-	return a.nc.IsClosed()
+	return a.managedConn.IsClosed()
 }
 
 // Connected tests if a Conn is connected.
 func (a *conn) Connected() bool {
-	return a.nc.IsConnected()
+	return a.managedConn.IsConnected()
 }
 
 // Reconnecting tests if a Conn is reconnecting.
 func (a *conn) Reconnecting() bool {
-	return a.nc.IsReconnecting()
+	return a.managedConn.IsReconnecting()
 }
 
 // LastError reports the last error encountered via the connection.
 func (a *conn) LastError() (err *messaging.ConnErr) {
-	if a.nc.LastError() != nil {
-		err = &messaging.ConnErr{a.nc.LastError(), a.nc.lastErrorTime}
+	if a.managedConn.LastError() != nil {
+		err = &messaging.ConnErr{a.managedConn.LastError(), a.managedConn.lastErrorTime}
 	}
 	return
 }
@@ -180,10 +158,14 @@ func (a *conn) LastError() (err *messaging.ConnErr) {
 // MaxPayload returns the size limit that a message payload can have.
 // This is set by the server configuration and delivered to the client upon connect.
 func (a *conn) MaxPayload() int64 {
-	return a.nc.MaxPayload()
+	return a.managedConn.MaxPayload()
 }
 
-func checkSubscriptionSettings(settings messaging.SubscriptionSettings) error {
+func checkSubscriptionSettings(settings *messaging.SubscriptionSettings) error {
+	if settings == nil {
+		return nil
+	}
+
 	if settings.PendingLimits != nil {
 		errorMsgFormat := " %q : Zero is not allowed. Any negative value means there is no limit."
 		if settings.MsgLimit == 0 {

@@ -21,6 +21,9 @@ import (
 
 // Conn represents a messaging connection
 type Conn interface {
+	// ID is a unique identifier assigned to the connection for tracking pusposes
+	ID() string
+
 	// Cluster returns the name of the cluster that the connection belongs to
 	Cluster() ClusterName
 
@@ -60,10 +63,10 @@ type Conn interface {
 	RequestChannelWithContext(ctx context.Context, topic Topic, data []byte) <-chan Response
 
 	// Subscribe creates a new async topic subscription with the specified settings
-	Subscribe(topic Topic, settings SubscriptionSettings) (Subscription, error)
+	Subscribe(topic Topic, settings *SubscriptionSettings) (Subscription, error)
 
 	// QueueSubscribe creates a new async queue subscription with the specified settings
-	QueueSubscribe(topic Topic, queue Queue, settings SubscriptionSettings) (QueueSubscription, error)
+	QueueSubscribe(topic Topic, queue Queue, settings *SubscriptionSettings) (QueueSubscription, error)
 
 	// Close will close the connection to the server. This call will release all blocking calls
 	Close()

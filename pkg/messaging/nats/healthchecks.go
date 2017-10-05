@@ -30,7 +30,7 @@ var connectivityHealthCheck = &metrics.GaugeVecOpts{
 		Help:        "The healthcheck fails if any connections are disconnected.",
 		ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, ConnManagerRegistryDescriptor),
 	},
-	MetricLabels,
+	NATSMetricLabels,
 }
 
 const runinterval = 15 * time.Second

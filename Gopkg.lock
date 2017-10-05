@@ -4,8 +4,8 @@
 [[projects]]
   name = "github.com/Masterminds/semver"
   packages = ["."]
-  revision = "517734cc7d6470c0d07130e40fd40bdeb9bcd3fd"
-  version = "v1.3.1"
+  revision = "15d8430ab86497c5c0da827b748823945e1cf1e1"
+  version = "v1.4.0"
 
 [[projects]]
   branch = "master"
@@ -83,7 +83,7 @@
   branch = "master"
   name = "golang.org/x/crypto"
   packages = ["bcrypt","blowfish","ssh/terminal"]
-  revision = "847319b7fc94cab682988f93da778204da164588"
+  revision = "9419663f5a44be8b34ca85f08abc5fe1be11f8a3"
 
 [[projects]]
   branch = "master"
@@ -94,6 +94,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "20ae522a3cedd1beaf86ae5df3791c5d080d8066e79348d47d30a70ff2c1c19f"
+  inputs-digest = "65f8d13f697f0528a918331276fd8a96e58325718654ec8e91c962ca0afb84b7"
   solver-name = "gps-cdcl"
   solver-version = 1

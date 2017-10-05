@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/nats-io/go-nats"
+	"github.com/nats-io/nuid"
 	"github.com/oysterpack/oysterpack.go/pkg/logging"
 	"github.com/oysterpack/oysterpack.go/pkg/messaging"
 	"github.com/prometheus/client_golang/prometheus"
@@ -36,6 +37,8 @@ func NewManagedConn(cluster messaging.ClusterName, connId string, conn *nats.Con
 		disconnectedCounter: disconnectedCounter.WithLabelValues(cluster.String()),
 		reconnectedCounter:  reconnectedCounter.WithLabelValues(cluster.String()),
 		errorCounter:        errorCounter.WithLabelValues(cluster.String()),
+		topicSubscriptions:  newTopicSubscriptions(),
+		queueSubscriptions:  newQueueSubscriptions(),
 	}
 }
 
@@ -62,11 +65,18 @@ type ManagedConn struct {
 	disconnectedCounter prometheus.Counter
 	reconnectedCounter  prometheus.Counter
 	errorCounter        prometheus.Counter
+
+	*topicSubscriptions
+	*queueSubscriptions
 }
 
 // ID is the unique id assigned to the connection for tracking purposes
 func (a *ManagedConn) ID() string {
 	return a.id
+}
+
+func (a *ManagedConn) Cluster() messaging.ClusterName {
+	return a.cluster
 }
 
 // Created is when the conn was created
@@ -229,4 +239,60 @@ func (a *ManagedConn) String() string {
 		return fmt.Sprintf("%v", *a.ConnInfo())
 	}
 	return string(bytes)
+}
+
+func (a *ManagedConn) TopicSubscribe(topic messaging.Topic, settings *messaging.SubscriptionSettings) (messaging.Subscription, error) {
+	if err := checkSubscriptionSettings(settings); err != nil {
+		return nil, err
+	}
+	c := make(chan *messaging.Message)
+	sub, err := a.Subscribe(string(topic), func(msg *nats.Msg) {
+		c <- toMessage(msg)
+	})
+	if settings != nil && settings.PendingLimits != nil {
+		sub.SetPendingLimits(settings.MsgLimit, settings.BytesLimit)
+	}
+	if err != nil {
+		return nil, err
+	}
+	topicSubscription := &subscription{id: nuid.Next(), cluster: a.Cluster(), sub: sub, c: c, unsubscribe: func(subscription *subscription) {
+		go a.topicSubscriptions.remove(subscription.id)
+	}}
+	a.topicSubscriptions.add(topicSubscription)
+	return topicSubscription, nil
+}
+
+func (a *ManagedConn) TopicQueueSubscribe(topic messaging.Topic, queue messaging.Queue, settings *messaging.SubscriptionSettings) (messaging.QueueSubscription, error) {
+	if err := checkSubscriptionSettings(settings); err != nil {
+		return nil, err
+	}
+	c := make(chan *messaging.Message)
+	sub, err := a.QueueSubscribe(string(topic), string(queue), func(msg *nats.Msg) {
+		c <- toMessage(msg)
+	})
+	if settings != nil && settings.PendingLimits != nil {
+		sub.SetPendingLimits(settings.MsgLimit, settings.BytesLimit)
+	}
+	if err != nil {
+		return nil, err
+	}
+	id := nuid.Next()
+	topicSubscription := &subscription{id: id, cluster: a.Cluster(), sub: sub, c: c, unsubscribe: func(subscription *subscription) {
+		go a.queueSubscriptions.remove(subscription.id)
+	}}
+	qSubscription := &queueSubscription{Subscription: topicSubscription, queue: queue}
+	a.queueSubscriptions.add(qSubscription)
+	return qSubscription, nil
+}
+
+func (a *ManagedConn) TopicSubscriptionCount() int {
+	a.topicSubscriptions.RLock()
+	defer a.topicSubscriptions.RUnlock()
+	return len(a.topicSubscriptions.subscriptions)
+}
+
+func (a *ManagedConn) QueueSubscriptionCount() int {
+	a.queueSubscriptions.RLock()
+	defer a.queueSubscriptions.RUnlock()
+	return len(a.queueSubscriptions.subscriptions)
 }

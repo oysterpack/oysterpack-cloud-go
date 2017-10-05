@@ -21,8 +21,17 @@ import (
 
 type subscription struct {
 	cluster messaging.ClusterName
+	id      string
 	sub     *nats.Subscription
 	c       chan *messaging.Message
+
+	// used as a callback
+	// use case : when the subscription is unscribed, then stop tracking it for metrics collections
+	unsubscribe func(*subscription)
+}
+
+func (a *subscription) ID() string {
+	return a.id
 }
 
 func (a *subscription) Cluster() messaging.ClusterName {
@@ -38,7 +47,7 @@ func (a *subscription) Topic() messaging.Topic {
 // AutoUnsubscribe will issue an automatic Unsubscribe that is processed by the server when max messages have been received.
 // This can be useful when sending a request to an unknown number of subscribers.
 func (a *subscription) AutoUnsubscribe(max int) error {
-	return a.sub.Unsubscribe()
+	return a.sub.AutoUnsubscribe(max)
 }
 
 // MaxPending returns the maximum number of queued messages and queued bytes seen so far.
@@ -86,6 +95,9 @@ func (a *subscription) IsValid() bool {
 
 // Unsubscribe will remove interest in the given subject.
 func (a *subscription) Unsubscribe() error {
+	if a.unsubscribe != nil {
+		a.unsubscribe(a)
+	}
 	return a.sub.Unsubscribe()
 }
 

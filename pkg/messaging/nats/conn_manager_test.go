@@ -657,7 +657,7 @@ func checkThatAllMessagesHaveBeenReceived(t *testing.T, count int, ch chan *nats
 		t.Errorf("*** ERROR *** Error while retrieving pending info : %v", err)
 	}
 	if msgs != 0 || bytes != 0 {
-		t.Errorf("There should be none pending : %v, %v", msgs, bytes)
+		t.Errorf("*** ERROR *** There should be none pending : %v, %v", msgs, bytes)
 	}
 }
 
