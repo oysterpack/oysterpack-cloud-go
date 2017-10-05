@@ -661,8 +661,8 @@ func checkThatAllMessagesHaveBeenReceived(t *testing.T, count int, ch chan *nats
 			break
 		}
 	}
-	if count < receivedCount {
-		t.Errorf("*** ERROR *** not all messages were received : %d != %d", count, receivedCount)
+	if receivedCount < count {
+		t.Errorf("*** ERROR *** not all messages were received : %d < %d", receivedCount, count)
 	}
 	logSubcriptionInfo(t, "async sub", sub)
 	msgs, bytes, err := sub.Pending()
