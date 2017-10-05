@@ -119,6 +119,7 @@ func TestConnManager_Metrics_Simple(t *testing.T) {
 
 	// log the gatheredMetrics
 	for _, metric := range gatheredMetrics {
+		//t.Log(*metric.Name)
 		if strings.HasPrefix(*metric.Name, nats.MetricsNamespace) {
 			jsonBytes, _ := json.MarshalIndent(metric, "", "   ")
 			t.Logf("%v", string(jsonBytes))
@@ -290,12 +291,12 @@ func checkMetricsExist(t *testing.T, gatheredMetrics []*dto.MetricFamily) {
 	t.Helper()
 	for _, opts := range nats.ConnManagerMetrics.CounterVecOpts {
 		if counter(gatheredMetrics, opts) == nil {
-			t.Errorf("*** ERROR *** Metric was not gathered : %v", prometheus.BuildFQName(opts.Namespace, opts.Subsystem, opts.Name))
+			t.Errorf("*** ERROR *** Counter Metric was not gathered : %v", prometheus.BuildFQName(opts.Namespace, opts.Subsystem, opts.Name))
 		}
 	}
 	for _, opts := range nats.ConnManagerMetrics.GaugeVecOpts {
 		if gauge(gatheredMetrics, opts) == nil {
-			t.Errorf("*** ERROR *** Metric was not gathered : %v", prometheus.BuildFQName(opts.Namespace, opts.Subsystem, opts.Name))
+			t.Errorf("*** ERROR *** Gauge Metric was not gathered : %v", prometheus.BuildFQName(opts.Namespace, opts.Subsystem, opts.Name))
 		}
 	}
 }

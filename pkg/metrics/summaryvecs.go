@@ -27,8 +27,8 @@ import (
 // If not such summaryVec exists, then it is registered and cached along with its opts.
 func GetOrMustRegisterSummaryVec(opts *SummaryVecOpts) *prometheus.SummaryVec {
 	const FUNC = "GetOrMustRegisterSummaryVec"
-	mutex.RLock()
-	defer mutex.RUnlock()
+	mutex.Lock()
+	defer mutex.Unlock()
 	name := SummaryFQName(opts.SummaryOpts)
 	if summaryVec := summaryVecsMap[name]; summaryVec != nil {
 		if SummaryVecOptsMatch(opts, summaryVec.SummaryVecOpts) {

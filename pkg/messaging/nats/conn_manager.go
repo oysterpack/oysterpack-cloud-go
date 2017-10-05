@@ -118,6 +118,12 @@ func newConnManager(settings ConnManagerSettings) *connManager {
 		bytesInDesc:  prometheus.NewDesc(metrics.GaugeFQName(BytesInGauge.GaugeOpts), BytesInGauge.GaugeOpts.Help, BytesInGauge.Labels, BytesInGauge.GaugeOpts.ConstLabels),
 		bytesOutDesc: prometheus.NewDesc(metrics.GaugeFQName(BytesOutGauge.GaugeOpts), BytesOutGauge.GaugeOpts.Help, BytesOutGauge.Labels, BytesOutGauge.GaugeOpts.ConstLabels),
 
+		topicSubscriberCount: prometheus.NewDesc(
+			metrics.GaugeFQName(TopicSubscriberCount.GaugeOpts),
+			TopicSubscriberCount.GaugeOpts.Help,
+			TopicSubscriberCount.Labels,
+			TopicSubscriberCount.GaugeOpts.ConstLabels,
+		),
 		topicPendingMessages: prometheus.NewDesc(
 			metrics.GaugeFQName(TopicPendingMessages.GaugeOpts),
 			TopicPendingMessages.GaugeOpts.Help,
@@ -155,6 +161,12 @@ func newConnManager(settings ConnManagerSettings) *connManager {
 			TopicMessagesDelivered.GaugeOpts.ConstLabels,
 		),
 
+		queueSubscriberCount: prometheus.NewDesc(
+			metrics.GaugeFQName(QueueSubscriberCount.GaugeOpts),
+			QueueSubscriberCount.GaugeOpts.Help,
+			QueueSubscriberCount.Labels,
+			QueueSubscriberCount.GaugeOpts.ConstLabels,
+		),
 		queuePendingMessages: prometheus.NewDesc(
 			metrics.GaugeFQName(QueuePendingMessages.GaugeOpts),
 			QueuePendingMessages.GaugeOpts.Help,
@@ -220,6 +232,7 @@ type connManager struct {
 	bytesInDesc  *prometheus.Desc
 	bytesOutDesc *prometheus.Desc
 
+	topicSubscriberCount    *prometheus.Desc
 	topicPendingMessages    *prometheus.Desc
 	topicPendingBytes       *prometheus.Desc
 	topicMaxPendingMessages *prometheus.Desc
@@ -227,6 +240,7 @@ type connManager struct {
 	topicMessagesDelivered  *prometheus.Desc
 	topicMessagesDropped    *prometheus.Desc
 
+	queueSubscriberCount    *prometheus.Desc
 	queuePendingMessages    *prometheus.Desc
 	queuePendingBytes       *prometheus.Desc
 	queueMaxPendingMessages *prometheus.Desc
@@ -242,6 +256,7 @@ func (a *connManager) Describe(ch chan<- *prometheus.Desc) {
 	ch <- a.bytesInDesc
 	ch <- a.bytesOutDesc
 
+	ch <- a.topicSubscriberCount
 	ch <- a.topicPendingMessages
 	ch <- a.topicPendingBytes
 	ch <- a.topicMaxPendingMessages
@@ -249,6 +264,7 @@ func (a *connManager) Describe(ch chan<- *prometheus.Desc) {
 	ch <- a.topicMessagesDelivered
 	ch <- a.topicMessagesDropped
 
+	ch <- a.queueSubscriberCount
 	ch <- a.queuePendingMessages
 	ch <- a.queuePendingBytes
 	ch <- a.queueMaxPendingMessages
@@ -310,6 +326,9 @@ func (a *connManager) Collect(ch chan<- prometheus.Metric) {
 
 func (a *connManager) reportTopicSubscriptionMetrics(ch chan<- prometheus.Metric, topicSubscriptionMetrics map[messaging.Topic]*subscriptionMetrics) {
 	for _, metrics := range topicSubscriptionMetrics {
+		ch <- prometheus.MustNewConstMetric(a.topicSubscriberCount,
+			prometheus.GaugeValue, float64(metrics.subscriberCount), a.cluster.String(), string(metrics.topic),
+		)
 		ch <- prometheus.MustNewConstMetric(a.topicPendingMessages,
 			prometheus.GaugeValue, float64(metrics.pendingMsgs), a.cluster.String(), string(metrics.topic),
 		)
@@ -333,6 +352,9 @@ func (a *connManager) reportTopicSubscriptionMetrics(ch chan<- prometheus.Metric
 
 func (a *connManager) reportQueueSubscriptionMetrics(ch chan<- prometheus.Metric, queueSubscriptionMetrics map[topicQueueKey]*queueSubscriptionMetrics) {
 	for _, metrics := range queueSubscriptionMetrics {
+		ch <- prometheus.MustNewConstMetric(a.queueSubscriberCount,
+			prometheus.GaugeValue, float64(metrics.subscriberCount), a.cluster.String(), string(metrics.topic), string(metrics.queue),
+		)
 		ch <- prometheus.MustNewConstMetric(a.queuePendingMessages,
 			prometheus.GaugeValue, float64(metrics.pendingMsgs), a.cluster.String(), string(metrics.topic), string(metrics.queue),
 		)

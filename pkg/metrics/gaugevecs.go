@@ -27,8 +27,8 @@ import (
 // If not such gaugeVec exists, then it is registered and cached along with its opts.
 func GetOrMustRegisterGaugeVec(opts *GaugeVecOpts) *prometheus.GaugeVec {
 	const FUNC = "GetOrMustRegisterGaugeVec"
-	mutex.RLock()
-	defer mutex.RUnlock()
+	mutex.Lock()
+	defer mutex.Unlock()
 	name := GaugeFQName(opts.GaugeOpts)
 	if gaugeVec := gaugeVecsMap[name]; gaugeVec != nil {
 		if GaugeVecOptsMatch(opts, gaugeVec.GaugeVecOpts) {

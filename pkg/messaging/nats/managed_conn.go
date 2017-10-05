@@ -248,8 +248,10 @@ func (a *ManagedConn) TopicSubscribe(topic messaging.Topic, settings *messaging.
 	if err := checkSubscriptionSettings(settings); err != nil {
 		return nil, err
 	}
+	counter := topicMsgsReceivedCounter.WithLabelValues(a.cluster.String(), string(topic))
 	c := make(chan *messaging.Message)
 	sub, err := a.Subscribe(string(topic), func(msg *nats.Msg) {
+		counter.Inc()
 		c <- toMessage(msg)
 	})
 	if settings != nil && settings.PendingLimits != nil {
@@ -271,8 +273,10 @@ func (a *ManagedConn) TopicQueueSubscribe(topic messaging.Topic, queue messaging
 	if err := checkSubscriptionSettings(settings); err != nil {
 		return nil, err
 	}
+	counter := queueMsgsReceivedCounter.WithLabelValues(a.cluster.String(), string(topic), string(queue))
 	c := make(chan *messaging.Message)
 	sub, err := a.QueueSubscribe(string(topic), string(queue), func(msg *nats.Msg) {
+		counter.Inc()
 		c <- toMessage(msg)
 	})
 	if settings != nil && settings.PendingLimits != nil {

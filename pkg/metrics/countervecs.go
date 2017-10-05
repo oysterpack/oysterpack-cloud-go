@@ -27,8 +27,8 @@ import (
 // If not such counterVec exists, then it is registered and cached along with its opts.
 func GetOrMustRegisterCounterVec(opts *CounterVecOpts) *prometheus.CounterVec {
 	const FUNC = "GetOrMustRegisterCounterVec"
-	mutex.RLock()
-	defer mutex.RUnlock()
+	mutex.Lock()
+	defer mutex.Unlock()
 	name := CounterFQName(opts.CounterOpts)
 	if counterVec := counterVecsMap[name]; counterVec != nil {
 		if CounterVecOptsMatch(opts, counterVec.CounterVecOpts) {

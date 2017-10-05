@@ -27,8 +27,8 @@ import (
 // If not such histogramVec exists, then it is registered and cached along with its opts.
 func GetOrMustRegisterHistogramVec(opts *HistogramVecOpts) *prometheus.HistogramVec {
 	const FUNC = "GetOrMustRegisterHistogramVec"
-	mutex.RLock()
-	defer mutex.RUnlock()
+	mutex.Lock()
+	defer mutex.Unlock()
 	name := HistogramFQName(opts.HistogramOpts)
 	if histogramVec := histogramVecsMap[name]; histogramVec != nil {
 		if HistogramVecOptsMatch(opts, histogramVec.HistogramVecOpts) {

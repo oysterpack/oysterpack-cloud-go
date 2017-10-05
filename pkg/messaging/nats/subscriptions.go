@@ -73,7 +73,7 @@ func (a *topicSubscriptions) collectMetrics() map[messaging.Topic]*subscriptionM
 		if !s.IsValid() {
 			continue
 		}
-		metrics := &subscriptionMetrics{topic: s.Topic()}
+		metrics := &subscriptionMetrics{topic: s.Topic(), subscriberCount: 1}
 		msgs, bytes, err := s.Pending()
 		if err == nil {
 			metrics.pendingMsgs = msgs
@@ -153,7 +153,7 @@ func (a *queueSubscriptions) collectMetrics() map[topicQueueKey]*queueSubscripti
 	defer a.RUnlock()
 	queueMetrics := map[topicQueueKey]*queueSubscriptionMetrics{}
 	for _, s := range a.subscriptions {
-		metrics := &queueSubscriptionMetrics{subscriptionMetrics: &subscriptionMetrics{topic: s.Topic()}, queue: s.Queue()}
+		metrics := &queueSubscriptionMetrics{subscriptionMetrics: &subscriptionMetrics{topic: s.Topic(), subscriberCount: 1}, queue: s.Queue()}
 
 		msgs, bytes, err := s.Pending()
 		if err == nil {
@@ -190,6 +190,7 @@ func (a *queueSubscriptions) collectMetrics() map[topicQueueKey]*queueSubscripti
 
 type subscriptionMetrics struct {
 	topic                           messaging.Topic
+	subscriberCount                 int
 	pendingMsgs, pendingBytes       int
 	pendingMsgsMax, pendingBytesMax int
 	dropped                         int
@@ -201,6 +202,11 @@ func (a *subscriptionMetrics) String() string {
 }
 
 func (a *subscriptionMetrics) add(b *subscriptionMetrics) {
+	if a.topic != b.topic {
+		logger.Panic().Msgf("It is illegal to combine metrics from different topics - that would result in reporting false metrics")
+	}
+
+	a.subscriberCount += b.subscriberCount
 	a.pendingMsgs += b.pendingMsgs
 	a.pendingBytes += b.pendingBytes
 	a.dropped += b.dropped
