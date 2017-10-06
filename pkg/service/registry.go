@@ -17,12 +17,10 @@ package service
 import (
 	"fmt"
 
-	"sync"
-
 	"github.com/oysterpack/oysterpack.go/pkg/commons/reflect"
 )
 
-// Registry is a Client registry.
+// Registry is a Service Client registry.
 // It is used to register/unregister Client(s) and lookup Client(s).
 type Registry interface {
 	// ServiceByType looks up a service and returns nil if the service is not founc.
@@ -86,10 +84,4 @@ func InterfaceToServiceKey(serviceInterface Interface) ServiceKey {
 		reflect.PackagePath(serviceInterface.PkgPath()),
 		reflect.TypeName(serviceInterface.Name()),
 	}
-}
-
-type registry struct {
-	sync.RWMutex
-	// once a service is stopped, it will be removed from this map
-	services map[Interface]*registeredService
 }

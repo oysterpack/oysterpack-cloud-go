@@ -78,3 +78,20 @@ func (a *serviceTickets) closeAllServiceTickets() {
 		}(ticket)
 	}
 }
+
+// checks if any open service tickets can be closed, i.e., it checks if the services that tickets are waiting on are available in the registry
+func (a *application) checkServiceTickets(registry Registry) {
+	a.ticketsMutex.RLock()
+	defer a.ticketsMutex.RUnlock()
+	for _, ticket := range a.serviceTickets.tickets {
+		serviceClient := registry.ServiceByType(ticket.Interface)
+		if serviceClient != nil {
+			go func(ticket *ServiceTicket) {
+				defer commons.IgnorePanic()
+				ticket.channel <- serviceClient
+				close(ticket.channel)
+			}(ticket)
+			go a.serviceTickets.deleteServiceTicket(ticket)
+		}
+	}
+}

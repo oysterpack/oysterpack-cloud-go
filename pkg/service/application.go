@@ -25,7 +25,8 @@ import (
 
 	"fmt"
 
-	"github.com/oysterpack/oysterpack.go/pkg/commons"
+	"sync"
+
 	"github.com/oysterpack/oysterpack.go/pkg/commons/reflect"
 	"github.com/oysterpack/oysterpack.go/pkg/logging"
 	"github.com/rs/zerolog"
@@ -44,9 +45,9 @@ type Application interface {
 
 	Registry
 
-	ServiceDependencies
-
 	ServiceManager
+
+	ServiceDependencyChecks
 
 	// Start the application and waits until the app is running
 	Start()
@@ -74,19 +75,26 @@ type registeredService struct {
 //
 // Use NewApplication() to create a new application instance
 type application struct {
-	*registry
+	registry registry
 
 	// application can be managed itself as a service
 	service Service
 
 	*serviceTickets
+	serviceDependencyChecks
 
 	shutdownHooks []func()
 }
 
+type registry struct {
+	sync.RWMutex
+	// once a service is stopped, it will be removed from this map
+	services map[Interface]*registeredService
+}
+
 func (a *application) RegisterShutdownHook(f func()) {
-	a.Lock()
-	defer a.Unlock()
+	a.registry.Lock()
+	defer a.registry.Unlock()
 	a.shutdownHooks = append(a.shutdownHooks, func() {
 		defer func() {
 			if p := recover(); p != nil {
@@ -131,9 +139,10 @@ func NewApplicationDesc(
 // NewApplication returns a new application
 func NewApplication(settings ApplicationSettings) Application {
 	app := &application{
-		registry:       &registry{services: make(map[Interface]*registeredService)},
+		registry:       registry{services: make(map[Interface]*registeredService)},
 		serviceTickets: &serviceTickets{},
 	}
+	app.serviceDependencyChecks.application = app
 	var service Application = app
 
 	if settings.Descriptor == nil {
@@ -170,13 +179,13 @@ func (a *application) UpdateDescriptor(namespace string, system string, componen
 // ServiceByType looks up a service via its service interface.
 // If exists is true, then the service was found.
 func (a *application) ServiceByType(serviceInterface Interface) Client {
-	a.RLock()
-	defer a.RUnlock()
+	a.registry.RLock()
+	defer a.registry.RUnlock()
 	return a.serviceByType(serviceInterface)
 }
 
 func (a *application) serviceByType(serviceInterface Interface) Client {
-	if s, exists := a.services[serviceInterface]; exists {
+	if s, exists := a.registry.services[serviceInterface]; exists {
 		return s.Client
 	}
 	return nil
@@ -193,33 +202,16 @@ func (a *application) ServiceByTypeAsync(serviceInterface Interface) *ServiceTic
 	}
 
 	a.serviceTickets.add(ticket)
-
-	go a.checkServiceTickets()
+	go a.checkServiceTickets(a)
 	return ticket
-}
-
-func (a *application) checkServiceTickets() {
-	a.ticketsMutex.RLock()
-	defer a.ticketsMutex.RUnlock()
-	for _, ticket := range a.serviceTickets.tickets {
-		serviceClient := a.ServiceByType(ticket.Interface)
-		if serviceClient != nil {
-			go func(ticket *ServiceTicket) {
-				defer commons.IgnorePanic()
-				ticket.channel <- serviceClient
-				close(ticket.channel)
-			}(ticket)
-			go a.serviceTickets.deleteServiceTicket(ticket)
-		}
-	}
 }
 
 // ServiceByKey looks up a service by ServiceKey and returns the registered Client.
 // If the service is not found, then nil is returned.
 func (a *application) ServiceByKey(serviceKey ServiceKey) Client {
-	a.RLock()
-	defer a.RUnlock()
-	for _, s := range a.services {
+	a.registry.RLock()
+	defer a.registry.RUnlock()
+	for _, s := range a.registry.services {
 		if InterfaceToServiceKey(s.Service().Desc().Interface()) == serviceKey {
 			return s.Client
 		}
@@ -229,10 +221,10 @@ func (a *application) ServiceByKey(serviceKey ServiceKey) Client {
 
 // Services returns all registered services
 func (a *application) Services() []Client {
-	a.RLock()
-	defer a.RUnlock()
+	a.registry.RLock()
+	defer a.registry.RUnlock()
 	var services []Client
-	for _, s := range a.services {
+	for _, s := range a.registry.services {
 		services = append(services, s.Client)
 	}
 	return services
@@ -240,10 +232,10 @@ func (a *application) Services() []Client {
 
 // ServiceInterfaces returns all service interfaces for all registered services
 func (a *application) ServiceInterfaces() []Interface {
-	a.RLock()
-	defer a.RUnlock()
+	a.registry.RLock()
+	defer a.registry.RUnlock()
 	interfaces := []Interface{}
-	for k := range a.services {
+	for k := range a.registry.services {
 		interfaces = append(interfaces, k)
 	}
 	return interfaces
@@ -251,13 +243,15 @@ func (a *application) ServiceInterfaces() []Interface {
 
 // ServiceCount returns the number of registered services
 func (a *application) ServiceCount() int {
-	return len(a.services)
+	a.registry.RLock()
+	defer a.registry.RUnlock()
+	return len(a.registry.services)
 }
 
 // ServiceKeys returns ServiceKey(s) for all registered services
 func (a *application) ServiceKeys() []ServiceKey {
-	a.RLock()
-	defer a.RUnlock()
+	a.registry.RLock()
+	defer a.registry.RUnlock()
 	interfaces := []ServiceKey{}
 	for _, v := range a.ServiceInterfaces() {
 		interfaces = append(interfaces, InterfaceToServiceKey(v))
@@ -290,18 +284,18 @@ func (a *application) MustRegisterService(create ClientConstructor) Client {
 		}
 	}
 
-	a.Lock()
-	defer a.Unlock()
+	a.registry.Lock()
+	defer a.registry.Unlock()
 	service := create(Application(a))
 	validate(service)
-	if _, exists := a.services[service.Service().Desc().Interface()]; exists {
+	if _, exists := a.registry.services[service.Service().Desc().Interface()]; exists {
 		a.Service().Logger().Panic().
 			Str(logging.SERVICE, service.Service().Desc().Interface().String()).
 			Msgf("Service is already registered : %v", service.Service().Desc().Interface())
 	}
-	a.services[service.Service().Desc().Interface()] = &registeredService{NewService: create, Client: service}
+	a.registry.services[service.Service().Desc().Interface()] = &registeredService{NewService: create, Client: service}
 	service.Service().StartAsync()
-	go a.checkServiceTickets()
+	go a.checkServiceTickets(a)
 	return service
 }
 
@@ -317,10 +311,10 @@ func (a *application) RegisterService(create ClientConstructor) (client Client, 
 // UnRegisterService unregisters the specified service.
 // The service is simply unregistered, i.e., it is not stopped.
 func (a *application) UnRegisterService(service Client) bool {
-	a.Lock()
-	defer a.Unlock()
-	if _, exists := a.services[service.Service().Desc().Interface()]; exists {
-		delete(a.services, service.Service().Desc().Interface())
+	a.registry.Lock()
+	defer a.registry.Unlock()
+	if _, exists := a.registry.services[service.Service().Desc().Interface()]; exists {
+		delete(a.registry.services, service.Service().Desc().Interface())
 		return true
 	}
 	return false
@@ -342,10 +336,10 @@ func (a *application) run(ctx *Context) error {
 
 func (a *application) destroy(ctx *Context) error {
 	a.serviceTickets.closeAllServiceTickets()
-	for _, v := range a.services {
+	for _, v := range a.registry.services {
 		v.Service().StopAsyc()
 	}
-	for _, v := range a.services {
+	for _, v := range a.registry.services {
 		for {
 			v.Service().AwaitStopped(5 * time.Second)
 			if v.Service().State().Stopped() {
@@ -361,123 +355,11 @@ func (a *application) destroy(ctx *Context) error {
 	return nil
 }
 
-// CheckAllServiceDependenciesRegistered checks that are service Dependencies are currently satisfied.
-func (a *application) CheckAllServiceDependenciesRegistered() []*ServiceDependenciesMissing {
-	a.RLock()
-	defer a.RUnlock()
-	errors := []*ServiceDependenciesMissing{}
-	for _, serviceClient := range a.services {
-		if missingDependencies := a.checkServiceDependenciesRegistered(serviceClient); missingDependencies != nil {
-			errors = append(errors, missingDependencies)
-		}
-	}
-	return errors
-}
-
-// CheckServiceDependenciesRegistered checks that the service's Dependencies are currently satisfied
-// nil is returned if there is no error
-func (a *application) CheckServiceDependenciesRegistered(serviceClient Client) *ServiceDependenciesMissing {
-	a.RLock()
-	defer a.RUnlock()
-	return a.checkServiceDependenciesRegistered(serviceClient)
-}
-
-func (a *application) checkServiceDependenciesRegistered(serviceClient Client) *ServiceDependenciesMissing {
-	missingDependencies := &ServiceDependenciesMissing{&DependencyMappings{Interface: serviceClient.Service().Desc().Interface()}}
-	for dependency, constraints := range serviceClient.Service().Dependencies() {
-		b := a.serviceByType(dependency)
-		if b == nil {
-			missingDependencies.AddMissingDependency(dependency)
-		} else {
-			if constraints != nil {
-				if !constraints.Check(b.Service().Desc().Version()) {
-					missingDependencies.AddMissingDependency(dependency)
-				}
-			}
-		}
-	}
-	if missingDependencies.HasMissing() {
-		return missingDependencies
-	}
-	return nil
-}
-
-// CheckAllServiceDependenciesRunning checks that are service Dependencies are currently satisfied.
-func (a *application) CheckAllServiceDependenciesRunning() []*ServiceDependenciesNotRunning {
-	a.RLock()
-	defer a.RUnlock()
-	errors := []*ServiceDependenciesNotRunning{}
-	for _, serviceClient := range a.services {
-		if notRunning := a.checkServiceDependenciesRunning(serviceClient); notRunning != nil {
-			errors = append(errors, notRunning)
-		}
-	}
-	return errors
-}
-
-// CheckServiceDependenciesRunning checks that the service's Dependencies are currently satisfied
-// nil is returned if there is no error
-func (a *application) CheckServiceDependenciesRunning(serviceClient Client) *ServiceDependenciesNotRunning {
-	a.RLock()
-	defer a.RUnlock()
-	return a.checkServiceDependenciesRunning(serviceClient)
-}
-
-func (a *application) checkServiceDependenciesRunning(serviceClient Client) *ServiceDependenciesNotRunning {
-	notRunning := &ServiceDependenciesNotRunning{&DependencyMappings{Interface: serviceClient.Service().Desc().Interface()}}
-	for dependency, constraints := range serviceClient.Service().Dependencies() {
-		if client := a.serviceByType(dependency); client == nil ||
-			(constraints != nil && !constraints.Check(client.Service().Desc().Version())) ||
-			!client.Service().State().Running() {
-			notRunning.AddDependencyNotRunning(dependency)
-		}
-	}
-	if notRunning.HasNotRunning() {
-		return notRunning
-	}
-	return nil
-}
-
-// CheckAllServiceDependencies checks that all Dependencies for each service are available
-// nil is returned if there are no errors
-func (a *application) CheckAllServiceDependencies() *ServiceDependencyErrors {
-	errors := []error{}
-	for _, err := range a.CheckAllServiceDependenciesRegistered() {
-		errors = append(errors, err)
-	}
-
-	for _, err := range a.CheckAllServiceDependenciesRunning() {
-		errors = append(errors, err)
-	}
-
-	if len(errors) > 0 {
-		return &ServiceDependencyErrors{errors}
-	}
-	return nil
-}
-
-// CheckServiceDependencies checks that the service Dependencies are available
-func (a *application) CheckServiceDependencies(client Client) *ServiceDependencyErrors {
-	errors := []error{}
-	if err := a.CheckServiceDependenciesRegistered(client); err != nil {
-		errors = append(errors, err)
-	}
-
-	if err := a.CheckServiceDependenciesRunning(client); err != nil {
-		errors = append(errors, err)
-	}
-
-	if len(errors) > 0 {
-		return &ServiceDependencyErrors{errors}
-	}
-	return nil
-}
-
 func (a *application) ServiceStates() map[Interface]State {
-	a.RLock()
-	defer a.RUnlock()
+	a.registry.RLock()
+	defer a.registry.RUnlock()
 	serviceStates := make(map[Interface]State)
-	for k, s := range a.services {
+	for k, s := range a.registry.services {
 		serviceStates[k] = s.Service().State()
 	}
 	return serviceStates
@@ -520,17 +402,17 @@ func (a *application) RestartServiceByKey(key ServiceKey) error {
 }
 
 func (a *application) RestartAllServices() {
-	a.RLock()
-	defer a.RUnlock()
-	for _, client := range a.services {
+	a.registry.RLock()
+	defer a.registry.RUnlock()
+	for _, client := range a.registry.services {
 		go client.Restart()
 	}
 }
 
 func (a *application) RestartAllFailedServices() {
-	a.RLock()
-	defer a.RUnlock()
-	for _, client := range a.services {
+	a.registry.RLock()
+	defer a.registry.RUnlock()
+	for _, client := range a.registry.services {
 		if client.Service().FailureCause() != nil {
 			go client.Restart()
 		}
@@ -538,9 +420,9 @@ func (a *application) RestartAllFailedServices() {
 }
 
 func (a *application) StopAllServices() {
-	a.RLock()
-	defer a.RUnlock()
-	for _, client := range a.services {
+	a.registry.RLock()
+	defer a.registry.RUnlock()
+	for _, client := range a.registry.services {
 		client.Service().Stop()
 	}
 }
