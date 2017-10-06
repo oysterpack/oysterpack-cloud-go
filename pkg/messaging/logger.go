@@ -14,13 +14,10 @@
 
 package messaging
 
-import "errors"
-
-var (
-	// ErrTopicMustNotBeBlank - Topic must not be blank
-	ErrTopicMustNotBeBlank = errors.New("Topic must not be blank")
-	// ErrReplyToMustNotBeBlank - ReplyTo must not be blank
-	ErrReplyToMustNotBeBlank = errors.New("ReplyTo must not be blank")
-	// ErrConnectionIsClosed - Conn is closed
-	ErrConnectionIsClosed = errors.New("Conn is closed")
+import (
+	"github.com/oysterpack/oysterpack.go/pkg/logging"
 )
+
+type pkgobject struct{}
+
+var logger = logging.NewPackageLogger(pkgobject{})

@@ -19,6 +19,7 @@ import (
 
 	"github.com/json-iterator/go"
 	"github.com/nats-io/go-nats"
+	"github.com/oysterpack/oysterpack.go/pkg/messaging"
 )
 
 // Connect is an alias for a NATS connect function
@@ -67,3 +68,11 @@ const (
 	TOPIC_SUBSCRIBER = "topic_subscriber"
 	QUEUE_SUBSCRIBER = "queue_subscriber"
 )
+
+func toMessage(msg *nats.Msg) *messaging.Message {
+	return &messaging.Message{
+		Topic:   messaging.Topic(msg.Subject),
+		Data:    msg.Data,
+		ReplyTo: messaging.ReplyTo(msg.Reply),
+	}
+}

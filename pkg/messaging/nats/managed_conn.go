@@ -39,7 +39,19 @@ func NewManagedConn(cluster messaging.ClusterName, connId string, conn *nats.Con
 		errorCounter:        errorCounter.WithLabelValues(cluster.String()),
 		topicSubscriptions:  newTopicSubscriptions(),
 		queueSubscriptions:  newQueueSubscriptions(),
+		publishers:          &publishers{topicPublishers: map[messaging.Topic]messaging.Publisher{}},
 	}
+}
+
+type publishers struct {
+	sync.RWMutex
+	topicPublishers map[messaging.Topic]messaging.Publisher
+}
+
+func (a *publishers) publisher(topic messaging.Topic) messaging.Publisher {
+	a.RLock()
+	defer a.RUnlock()
+	return a.topicPublishers[topic]
 }
 
 // ManagedConn represents a managed NATS connection
@@ -68,6 +80,7 @@ type ManagedConn struct {
 
 	*topicSubscriptions
 	*queueSubscriptions
+	*publishers
 }
 
 // ID is the unique id assigned to the connection for tracking purposes
@@ -306,4 +319,32 @@ func (a *ManagedConn) QueueSubscriptionCount() int {
 	a.queueSubscriptions.RLock()
 	defer a.queueSubscriptions.RUnlock()
 	return len(a.queueSubscriptions.subscriptions)
+}
+
+// Publisher will return a Publisher for the specified topic.
+// Publishers are cached per topic per connection.
+func (a *ManagedConn) Publisher(topic messaging.Topic) (messaging.Publisher, error) {
+	if pub := a.publishers.publisher(topic); pub != nil {
+		return pub, nil
+	}
+
+	if err := topic.Validate(); err != nil {
+		return nil, err
+	}
+
+	if a.IsClosed() {
+		return nil, messaging.ErrConnectionIsClosed
+	}
+
+	a.publishers.Lock()
+	defer a.publishers.Unlock()
+
+	// in case the publisher was created since we last checked
+	if pub := a.publishers.topicPublishers[topic]; pub != nil {
+		return pub, nil
+	}
+
+	pub := NewPublisher(a, topic)
+	a.publishers.topicPublishers[topic] = pub
+	return pub, nil
 }

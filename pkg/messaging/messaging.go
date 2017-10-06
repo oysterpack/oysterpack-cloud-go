@@ -29,6 +29,11 @@ func (a Topic) Validate() error {
 	return nil
 }
 
+// TrimSpace returns a new Topic with whitespace trimmed
+func (a Topic) TrimSpace() Topic {
+	return Topic(strings.TrimSpace(string(a)))
+}
+
 // Queue represents the name of a messaging queue
 type Queue string
 
@@ -44,6 +49,18 @@ type Message struct {
 
 // ReplyTo is the topic name to send replies to
 type ReplyTo string
+
+// Validate checks that the reply topic is not blank
+func (a ReplyTo) Validate() error {
+	if strings.TrimSpace(string(a)) == "" {
+		return ErrReplyToMustNotBeBlank
+	}
+	return nil
+}
+
+func (a ReplyTo) TrimSpace() ReplyTo {
+	return ReplyTo(strings.TrimSpace(string(a)))
+}
 
 // Response is used for request-response messaging
 type Response struct {

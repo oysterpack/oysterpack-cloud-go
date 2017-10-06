@@ -15,7 +15,6 @@
 package messaging
 
 import (
-	"context"
 	"time"
 )
 
@@ -27,40 +26,7 @@ type Conn interface {
 	// Cluster returns the name of the cluster that the connection belongs to
 	Cluster() ClusterName
 
-	// Publish publishes data to the specified Topic
-	Publish(topic Topic, data []byte) error
-
-	// PublishRequest publishes data to the specified Topic and specifies which topic to reply to
-	PublishRequest(topic Topic, replyTo ReplyTo, data []byte) error
-
-	// PublishMessage publishes the message data to the specified topic, with an optional reply to
-	PublishMessage(msg *Message) error
-
-	Publisher(topic Topic) (*TopicPublisher, error)
-
-	// Request sends a message using a request-response model.
-	// The method will block and wait for a response until the timeout expires.
-	Request(topic Topic, data []byte, timeout time.Duration) (response *Message, err error)
-
-	// AsyncRequest sends a message async using a request-response model.
-	// The handler is notified async with a response.
-	AsyncRequest(topic Topic, data []byte, timeout time.Duration, handler func(Response))
-
-	// AsyncRequest sends a message async using a request-response model.
-	// The response is returned on the channel.
-	RequestChannel(topic Topic, data []byte, timeout time.Duration) <-chan Response
-
-	// RequestWithContext sends a message using a request-response model.
-	// The method will block and wait for a response until the context is cancelled.
-	RequestWithContext(ctx context.Context, topic Topic, data []byte) (response *Message, err error)
-
-	// AsyncRequestWithContext sends a message async using a request-response model.
-	// The handler is notified async with a response.
-	AsyncRequestWithContext(ctx context.Context, topic Topic, data []byte, handler func(Response))
-
-	// RequestChannelWithContext sends a message async using a request-response model.
-	// The response is returned on the channel.
-	RequestChannelWithContext(ctx context.Context, topic Topic, data []byte) <-chan Response
+	Publisher(topic Topic) (Publisher, error)
 
 	// Subscribe creates a new async topic subscription with the specified settings
 	Subscribe(topic Topic, settings *SubscriptionSettings) (Subscription, error)

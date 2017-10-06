@@ -71,13 +71,12 @@ type registeredService struct {
 //
 // Features
 // 1. Triggering the application to shutdown, triggers each of its registered services to shutdown.
-// 2. Triggers shutdown when SIGTERM and SIGINT signals are received
+// 2. SIGTERM, SIGINT, SIGQUIT signals are trapped and trigger application shutdown.
 //
 // Use NewApplication() to create a new application instance
 type application struct {
 	registry registry
 
-	// application can be managed itself as a service
 	service Service
 
 	*serviceTickets

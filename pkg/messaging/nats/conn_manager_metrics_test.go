@@ -101,8 +101,12 @@ func TestConnManager_Metrics_Simple(t *testing.T) {
 	}
 
 	const MSG_COUNT = 10
+	publisher, err := pubConn.Publisher(TOPIC)
+	if err != nil {
+		t.Fatalf("Failed to created Publisher : %v", err)
+	}
 	for i := 1; i <= MSG_COUNT; i++ {
-		pubConn.Publish(TOPIC, []byte(fmt.Sprintf("#%d", i)))
+		publisher.Publish([]byte(fmt.Sprintf("#%d", i)))
 	}
 
 	pubConn.Flush()

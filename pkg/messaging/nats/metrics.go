@@ -42,6 +42,8 @@ var (
 
 			TopicMessagesReceivedCounter,
 			QueueMessagesReceivedCounter,
+
+			TopicMessagesPublishedCounter,
 		},
 		GaugeVecOpts: []*metrics.GaugeVecOpts{
 			ConnCountOpts,
@@ -49,6 +51,8 @@ var (
 			MsgsOutGauge,
 			BytesInGauge,
 			BytesOutGauge,
+
+			PublisherCount,
 
 			TopicSubscriberCount,
 			TopicPendingMessages,
@@ -195,12 +199,22 @@ var (
 	}
 )
 
-// subscription metrics
 var (
 	// TopicMetricLabels are the variable labels for topic subscriptions
 	TopicMetricLabels = append(NATSMetricLabels, "topic")
 	// QueueMetricLabels are the variable labels for queue subscriptions
 	QueueMetricLabels = append(NATSMetricLabels, "topic", "queue")
+
+	PublisherCount = &metrics.GaugeVecOpts{
+		&prometheus.GaugeOpts{
+			Namespace:   MetricsNamespace,
+			Subsystem:   MetricsSubSystem,
+			Name:        "publisher_count",
+			Help:        "The number of publishers per topic across all active connections.",
+			ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, ConnManagerRegistryDescriptor),
+		},
+		TopicMetricLabels,
+	}
 
 	TopicSubscriberCount = &metrics.GaugeVecOpts{
 		&prometheus.GaugeOpts{

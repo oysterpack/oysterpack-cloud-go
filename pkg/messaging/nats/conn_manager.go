@@ -203,6 +203,12 @@ func newConnManager(settings ConnManagerSettings) *connManager {
 			QueueMessagesDelivered.Labels,
 			QueueMessagesDelivered.GaugeOpts.ConstLabels,
 		),
+		publisherCount: prometheus.NewDesc(
+			metrics.GaugeFQName(PublisherCount.GaugeOpts),
+			PublisherCount.GaugeOpts.Help,
+			PublisherCount.Labels,
+			PublisherCount.GaugeOpts.ConstLabels,
+		),
 	}
 	connMgr.init()
 	metrics.Registry.MustRegister(connMgr)
@@ -247,6 +253,8 @@ type connManager struct {
 	queueMaxPendingBytes    *prometheus.Desc
 	queueMessagesDelivered  *prometheus.Desc
 	queueMessagesDropped    *prometheus.Desc
+
+	publisherCount *prometheus.Desc
 }
 
 // Describe implements prometheus.Collector
@@ -271,6 +279,8 @@ func (a *connManager) Describe(ch chan<- *prometheus.Desc) {
 	ch <- a.queueMaxPendingBytes
 	ch <- a.queueMessagesDelivered
 	ch <- a.queueMessagesDropped
+
+	ch <- a.publisherCount
 }
 
 // Collect implements prometheus.Collector
@@ -281,6 +291,7 @@ func (a *connManager) Collect(ch chan<- prometheus.Metric) {
 	var msgsIn, msgsOut, bytesIn, bytesOut uint64
 	topicSubscriptionMetrics := map[messaging.Topic]*subscriptionMetrics{}
 	queueSubscriptionMetrics := map[topicQueueKey]*queueSubscriptionMetrics{}
+	topicPublisherCounts := map[messaging.Topic]int{}
 
 	for _, conn := range a.conns {
 		msgsIn += conn.InMsgs
@@ -305,6 +316,10 @@ func (a *connManager) Collect(ch chan<- prometheus.Metric) {
 				queueSubscriptionMetrics[key] = metrics
 			}
 		}
+
+		for key, _ := range conn.publishers.topicPublishers {
+			topicPublisherCounts[key]++
+		}
 	}
 
 	ch <- prometheus.MustNewConstMetric(a.msgsInDesc,
@@ -322,6 +337,12 @@ func (a *connManager) Collect(ch chan<- prometheus.Metric) {
 
 	a.reportTopicSubscriptionMetrics(ch, topicSubscriptionMetrics)
 	a.reportQueueSubscriptionMetrics(ch, queueSubscriptionMetrics)
+
+	for topic, count := range topicPublisherCounts {
+		ch <- prometheus.MustNewConstMetric(a.publisherCount,
+			prometheus.GaugeValue, float64(count), a.cluster.String(), string(topic),
+		)
+	}
 }
 
 func (a *connManager) reportTopicSubscriptionMetrics(ch chan<- prometheus.Metric, topicSubscriptionMetrics map[messaging.Topic]*subscriptionMetrics) {

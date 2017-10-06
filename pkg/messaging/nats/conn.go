@@ -20,7 +20,6 @@ import (
 
 	"fmt"
 
-	"github.com/nats-io/go-nats"
 	"github.com/oysterpack/oysterpack.go/pkg/messaging"
 )
 
@@ -115,16 +114,8 @@ func (a *conn) QueueSubscribe(topic messaging.Topic, queue messaging.Queue, sett
 	return a.managedConn.TopicQueueSubscribe(topic, queue, settings)
 }
 
-func (a *conn) Publisher(topic messaging.Topic) (*messaging.TopicPublisher, error) {
-	if err := topic.Validate(); err != nil {
-		return nil, err
-	}
-
-	if a.managedConn.IsClosed() {
-		return nil, messaging.ErrConnectionIsClosed
-	}
-
-	return messaging.NewTopicPublisher(a, topic, ""), nil
+func (a *conn) Publisher(topic messaging.Topic) (messaging.Publisher, error) {
+	return a.managedConn.Publisher(topic)
 }
 
 // Close will close the connection to the server. This call will release all blocking calls
@@ -176,12 +167,4 @@ func checkSubscriptionSettings(settings *messaging.SubscriptionSettings) error {
 		}
 	}
 	return nil
-}
-
-func toMessage(msg *nats.Msg) *messaging.Message {
-	return &messaging.Message{
-		Topic:   messaging.Topic(msg.Subject),
-		Data:    msg.Data,
-		ReplyTo: messaging.ReplyTo(msg.Reply),
-	}
 }
