@@ -317,7 +317,7 @@ func (a *connManager) Collect(ch chan<- prometheus.Metric) {
 			}
 		}
 
-		for key, _ := range conn.publishers.topicPublishers {
+		for key := range conn.publishers.topicPublishers {
 			topicPublisherCounts[key]++
 		}
 	}

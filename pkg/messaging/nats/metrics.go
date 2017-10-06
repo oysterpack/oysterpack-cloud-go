@@ -205,6 +205,7 @@ var (
 	// QueueMetricLabels are the variable labels for queue subscriptions
 	QueueMetricLabels = append(NATSMetricLabels, "topic", "queue")
 
+	// PublisherCount tracks the number of publishers per topic across all active connections.
 	PublisherCount = &metrics.GaugeVecOpts{
 		&prometheus.GaugeOpts{
 			Namespace:   MetricsNamespace,

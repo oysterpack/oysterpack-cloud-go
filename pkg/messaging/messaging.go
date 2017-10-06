@@ -58,6 +58,7 @@ func (a ReplyTo) Validate() error {
 	return nil
 }
 
+// TrimSpace returns a new ReplyTo with whitespace trimmed
 func (a ReplyTo) TrimSpace() ReplyTo {
 	return ReplyTo(strings.TrimSpace(string(a)))
 }
