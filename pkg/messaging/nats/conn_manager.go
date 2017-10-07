@@ -22,6 +22,7 @@ import (
 	"github.com/nats-io/go-nats"
 	"github.com/nats-io/nuid"
 	"github.com/oysterpack/oysterpack.go/pkg/commons"
+	"github.com/oysterpack/oysterpack.go/pkg/commons/collections/sets"
 	"github.com/oysterpack/oysterpack.go/pkg/logging"
 	"github.com/oysterpack/oysterpack.go/pkg/messaging"
 	"github.com/oysterpack/oysterpack.go/pkg/metrics"
@@ -43,7 +44,13 @@ type ConnManager interface {
 
 	Connect(tags ...string) (conn *ManagedConn, err error)
 
+	// ManagedConn looks up a conn by its id.
+	// The connection will not be present it is closed.
 	ManagedConn(id string) *ManagedConn
+
+	// ManagedConns returns all conns that have matching tags
+	// If no tag filters are provided, then all are returned.
+	ManagedConns(tags ...string) []*ManagedConn
 
 	ConnCount() int
 
@@ -110,8 +117,10 @@ func newConnManager(settings ConnManagerSettings) *connManager {
 		options: connOptions,
 
 		createdCounter: createdCounter.WithLabelValues(settings.ClusterName.String()),
-		connCount:      connCount.WithLabelValues(settings.ClusterName.String()),
 		closedCounter:  closedCounter.WithLabelValues(settings.ClusterName.String()),
+
+		connCountDesc:         prometheus.NewDesc(metrics.GaugeFQName(ConnCountOpts.GaugeOpts), ConnCountOpts.GaugeOpts.Help, ConnCountOpts.Labels, ConnCountOpts.GaugeOpts.ConstLabels),
+		notConnectedCountDesc: prometheus.NewDesc(metrics.GaugeFQName(NotConnectedCountOpts.GaugeOpts), NotConnectedCountOpts.GaugeOpts.Help, NotConnectedCountOpts.Labels, NotConnectedCountOpts.GaugeOpts.ConstLabels),
 
 		msgsInDesc:   prometheus.NewDesc(metrics.GaugeFQName(MsgsInGauge.GaugeOpts), MsgsInGauge.GaugeOpts.Help, MsgsInGauge.Labels, MsgsInGauge.GaugeOpts.ConstLabels),
 		msgsOutDesc:  prometheus.NewDesc(metrics.GaugeFQName(MsgsOutGauge.GaugeOpts), MsgsOutGauge.GaugeOpts.Help, MsgsOutGauge.Labels, MsgsOutGauge.GaugeOpts.ConstLabels),
@@ -230,13 +239,14 @@ type connManager struct {
 	healthChecks []metrics.HealthCheck
 
 	createdCounter prometheus.Counter
-	connCount      prometheus.Gauge
 	closedCounter  prometheus.Counter
 
-	msgsInDesc   *prometheus.Desc
-	msgsOutDesc  *prometheus.Desc
-	bytesInDesc  *prometheus.Desc
-	bytesOutDesc *prometheus.Desc
+	connCountDesc         *prometheus.Desc
+	notConnectedCountDesc *prometheus.Desc
+	msgsInDesc            *prometheus.Desc
+	msgsOutDesc           *prometheus.Desc
+	bytesInDesc           *prometheus.Desc
+	bytesOutDesc          *prometheus.Desc
 
 	topicSubscriberCount    *prometheus.Desc
 	topicPendingMessages    *prometheus.Desc
@@ -259,6 +269,9 @@ type connManager struct {
 
 // Describe implements prometheus.Collector
 func (a *connManager) Describe(ch chan<- *prometheus.Desc) {
+	ch <- a.connCountDesc
+	ch <- a.notConnectedCountDesc
+
 	ch <- a.msgsInDesc
 	ch <- a.msgsOutDesc
 	ch <- a.bytesInDesc
@@ -289,6 +302,7 @@ func (a *connManager) Collect(ch chan<- prometheus.Metric) {
 	defer a.mutex.RUnlock()
 
 	var msgsIn, msgsOut, bytesIn, bytesOut uint64
+	notConnectedCount := 0
 	topicSubscriptionMetrics := map[messaging.Topic]*subscriptionMetrics{}
 	queueSubscriptionMetrics := map[topicQueueKey]*queueSubscriptionMetrics{}
 	topicPublisherCounts := map[messaging.Topic]int{}
@@ -298,6 +312,9 @@ func (a *connManager) Collect(ch chan<- prometheus.Metric) {
 		msgsOut += conn.OutMsgs
 		bytesIn += conn.InBytes
 		bytesOut += conn.OutBytes
+		if !conn.IsConnected() {
+			notConnectedCount++
+		}
 
 		for topic, metrics := range conn.topicSubscriptions.collectMetrics() {
 			agg, exists := topicSubscriptionMetrics[topic]
@@ -322,6 +339,12 @@ func (a *connManager) Collect(ch chan<- prometheus.Metric) {
 		}
 	}
 
+	ch <- prometheus.MustNewConstMetric(a.connCountDesc,
+		prometheus.GaugeValue, float64(len(a.conns)), a.cluster.String(),
+	)
+	ch <- prometheus.MustNewConstMetric(a.notConnectedCountDesc,
+		prometheus.GaugeValue, float64(notConnectedCount), a.cluster.String(),
+	)
 	ch <- prometheus.MustNewConstMetric(a.msgsInDesc,
 		prometheus.GaugeValue, float64(msgsIn), a.cluster.String(),
 	)
@@ -409,7 +432,6 @@ func (a *connManager) HealthChecks() []metrics.HealthCheck {
 // Tags are used to help identify how the connection is being used by the app. Tags are currently used to augment logging.
 //
 // Connections are configured to always reconnect.
-//
 func (a *connManager) Connect(tags ...string) (*ManagedConn, error) {
 	a.mutex.Lock()
 	defer a.mutex.Unlock()
@@ -423,7 +445,6 @@ func (a *connManager) Connect(tags ...string) (*ManagedConn, error) {
 	a.conns[connId] = managedConn
 
 	nc.SetClosedHandler(func(conn *nats.Conn) {
-		a.connCount.Dec()
 		a.closedCounter.Inc()
 		logger.Info().Str(logging.EVENT, EVENT_CONN_CLOSED).Str(CONN_ID, connId).Msg("")
 		a.mutex.Lock()
@@ -462,7 +483,6 @@ func (a *connManager) Connect(tags ...string) (*ManagedConn, error) {
 	})
 
 	a.createdCounter.Inc()
-	a.connCount.Inc()
 
 	return managedConn, nil
 }
@@ -541,7 +561,6 @@ func (a *connManager) CloseAll() {
 	defer a.mutex.Unlock()
 	for _, nc := range a.conns {
 		nc.Conn.SetClosedHandler(func(conn *nats.Conn) {
-			a.connCount.Dec()
 			a.closedCounter.Inc()
 			logger.Info().Str(logging.EVENT, EVENT_CONN_CLOSED).Str(CONN_ID, nc.ID()).Msg("CloseAll")
 		})
@@ -599,6 +618,31 @@ func (a *connManager) DisconnectedCount() (count int, total int) {
 	for _, c := range a.conns {
 		if !c.Conn.IsConnected() {
 			count++
+		}
+	}
+	return
+}
+
+func (a *connManager) ManagedConns(tags ...string) (conns []*ManagedConn) {
+	a.mutex.RLock()
+	defer a.mutex.RUnlock()
+	hasTags := len(tags) > 0
+CONN_LOOP:
+	for _, c := range a.conns {
+		if hasTags {
+			if len(tags) > len(c.tags) {
+				continue
+			}
+			tagSet := sets.NewStrings()
+			tagSet.AddAll(c.tags...)
+			for _, tag := range tags {
+				if !tagSet.Contains(tag) {
+					continue CONN_LOOP
+				}
+			}
+			conns = append(conns, c)
+		} else {
+			conns = append(conns, c)
 		}
 	}
 	return

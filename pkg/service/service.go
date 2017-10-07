@@ -61,6 +61,9 @@ type Service interface {
 	MetricOpts() *metrics.MetricOpts
 }
 
+// ServiceConstructor returns a new instance of a Service in the New state
+type ServiceConstructor func() Service
+
 // InterfaceDependencies represents a service's interface dependencies with version constraints
 type InterfaceDependencies map[Interface]*semver.Constraints
 
@@ -622,9 +625,6 @@ func (a *service) String() string {
 // StopTrigger is used to notify the service to stop.
 // Closing the channel is the stop signal
 type StopTrigger <-chan struct{}
-
-// ServiceConstructor returns a new instance of a Service in the New state
-type ServiceConstructor func() Service
 
 // ServiceReference represents something that has a reference to a service.
 type ServiceReference interface {

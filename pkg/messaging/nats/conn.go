@@ -20,16 +20,16 @@ import (
 
 	"fmt"
 
+	"github.com/nats-io/go-nats"
 	"github.com/oysterpack/oysterpack.go/pkg/messaging"
 )
 
 // NewConn is a constructor method for new nats based connections
-func NewConn(connect Connect) (messaging.Conn, error) {
-	c, err := connect()
-	if err != nil {
-		return nil, err
+func NewConn(managedConn *ManagedConn) (messaging.Conn, error) {
+	if managedConn.IsClosed() {
+		return nil, messaging.ErrConnectionIsClosed
 	}
-	return &conn{managedConn: c}, nil
+	return &conn{managedConn}, nil
 }
 
 type conn struct {
@@ -136,6 +136,25 @@ func (a *conn) Connected() bool {
 // Reconnecting tests if a Conn is reconnecting.
 func (a *conn) Reconnecting() bool {
 	return a.managedConn.IsReconnecting()
+}
+
+// Status returns the connection status
+func (a *conn) Status() (status messaging.ConnStatus) {
+	switch a.managedConn.Status() {
+	case nats.DISCONNECTED:
+		status = messaging.DISCONNECTED
+	case nats.CONNECTED:
+		status = messaging.CONNECTED
+	case nats.CLOSED:
+		status = messaging.CLOSED
+	case nats.RECONNECTING:
+		status = messaging.RECONNECTING
+	case nats.CONNECTING:
+		status = messaging.CONNECTING
+	default:
+		logger.Panic().Int("status", int(a.managedConn.Status())).Msg("Unknown NATS connection status")
+	}
+	return
 }
 
 // LastError reports the last error encountered via the connection.

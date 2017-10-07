@@ -17,6 +17,7 @@ package nats
 import (
 	"time"
 
+	"github.com/oysterpack/oysterpack.go/pkg/messaging"
 	"github.com/oysterpack/oysterpack.go/pkg/metrics"
 	"github.com/oysterpack/oysterpack.go/pkg/service"
 	"github.com/prometheus/client_golang/prometheus"
@@ -24,13 +25,13 @@ import (
 
 var connectivityHealthCheck = &metrics.GaugeVecOpts{
 	&prometheus.GaugeOpts{
-		Namespace:   MetricsNamespace,
-		Subsystem:   MetricsSubSystem,
+		Namespace:   messaging.MetricsNamespace,
+		Subsystem:   messaging.MetricsSubSystem,
 		Name:        "connectivity",
 		Help:        "The healthcheck fails if any connections are disconnected.",
-		ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, ConnManagerRegistryDescriptor),
+		ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
 	},
-	NATSMetricLabels,
+	MetricLabels,
 }
 
 const runinterval = 15 * time.Second

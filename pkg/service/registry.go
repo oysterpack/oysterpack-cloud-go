@@ -59,6 +59,7 @@ type Registry interface {
 	// 3. the Client instance type is not assignable to the Service.
 	MustRegisterService(newService ClientConstructor) Client
 
+	// RegisterService creates a new instance of the service Client using the specified Client
 	RegisterService(newService ClientConstructor) (Client, error)
 
 	// UnRegisterService will unregister the service and returns false if no such service is registered.

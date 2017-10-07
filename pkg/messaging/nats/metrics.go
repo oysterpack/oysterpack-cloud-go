@@ -15,28 +15,22 @@
 package nats
 
 import (
+	"github.com/oysterpack/oysterpack.go/pkg/messaging"
 	"github.com/oysterpack/oysterpack.go/pkg/metrics"
 	"github.com/oysterpack/oysterpack.go/pkg/service"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-const (
-	// MetricsNamespace is used as the metric namespace for nats related metrics
-	MetricsNamespace = "messaging"
-	// MetricsSubSystem is used as the metric subsystem for nats related metrics
-	MetricsSubSystem = "nats"
-)
-
 var (
-	// NATSMetricLabels are the variable labels used for all NATS related metrics
-	NATSMetricLabels = []string{"nats_cluster"}
+	// MetricLabels are the variable labels used for all NATS related metrics
+	MetricLabels = []string{"cluster"}
+	ConstLabels  = prometheus.Labels{messaging.CONST_LABEL_VENDOR: "nats"}
 
 	// ConnManagerMetrics define the metrics collected per ConnManager
 	ConnManagerMetrics = &metrics.MetricOpts{
 		CounterVecOpts: []*metrics.CounterVecOpts{
 			CreatedCounterOpts,
 			ClosedCounterOpts,
-			DisconnectedCounterOpts,
 			ReconnectedCounterOpts,
 			SubscriberErrorCounterOpts,
 
@@ -47,6 +41,8 @@ var (
 		},
 		GaugeVecOpts: []*metrics.GaugeVecOpts{
 			ConnCountOpts,
+			NotConnectedCountOpts,
+
 			MsgsInGauge,
 			MsgsOutGauge,
 			BytesInGauge,
@@ -75,78 +71,76 @@ var (
 	// CreatedCounterOpts tracks the number of connections that have been created
 	CreatedCounterOpts = &metrics.CounterVecOpts{
 		&prometheus.CounterOpts{
-			Namespace:   MetricsNamespace,
-			Subsystem:   MetricsSubSystem,
+			Namespace:   messaging.MetricsNamespace,
+			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "created",
 			Help:        "The number of connections that have been created",
-			ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, ConnManagerRegistryDescriptor),
+			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
 		},
-		NATSMetricLabels,
+		MetricLabels,
 	}
 	createdCounter = metrics.GetOrMustRegisterCounterVec(CreatedCounterOpts)
 
 	// ClosedCounterOpts tracks the number of connection that have been closed
 	ClosedCounterOpts = &metrics.CounterVecOpts{
 		&prometheus.CounterOpts{
-			Namespace:   MetricsNamespace,
-			Subsystem:   MetricsSubSystem,
+			Namespace:   messaging.MetricsNamespace,
+			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "closed",
 			Help:        "The number of connections that have been closed",
-			ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, ConnManagerRegistryDescriptor),
+			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
 		},
-		NATSMetricLabels,
+		MetricLabels,
 	}
 	closedCounter = metrics.GetOrMustRegisterCounterVec(ClosedCounterOpts)
 
 	// ConnCountOpts tracks the number of current connections
 	ConnCountOpts = &metrics.GaugeVecOpts{
 		&prometheus.GaugeOpts{
-			Namespace:   MetricsNamespace,
-			Subsystem:   MetricsSubSystem,
+			Namespace:   messaging.MetricsNamespace,
+			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "count",
 			Help:        "The number of active connections",
-			ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, ConnManagerRegistryDescriptor),
+			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
 		},
-		NATSMetricLabels,
+		MetricLabels,
 	}
-	connCount = metrics.GetOrMustRegisterGaugeVec(ConnCountOpts)
 
-	// DisconnectedCounterOpts tracks when connections have disconnected
-	DisconnectedCounterOpts = &metrics.CounterVecOpts{
-		&prometheus.CounterOpts{
-			Namespace:   MetricsNamespace,
-			Subsystem:   MetricsSubSystem,
-			Name:        "disconnects",
-			Help:        "The number of disconnects",
-			ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, ConnManagerRegistryDescriptor),
+	// ConnCountOpts tracks the number of connections that are not currently connected. They may be disconnected, reconnecting, or connecting.
+	NotConnectedCountOpts = &metrics.GaugeVecOpts{
+		&prometheus.GaugeOpts{
+			Namespace:   messaging.MetricsNamespace,
+			Subsystem:   messaging.MetricsSubSystem,
+			Name:        "not_connected_count",
+			Help:        "The number of connections that are not connected",
+			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
 		},
-		NATSMetricLabels,
+		MetricLabels,
 	}
-	disconnectedCounter = metrics.GetOrMustRegisterCounterVec(DisconnectedCounterOpts)
 
 	// ReconnectedCounterOpts tracks when connections have reconnected
 	ReconnectedCounterOpts = &metrics.CounterVecOpts{
 		&prometheus.CounterOpts{
-			Namespace:   MetricsNamespace,
-			Subsystem:   MetricsSubSystem,
+			Namespace:   messaging.MetricsNamespace,
+			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "reconnects",
-			Help:        "The number of reconnects",
-			ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, ConnManagerRegistryDescriptor),
+			Help:        "The total number of reconnects",
+			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
 		},
-		NATSMetricLabels,
+		MetricLabels,
 	}
 	reconnectedCounter = metrics.GetOrMustRegisterCounterVec(ReconnectedCounterOpts)
 
 	// SubscriberErrorCounterOpts tracks when subscriber related errors occur
 	SubscriberErrorCounterOpts = &metrics.CounterVecOpts{
 		&prometheus.CounterOpts{
-			Namespace:   MetricsNamespace,
-			Subsystem:   MetricsSubSystem,
+			Namespace:   messaging.MetricsNamespace,
+			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "subscriber_errors",
 			Help:        "The number of errors encountered while processing inbound messages",
-			ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, ConnManagerRegistryDescriptor),
+			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
 		},
-		NATSMetricLabels,
+		MetricLabels,
 	}
 	errorCounter = metrics.GetOrMustRegisterCounterVec(SubscriberErrorCounterOpts)
 )
@@ -156,74 +150,75 @@ var (
 	// MsgsInGauge tracks the total number of messages that have been received on current connections
 	MsgsInGauge = &metrics.GaugeVecOpts{
 		&prometheus.GaugeOpts{
-			Namespace:   MetricsNamespace,
-			Subsystem:   MetricsSubSystem,
+			Namespace:   messaging.MetricsNamespace,
+			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "msgs_in",
 			Help:        "The number of messages that have been received on all active connections.",
-			ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, ConnManagerRegistryDescriptor),
+			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
 		},
-		NATSMetricLabels,
+		MetricLabels,
 	}
 	// MsgsOutGauge tracks the total number of messages that have been published on current connections
 	MsgsOutGauge = &metrics.GaugeVecOpts{
 		&prometheus.GaugeOpts{
-			Namespace:   MetricsNamespace,
-			Subsystem:   MetricsSubSystem,
+			Namespace:   messaging.MetricsNamespace,
+			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "msgs_out",
 			Help:        "The number of messages that have been sent on all active connections.",
-			ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, ConnManagerRegistryDescriptor),
+			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
 		},
-		NATSMetricLabels,
+		MetricLabels,
 	}
 	// BytesInGauge tracks the total number of bytes that have been received on current connections
 	BytesInGauge = &metrics.GaugeVecOpts{
 		&prometheus.GaugeOpts{
-			Namespace:   MetricsNamespace,
-			Subsystem:   MetricsSubSystem,
+			Namespace:   messaging.MetricsNamespace,
+			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "bytes_in",
 			Help:        "The number of bytes that have been received on all active connections.",
-			ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, ConnManagerRegistryDescriptor),
+			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
 		},
-		NATSMetricLabels,
+		MetricLabels,
 	}
 	// BytesOutGauge tracks the total number of bytes that have been published on current connections
 	BytesOutGauge = &metrics.GaugeVecOpts{
 		&prometheus.GaugeOpts{
-			Namespace:   MetricsNamespace,
-			Subsystem:   MetricsSubSystem,
+			Namespace:   messaging.MetricsNamespace,
+			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "bytes_out",
 			Help:        "The number of bytes that have been sent on all active connections.",
-			ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, ConnManagerRegistryDescriptor),
+			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
 		},
-		NATSMetricLabels,
+		MetricLabels,
 	}
 )
 
 var (
 	// TopicMetricLabels are the variable labels for topic subscriptions
-	TopicMetricLabels = append(NATSMetricLabels, "topic")
+	TopicMetricLabels = append(MetricLabels, "topic")
 	// QueueMetricLabels are the variable labels for queue subscriptions
-	QueueMetricLabels = append(NATSMetricLabels, "topic", "queue")
+	QueueMetricLabels = append(MetricLabels, "topic", "queue")
 
 	// PublisherCount tracks the number of publishers per topic across all active connections.
 	PublisherCount = &metrics.GaugeVecOpts{
 		&prometheus.GaugeOpts{
-			Namespace:   MetricsNamespace,
-			Subsystem:   MetricsSubSystem,
+			Namespace:   messaging.MetricsNamespace,
+			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "publisher_count",
 			Help:        "The number of publishers per topic across all active connections.",
-			ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, ConnManagerRegistryDescriptor),
+			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
 		},
 		TopicMetricLabels,
 	}
 
+	// TopicSubscriberCount tracks the number of subscribers per topic across all active connections
 	TopicSubscriberCount = &metrics.GaugeVecOpts{
 		&prometheus.GaugeOpts{
-			Namespace:   MetricsNamespace,
-			Subsystem:   MetricsSubSystem,
+			Namespace:   messaging.MetricsNamespace,
+			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "topic_subscriber_count",
 			Help:        "The number of subscribers per topic across all active connections.",
-			ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, ConnManagerRegistryDescriptor),
+			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
 		},
 		TopicMetricLabels,
 	}
@@ -231,11 +226,11 @@ var (
 	// TopicPendingMessages tracks the number of queued messages per topic across all active connections
 	TopicPendingMessages = &metrics.GaugeVecOpts{
 		&prometheus.GaugeOpts{
-			Namespace:   MetricsNamespace,
-			Subsystem:   MetricsSubSystem,
+			Namespace:   messaging.MetricsNamespace,
+			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "topic_pending_msgs",
 			Help:        "The number of queued messages per topic across all active connections.",
-			ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, ConnManagerRegistryDescriptor),
+			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
 		},
 		TopicMetricLabels,
 	}
@@ -243,11 +238,11 @@ var (
 	// TopicPendingBytes tracks the number of queued message bytes per topic across all active connections
 	TopicPendingBytes = &metrics.GaugeVecOpts{
 		&prometheus.GaugeOpts{
-			Namespace:   MetricsNamespace,
-			Subsystem:   MetricsSubSystem,
+			Namespace:   messaging.MetricsNamespace,
+			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "topic_pending_bytes",
 			Help:        "The number of queued message bytes per topic across all active connections.",
-			ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, ConnManagerRegistryDescriptor),
+			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
 		},
 		TopicMetricLabels,
 	}
@@ -255,11 +250,11 @@ var (
 	// TopicMaxPendingMessages tracks the number of queued messages per topic across all active connections
 	TopicMaxPendingMessages = &metrics.GaugeVecOpts{
 		&prometheus.GaugeOpts{
-			Namespace:   MetricsNamespace,
-			Subsystem:   MetricsSubSystem,
+			Namespace:   messaging.MetricsNamespace,
+			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "topic_pending_msgs_max",
 			Help:        "The max number of queued messages per topic across all active connections.",
-			ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, ConnManagerRegistryDescriptor),
+			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
 		},
 		TopicMetricLabels,
 	}
@@ -267,11 +262,11 @@ var (
 	// TopicMaxPendingBytes tracks the number of queued message bytes per topic across all active connections
 	TopicMaxPendingBytes = &metrics.GaugeVecOpts{
 		&prometheus.GaugeOpts{
-			Namespace:   MetricsNamespace,
-			Subsystem:   MetricsSubSystem,
+			Namespace:   messaging.MetricsNamespace,
+			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "topic_pending_bytes_max",
 			Help:        "The max number of queued message bytes per topic across all active connections.",
-			ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, ConnManagerRegistryDescriptor),
+			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
 		},
 		TopicMetricLabels,
 	}
@@ -279,13 +274,13 @@ var (
 	// TopicMessagesDropped tracks the number of known dropped messages per topic across all active connections
 	TopicMessagesDropped = &metrics.GaugeVecOpts{
 		&prometheus.GaugeOpts{
-			Namespace: MetricsNamespace,
-			Subsystem: MetricsSubSystem,
+			Namespace: messaging.MetricsNamespace,
+			Subsystem: messaging.MetricsSubSystem,
 			Name:      "topic_msgs_dropped",
 			Help: "The number of known dropped messages per topic across all active connections. " +
 				"This will correspond to messages dropped by violations of PendingLimits. " +
 				"If the server declares the connection a SlowConsumer, this number may not be valid.",
-			ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, ConnManagerRegistryDescriptor),
+			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
 		},
 		TopicMetricLabels,
 	}
@@ -293,22 +288,22 @@ var (
 	// TopicMessagesDelivered tracks the number of messages delivered to subscriptions per topic across all active connections
 	TopicMessagesDelivered = &metrics.GaugeVecOpts{
 		&prometheus.GaugeOpts{
-			Namespace:   MetricsNamespace,
-			Subsystem:   MetricsSubSystem,
+			Namespace:   messaging.MetricsNamespace,
+			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "topic_msgs_delivered",
 			Help:        "The number of messages delivered to subscriptions per topic across all active connections.",
-			ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, ConnManagerRegistryDescriptor),
+			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
 		},
 		TopicMetricLabels,
 	}
 
 	QueueSubscriberCount = &metrics.GaugeVecOpts{
 		&prometheus.GaugeOpts{
-			Namespace:   MetricsNamespace,
-			Subsystem:   MetricsSubSystem,
+			Namespace:   messaging.MetricsNamespace,
+			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "queue_subscriber_count",
 			Help:        "The number of subscribers per topic queue across all active connections.",
-			ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, ConnManagerRegistryDescriptor),
+			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
 		},
 		QueueMetricLabels,
 	}
@@ -316,11 +311,11 @@ var (
 	// QueuePendingMessages tracks the number of queued messages per queue across all active connections
 	QueuePendingMessages = &metrics.GaugeVecOpts{
 		&prometheus.GaugeOpts{
-			Namespace:   MetricsNamespace,
-			Subsystem:   MetricsSubSystem,
+			Namespace:   messaging.MetricsNamespace,
+			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "queue_pending_msgs",
 			Help:        "The number of queued messages per queue across all active connections.",
-			ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, ConnManagerRegistryDescriptor),
+			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
 		},
 		QueueMetricLabels,
 	}
@@ -328,11 +323,11 @@ var (
 	// QueuePendingBytes tracks the number of queued message bytes per queue across all active connections
 	QueuePendingBytes = &metrics.GaugeVecOpts{
 		&prometheus.GaugeOpts{
-			Namespace:   MetricsNamespace,
-			Subsystem:   MetricsSubSystem,
+			Namespace:   messaging.MetricsNamespace,
+			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "queue_pending_bytes",
 			Help:        "The number of queued message bytes per queue across all active connections.",
-			ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, ConnManagerRegistryDescriptor),
+			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
 		},
 		QueueMetricLabels,
 	}
@@ -340,11 +335,11 @@ var (
 	// QueueMaxPendingMessages tracks the number of queued messages per queue across all active connections
 	QueueMaxPendingMessages = &metrics.GaugeVecOpts{
 		&prometheus.GaugeOpts{
-			Namespace:   MetricsNamespace,
-			Subsystem:   MetricsSubSystem,
+			Namespace:   messaging.MetricsNamespace,
+			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "queue_pending_msgs_max",
 			Help:        "The max number of queued messages per queue across all active connections.",
-			ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, ConnManagerRegistryDescriptor),
+			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
 		},
 		QueueMetricLabels,
 	}
@@ -352,11 +347,11 @@ var (
 	// QueueMaxPendingBytes tracks the number of queued message bytes per queue across all active connections
 	QueueMaxPendingBytes = &metrics.GaugeVecOpts{
 		&prometheus.GaugeOpts{
-			Namespace:   MetricsNamespace,
-			Subsystem:   MetricsSubSystem,
+			Namespace:   messaging.MetricsNamespace,
+			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "queue_pending_bytes_max",
 			Help:        "The max number of queued message bytes per queue across all active connections.",
-			ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, ConnManagerRegistryDescriptor),
+			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
 		},
 		QueueMetricLabels,
 	}
@@ -364,13 +359,13 @@ var (
 	// QueueMessagesDropped tracks the number of known dropped messages per queue across all active connections
 	QueueMessagesDropped = &metrics.GaugeVecOpts{
 		&prometheus.GaugeOpts{
-			Namespace: MetricsNamespace,
-			Subsystem: MetricsSubSystem,
+			Namespace: messaging.MetricsNamespace,
+			Subsystem: messaging.MetricsSubSystem,
 			Name:      "queue_msgs_dropped",
 			Help: "The number of known dropped messages per queue across all active connections. " +
 				"This will correspond to messages dropped by violations of PendingLimits. " +
 				"If the server declares the connection a SlowConsumer, this number may not be valid.",
-			ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, ConnManagerRegistryDescriptor),
+			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
 		},
 		QueueMetricLabels,
 	}
@@ -378,11 +373,11 @@ var (
 	// QueueMessagesDelivered tracks the number of messages delivered to subscriptions per queue across all active connections
 	QueueMessagesDelivered = &metrics.GaugeVecOpts{
 		&prometheus.GaugeOpts{
-			Namespace:   MetricsNamespace,
-			Subsystem:   MetricsSubSystem,
+			Namespace:   messaging.MetricsNamespace,
+			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "queue_msgs_delivered",
 			Help:        "The number of messages delivered to subscriptions per queue across all active connections.",
-			ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, ConnManagerRegistryDescriptor),
+			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
 		},
 		QueueMetricLabels,
 	}
@@ -393,11 +388,11 @@ var (
 	// TopicMessagesReceivedCounter tracks the number of messsages received per topic since the app started
 	TopicMessagesReceivedCounter = &metrics.CounterVecOpts{
 		&prometheus.CounterOpts{
-			Namespace:   MetricsNamespace,
-			Subsystem:   MetricsSubSystem,
+			Namespace:   messaging.MetricsNamespace,
+			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "topic_msgs_received",
 			Help:        "The number of messages received per topic since the app started.",
-			ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, ConnManagerRegistryDescriptor),
+			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
 		},
 		TopicMetricLabels,
 	}
@@ -406,11 +401,11 @@ var (
 	// QueueMessagesReceivedCounter tracks the number of messages received per topic queue since the app started
 	QueueMessagesReceivedCounter = &metrics.CounterVecOpts{
 		&prometheus.CounterOpts{
-			Namespace:   MetricsNamespace,
-			Subsystem:   MetricsSubSystem,
+			Namespace:   messaging.MetricsNamespace,
+			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "queue_msgs_received",
 			Help:        "The number of messages received per topic queue since the app started.",
-			ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, ConnManagerRegistryDescriptor),
+			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
 		},
 		QueueMetricLabels,
 	}
@@ -419,11 +414,11 @@ var (
 	// TopicMessagesPublishedCounter tracks the number of messages published per topic since the app started
 	TopicMessagesPublishedCounter = &metrics.CounterVecOpts{
 		&prometheus.CounterOpts{
-			Namespace:   MetricsNamespace,
-			Subsystem:   MetricsSubSystem,
+			Namespace:   messaging.MetricsNamespace,
+			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "topic_msgs_published",
 			Help:        "The number of messages published per topic since the app started.",
-			ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, ConnManagerRegistryDescriptor),
+			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
 		},
 		TopicMetricLabels,
 	}
@@ -436,8 +431,7 @@ var (
 func RegisterMetrics() {
 	createdCounter = metrics.GetOrMustRegisterCounterVec(CreatedCounterOpts)
 	closedCounter = metrics.GetOrMustRegisterCounterVec(ClosedCounterOpts)
-	connCount = metrics.GetOrMustRegisterGaugeVec(ConnCountOpts)
-	disconnectedCounter = metrics.GetOrMustRegisterCounterVec(DisconnectedCounterOpts)
+
 	reconnectedCounter = metrics.GetOrMustRegisterCounterVec(ReconnectedCounterOpts)
 	errorCounter = metrics.GetOrMustRegisterCounterVec(SubscriberErrorCounterOpts)
 

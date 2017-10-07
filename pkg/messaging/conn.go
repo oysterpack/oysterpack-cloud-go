@@ -16,6 +16,7 @@ package messaging
 
 import (
 	"time"
+	"context"
 )
 
 // Conn represents a messaging connection
@@ -26,7 +27,25 @@ type Conn interface {
 	// Cluster returns the name of the cluster that the connection belongs to
 	Cluster() ClusterName
 
+	// Publisher returns a  Publisher for the specified topic
+	// Publishers are cached per topic. Publishing metrics are collected.
+	// Publisher is meant to be used to publish to well known topics. Do not use it to publish to unknown topics.
+	//
+	// For example, when temporary reply to topics are used, we don't want to collect metrics at the publisher level
+	// because it would explode the publisher metric vector topic dimension.
 	Publisher(topic Topic) (Publisher, error)
+
+	Publish(topic Topic, data []byte) error
+	PublishRequest(topic Topic, replyTo ReplyTo, data []byte) error
+
+	Request(topic Topic, data []byte, timeout time.Duration) (response *Message, err error)
+	RequestWithContext(ctx context.Context, topic Topic, data []byte) (response *Message, err error)
+
+	AsyncRequest(topic Topic, data []byte, timeout time.Duration, handler func(Response))
+	AsyncRequestWithContext(ctx context.Context, topic Topic, data []byte, handler func(Response))
+
+	RequestChannel(topic Topic, data []byte, timeout time.Duration) <-chan Response
+	RequestChannelWithContext(ctx context.Context, topic Topic, data []byte) <-chan Response
 
 	// Subscribe creates a new async topic subscription with the specified settings
 	Subscribe(topic Topic, settings *SubscriptionSettings) (Subscription, error)
@@ -49,6 +68,9 @@ type Conn interface {
 	// LastError reports the last error encountered via the connection and when it occurred
 	LastError() *ConnErr
 
+	// Status returns the connection status
+	Status() ConnStatus
+
 	// MaxPayload returns the size limit that a message payload can have.
 	// This is set by the server configuration and delivered to the client upon connect.
 	MaxPayload() int64
@@ -59,3 +81,13 @@ type ConnErr struct {
 	Error     error
 	Timestamp time.Time
 }
+
+type ConnStatus int
+
+const (
+	DISCONNECTED = ConnStatus(iota)
+	CONNECTED
+	CLOSED
+	RECONNECTING
+	CONNECTING
+)

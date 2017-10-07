@@ -29,17 +29,16 @@ import (
 // NewManagedConn factory method
 func NewManagedConn(cluster messaging.ClusterName, connId string, conn *nats.Conn, tags []string) *ManagedConn {
 	return &ManagedConn{
-		Conn:                conn,
-		id:                  connId,
-		created:             time.Now(),
-		tags:                tags,
-		cluster:             cluster,
-		disconnectedCounter: disconnectedCounter.WithLabelValues(cluster.String()),
-		reconnectedCounter:  reconnectedCounter.WithLabelValues(cluster.String()),
-		errorCounter:        errorCounter.WithLabelValues(cluster.String()),
-		topicSubscriptions:  newTopicSubscriptions(),
-		queueSubscriptions:  newQueueSubscriptions(),
-		publishers:          &publishers{topicPublishers: map[messaging.Topic]messaging.Publisher{}},
+		Conn:               conn,
+		id:                 connId,
+		created:            time.Now(),
+		tags:               tags,
+		cluster:            cluster,
+		reconnectedCounter: reconnectedCounter.WithLabelValues(cluster.String()),
+		errorCounter:       errorCounter.WithLabelValues(cluster.String()),
+		topicSubscriptions: newTopicSubscriptions(),
+		queueSubscriptions: newQueueSubscriptions(),
+		publishers:         &publishers{topicPublishers: map[messaging.Topic]messaging.Publisher{}},
 	}
 }
 
@@ -74,9 +73,8 @@ type ManagedConn struct {
 	errors        int
 	lastErrorTime time.Time
 
-	disconnectedCounter prometheus.Counter
-	reconnectedCounter  prometheus.Counter
-	errorCounter        prometheus.Counter
+	reconnectedCounter prometheus.Counter
+	errorCounter       prometheus.Counter
 
 	*topicSubscriptions
 	*queueSubscriptions
@@ -144,7 +142,6 @@ func (a *ManagedConn) Errors() int {
 
 // updates are protected by a mutex to make changes concurrency safe
 func (a *ManagedConn) disconnected() {
-	a.disconnectedCounter.Inc()
 	a.mutex.Lock()
 	defer a.mutex.Unlock()
 	a.lastDisconnectTime = time.Now()

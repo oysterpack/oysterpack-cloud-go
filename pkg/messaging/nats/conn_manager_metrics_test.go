@@ -124,7 +124,7 @@ func TestConnManager_Metrics_Simple(t *testing.T) {
 	// log the gatheredMetrics
 	for _, metric := range gatheredMetrics {
 		//t.Log(*metric.Name)
-		if strings.HasPrefix(*metric.Name, nats.MetricsNamespace) {
+		if strings.HasPrefix(*metric.Name, messaging.MetricsNamespace) {
 			jsonBytes, _ := json.MarshalIndent(metric, "", "   ")
 			t.Logf("%v", string(jsonBytes))
 		}
@@ -282,10 +282,7 @@ func checkLifecycleRelatedMetricCounts(t *testing.T, gatheredMetrics []*dto.Metr
 	if value := *gauge(gatheredMetrics, nats.ConnCountOpts).GetMetric()[0].GetGauge().Value; value != 0 {
 		t.Errorf("*** ERROR *** closed count is wrong : %v", value)
 	}
-	// disconnect events also occur on closing
-	if value := *counter(gatheredMetrics, nats.DisconnectedCounterOpts).GetMetric()[0].GetCounter().Value; value != 4 {
-		t.Errorf("*** ERROR *** disconnects count is wrong : %v", value)
-	}
+
 	if value := *counter(gatheredMetrics, nats.ReconnectedCounterOpts).GetMetric()[0].GetCounter().Value; value != 2 {
 		t.Errorf("*** ERROR *** reconnects count is wrong : %v", value)
 	}
@@ -327,7 +324,7 @@ func checkMetricsAfterReconnecting(t *testing.T, gatheredMetrics []*dto.MetricFa
 func logMetrics(t *testing.T, gatheredMetrics []*dto.MetricFamily) {
 	t.Helper()
 	for _, metric := range gatheredMetrics {
-		if strings.HasPrefix(*metric.Name, nats.MetricsNamespace) {
+		if strings.HasPrefix(*metric.Name, messaging.MetricsNamespace) {
 			jsonBytes, _ := json.MarshalIndent(metric, "", "   ")
 			t.Logf("%v", string(jsonBytes))
 		}

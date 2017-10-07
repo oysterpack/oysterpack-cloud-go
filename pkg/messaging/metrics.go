@@ -14,15 +14,13 @@
 
 package messaging
 
-import "errors"
+const (
+	// MetricsNamespace is used as the metric namespace for nats related metrics
+	MetricsNamespace = "oysterpack"
+	// MetricsSubSystem is used as the metric subsystem for nats related metrics
+	MetricsSubSystem = "messaging"
 
-var (
-	// ErrTopicMustNotBeBlank - Topic must not be blank
-	ErrTopicMustNotBeBlank = errors.New("Topic must not be blank")
-	// ErrReplyToMustNotBeBlank - ReplyTo must not be blank
-	ErrReplyToMustNotBeBlank = errors.New("ReplyTo must not be blank")
-	// ErrConnectionIsClosed - Conn is closed
-	ErrConnectionIsClosed = errors.New("Conn is closed")
-	// ErrClientAlreadyRegsiteredForSameCluster - A Client is already registered for the same cluster
-	ErrClientAlreadyRegsiteredForSameCluster = errors.New("A Client is already registered for the same cluster")
+	CONST_LABEL_VENDOR = "vendor"
 )
+
+var MetricLabels = []string{"cluster"}
