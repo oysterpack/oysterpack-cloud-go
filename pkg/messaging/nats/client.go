@@ -19,10 +19,12 @@ import (
 	"github.com/oysterpack/oysterpack.go/pkg/metrics"
 )
 
+// NewClient returns a new instance of a messaging.Client, using the specified ConnManager
 func NewClient(connManager ConnManager) messaging.Client {
 	return &client{connManager}
 }
 
+// client is simply a wrapper around ConnManager
 type client struct {
 	connManager ConnManager
 }

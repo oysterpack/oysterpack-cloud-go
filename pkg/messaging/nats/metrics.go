@@ -24,7 +24,8 @@ import (
 var (
 	// MetricLabels are the variable labels used for all NATS related metrics
 	MetricLabels = []string{"cluster"}
-	ConstLabels  = prometheus.Labels{messaging.CONST_LABEL_VENDOR: "nats"}
+	// ConstLabels sets vendor=nats
+	ConstLabels = prometheus.Labels{messaging.CONST_LABEL_VENDOR: "nats"}
 
 	// ConnManagerMetrics define the metrics collected per ConnManager
 	ConnManagerMetrics = &metrics.MetricOpts{
@@ -106,7 +107,7 @@ var (
 		MetricLabels,
 	}
 
-	// ConnCountOpts tracks the number of connections that are not currently connected. They may be disconnected, reconnecting, or connecting.
+	// NotConnectedCountOpts tracks the number of connections that are not currently connected. They may be disconnected, reconnecting, or connecting.
 	NotConnectedCountOpts = &metrics.GaugeVecOpts{
 		&prometheus.GaugeOpts{
 			Namespace:   messaging.MetricsNamespace,
@@ -297,6 +298,7 @@ var (
 		TopicMetricLabels,
 	}
 
+	// QueueSubscriberCount tracks the number of subscribers per topic queue across all active connections.
 	QueueSubscriberCount = &metrics.GaugeVecOpts{
 		&prometheus.GaugeOpts{
 			Namespace:   messaging.MetricsNamespace,

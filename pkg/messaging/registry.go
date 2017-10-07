@@ -19,7 +19,7 @@ import "sync"
 // Registry is the global ClientRegistry
 var Registry = NewClientRegistry()
 
-// ClientRegistry
+// ClientRegistry serves as registry for messaging Client(s)
 type ClientRegistry interface {
 
 	// MustRegister will panic if a Client is already registered for the same cluster
@@ -35,6 +35,7 @@ type ClientRegistry interface {
 	Clusters() []ClusterName
 }
 
+// NewClientRegistry returns a new instance of ClientRegistry
 func NewClientRegistry() ClientRegistry {
 	return &registry{clients: make(map[ClusterName]Client)}
 }

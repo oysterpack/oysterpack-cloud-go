@@ -15,8 +15,8 @@
 package messaging
 
 import (
-	"time"
 	"context"
+	"time"
 )
 
 // Conn represents a messaging connection
@@ -82,8 +82,10 @@ type ConnErr struct {
 	Timestamp time.Time
 }
 
+// ConnStatus represents an enum for Conn status
 type ConnStatus int
 
+// ConnStatus enum values
 const (
 	DISCONNECTED = ConnStatus(iota)
 	CONNECTED
