@@ -245,6 +245,7 @@ func (a *HealthCheckRegistry) RunAllFailedHealthChecks() <-chan HealthCheck {
 	return c
 }
 
+// StopAllHealthCheckTickers stops all healthcheck tickers, i.e., they will stop running in the background
 func (a *HealthCheckRegistry) StopAllHealthCheckTickers() {
 	a.RLock()
 	defer a.RUnlock()
@@ -253,6 +254,7 @@ func (a *HealthCheckRegistry) StopAllHealthCheckTickers() {
 	}
 }
 
+// StartAllHealthCheckTickers starts all healthcheck tickers, if not already started
 func (a *HealthCheckRegistry) StartAllHealthCheckTickers() {
 	a.RLock()
 	defer a.RUnlock()

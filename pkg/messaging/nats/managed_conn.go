@@ -33,7 +33,7 @@ func NewManagedConn(cluster messaging.ClusterName, connId string, conn *nats.Con
 	})
 }
 
-// NewManagedConn factory method
+// NewManagedConnWithConfig factory method
 func NewManagedConnWithConfig(cluster messaging.ClusterName, connId string, conn *nats.Conn, tags []string, config ManagedConnConfig) *ManagedConn {
 	return &ManagedConn{
 		Conn:               conn,
@@ -80,6 +80,7 @@ type ManagedConn struct {
 	config ManagedConnConfig
 }
 
+// ManagedConnConfig ManagedConn config
 type ManagedConnConfig struct {
 	FlushTimeout time.Duration
 }
@@ -297,6 +298,8 @@ func (a *ManagedConn) TopicSubscribe(topic messaging.Topic, settings *messaging.
 	return topicSubscription, nil
 }
 
+// Flush will flush the connection using the configured timeout : ManagedConnConfig.FlushTimeout
+// If it was not configured, then it will default to 5 seconds.
 func (a *ManagedConn) Flush() error {
 	if a.config.FlushTimeout <= 0 {
 		a.config.FlushTimeout = 5 * time.Second
