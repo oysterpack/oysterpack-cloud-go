@@ -15,7 +15,6 @@
 package service
 
 import (
-	"github.com/oysterpack/oysterpack.go/pkg/metrics"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -41,15 +40,4 @@ func AddServiceMetricLabels(labels prometheus.Labels, desc *Descriptor) promethe
 	labels[METRIC_LABEL_COMPONENT] = desc.Component()
 	labels[METRIC_LABEL_VERSION] = desc.Version().String()
 	return labels
-}
-
-// SkipHealthCheckDuringAppShutdown is a helper function that can be used to wrap healthchecks that should be skipped while the app is shutting down.
-// Healthchecks may trigger false negatives during application shutdown and cause confusion.
-func SkipHealthCheckDuringAppShutdown(f metrics.RunHealthCheck) metrics.RunHealthCheck {
-	return func() error {
-		if App().Service().StopTriggered() {
-			return nil
-		}
-		return f()
-	}
 }

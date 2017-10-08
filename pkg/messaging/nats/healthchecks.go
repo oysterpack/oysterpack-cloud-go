@@ -25,7 +25,7 @@ import (
 
 var connectivityHealthCheck = &metrics.GaugeVecOpts{
 	&prometheus.GaugeOpts{
-		Namespace:   messaging.MetricsNamespace,
+		Namespace:   metrics.METRIC_NAMESPACE_OYSTERPACK,
 		Subsystem:   messaging.MetricsSubSystem,
 		Name:        "connectivity",
 		Help:        "The healthcheck fails if any connections are disconnected.",

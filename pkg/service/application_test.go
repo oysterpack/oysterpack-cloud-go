@@ -20,11 +20,15 @@ import (
 	"testing"
 	"time"
 
+	"bytes"
+
 	"github.com/oysterpack/oysterpack.go/pkg/commons/reflect"
+	"github.com/oysterpack/oysterpack.go/pkg/metrics"
 	"github.com/oysterpack/oysterpack.go/pkg/service"
 )
 
 func TestApplicationContext_RegisterService(t *testing.T) {
+	metrics.ResetRegistry()
 	app := service.NewApplication(service.ApplicationSettings{})
 	app.Start()
 	defer app.Stop()
@@ -83,6 +87,7 @@ func TestApplicationContext_RegisterService(t *testing.T) {
 }
 
 func TestApplicationContext_ServiceClientIsStableReferenceAfterRestarting(t *testing.T) {
+	metrics.ResetRegistry()
 	app := service.NewApplication(service.ApplicationSettings{})
 	app.Start()
 	defer app.Stop()
@@ -140,6 +145,7 @@ func TestApplicationContext_ServiceClientIsStableReferenceAfterRestarting(t *tes
 }
 
 func TestApplicationContext_UnRegisterService(t *testing.T) {
+	metrics.ResetRegistry()
 	app := service.NewApplication(service.ApplicationSettings{})
 	app.Start()
 	defer app.Stop()
@@ -182,6 +188,7 @@ func (a *SimpleEchoService) Echo(msg interface{}) interface{} {
 }
 
 func TestApplicationContext_RegisterService_ServiceClientNotAssignableToServiceInterface(t *testing.T) {
+	metrics.ResetRegistry()
 	app := service.NewApplication(service.ApplicationSettings{})
 	app.Start()
 	defer app.Stop()
@@ -214,6 +221,7 @@ func TestApplicationContext_RegisterService_ServiceClientNotAssignableToServiceI
 }
 
 func TestApplicationContext_ServiceByType_NotRegistered(t *testing.T) {
+	metrics.ResetRegistry()
 	app := service.NewApplication(service.ApplicationSettings{})
 	app.Start()
 	defer app.Stop()
@@ -252,6 +260,7 @@ func TestApplicationContext_ServiceByType_NotRegistered(t *testing.T) {
 }
 
 func TestApplicationContext_ServiceInterfaces(t *testing.T) {
+	metrics.ResetRegistry()
 	app := service.NewApplication(service.ApplicationSettings{})
 	app.Start()
 	defer app.Stop()
@@ -304,6 +313,7 @@ func TestApplicationContext_ServiceInterfaces(t *testing.T) {
 }
 
 func TestApplicationContext_Services(t *testing.T) {
+	metrics.ResetRegistry()
 	app := service.NewApplication(service.ApplicationSettings{})
 	app.Start()
 	defer app.Stop()
@@ -340,6 +350,7 @@ func TestApplicationContext_Services(t *testing.T) {
 }
 
 func TestApplicationContext_ServiceKeys(t *testing.T) {
+	metrics.ResetRegistry()
 	app := service.NewApplication(service.ApplicationSettings{})
 	app.Start()
 	defer app.Stop()
@@ -380,6 +391,7 @@ func TestApplicationContext_ServiceKeys(t *testing.T) {
 }
 
 func TestApplicationContext_ServiceByTypeAsync(t *testing.T) {
+	metrics.ResetRegistry()
 	app := service.NewApplication(service.ApplicationSettings{})
 	app.Start()
 	defer app.Stop()
@@ -418,6 +430,7 @@ func TestApplicationContext_ServiceByTypeAsync(t *testing.T) {
 }
 
 func TestApplicationContext_CheckAllServiceDependenciesRegistered(t *testing.T) {
+	metrics.ResetRegistry()
 	app := service.NewApplication(service.ApplicationSettings{})
 	app.Start()
 	defer app.Stop()
@@ -475,6 +488,7 @@ func TestApplicationContext_CheckAllServiceDependenciesRegistered(t *testing.T) 
 }
 
 func TestApplicationContext_StopAppWhileWaitingForServiceDependencies(t *testing.T) {
+	metrics.ResetRegistry()
 	app := service.NewApplication(service.ApplicationSettings{})
 	app.Service().StartAsync()
 	app.Service().AwaitUntilRunning()
@@ -490,6 +504,7 @@ func TestApplicationContext_StopAppWhileWaitingForServiceDependencies(t *testing
 }
 
 func TestApplicationContext_CheckAllServiceDependencies_DependencyVersionConstraintsFail(t *testing.T) {
+	metrics.ResetRegistry()
 	app := service.NewApplication(service.ApplicationSettings{})
 	app.Start()
 	defer app.Stop()
@@ -535,6 +550,7 @@ func TestApplicationContext_CheckAllServiceDependencies_DependencyVersionConstra
 }
 
 func TestApplicationContext_CheckAllServiceDependencies(t *testing.T) {
+	metrics.ResetRegistry()
 	app := service.NewApplication(service.ApplicationSettings{})
 	app.Start()
 	defer app.Stop()
@@ -603,6 +619,7 @@ func TestApplicationContext_CheckAllServiceDependencies(t *testing.T) {
 }
 
 func TestApplicationContext_CheckAllServiceDependenciesRunning(t *testing.T) {
+	metrics.ResetRegistry()
 	app := service.NewApplication(service.ApplicationSettings{})
 	app.Start()
 	defer app.Stop()
@@ -668,6 +685,7 @@ func TestApplicationContext_CheckAllServiceDependenciesRunning(t *testing.T) {
 }
 
 func TestApplication_ServiceStates(t *testing.T) {
+	metrics.ResetRegistry()
 	app := service.NewApplication(service.ApplicationSettings{})
 	app.Start()
 	defer app.Stop()
@@ -709,7 +727,7 @@ func TestApplication_ServiceStates(t *testing.T) {
 	if !serviceStates[HeartbeatServiceInterface].Running() {
 		t.Errorf("HeartbeatService should be running: %v", serviceStates)
 	}
-	app.Service().Stop()
+	app.Stop()
 
 	serviceStates = app.ServiceStates()
 	if !serviceStates[EchoServiceInterface].Stopped() {
@@ -721,6 +739,7 @@ func TestApplication_ServiceStates(t *testing.T) {
 }
 
 func TestApplication_StopRestartServices(t *testing.T) {
+	metrics.ResetRegistry()
 	app := service.NewApplication(service.ApplicationSettings{})
 	app.Start()
 	defer app.Stop()
@@ -783,6 +802,7 @@ func TestApplication_StopRestartServices(t *testing.T) {
 }
 
 func TestApplication_RestartAllServices(t *testing.T) {
+	metrics.ResetRegistry()
 	app := service.NewApplication(service.ApplicationSettings{})
 	app.Start()
 	defer app.Stop()
@@ -817,6 +837,7 @@ func TestApplication_RestartAllServices(t *testing.T) {
 }
 
 func TestApplication_StopRestartServices_OnEmptyApp(t *testing.T) {
+	metrics.ResetRegistry()
 	app := service.NewApplication(service.ApplicationSettings{})
 	app.Start()
 	defer app.Stop()
@@ -854,6 +875,7 @@ func TestApplication_StopRestartServices_OnEmptyApp(t *testing.T) {
 }
 
 func TestApplication_RestartAllFailedServices(t *testing.T) {
+	metrics.ResetRegistry()
 	app := service.NewApplication(service.ApplicationSettings{})
 	app.Start()
 	defer app.Stop()
@@ -884,6 +906,7 @@ func TestApplication_RestartAllFailedServices(t *testing.T) {
 }
 
 func TestApplication_RegisterShutdownHook(t *testing.T) {
+	metrics.ResetRegistry()
 	app := service.NewApplication(service.ApplicationSettings{})
 	app.Start()
 
@@ -897,6 +920,17 @@ func TestApplication_RegisterShutdownHook(t *testing.T) {
 	if !shutdown {
 		t.Errorf("shutdown hook did not run")
 	}
+}
+
+func TestApplication_DumpAllStacks(t *testing.T) {
+	metrics.ResetRegistry()
+	app := service.NewApplication(service.ApplicationSettings{})
+	app.Start()
+	defer app.Stop()
+
+	out := &bytes.Buffer{}
+	app.DumpAllStacks(out)
+	t.Logf("stack dump :\n%v", out.String())
 }
 
 type testApplication_RestartAllFailedServices interface {

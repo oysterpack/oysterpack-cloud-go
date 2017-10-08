@@ -44,6 +44,9 @@ const (
 	SUMMARYVEC
 )
 
+// METRIC_NAMESPACE_OYSTERPACK used for oysterpack metrics
+const METRIC_NAMESPACE_OYSTERPACK = "oysterpack"
+
 // Value returns the value as an int
 func (a MetricType) Value() int {
 	return int(a)

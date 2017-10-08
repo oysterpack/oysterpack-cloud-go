@@ -88,6 +88,9 @@ func DefaultOptions() nats.Options {
 	return options
 }
 
+// TODO : define explicit config which builds a ConnManagerSettings
+// see https://godoc.org/github.com/nats-io/go-nats#Options
+
 // ConnManagerSettings are used to create new ConnManager instances
 type ConnManagerSettings struct {
 	messaging.ClusterName
@@ -498,16 +501,17 @@ func (a *connManager) init() {
 	defer a.mutex.Unlock()
 	a.conns = make(map[string]*ManagedConn)
 
+	// register healthchecks
 	if len(a.healthChecks) == 0 {
 		a.healthChecks = []metrics.HealthCheck{
 			metrics.NewHealthCheckVector(connectivityHealthCheck, runinterval,
-				service.SkipHealthCheckDuringAppShutdown(func() error {
+				func() error {
 					connected, total := a.ConnectedCount()
 					if connected != total {
 						return fmt.Errorf("%d / %d connections are disconnected", total-connected, total)
 					}
 					return nil
-				}), []string{a.cluster.String()}),
+				}, []string{a.cluster.String()}),
 		}
 	}
 }

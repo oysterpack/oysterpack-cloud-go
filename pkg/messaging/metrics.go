@@ -15,8 +15,6 @@
 package messaging
 
 const (
-	// MetricsNamespace is used as the metric namespace for nats related metrics
-	MetricsNamespace = "oysterpack"
 	// MetricsSubSystem is used as the metric subsystem for nats related metrics
 	MetricsSubSystem = "messaging"
 	// CONST_LABEL_VENDOR is used to specify the messaging vendor, e.g., nats

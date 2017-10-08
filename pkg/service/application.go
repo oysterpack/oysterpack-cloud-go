@@ -27,8 +27,12 @@ import (
 
 	"sync"
 
+	"runtime"
+
 	"github.com/oysterpack/oysterpack.go/pkg/commons/reflect"
 	"github.com/oysterpack/oysterpack.go/pkg/logging"
+	"github.com/oysterpack/oysterpack.go/pkg/metrics"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/rs/zerolog"
 )
 
@@ -58,61 +62,9 @@ type Application interface {
 	// RegisterShutdownHook registers a function that will be invoked when the application shutsdown.
 	// The function will be invoked after all application managed services are stopped.
 	RegisterShutdownHook(f func())
-}
 
-// application.services map entry type
-type registeredService struct {
-	NewService ClientConstructor
-	Client
-}
-
-// application is used to manage a set of services
-// application itself is a service, by composition.
-//
-// Features
-// 1. Triggering the application to shutdown, triggers each of its registered services to shutdown.
-// 2. SIGTERM, SIGINT, SIGQUIT signals are trapped and trigger application shutdown.
-//
-// Use NewApplication() to create a new application instance
-type application struct {
-	registry registry
-
-	service Service
-
-	*serviceTickets
-	serviceDependencyChecks
-
-	shutdownHooks []func()
-}
-
-type registry struct {
-	sync.RWMutex
-	// once a service is stopped, it will be removed from this map
-	services map[Interface]*registeredService
-}
-
-func (a *application) RegisterShutdownHook(f func()) {
-	a.registry.Lock()
-	defer a.registry.Unlock()
-	a.shutdownHooks = append(a.shutdownHooks, func() {
-		defer func() {
-			if p := recover(); p != nil {
-				a.service.Logger().Error().Err(fmt.Errorf("%v", p)).Msg("shutdown hook panic")
-			}
-		}()
-		f()
-	})
-}
-
-// Channel used to wait for the Client
-// if nil is returned, then it means the channel was closed
-func (a *ServiceTicket) Channel() <-chan Client {
-	return a.channel
-}
-
-// Service returns the Application Service
-func (a *application) Service() Service {
-	return a.service
+	// DumpAllStacks dumps all goroutine stacks to the specified writer
+	DumpAllStacks(out io.Writer)
 }
 
 // ApplicationSettings provides application settings used to create a new application
@@ -137,11 +89,8 @@ func NewApplicationDesc(
 
 // NewApplication returns a new application
 func NewApplication(settings ApplicationSettings) Application {
-	app := &application{
-		registry:       registry{services: make(map[Interface]*registeredService)},
-		serviceTickets: &serviceTickets{},
-	}
-	app.serviceDependencyChecks.application = app
+	app := &application{serviceTickets: &serviceTickets{}, services: make(map[Interface]*registeredService)}
+	app.serviceDependencyChecks = &serviceDependencyChecks{app}
 	var service Application = app
 
 	if settings.Descriptor == nil {
@@ -158,6 +107,71 @@ func NewApplication(settings ApplicationSettings) Application {
 		Destroy:     app.destroy,
 	})
 	return service
+}
+
+// application.services map entry type
+type registeredService struct {
+	NewService ClientConstructor
+	Client
+}
+
+// application is used to manage a set of services
+// application itself is a service, by composition.
+//
+// Features
+// 1. Triggering the application to shutdown, triggers each of its registered services to shutdown.
+// 2. SIGTERM, SIGINT, SIGQUIT signals are trapped and trigger application shutdown.
+//
+// Use NewApplication() to create a new application instance
+type application struct {
+	servicesMutex sync.RWMutex
+	// once a service is stopped, it will be removed from this map
+	services map[Interface]*registeredService
+
+	service Service
+
+	*serviceTickets
+	*serviceDependencyChecks
+
+	shutdownHooks []func()
+
+	serviceDependencyHealthCheck metrics.HealthCheck
+}
+
+func (a *application) DumpAllStacks(out io.Writer) {
+	size := 1024 * 8
+	for {
+		buf := make([]byte, size)
+		if len := runtime.Stack(buf, true); len <= size {
+			out.Write(buf[:len])
+			return
+		}
+		size = size + (1024 * 8)
+	}
+}
+
+func (a *application) RegisterShutdownHook(f func()) {
+	a.servicesMutex.Lock()
+	defer a.servicesMutex.Unlock()
+	a.shutdownHooks = append(a.shutdownHooks, func() {
+		defer func() {
+			if p := recover(); p != nil {
+				a.service.Logger().Error().Err(fmt.Errorf("%v", p)).Msg("shutdown hook panic")
+			}
+		}()
+		f()
+	})
+}
+
+// Channel used to wait for the Client
+// if nil is returned, then it means the channel was closed
+func (a *ServiceTicket) Channel() <-chan Client {
+	return a.channel
+}
+
+// Service returns the Application Service
+func (a *application) Service() Service {
+	return a.service
 }
 
 // Descriptor exposes the application Descriptor
@@ -178,13 +192,13 @@ func (a *application) UpdateDescriptor(namespace string, system string, componen
 // ServiceByType looks up a service via its service interface.
 // If exists is true, then the service was found.
 func (a *application) ServiceByType(serviceInterface Interface) Client {
-	a.registry.RLock()
-	defer a.registry.RUnlock()
+	a.servicesMutex.RLock()
+	defer a.servicesMutex.RUnlock()
 	return a.serviceByType(serviceInterface)
 }
 
 func (a *application) serviceByType(serviceInterface Interface) Client {
-	if s, exists := a.registry.services[serviceInterface]; exists {
+	if s, exists := a.services[serviceInterface]; exists {
 		return s.Client
 	}
 	return nil
@@ -208,9 +222,9 @@ func (a *application) ServiceByTypeAsync(serviceInterface Interface) *ServiceTic
 // ServiceByKey looks up a service by ServiceKey and returns the registered Client.
 // If the service is not found, then nil is returned.
 func (a *application) ServiceByKey(serviceKey ServiceKey) Client {
-	a.registry.RLock()
-	defer a.registry.RUnlock()
-	for _, s := range a.registry.services {
+	a.servicesMutex.RLock()
+	defer a.servicesMutex.RUnlock()
+	for _, s := range a.services {
 		if InterfaceToServiceKey(s.Service().Desc().Interface()) == serviceKey {
 			return s.Client
 		}
@@ -220,10 +234,10 @@ func (a *application) ServiceByKey(serviceKey ServiceKey) Client {
 
 // Services returns all registered services
 func (a *application) Services() []Client {
-	a.registry.RLock()
-	defer a.registry.RUnlock()
+	a.servicesMutex.RLock()
+	defer a.servicesMutex.RUnlock()
 	var services []Client
-	for _, s := range a.registry.services {
+	for _, s := range a.services {
 		services = append(services, s.Client)
 	}
 	return services
@@ -231,10 +245,10 @@ func (a *application) Services() []Client {
 
 // ServiceInterfaces returns all service interfaces for all registered services
 func (a *application) ServiceInterfaces() []Interface {
-	a.registry.RLock()
-	defer a.registry.RUnlock()
+	a.servicesMutex.RLock()
+	defer a.servicesMutex.RUnlock()
 	interfaces := []Interface{}
-	for k := range a.registry.services {
+	for k := range a.services {
 		interfaces = append(interfaces, k)
 	}
 	return interfaces
@@ -242,15 +256,15 @@ func (a *application) ServiceInterfaces() []Interface {
 
 // ServiceCount returns the number of registered services
 func (a *application) ServiceCount() int {
-	a.registry.RLock()
-	defer a.registry.RUnlock()
-	return len(a.registry.services)
+	a.servicesMutex.RLock()
+	defer a.servicesMutex.RUnlock()
+	return len(a.services)
 }
 
 // ServiceKeys returns ServiceKey(s) for all registered services
 func (a *application) ServiceKeys() []ServiceKey {
-	a.registry.RLock()
-	defer a.registry.RUnlock()
+	a.servicesMutex.RLock()
+	defer a.servicesMutex.RUnlock()
 	interfaces := []ServiceKey{}
 	for _, v := range a.ServiceInterfaces() {
 		interfaces = append(interfaces, InterfaceToServiceKey(v))
@@ -283,16 +297,16 @@ func (a *application) MustRegisterService(create ClientConstructor) Client {
 		}
 	}
 
-	a.registry.Lock()
-	defer a.registry.Unlock()
+	a.servicesMutex.Lock()
+	defer a.servicesMutex.Unlock()
 	service := create(Application(a))
 	validate(service)
-	if _, exists := a.registry.services[service.Service().Desc().Interface()]; exists {
+	if _, exists := a.services[service.Service().Desc().Interface()]; exists {
 		a.Service().Logger().Panic().
 			Str(logging.SERVICE, service.Service().Desc().Interface().String()).
 			Msgf("Service is already registered : %v", service.Service().Desc().Interface())
 	}
-	a.registry.services[service.Service().Desc().Interface()] = &registeredService{NewService: create, Client: service}
+	a.services[service.Service().Desc().Interface()] = &registeredService{NewService: create, Client: service}
 	service.Service().StartAsync()
 	go a.checkServiceTickets(a)
 	return service
@@ -310,10 +324,10 @@ func (a *application) RegisterService(create ClientConstructor) (client Client, 
 // UnRegisterService unregisters the specified service.
 // The service is simply unregistered, i.e., it is not stopped.
 func (a *application) UnRegisterService(service Client) bool {
-	a.registry.Lock()
-	defer a.registry.Unlock()
-	if _, exists := a.registry.services[service.Service().Desc().Interface()]; exists {
-		delete(a.registry.services, service.Service().Desc().Interface())
+	a.servicesMutex.Lock()
+	defer a.servicesMutex.Unlock()
+	if _, exists := a.services[service.Service().Desc().Interface()]; exists {
+		delete(a.services, service.Service().Desc().Interface())
 		return true
 	}
 	return false
@@ -321,6 +335,20 @@ func (a *application) UnRegisterService(service Client) bool {
 
 func (a *application) run(ctx *Context) error {
 	a.service.Logger().Info().Msg(a.Descriptor().ID())
+
+	if a.serviceDependencyHealthCheck == nil {
+		gauge := prometheus.GaugeOpts{
+			Namespace:   metrics.METRIC_NAMESPACE_OYSTERPACK,
+			Subsystem:   "application",
+			Name:        "check_service_dependencies",
+			Help:        "The healthcheck fails if any connections are disconnected.",
+			ConstLabels: AddServiceMetricLabels(prometheus.Labels{}, a.Descriptor()),
+		}
+		runInterval := time.Minute
+		healthcheck := func() error { return a.CheckAllServiceDependencies() }
+		a.serviceDependencyHealthCheck = metrics.NewHealthCheck(gauge, runInterval, healthcheck)
+	}
+
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 	for {
@@ -334,11 +362,16 @@ func (a *application) run(ctx *Context) error {
 }
 
 func (a *application) destroy(ctx *Context) error {
+	metrics.HealthChecks.StopAllHealthCheckTickers()
 	a.serviceTickets.closeAllServiceTickets()
-	for _, v := range a.registry.services {
+
+	a.servicesMutex.RLock()
+	defer a.servicesMutex.RUnlock()
+
+	for _, v := range a.services {
 		v.Service().StopAsyc()
 	}
-	for _, v := range a.registry.services {
+	for _, v := range a.services {
 		for {
 			v.Service().AwaitStopped(5 * time.Second)
 			if v.Service().State().Stopped() {
@@ -355,10 +388,10 @@ func (a *application) destroy(ctx *Context) error {
 }
 
 func (a *application) ServiceStates() map[Interface]State {
-	a.registry.RLock()
-	defer a.registry.RUnlock()
+	a.servicesMutex.RLock()
+	defer a.servicesMutex.RUnlock()
 	serviceStates := make(map[Interface]State)
-	for k, s := range a.registry.services {
+	for k, s := range a.services {
 		serviceStates[k] = s.Service().State()
 	}
 	return serviceStates
@@ -401,17 +434,17 @@ func (a *application) RestartServiceByKey(key ServiceKey) error {
 }
 
 func (a *application) RestartAllServices() {
-	a.registry.RLock()
-	defer a.registry.RUnlock()
-	for _, client := range a.registry.services {
+	a.servicesMutex.RLock()
+	defer a.servicesMutex.RUnlock()
+	for _, client := range a.services {
 		go client.Restart()
 	}
 }
 
 func (a *application) RestartAllFailedServices() {
-	a.registry.RLock()
-	defer a.registry.RUnlock()
-	for _, client := range a.registry.services {
+	a.servicesMutex.RLock()
+	defer a.servicesMutex.RUnlock()
+	for _, client := range a.services {
 		if client.Service().FailureCause() != nil {
 			go client.Restart()
 		}
@@ -419,9 +452,9 @@ func (a *application) RestartAllFailedServices() {
 }
 
 func (a *application) StopAllServices() {
-	a.registry.RLock()
-	defer a.registry.RUnlock()
-	for _, client := range a.registry.services {
+	a.servicesMutex.RLock()
+	defer a.servicesMutex.RUnlock()
+	for _, client := range a.services {
 		client.Service().Stop()
 	}
 }

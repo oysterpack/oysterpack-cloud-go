@@ -72,7 +72,7 @@ var (
 	// CreatedCounterOpts tracks the number of connections that have been created
 	CreatedCounterOpts = &metrics.CounterVecOpts{
 		&prometheus.CounterOpts{
-			Namespace:   messaging.MetricsNamespace,
+			Namespace:   metrics.METRIC_NAMESPACE_OYSTERPACK,
 			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "created",
 			Help:        "The number of connections that have been created",
@@ -85,7 +85,7 @@ var (
 	// ClosedCounterOpts tracks the number of connection that have been closed
 	ClosedCounterOpts = &metrics.CounterVecOpts{
 		&prometheus.CounterOpts{
-			Namespace:   messaging.MetricsNamespace,
+			Namespace:   metrics.METRIC_NAMESPACE_OYSTERPACK,
 			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "closed",
 			Help:        "The number of connections that have been closed",
@@ -98,7 +98,7 @@ var (
 	// ConnCountOpts tracks the number of current connections
 	ConnCountOpts = &metrics.GaugeVecOpts{
 		&prometheus.GaugeOpts{
-			Namespace:   messaging.MetricsNamespace,
+			Namespace:   metrics.METRIC_NAMESPACE_OYSTERPACK,
 			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "count",
 			Help:        "The number of active connections",
@@ -110,7 +110,7 @@ var (
 	// NotConnectedCountOpts tracks the number of connections that are not currently connected. They may be disconnected, reconnecting, or connecting.
 	NotConnectedCountOpts = &metrics.GaugeVecOpts{
 		&prometheus.GaugeOpts{
-			Namespace:   messaging.MetricsNamespace,
+			Namespace:   metrics.METRIC_NAMESPACE_OYSTERPACK,
 			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "not_connected_count",
 			Help:        "The number of connections that are not connected",
@@ -122,7 +122,7 @@ var (
 	// ReconnectedCounterOpts tracks when connections have reconnected
 	ReconnectedCounterOpts = &metrics.CounterVecOpts{
 		&prometheus.CounterOpts{
-			Namespace:   messaging.MetricsNamespace,
+			Namespace:   metrics.METRIC_NAMESPACE_OYSTERPACK,
 			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "reconnects",
 			Help:        "The total number of reconnects",
@@ -135,7 +135,7 @@ var (
 	// SubscriberErrorCounterOpts tracks when subscriber related errors occur
 	SubscriberErrorCounterOpts = &metrics.CounterVecOpts{
 		&prometheus.CounterOpts{
-			Namespace:   messaging.MetricsNamespace,
+			Namespace:   metrics.METRIC_NAMESPACE_OYSTERPACK,
 			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "subscriber_errors",
 			Help:        "The number of errors encountered while processing inbound messages",
@@ -151,7 +151,7 @@ var (
 	// MsgsInGauge tracks the total number of messages that have been received on current connections
 	MsgsInGauge = &metrics.GaugeVecOpts{
 		&prometheus.GaugeOpts{
-			Namespace:   messaging.MetricsNamespace,
+			Namespace:   metrics.METRIC_NAMESPACE_OYSTERPACK,
 			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "msgs_in",
 			Help:        "The number of messages that have been received on all active connections.",
@@ -162,7 +162,7 @@ var (
 	// MsgsOutGauge tracks the total number of messages that have been published on current connections
 	MsgsOutGauge = &metrics.GaugeVecOpts{
 		&prometheus.GaugeOpts{
-			Namespace:   messaging.MetricsNamespace,
+			Namespace:   metrics.METRIC_NAMESPACE_OYSTERPACK,
 			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "msgs_out",
 			Help:        "The number of messages that have been sent on all active connections.",
@@ -173,7 +173,7 @@ var (
 	// BytesInGauge tracks the total number of bytes that have been received on current connections
 	BytesInGauge = &metrics.GaugeVecOpts{
 		&prometheus.GaugeOpts{
-			Namespace:   messaging.MetricsNamespace,
+			Namespace:   metrics.METRIC_NAMESPACE_OYSTERPACK,
 			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "bytes_in",
 			Help:        "The number of bytes that have been received on all active connections.",
@@ -184,7 +184,7 @@ var (
 	// BytesOutGauge tracks the total number of bytes that have been published on current connections
 	BytesOutGauge = &metrics.GaugeVecOpts{
 		&prometheus.GaugeOpts{
-			Namespace:   messaging.MetricsNamespace,
+			Namespace:   metrics.METRIC_NAMESPACE_OYSTERPACK,
 			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "bytes_out",
 			Help:        "The number of bytes that have been sent on all active connections.",
@@ -203,7 +203,7 @@ var (
 	// PublisherCount tracks the number of publishers per topic across all active connections.
 	PublisherCount = &metrics.GaugeVecOpts{
 		&prometheus.GaugeOpts{
-			Namespace:   messaging.MetricsNamespace,
+			Namespace:   metrics.METRIC_NAMESPACE_OYSTERPACK,
 			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "publisher_count",
 			Help:        "The number of publishers per topic across all active connections.",
@@ -215,7 +215,7 @@ var (
 	// TopicSubscriberCount tracks the number of subscribers per topic across all active connections
 	TopicSubscriberCount = &metrics.GaugeVecOpts{
 		&prometheus.GaugeOpts{
-			Namespace:   messaging.MetricsNamespace,
+			Namespace:   metrics.METRIC_NAMESPACE_OYSTERPACK,
 			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "topic_subscriber_count",
 			Help:        "The number of subscribers per topic across all active connections.",
@@ -227,7 +227,7 @@ var (
 	// TopicPendingMessages tracks the number of queued messages per topic across all active connections
 	TopicPendingMessages = &metrics.GaugeVecOpts{
 		&prometheus.GaugeOpts{
-			Namespace:   messaging.MetricsNamespace,
+			Namespace:   metrics.METRIC_NAMESPACE_OYSTERPACK,
 			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "topic_pending_msgs",
 			Help:        "The number of queued messages per topic across all active connections.",
@@ -239,7 +239,7 @@ var (
 	// TopicPendingBytes tracks the number of queued message bytes per topic across all active connections
 	TopicPendingBytes = &metrics.GaugeVecOpts{
 		&prometheus.GaugeOpts{
-			Namespace:   messaging.MetricsNamespace,
+			Namespace:   metrics.METRIC_NAMESPACE_OYSTERPACK,
 			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "topic_pending_bytes",
 			Help:        "The number of queued message bytes per topic across all active connections.",
@@ -251,7 +251,7 @@ var (
 	// TopicMaxPendingMessages tracks the number of queued messages per topic across all active connections
 	TopicMaxPendingMessages = &metrics.GaugeVecOpts{
 		&prometheus.GaugeOpts{
-			Namespace:   messaging.MetricsNamespace,
+			Namespace:   metrics.METRIC_NAMESPACE_OYSTERPACK,
 			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "topic_pending_msgs_max",
 			Help:        "The max number of queued messages per topic across all active connections.",
@@ -263,7 +263,7 @@ var (
 	// TopicMaxPendingBytes tracks the number of queued message bytes per topic across all active connections
 	TopicMaxPendingBytes = &metrics.GaugeVecOpts{
 		&prometheus.GaugeOpts{
-			Namespace:   messaging.MetricsNamespace,
+			Namespace:   metrics.METRIC_NAMESPACE_OYSTERPACK,
 			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "topic_pending_bytes_max",
 			Help:        "The max number of queued message bytes per topic across all active connections.",
@@ -275,7 +275,7 @@ var (
 	// TopicMessagesDropped tracks the number of known dropped messages per topic across all active connections
 	TopicMessagesDropped = &metrics.GaugeVecOpts{
 		&prometheus.GaugeOpts{
-			Namespace: messaging.MetricsNamespace,
+			Namespace: metrics.METRIC_NAMESPACE_OYSTERPACK,
 			Subsystem: messaging.MetricsSubSystem,
 			Name:      "topic_msgs_dropped",
 			Help: "The number of known dropped messages per topic across all active connections. " +
@@ -289,7 +289,7 @@ var (
 	// TopicMessagesDelivered tracks the number of messages delivered to subscriptions per topic across all active connections
 	TopicMessagesDelivered = &metrics.GaugeVecOpts{
 		&prometheus.GaugeOpts{
-			Namespace:   messaging.MetricsNamespace,
+			Namespace:   metrics.METRIC_NAMESPACE_OYSTERPACK,
 			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "topic_msgs_delivered",
 			Help:        "The number of messages delivered to subscriptions per topic across all active connections.",
@@ -301,7 +301,7 @@ var (
 	// QueueSubscriberCount tracks the number of subscribers per topic queue across all active connections.
 	QueueSubscriberCount = &metrics.GaugeVecOpts{
 		&prometheus.GaugeOpts{
-			Namespace:   messaging.MetricsNamespace,
+			Namespace:   metrics.METRIC_NAMESPACE_OYSTERPACK,
 			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "queue_subscriber_count",
 			Help:        "The number of subscribers per topic queue across all active connections.",
@@ -313,7 +313,7 @@ var (
 	// QueuePendingMessages tracks the number of queued messages per queue across all active connections
 	QueuePendingMessages = &metrics.GaugeVecOpts{
 		&prometheus.GaugeOpts{
-			Namespace:   messaging.MetricsNamespace,
+			Namespace:   metrics.METRIC_NAMESPACE_OYSTERPACK,
 			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "queue_pending_msgs",
 			Help:        "The number of queued messages per queue across all active connections.",
@@ -325,7 +325,7 @@ var (
 	// QueuePendingBytes tracks the number of queued message bytes per queue across all active connections
 	QueuePendingBytes = &metrics.GaugeVecOpts{
 		&prometheus.GaugeOpts{
-			Namespace:   messaging.MetricsNamespace,
+			Namespace:   metrics.METRIC_NAMESPACE_OYSTERPACK,
 			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "queue_pending_bytes",
 			Help:        "The number of queued message bytes per queue across all active connections.",
@@ -337,7 +337,7 @@ var (
 	// QueueMaxPendingMessages tracks the number of queued messages per queue across all active connections
 	QueueMaxPendingMessages = &metrics.GaugeVecOpts{
 		&prometheus.GaugeOpts{
-			Namespace:   messaging.MetricsNamespace,
+			Namespace:   metrics.METRIC_NAMESPACE_OYSTERPACK,
 			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "queue_pending_msgs_max",
 			Help:        "The max number of queued messages per queue across all active connections.",
@@ -349,7 +349,7 @@ var (
 	// QueueMaxPendingBytes tracks the number of queued message bytes per queue across all active connections
 	QueueMaxPendingBytes = &metrics.GaugeVecOpts{
 		&prometheus.GaugeOpts{
-			Namespace:   messaging.MetricsNamespace,
+			Namespace:   metrics.METRIC_NAMESPACE_OYSTERPACK,
 			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "queue_pending_bytes_max",
 			Help:        "The max number of queued message bytes per queue across all active connections.",
@@ -361,7 +361,7 @@ var (
 	// QueueMessagesDropped tracks the number of known dropped messages per queue across all active connections
 	QueueMessagesDropped = &metrics.GaugeVecOpts{
 		&prometheus.GaugeOpts{
-			Namespace: messaging.MetricsNamespace,
+			Namespace: metrics.METRIC_NAMESPACE_OYSTERPACK,
 			Subsystem: messaging.MetricsSubSystem,
 			Name:      "queue_msgs_dropped",
 			Help: "The number of known dropped messages per queue across all active connections. " +
@@ -375,7 +375,7 @@ var (
 	// QueueMessagesDelivered tracks the number of messages delivered to subscriptions per queue across all active connections
 	QueueMessagesDelivered = &metrics.GaugeVecOpts{
 		&prometheus.GaugeOpts{
-			Namespace:   messaging.MetricsNamespace,
+			Namespace:   metrics.METRIC_NAMESPACE_OYSTERPACK,
 			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "queue_msgs_delivered",
 			Help:        "The number of messages delivered to subscriptions per queue across all active connections.",
@@ -390,7 +390,7 @@ var (
 	// TopicMessagesReceivedCounter tracks the number of messsages received per topic since the app started
 	TopicMessagesReceivedCounter = &metrics.CounterVecOpts{
 		&prometheus.CounterOpts{
-			Namespace:   messaging.MetricsNamespace,
+			Namespace:   metrics.METRIC_NAMESPACE_OYSTERPACK,
 			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "topic_msgs_received",
 			Help:        "The number of messages received per topic since the app started.",
@@ -403,7 +403,7 @@ var (
 	// QueueMessagesReceivedCounter tracks the number of messages received per topic queue since the app started
 	QueueMessagesReceivedCounter = &metrics.CounterVecOpts{
 		&prometheus.CounterOpts{
-			Namespace:   messaging.MetricsNamespace,
+			Namespace:   metrics.METRIC_NAMESPACE_OYSTERPACK,
 			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "queue_msgs_received",
 			Help:        "The number of messages received per topic queue since the app started.",
@@ -416,7 +416,7 @@ var (
 	// TopicMessagesPublishedCounter tracks the number of messages published per topic since the app started
 	TopicMessagesPublishedCounter = &metrics.CounterVecOpts{
 		&prometheus.CounterOpts{
-			Namespace:   messaging.MetricsNamespace,
+			Namespace:   metrics.METRIC_NAMESPACE_OYSTERPACK,
 			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "topic_msgs_published",
 			Help:        "The number of messages published per topic since the app started.",

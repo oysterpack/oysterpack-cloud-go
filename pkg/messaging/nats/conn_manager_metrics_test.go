@@ -124,7 +124,7 @@ func TestConnManager_Metrics_Simple(t *testing.T) {
 	// log the gatheredMetrics
 	for _, metric := range gatheredMetrics {
 		//t.Log(*metric.Name)
-		if strings.HasPrefix(*metric.Name, messaging.MetricsNamespace) {
+		if strings.HasPrefix(*metric.Name, metrics.METRIC_NAMESPACE_OYSTERPACK) {
 			jsonBytes, _ := json.MarshalIndent(metric, "", "   ")
 			t.Logf("%v", string(jsonBytes))
 		}
@@ -324,7 +324,7 @@ func checkMetricsAfterReconnecting(t *testing.T, gatheredMetrics []*dto.MetricFa
 func logMetrics(t *testing.T, gatheredMetrics []*dto.MetricFamily) {
 	t.Helper()
 	for _, metric := range gatheredMetrics {
-		if strings.HasPrefix(*metric.Name, messaging.MetricsNamespace) {
+		if strings.HasPrefix(*metric.Name, metrics.METRIC_NAMESPACE_OYSTERPACK) {
 			jsonBytes, _ := json.MarshalIndent(metric, "", "   ")
 			t.Logf("%v", string(jsonBytes))
 		}

@@ -16,7 +16,6 @@ package service
 
 // ServiceDependencyChecks groups methods that are used to check service dependencies
 type ServiceDependencyChecks interface {
-	// TODO: add healthcheck metric gauges and alerts for dependency checks
 
 	// CheckAllServiceDependencies checks that all Dependencies for each service are available
 	CheckAllServiceDependencies() *ServiceDependencyErrors
@@ -42,11 +41,11 @@ type serviceDependencyChecks struct {
 }
 
 // CheckAllServiceDependenciesRegistered checks that are service Dependencies are currently satisfied.
-func (a serviceDependencyChecks) CheckAllServiceDependenciesRegistered() []*ServiceDependenciesMissing {
-	a.registry.RLock()
-	defer a.registry.RUnlock()
+func (a *serviceDependencyChecks) CheckAllServiceDependenciesRegistered() []*ServiceDependenciesMissing {
+	a.servicesMutex.RLock()
+	defer a.servicesMutex.RUnlock()
 	errors := []*ServiceDependenciesMissing{}
-	for _, serviceClient := range a.registry.services {
+	for _, serviceClient := range a.services {
 		if missingDependencies := a.checkServiceDependenciesRegistered(serviceClient); missingDependencies != nil {
 			errors = append(errors, missingDependencies)
 		}
@@ -56,13 +55,13 @@ func (a serviceDependencyChecks) CheckAllServiceDependenciesRegistered() []*Serv
 
 // CheckServiceDependenciesRegistered checks that the service's Dependencies are currently satisfied
 // nil is returned if there is no error
-func (a serviceDependencyChecks) CheckServiceDependenciesRegistered(serviceClient Client) *ServiceDependenciesMissing {
-	a.registry.RLock()
-	defer a.registry.RUnlock()
+func (a *serviceDependencyChecks) CheckServiceDependenciesRegistered(serviceClient Client) *ServiceDependenciesMissing {
+	a.servicesMutex.RLock()
+	defer a.servicesMutex.RUnlock()
 	return a.checkServiceDependenciesRegistered(serviceClient)
 }
 
-func (a serviceDependencyChecks) checkServiceDependenciesRegistered(serviceClient Client) *ServiceDependenciesMissing {
+func (a *serviceDependencyChecks) checkServiceDependenciesRegistered(serviceClient Client) *ServiceDependenciesMissing {
 	missingDependencies := &ServiceDependenciesMissing{&DependencyMappings{Interface: serviceClient.Service().Desc().Interface()}}
 	for dependency, constraints := range serviceClient.Service().Dependencies() {
 		b := a.serviceByType(dependency)
@@ -83,11 +82,11 @@ func (a serviceDependencyChecks) checkServiceDependenciesRegistered(serviceClien
 }
 
 // CheckAllServiceDependenciesRunning checks that are service Dependencies are currently satisfied.
-func (a serviceDependencyChecks) CheckAllServiceDependenciesRunning() []*ServiceDependenciesNotRunning {
-	a.registry.RLock()
-	defer a.registry.RUnlock()
+func (a *serviceDependencyChecks) CheckAllServiceDependenciesRunning() []*ServiceDependenciesNotRunning {
+	a.servicesMutex.RLock()
+	defer a.servicesMutex.RUnlock()
 	errors := []*ServiceDependenciesNotRunning{}
-	for _, serviceClient := range a.registry.services {
+	for _, serviceClient := range a.services {
 		if notRunning := a.checkServiceDependenciesRunning(serviceClient); notRunning != nil {
 			errors = append(errors, notRunning)
 		}
@@ -97,13 +96,13 @@ func (a serviceDependencyChecks) CheckAllServiceDependenciesRunning() []*Service
 
 // CheckServiceDependenciesRunning checks that the service's Dependencies are currently satisfied
 // nil is returned if there is no error
-func (a serviceDependencyChecks) CheckServiceDependenciesRunning(serviceClient Client) *ServiceDependenciesNotRunning {
-	a.registry.RLock()
-	defer a.registry.RUnlock()
+func (a *serviceDependencyChecks) CheckServiceDependenciesRunning(serviceClient Client) *ServiceDependenciesNotRunning {
+	a.servicesMutex.RLock()
+	defer a.servicesMutex.RUnlock()
 	return a.checkServiceDependenciesRunning(serviceClient)
 }
 
-func (a serviceDependencyChecks) checkServiceDependenciesRunning(serviceClient Client) *ServiceDependenciesNotRunning {
+func (a *serviceDependencyChecks) checkServiceDependenciesRunning(serviceClient Client) *ServiceDependenciesNotRunning {
 	notRunning := &ServiceDependenciesNotRunning{&DependencyMappings{Interface: serviceClient.Service().Desc().Interface()}}
 	for dependency, constraints := range serviceClient.Service().Dependencies() {
 		if client := a.serviceByType(dependency); client == nil ||
@@ -120,7 +119,7 @@ func (a serviceDependencyChecks) checkServiceDependenciesRunning(serviceClient C
 
 // CheckAllServiceDependencies checks that all Dependencies for each service are available
 // nil is returned if there are no errors
-func (a serviceDependencyChecks) CheckAllServiceDependencies() *ServiceDependencyErrors {
+func (a *serviceDependencyChecks) CheckAllServiceDependencies() *ServiceDependencyErrors {
 	errors := []error{}
 	for _, err := range a.CheckAllServiceDependenciesRegistered() {
 		errors = append(errors, err)
@@ -137,7 +136,7 @@ func (a serviceDependencyChecks) CheckAllServiceDependencies() *ServiceDependenc
 }
 
 // CheckServiceDependencies checks that the service Dependencies are available
-func (a serviceDependencyChecks) CheckServiceDependencies(client Client) *ServiceDependencyErrors {
+func (a *serviceDependencyChecks) CheckServiceDependencies(client Client) *ServiceDependencyErrors {
 	errors := []error{}
 	if err := a.CheckServiceDependenciesRegistered(client); err != nil {
 		errors = append(errors, err)

@@ -75,6 +75,7 @@ func (a *HealthCheckRegistry) NewHealthCheck(opts prometheus.GaugeOpts, runInter
 	h.runDuration = GetOrMustRegisterGauge(&durationOpts)
 	h.StartTicker()
 	a.healthchecks[key] = h
+
 	return h
 }
 
@@ -242,4 +243,30 @@ func (a *HealthCheckRegistry) RunAllFailedHealthChecks() <-chan HealthCheck {
 	}()
 
 	return c
+}
+
+func (a *HealthCheckRegistry) StopAllHealthCheckTickers() {
+	a.RLock()
+	defer a.RUnlock()
+	for _, c := range a.healthchecks {
+		c.StopTicker()
+	}
+}
+
+func (a *HealthCheckRegistry) StartAllHealthCheckTickers() {
+	a.RLock()
+	defer a.RUnlock()
+	for _, c := range a.healthchecks {
+		c.StartTicker()
+	}
+}
+
+// Clear clears the registry - this is exposed for testing purposes
+func (a *HealthCheckRegistry) Clear() {
+	a.Lock()
+	defer a.Unlock()
+	for _, c := range a.healthchecks {
+		c.StopTicker()
+	}
+	a.healthchecks = make(map[string]HealthCheck)
 }
