@@ -1,0 +1,3 @@
+V	181007221116Z		10C3CA6CD4D9282043DE3E0299511B6B	oysterpack.crt	/C=US/O=OysterPack Inc./OU=DEV/L=Rochester/ST=New York/CN=dev.oysterpack.com
+V	181007221238Z		ADBB08C046C96AEB426873077F5A2388	nats.dev.oysterpack.com.crt	/C=US/O=OysterPack Inc./OU=DEV/L=Rochester/ST=New York/CN=nats.dev.oysterpack.com
+V	181007221325Z		86CBF431F3593E80883CD7B058B2FAA7	client.nats.dev.oysterpack.com.crt	/C=US/O=OysterPack Inc./OU=DEV/L=Rochester/ST=New York/CN=client.nats.dev.oysterpack.com

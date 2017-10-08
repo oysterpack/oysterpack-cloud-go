@@ -28,6 +28,13 @@ import (
 
 // NewManagedConn factory method
 func NewManagedConn(cluster messaging.ClusterName, connId string, conn *nats.Conn, tags []string) *ManagedConn {
+	return NewManagedConnWithConfig(cluster, connId, conn, tags, ManagedConnConfig{
+		FlushTimeout: 5 * time.Second,
+	})
+}
+
+// NewManagedConn factory method
+func NewManagedConnWithConfig(cluster messaging.ClusterName, connId string, conn *nats.Conn, tags []string, config ManagedConnConfig) *ManagedConn {
 	return &ManagedConn{
 		Conn:               conn,
 		id:                 connId,
@@ -39,18 +46,8 @@ func NewManagedConn(cluster messaging.ClusterName, connId string, conn *nats.Con
 		topicSubscriptions: newTopicSubscriptions(),
 		queueSubscriptions: newQueueSubscriptions(),
 		publishers:         &publishers{topicPublishers: map[messaging.Topic]messaging.Publisher{}},
+		config:             config,
 	}
-}
-
-type publishers struct {
-	sync.RWMutex
-	topicPublishers map[messaging.Topic]messaging.Publisher
-}
-
-func (a *publishers) publisher(topic messaging.Topic) messaging.Publisher {
-	a.RLock()
-	defer a.RUnlock()
-	return a.topicPublishers[topic]
 }
 
 // ManagedConn represents a managed NATS connection
@@ -79,6 +76,23 @@ type ManagedConn struct {
 	*topicSubscriptions
 	*queueSubscriptions
 	*publishers
+
+	config ManagedConnConfig
+}
+
+type ManagedConnConfig struct {
+	FlushTimeout time.Duration
+}
+
+type publishers struct {
+	sync.RWMutex
+	topicPublishers map[messaging.Topic]messaging.Publisher
+}
+
+func (a *publishers) publisher(topic messaging.Topic) messaging.Publisher {
+	a.RLock()
+	defer a.RUnlock()
+	return a.topicPublishers[topic]
 }
 
 // ID is the unique id assigned to the connection for tracking purposes
@@ -161,6 +175,8 @@ func (a *ManagedConn) reconnected() {
 		event.Strs(CONN_TAGS, a.tags)
 	}
 	event.Msg("")
+	// flushing will ensure the cluster is immediately made aware of any subscriptions that are active on this connection
+	a.Flush()
 }
 
 func (a *ManagedConn) subscriptionError(subscription *nats.Subscription, err error) {
@@ -264,17 +280,28 @@ func (a *ManagedConn) TopicSubscribe(topic messaging.Topic, settings *messaging.
 		counter.Inc()
 		c <- toMessage(msg)
 	})
-	if settings != nil && settings.PendingLimits != nil {
-		sub.SetPendingLimits(settings.MsgLimit, settings.BytesLimit)
-	}
 	if err != nil {
 		return nil, err
+	}
+	// based on testing within a cluster, in order for the cluster to be immediately aware of the subscription, we need to flush the connection to notify the server
+	if err := a.Flush(); err != nil {
+		return nil, err
+	}
+	if settings != nil && settings.PendingLimits != nil {
+		sub.SetPendingLimits(settings.MsgLimit, settings.BytesLimit)
 	}
 	topicSubscription := &subscription{id: nuid.Next(), cluster: a.Cluster(), sub: sub, c: c, unsubscribe: func(subscription *subscription) {
 		go a.topicSubscriptions.remove(subscription.id)
 	}}
 	a.topicSubscriptions.add(topicSubscription)
 	return topicSubscription, nil
+}
+
+func (a *ManagedConn) Flush() error {
+	if a.config.FlushTimeout <= 0 {
+		a.config.FlushTimeout = 5 * time.Second
+	}
+	return a.Conn.FlushTimeout(a.config.FlushTimeout)
 }
 
 // TopicQueueSubscribe creates a QueueSubscription
@@ -289,11 +316,15 @@ func (a *ManagedConn) TopicQueueSubscribe(topic messaging.Topic, queue messaging
 		counter.Inc()
 		c <- toMessage(msg)
 	})
-	if settings != nil && settings.PendingLimits != nil {
-		sub.SetPendingLimits(settings.MsgLimit, settings.BytesLimit)
-	}
 	if err != nil {
 		return nil, err
+	}
+	// based on testing within a cluster, in order for the cluster to be immediately aware of the subscription, we need to flush the connection to notify the server
+	if err := a.Flush(); err != nil {
+		return nil, err
+	}
+	if settings != nil && settings.PendingLimits != nil {
+		sub.SetPendingLimits(settings.MsgLimit, settings.BytesLimit)
 	}
 	id := nuid.Next()
 	topicSubscription := &subscription{id: id, cluster: a.Cluster(), sub: sub, c: c, unsubscribe: func(subscription *subscription) {

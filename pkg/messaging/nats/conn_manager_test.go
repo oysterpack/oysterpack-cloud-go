@@ -71,6 +71,7 @@ func TestConnManager_ConnInfo(t *testing.T) {
 	)
 	ch := make(chan *natsio.Msg)
 	conn.ChanSubscribe(topic, ch)
+	conn.Flush()
 
 	for i := 0; i < count; i++ {
 		conn.Publish(topic, []byte(fmt.Sprintf("%v", i)))
@@ -267,6 +268,7 @@ func subscribeOnChannel(t *testing.T, subConn *nats.ManagedConn, topic string, c
 	if err != nil {
 		t.Fatalf("*** ERROR *** Failed to subscribe on disconnected conn : %v", err)
 	}
+	subConn.FlushTimeout(time.Second)
 	return sub
 }
 
@@ -338,6 +340,7 @@ func TestManagedConn_SubscribingWhileDisconnected(t *testing.T) {
 	t.Logf("after restarting the server :\npub: %v\nsub: %v", pubConn, subConn)
 
 	pubConn.Flush()
+	subConn.Flush()
 
 	receiveMessagesAfterReconnecting(t, sub, unbufferedChan, bufferedChan)
 
@@ -709,6 +712,7 @@ func TestManagedConn_AsyncSubscribingWhileDisconnected_WithPendingLimitsExceeded
 	if err != nil {
 		t.Fatalf("Failed to create subscription")
 	}
+	subConn.Flush()
 
 	const SEND_COUNT = 20
 	sub.SetPendingLimits(SEND_COUNT/2, 1024)
