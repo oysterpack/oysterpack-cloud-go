@@ -1,3 +1,10 @@
 V	181007221116Z		10C3CA6CD4D9282043DE3E0299511B6B	oysterpack.crt	/C=US/O=OysterPack Inc./OU=DEV/L=Rochester/ST=New York/CN=dev.oysterpack.com
 V	181007221238Z		ADBB08C046C96AEB426873077F5A2388	nats.dev.oysterpack.com.crt	/C=US/O=OysterPack Inc./OU=DEV/L=Rochester/ST=New York/CN=nats.dev.oysterpack.com
 V	181007221325Z		86CBF431F3593E80883CD7B058B2FAA7	client.nats.dev.oysterpack.com.crt	/C=US/O=OysterPack Inc./OU=DEV/L=Rochester/ST=New York/CN=client.nats.dev.oysterpack.com
+R	181008235913Z	171009021122Z	99419CB6F26B5FF8012FC5876E7D1623	cluster.nats.dev.oysterpack.com.crt	/C=US/O=OysterPack Inc./OU=DEV/L=Rochester/ST=New York/CN=cluster.nats.dev.oysterpack.com
+V	181009021205Z		A31D8FBF020E2C6BA94DABE930D8455B	test.cluster.nats.dev.oysterpack.com.crt	/C=US/O=OysterPack Inc./OU=DEV/L=Rochester/ST=New York/CN=test.cluster.nats.dev.oysterpack.com
+V	181009021705Z		1CBCBB3706C61FBF40E49377EBB3D6D9	127.0.0.1_cluster.nats.dev.oysterpack.com.crt	/C=US/O=OysterPack Inc./OU=DEV/L=Rochester/ST=New York/CN=127.0.0.1 cluster.nats.dev.oysterpack.com
+V	181009090016Z		E6592C5E9EE81AEFDDD4BE83D8729244	cluster.nats.dev.oysterpack.com.crt	/C=US/O=OysterPack Inc./OU=DEV/L=Rochester/ST=New York/CN=cluster.nats.dev.oysterpack.com
+V	181009091729Z		6454E61F2638A85F3A595BA4CC7A26B1	127.0.0.1_localhost_--filename_cluster.nats.dev.oysterpack.com.crt	/C=US/O=OysterPack Inc./OU=DEV/L=Rochester/ST=New York/CN=127.0.0.1 localhost --filename cluster.nats.dev.oysterpack.com
+V	181009092018Z		10C7BED3DF45F73EED95B8277F4C298C	cluster.nats.dev.oysterpack.com.crt	/C=US/O=OysterPack Inc./OU=DEV/L=Rochester/ST=New York/CN=cluster.nats.dev.oysterpack.com
+V	181009092221Z		6E7B5CDFECE8A7A023D93790604D3337	cluster.nats.dev.oysterpack.com.crt	/C=US/O=OysterPack Inc./OU=DEV/L=Rochester/ST=New York/CN=cluster.nats.dev.oysterpack.com

@@ -18,6 +18,14 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// int max / min values
+const (
+	MaxUint = ^uint(0)
+	MinUint = 0
+	MaxInt  = int(MaxUint >> 1)
+	MinInt  = -MaxInt - 1
+)
+
 // IgnorePanic simply calls recover()
 // It is intended to use in defer() functions to explicitly specify the intent.
 // If debug logging is enabled, then ignored panics will be logged
