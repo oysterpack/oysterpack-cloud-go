@@ -22,15 +22,17 @@ import (
 	"fmt"
 	"time"
 
+	"net/url"
+	"strings"
+
 	natsserver "github.com/nats-io/gnatsd/server"
 	"github.com/oysterpack/oysterpack.go/pkg/messaging"
-	"net/url"
 )
 
 // Default config settings
 const (
-	DEFAULT_SERVER_PORT  = 4443
-	DEFAULT_CLUSTER_PORT = 5443
+	DEFAULT_SERVER_PORT  = natsserver.DEFAULT_PORT
+	DEFAULT_CLUSTER_PORT = natsserver.DEFAULT_PORT + 1000
 	DEFAULT_MONITOR_PORT = natsserver.DEFAULT_HTTP_PORT
 	DEFAULT_MAXPAYLOAD   = 1024 * 100 // 100 KB
 )
@@ -94,7 +96,7 @@ type natsServer struct {
 type NATSServerConfig struct {
 	Cluster messaging.ClusterName
 
-	ServerHost string
+	ServerHost  string
 	ServerPort  int
 	MonitorPort int
 
@@ -102,14 +104,16 @@ type NATSServerConfig struct {
 	ClusterPort int
 	Routes      []string
 
-	// applies only to ServerPort
+	// applies to ServerPort, i.e., client-server connections
 	TLSConfig *tls.Config
 
+	// applies to ClusterPort, i.e., server-server connections within the NATS cluster
 	ClusterTLSConfig *tls.Config
 
 	LogLevel NATSLogLevel
 
 	MaxPayload int
+	MaxConn    int
 }
 
 func (a *NATSServerConfig) ServerOpts() (*natsserver.Options, error) {
@@ -134,26 +138,35 @@ func (a *NATSServerConfig) ServerOpts() (*natsserver.Options, error) {
 		a.MaxPayload = DEFAULT_MAXPAYLOAD
 	}
 
-	routes := make([]*url.URL,len(a.Routes))
-	for i:=0;i<len(routes);i++ {
-		route,err := url.Parse(a.Routes[i])
+	routes := make([]*url.URL, len(a.Routes))
+	for i := 0; i < len(routes); i++ {
+		route, err := url.Parse(a.Routes[i])
 		if err != nil {
-			return nil, fmt.Errorf("Invalid route URL : %s : %v",a.Routes[i], err)
+			return nil, fmt.Errorf("Invalid route URL : %s : %v", a.Routes[i], err)
 		}
 		routes[i] = route
 	}
 
+	a.ServerHost = strings.TrimSpace(a.ServerHost)
+	if a.ServerHost == "" {
+		a.ServerHost = natsserver.DEFAULT_HOST
+	}
+	a.ClusterHost = strings.TrimSpace(a.ClusterHost)
+	if a.ClusterHost == "" {
+		a.ClusterHost = natsserver.DEFAULT_HOST
+	}
+
 	opts := &natsserver.Options{
-		NoSigs:     true,
-		Host:  natsserver.DEFAULT_HOST,
-		Port:       a.ServerPort,
-		TLSConfig:  a.TLSConfig,
-		//Cluster:    natsserver.ClusterOpts{Host: natsserver.DEFAULT_HOST, Port: a.ClusterPort},// TLSConfig: a.ClusterTLSConfig},
-		Cluster:    natsserver.ClusterOpts{Host: natsserver.DEFAULT_HOST, Port: a.ClusterPort, TLSConfig: a.ClusterTLSConfig},
-		Routes: routes,
-		HTTPPort:a.MonitorPort,
+		NoSigs:    true,
+		Host:      a.ServerHost,
+		Port:      a.ServerPort,
+		TLSConfig: a.TLSConfig,
+		Cluster:   natsserver.ClusterOpts{Host: a.ClusterHost, Port: a.ClusterPort, TLSConfig: a.ClusterTLSConfig},
+		Routes:    routes,
+		HTTPPort:  a.MonitorPort,
 
 		MaxPayload: a.MaxPayload,
+		MaxConn:    a.MaxConn,
 
 		PingInterval:   natsserver.DEFAULT_PING_INTERVAL,
 		MaxPingsOut:    natsserver.DEFAULT_PING_MAX_OUT,

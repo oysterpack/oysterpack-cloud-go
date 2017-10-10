@@ -25,8 +25,8 @@ The example below shows how to generate certs for TLS. The basic steps are :
     easypki create --filename oysterpack --ca ca.oysterpack.com
     
     # create a server wildcard cert that can be deployed to any server 
-    easypki create --ca-name oysterpack --dns "*" nats.oysterpack.com   
-    
+    easypki create --ca-name oysterpack --dns "*" nats.oysterpack.com
+        
     #  create a client certificate
     easypki create --ca-name oysterpack --client client1.oysterpack.com
  

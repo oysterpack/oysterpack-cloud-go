@@ -18,12 +18,13 @@ import (
 	"fmt"
 	"testing"
 
+	"time"
+
 	"github.com/nats-io/go-nats"
 	"github.com/oysterpack/oysterpack.go/pkg/messaging"
 	opnats "github.com/oysterpack/oysterpack.go/pkg/messaging/nats"
 	"github.com/oysterpack/oysterpack.go/pkg/messaging/nats/server"
 	"github.com/rs/zerolog/log"
-	"time"
 )
 
 /*
@@ -41,40 +42,15 @@ Test Desciption:
 - create a queue subscriber on each connection
 - publish a message from each of the connections
 
-
 EXPECTED RESULT :
 - each subscriber receives 3 messages for a total of 9 messages
 - the queue subscriber pool should receive 3 messages
 
-
-WHEN explicitly configuring the full mesh in the routes
-ACTUAL RESULT: PASS : 9 messages are received - the full mesh is formed
-
-SUMMARY: This is not working as expected according to (http://nats.io/documentation/server/gnatsd-cluster)
-
-NEXT STEPS IS TO SEE IF THIS WORKS WITH SERVER
 */
 
-
 func skipTestCluster_UsingSeedNodeInRoutes_External(t *testing.T) {
-	configs := []*server.NATSServerConfig{}
 	const CONN_COUNT = 3
-	for i := 0; i < CONN_COUNT; i++ {
-		configs = append(configs, &server.NATSServerConfig{
-			Cluster:     messaging.ClusterName("osyterpack-test"),
-			ServerPort:  server.DEFAULT_SERVER_PORT + i,
-			MonitorPort: server.DEFAULT_MONITOR_PORT + i,
-			ClusterPort: server.DEFAULT_CLUSTER_PORT + i,
-
-			Routes: defaultRoutesWithSeed(),
-			// full mesh needs to be defined, but this contradicts what's documented
-			//Routes:defaultRoutesWithSeed(server.DEFAULT_CLUSTER_PORT + 1, server.DEFAULT_CLUSTER_PORT + 2),
-
-			TLSConfig: serverTLSConfig(),
-			LogLevel:  server.DEBUG,
-		})
-	}
-
+	configs := createNATSServerConfigs(CONN_COUNT)
 
 	const TOPIC = "TestNewNATSServer"
 	const QUEUE = "TestNewNATSServerQ"
@@ -96,13 +72,12 @@ func skipTestCluster_UsingSeedNodeInRoutes_External(t *testing.T) {
 		}
 		subscriptions = append(subscriptions, sub)
 
-		qsub, err := managedConn.TopicQueueSubscribe(TOPIC,QUEUE,nil)
+		qsub, err := managedConn.TopicQueueSubscribe(TOPIC, QUEUE, nil)
 		if err != nil {
 			t.Errorf("Failed to create queue subscription on : %v", config.ServerPort)
 		}
-		qsubscriptions = append(qsubscriptions,qsub)
+		qsubscriptions = append(qsubscriptions, qsub)
 	}
-
 
 	i := 0
 	for _, conn := range conns {
@@ -110,7 +85,6 @@ func skipTestCluster_UsingSeedNodeInRoutes_External(t *testing.T) {
 		i++
 		conn.Publish(TOPIC, []byte(fmt.Sprintf("MSG #%d", i)))
 	}
-
 
 	var EXPECTED_MSG_COUNT = (CONN_COUNT * len(subscriptions)) + len(qsubscriptions)
 	msgReceivedCount := 0
@@ -144,42 +118,15 @@ func skipTestCluster_UsingSeedNodeInRoutes_External(t *testing.T) {
 	}
 
 	if msgReceivedCount != EXPECTED_MSG_COUNT {
-		t.Errorf("The number of msgs received did not match what was expected : %d ! %d", msgReceivedCount,EXPECTED_MSG_COUNT)
+		t.Errorf("The number of msgs received did not match what was expected : %d ! %d", msgReceivedCount, EXPECTED_MSG_COUNT)
 	}
 
 }
 
 func TestCluster_UsingSingleSeedNode_DistributedTopicAndQueue(t *testing.T) {
-	configs := []*server.NATSServerConfig{}
 	const CONN_COUNT = 3
-	for i := 0; i < CONN_COUNT; i++ {
-		config := &server.NATSServerConfig{
-			Cluster:     messaging.ClusterName("osyterpack-test"),
-			ServerPort:  server.DEFAULT_SERVER_PORT + i,
-			MonitorPort: server.DEFAULT_MONITOR_PORT + i,
-			ClusterPort: server.DEFAULT_CLUSTER_PORT + i,
-
-			Routes: defaultRoutesWithSeed(),
-			// full mesh needs to be defined, but this contradicts what's documented
-			//Routes:defaultRoutesWithSeed(server.DEFAULT_CLUSTER_PORT + 1, server.DEFAULT_CLUSTER_PORT + 2),
-
-			TLSConfig: serverTLSConfig(),
-			ClusterTLSConfig: clusterTLSConfig(),
-			LogLevel:  server.DEBUG,
-		}
-		t.Logf("%v",*config)
-		configs = append(configs, config)
-	}
-
-	var servers []server.NATSServer
-	for _, config := range configs {
-		server, err := server.NewNATSServer(config)
-		if err != nil {
-			t.Fatalf("server.NewNATSServer failed : %v", err)
-		}
-		servers = append(servers, server)
-	}
-
+	configs := createNATSServerConfigs(CONN_COUNT)
+	servers := createNATSServers(t, configs)
 	startServers(servers)
 	logNATServerInfo(servers, "Servers have been started")
 
@@ -202,60 +149,129 @@ func TestCluster_UsingSingleSeedNode_DistributedTopicAndQueue(t *testing.T) {
 		}
 		subscriptions = append(subscriptions, sub)
 
-		qsub, err := managedConn.TopicQueueSubscribe(TOPIC,QUEUE,nil)
+		qsub, err := managedConn.TopicQueueSubscribe(TOPIC, QUEUE, nil)
 		if err != nil {
 			t.Errorf("Failed to create queue subscription on : %v", config.ServerPort)
 		}
-		qsubscriptions = append(qsubscriptions,qsub)
+		qsubscriptions = append(qsubscriptions, qsub)
 
 		logNATServerInfo(servers, fmt.Sprintf("created subscription on %d", config.ServerPort))
 	}
 
-	logNATServerInfo(servers, "Connected to each server and created a subsription on eac server")
+	logNATServerInfo(servers, "Connected to each server and created a subsription on each server")
+	waitForClusterToBecomeAwareOfAllSubscriptions(servers, len(configs)*2)
 
+	// publish a message on each connection
 	i := 0
 	for _, conn := range conns {
-		//conn.Flush()
 		i++
 		conn.Publish(TOPIC, []byte(fmt.Sprintf("MSG #%d", i)))
 	}
+	log.Logger.Info().Msg("Published messages")
 
-	logNATServerInfo(servers, "After publishing messages")
-
-	var EXPECTED_MSG_COUNT = (CONN_COUNT * len(subscriptions)) + len(qsubscriptions)
-	msgReceivedCount := 0
-	for i := 1; i <= EXPECTED_MSG_COUNT*2; i++ {
-		select {
-		case msg := <-subscriptions[0].Channel():
-			msgReceivedCount++
-			log.Logger.Info().Msgf("subscriptions[0] #%d : %v", i, string(msg.Data))
-		case msg := <-subscriptions[1].Channel():
-			msgReceivedCount++
-			log.Logger.Info().Msgf("subscriptions[1] #%d : %v", i, string(msg.Data))
-		case msg := <-subscriptions[2].Channel():
-			msgReceivedCount++
-			log.Logger.Info().Msgf("subscriptions[2] #%d : %v", i, string(msg.Data))
-		case msg := <-qsubscriptions[0].Channel():
-			msgReceivedCount++
-			log.Logger.Info().Msgf("qsubscriptions[0] #%d : %v", i, string(msg.Data))
-		case msg := <-qsubscriptions[1].Channel():
-			msgReceivedCount++
-			log.Logger.Info().Msgf("qsubscriptions[1] #%d : %v", i, string(msg.Data))
-		case msg := <-qsubscriptions[2].Channel():
-			msgReceivedCount++
-			log.Logger.Info().Msgf("qsubscriptions[2] #%d : %v", i, string(msg.Data))
-		default:
-			if msgReceivedCount == EXPECTED_MSG_COUNT {
-				break
-			}
-			log.Logger.Info().Msg("*** NO MESSAGE ***")
-			time.Sleep(time.Millisecond)
-		}
+	var (
+		SUBSCRIBER_EXPECTED_MSG_COUNT  = (CONN_COUNT * len(subscriptions))
+		QSUBSCRIBER_EXPECTED_MSG_COUNT = len(conns)
+	)
+	subscriberMsgCount := receiveMessagesOnSubscriptions(subscriptions, SUBSCRIBER_EXPECTED_MSG_COUNT)
+	qsubscriberMsgCount := receiveMessagesOnQueueSubscriptions(qsubscriptions, QSUBSCRIBER_EXPECTED_MSG_COUNT)
+	if subscriberMsgCount != SUBSCRIBER_EXPECTED_MSG_COUNT {
+		t.Errorf("subscriberMsgCount != SUBSCRIBER_EXPECTED_MSG_COUNT : %d ! %d", subscriberMsgCount, SUBSCRIBER_EXPECTED_MSG_COUNT)
 	}
-
-	if msgReceivedCount != EXPECTED_MSG_COUNT {
-		t.Errorf("The number of msgs received did not match what was expected : %d ! %d", msgReceivedCount,EXPECTED_MSG_COUNT)
+	if qsubscriberMsgCount != QSUBSCRIBER_EXPECTED_MSG_COUNT {
+		t.Errorf("qsubscriberMsgCount != QSUBSCRIBER_EXPECTED_MSG_COUNT : %d ! %d", qsubscriberMsgCount, QSUBSCRIBER_EXPECTED_MSG_COUNT)
 	}
 
 	defer shutdownServers(servers)
+}
+
+func receiveMessagesOnSubscriptions(subscriptions []messaging.Subscription, messageCount int) int {
+	msgReceivedCount := 0
+	for {
+		for i, subscription := range subscriptions {
+			select {
+			case msg := <-subscription.Channel():
+				msgReceivedCount++
+				log.Logger.Info().Msgf("subscriptions[%d] #%d : %v", i, msgReceivedCount, string(msg.Data))
+			default:
+
+			}
+		}
+
+		if msgReceivedCount >= messageCount {
+			return msgReceivedCount
+		}
+		log.Logger.Info().Msgf("receiveMessagesOnQueueSubscriptions: %d / %d", msgReceivedCount, messageCount)
+		time.Sleep(time.Millisecond)
+	}
+}
+
+func receiveMessagesOnQueueSubscriptions(qsubscriptions []messaging.QueueSubscription, messageCount int) int {
+	msgReceivedCount := 0
+	for {
+
+		for i, subscription := range qsubscriptions {
+			select {
+			case msg := <-subscription.Channel():
+				msgReceivedCount++
+				log.Logger.Info().Msgf("qsubscriptions[%d] #%d : %v", i, msgReceivedCount, string(msg.Data))
+			default:
+
+			}
+		}
+
+		if msgReceivedCount >= messageCount {
+			return msgReceivedCount
+		}
+		log.Logger.Info().Msgf("receiveMessagesOnQueueSubscriptions: %d / %d", msgReceivedCount, messageCount)
+		time.Sleep(time.Millisecond)
+	}
+}
+
+func waitForClusterToBecomeAwareOfAllSubscriptions(servers []server.NATSServer, subscriptionCount int) {
+	for {
+		for _, server := range servers {
+			if int(server.NumSubscriptions()) != subscriptionCount {
+				log.Logger.Info().Msgf("Subscription count = %d", server.NumSubscriptions())
+				time.Sleep(time.Millisecond)
+				continue
+			}
+		}
+		log.Logger.Info().Msg("Entire cluster is aware of all subscriptions")
+		break
+	}
+}
+
+func createNATSServerConfigs(count int) []*server.NATSServerConfig {
+	configs := []*server.NATSServerConfig{}
+	for i := 0; i < count; i++ {
+		config := &server.NATSServerConfig{
+			Cluster:     messaging.ClusterName("osyterpack-test"),
+			ServerPort:  server.DEFAULT_SERVER_PORT + i,
+			MonitorPort: server.DEFAULT_MONITOR_PORT + i,
+			ClusterPort: server.DEFAULT_CLUSTER_PORT + i,
+
+			Routes: defaultRoutesWithSeed(),
+			// full mesh needs to be defined, but this contradicts what's documented
+			//Routes:defaultRoutesWithSeed(server.DEFAULT_CLUSTER_PORT + 1, server.DEFAULT_CLUSTER_PORT + 2),
+
+			TLSConfig:        serverTLSConfig(),
+			ClusterTLSConfig: clusterTLSConfig(),
+			LogLevel:         server.DEBUG,
+		}
+		configs = append(configs, config)
+	}
+	return configs
+}
+
+func createNATSServers(t *testing.T, configs []*server.NATSServerConfig) []server.NATSServer {
+	var servers []server.NATSServer
+	for _, config := range configs {
+		server, err := server.NewNATSServer(config)
+		if err != nil {
+			t.Fatalf("server.NewNATSServer failed : %v", err)
+		}
+		servers = append(servers, server)
+	}
+	return servers
 }

@@ -115,8 +115,7 @@ func clusterTLSConfig() *tls.Config {
 		MinVersion:   tls.VersionTLS12,
 		RootCAs:      pool,
 		Certificates: []tls.Certificate{certKeyPair},
-		ClientCAs: pool,
-		ClientAuth:   tls.RequireAndVerifyClientCert,
+		//InsecureSkipVerify:true,
 	}
 }
 
