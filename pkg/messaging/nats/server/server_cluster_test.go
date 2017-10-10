@@ -159,7 +159,7 @@ func TestCluster_UsingSingleSeedNode_DistributedTopicAndQueue(t *testing.T) {
 	}
 
 	logNATServerInfo(servers, "Connected to each server and created a subsription on each server")
-	waitForClusterToBecomeAwareOfAllSubscriptions(servers, len(configs)*2)
+	waitForClusterToBecomeAwareOfAllSubscriptions(servers, len(qsubscriptions)+len(qsubscriptions))
 
 	// publish a message on each connection
 	i := 0
@@ -187,14 +187,19 @@ func TestCluster_UsingSingleSeedNode_DistributedTopicAndQueue(t *testing.T) {
 
 func receiveMessagesOnSubscriptions(subscriptions []messaging.Subscription, messageCount int) int {
 	msgReceivedCount := 0
-	for {
+	for i, subscription := range subscriptions {
+		msg := <-subscription.Channel()
+		msgReceivedCount++
+		log.Logger.Info().Msgf("subscriptions[%d] #%d : %v", i, msgReceivedCount, string(msg.Data))
+	}
+
+	for i := 0; i < 10; i++ {
 		for i, subscription := range subscriptions {
 			select {
 			case msg := <-subscription.Channel():
 				msgReceivedCount++
 				log.Logger.Info().Msgf("subscriptions[%d] #%d : %v", i, msgReceivedCount, string(msg.Data))
 			default:
-
 			}
 		}
 
@@ -204,19 +209,18 @@ func receiveMessagesOnSubscriptions(subscriptions []messaging.Subscription, mess
 		log.Logger.Info().Msgf("receiveMessagesOnQueueSubscriptions: %d / %d", msgReceivedCount, messageCount)
 		time.Sleep(time.Millisecond)
 	}
+	return msgReceivedCount
 }
 
 func receiveMessagesOnQueueSubscriptions(qsubscriptions []messaging.QueueSubscription, messageCount int) int {
 	msgReceivedCount := 0
-	for {
-
+	for i := 0; i < 10; i++ {
 		for i, subscription := range qsubscriptions {
 			select {
 			case msg := <-subscription.Channel():
 				msgReceivedCount++
 				log.Logger.Info().Msgf("qsubscriptions[%d] #%d : %v", i, msgReceivedCount, string(msg.Data))
 			default:
-
 			}
 		}
 
@@ -226,6 +230,7 @@ func receiveMessagesOnQueueSubscriptions(qsubscriptions []messaging.QueueSubscri
 		log.Logger.Info().Msgf("receiveMessagesOnQueueSubscriptions: %d / %d", msgReceivedCount, messageCount)
 		time.Sleep(time.Millisecond)
 	}
+	return msgReceivedCount
 }
 
 func waitForClusterToBecomeAwareOfAllSubscriptions(servers []server.NATSServer, subscriptionCount int) {

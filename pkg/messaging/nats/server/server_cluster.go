@@ -37,6 +37,7 @@ const (
 	DEFAULT_MAXPAYLOAD   = 1024 * 100 // 100 KB
 )
 
+// NewNATSServer creates a new NATSServer
 func NewNATSServer(config *NATSServerConfig) (NATSServer, error) {
 	opts, err := config.ServerOpts()
 	if err != nil {
@@ -52,6 +53,7 @@ func NewNATSServer(config *NATSServerConfig) (NATSServer, error) {
 }
 
 // TODO: metrics, healthchecks
+
 // NATSServer is the Service interface for a NATS server
 type NATSServer interface {
 	// Addr will return the net.Addr object for the current listener.
@@ -93,14 +95,23 @@ type natsServer struct {
 	*natsserver.Server
 }
 
+// NATSServerConfig config used to creata a new NATSServer
 type NATSServerConfig struct {
 	Cluster messaging.ClusterName
 
-	ServerHost  string
-	ServerPort  int
+	// OPTIONAL
+	ServerHost string
+	// OPTIONAL - DEFAULT_SERVER_PORT
+	ServerPort int
+
+	// OPTIONAL
+	MonitorHost string
+	// OPTIONAL - DEFAULT_MONITOR_PORT
 	MonitorPort int
 
+	// OPTIONAL
 	ClusterHost string
+	// OPTIONAL - DEFAULT_CLUSTER_PORT
 	ClusterPort int
 	Routes      []string
 
@@ -112,14 +123,17 @@ type NATSServerConfig struct {
 
 	LogLevel NATSLogLevel
 
+	// OPTIONAL
 	MaxPayload int
-	MaxConn    int
+	// OPTIONAL
+	MaxConn int
 }
 
 func (a *NATSServerConfig) ServerOpts() (*natsserver.Options, error) {
 	if err := a.Cluster.Validate(); err != nil {
 		return nil, err
 	}
+
 	if a.ServerPort <= 0 {
 		a.ServerPort = DEFAULT_SERVER_PORT
 	}
@@ -147,6 +161,20 @@ func (a *NATSServerConfig) ServerOpts() (*natsserver.Options, error) {
 		routes[i] = route
 	}
 
+	if len(routes) == 0 {
+		// add a self route
+		protocol := "tls"
+		if a.ClusterTLSConfig == nil {
+			protocol = "nats"
+		}
+		route, err := url.Parse(fmt.Sprintf("%s://localhost:%d", protocol, a.ClusterPort))
+		if err != nil {
+			// should never happen
+			return nil, fmt.Errorf("Invalid self route URL : %v", err)
+		}
+		routes = append(routes, route)
+	}
+
 	a.ServerHost = strings.TrimSpace(a.ServerHost)
 	if a.ServerHost == "" {
 		a.ServerHost = natsserver.DEFAULT_HOST
@@ -154,6 +182,14 @@ func (a *NATSServerConfig) ServerOpts() (*natsserver.Options, error) {
 	a.ClusterHost = strings.TrimSpace(a.ClusterHost)
 	if a.ClusterHost == "" {
 		a.ClusterHost = natsserver.DEFAULT_HOST
+	}
+	a.MonitorHost = strings.TrimSpace(a.MonitorHost)
+	if a.MonitorHost == "" {
+		a.MonitorHost = natsserver.DEFAULT_HOST
+	}
+
+	if a.MaxConn <= 0 {
+		a.MaxConn = natsserver.DEFAULT_MAX_CONNECTIONS
 	}
 
 	opts := &natsserver.Options{
@@ -163,7 +199,9 @@ func (a *NATSServerConfig) ServerOpts() (*natsserver.Options, error) {
 		TLSConfig: a.TLSConfig,
 		Cluster:   natsserver.ClusterOpts{Host: a.ClusterHost, Port: a.ClusterPort, TLSConfig: a.ClusterTLSConfig},
 		Routes:    routes,
-		HTTPPort:  a.MonitorPort,
+
+		HTTPHost: a.MonitorHost,
+		HTTPPort: a.MonitorPort,
 
 		MaxPayload: a.MaxPayload,
 		MaxConn:    a.MaxConn,
@@ -188,10 +226,12 @@ func (a *NATSServerConfig) ServerOpts() (*natsserver.Options, error) {
 	return opts, nil
 }
 
+// DebugLogEnabled true if debug logging is enabled
 func (a *NATSServerConfig) DebugLogEnabled() bool {
 	return a.LogLevel == DEBUG
 }
 
+// TraceLogEnabled true if trace logging is enabled
 func (a *NATSServerConfig) TraceLogEnabled() bool {
 	return a.LogLevel == TRACE
 }
