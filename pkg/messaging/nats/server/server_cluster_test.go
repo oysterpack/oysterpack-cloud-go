@@ -251,10 +251,11 @@ func createNATSServerConfigs(count int) []*server.NATSServerConfig {
 	configs := []*server.NATSServerConfig{}
 	for i := 0; i < count; i++ {
 		config := &server.NATSServerConfig{
-			Cluster:     messaging.ClusterName("osyterpack-test"),
-			ServerPort:  server.DEFAULT_SERVER_PORT + i,
-			MonitorPort: server.DEFAULT_MONITOR_PORT + i,
-			ClusterPort: server.DEFAULT_CLUSTER_PORT + i,
+			Cluster:             messaging.ClusterName("osyterpack-test"),
+			ServerPort:          server.DEFAULT_SERVER_PORT + i,
+			MonitorPort:         server.DEFAULT_MONITOR_PORT + i,
+			ClusterPort:         server.DEFAULT_CLUSTER_PORT + i,
+			MetricsExporterPort: server.DEFAULT_PROMETHEUS_EXPORTER_HTTP_PORT + i,
 
 			Routes: defaultRoutesWithSeed(),
 			// full mesh needs to be defined, but this contradicts what's documented

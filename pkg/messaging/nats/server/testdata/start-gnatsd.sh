@@ -2,7 +2,7 @@
 
 # creates a cluster of 3 nodes
 
-# see node
+# seed node
 gnatsd --tlscert   $PKI_ROOT/oysterpack/certs/nats.dev.oysterpack.com.crt \
        --tlskey    $PKI_ROOT/oysterpack/keys/nats.dev.oysterpack.com.key \
        --tlsverify \

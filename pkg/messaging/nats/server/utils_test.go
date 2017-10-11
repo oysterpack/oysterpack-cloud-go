@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/url"
-	"time"
 
 	natsserver "github.com/nats-io/gnatsd/server"
 	"github.com/oysterpack/oysterpack.go/pkg/messaging/nats/server"
@@ -145,29 +144,8 @@ func defaultRoutesWithSeed(ports ...int) []string {
 
 func startServers(servers []server.NATSServer) {
 	for _, server := range servers {
-		go server.Start()
+		server.Start()
 	}
-
-	for _, server := range servers {
-	SERVER:
-		for {
-			if !server.ReadyForConnections(time.Second * 2) {
-				log.Logger.Info().Msgf("Waiting for server to startup ...")
-				continue
-			}
-			break SERVER
-		}
-	}
-}
-
-func startMonitoring(servers []server.NATSServer) error {
-	for _, server := range servers {
-		if err := server.StartMonitoring(); err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 func shutdownServers(servers []server.NATSServer) {
