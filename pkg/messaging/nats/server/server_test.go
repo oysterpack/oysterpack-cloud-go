@@ -181,6 +181,143 @@ func TestNATSServer_Monitoring(t *testing.T) {
 	}
 }
 
+// When no routes are specified in the config, then the server should add itself as a route. This assumes that the server is a seed server.
+func TestNatsServer_NoRoutesSpecified(t *testing.T) {
+	config := &server.NATSServerConfig{
+		Cluster: messaging.ClusterName("osyterpack-test"),
+
+		TLSConfig:        serverTLSConfig(),
+		ClusterTLSConfig: clusterTLSConfig(),
+		LogLevel:         server.DEBUG,
+	}
+	natsServer, err := server.NewNATSServer(config)
+	if err != nil {
+		t.Fatalf("failed to create new NATSServer : %v", err)
+	}
+	natsServer.Start()
+	defer natsServer.Shutdown()
+	logNATServerInfo([]server.NATSServer{natsServer}, "TestNatsServer_NoRoutesSpecified")
+}
+
+func TestNatsServer_BlankCLuster(t *testing.T) {
+	config := &server.NATSServerConfig{
+		Cluster: messaging.ClusterName(" "),
+
+		TLSConfig:        serverTLSConfig(),
+		ClusterTLSConfig: clusterTLSConfig(),
+		LogLevel:         server.DEBUG,
+	}
+	natsServer, err := server.NewNATSServer(config)
+	if err == nil {
+		natsServer.Shutdown()
+		t.Errorf("failed to create new NATSServer : %v", err)
+	}
+	t.Log(err)
+}
+
+func TestNatsServer_MetricsExporterPortConflict(t *testing.T) {
+	config := &server.NATSServerConfig{
+		Cluster:          messaging.ClusterName("oysterpack"),
+		TLSConfig:        serverTLSConfig(),
+		ClusterTLSConfig: clusterTLSConfig(),
+		LogLevel:         server.NOLOG,
+	}
+	natsServer, err := server.NewNATSServer(config)
+	if err != nil {
+		t.Errorf("failed to create new NATSServer : %v", err)
+	}
+	natsServer.Start()
+	defer natsServer.Shutdown()
+
+	config.ServerPort++
+	config.MonitorPort++
+	config.ClusterPort++
+	config.Routes = defaultRoutesWithSeed()
+	config.LogLevel = server.TRACE
+	natsServer2, err := server.NewNATSServer(config)
+	if err != nil {
+		natsServer2.Shutdown()
+		t.Fatalf("failed to create new NATSServer : %v", err)
+	}
+	defer natsServer2.Shutdown()
+	func() {
+		defer func() {
+			if p := recover(); p == nil {
+				t.Errorf("Then server should have failed to startup because of a port conflict on for the metrics exporter")
+			} else {
+				t.Log(p)
+			}
+		}()
+		natsServer2.Start()
+	}()
+
+}
+
+func TestNatsServer_ConfigPortConflict(t *testing.T) {
+	if natsServer, err := server.NewNATSServer(&server.NATSServerConfig{
+		Cluster:     messaging.ClusterName("oysterpack"),
+		ServerPort:  server.DEFAULT_SERVER_PORT,
+		MonitorPort: server.DEFAULT_SERVER_PORT,
+	}); err == nil {
+		natsServer.Shutdown()
+		t.Error("should have failed")
+	} else {
+		t.Log(err)
+	}
+
+	if natsServer, err := server.NewNATSServer(&server.NATSServerConfig{
+		Cluster:     messaging.ClusterName("oysterpack"),
+		ServerPort:  server.DEFAULT_SERVER_PORT,
+		ClusterPort: server.DEFAULT_SERVER_PORT,
+	}); err == nil {
+		natsServer.Shutdown()
+		t.Error("should have failed")
+	} else {
+		t.Log(err)
+	}
+
+	if natsServer, err := server.NewNATSServer(&server.NATSServerConfig{
+		Cluster:     messaging.ClusterName("oysterpack"),
+		MonitorPort: server.DEFAULT_MONITOR_PORT,
+		ClusterPort: server.DEFAULT_MONITOR_PORT,
+	}); err == nil {
+		natsServer.Shutdown()
+		t.Error("should have failed")
+	} else {
+		t.Log(err)
+	}
+}
+
+func TestNatsServer_InvalidRouteURL(t *testing.T) {
+	config := &server.NATSServerConfig{
+		Cluster: messaging.ClusterName("oysterpack"),
+		Routes:  []string{"$%$%$"},
+	}
+	if natsServer, err := server.NewNATSServer(config); err == nil {
+		natsServer.Shutdown()
+		opts, _ := config.ServerOpts()
+		t.Errorf("should have failed : %v", opts.Routes)
+	} else {
+		t.Log(err)
+	}
+
+}
+
+func TestNatsServer_InvalidLogLevel(t *testing.T) {
+	config := &server.NATSServerConfig{
+		Cluster:  messaging.ClusterName("oysterpack"),
+		LogLevel: server.NATSLogLevel(-1),
+	}
+	if natsServer, err := server.NewNATSServer(config); err == nil {
+		natsServer.Shutdown()
+		opts, _ := config.ServerOpts()
+		t.Errorf("should have failed : %v", opts.Routes)
+	} else {
+		t.Log(err)
+	}
+
+}
+
 func createNATSServerConfigs(count int) []*server.NATSServerConfig {
 	configs := []*server.NATSServerConfig{}
 	for i := 0; i < count; i++ {
@@ -192,8 +329,6 @@ func createNATSServerConfigs(count int) []*server.NATSServerConfig {
 			MetricsExporterPort: server.DEFAULT_PROMETHEUS_EXPORTER_HTTP_PORT + i,
 
 			Routes: defaultRoutesWithSeed(),
-			// full mesh needs to be defined, but this contradicts what's documented
-			//Routes:defaultRoutesWithSeed(server.DEFAULT_CLUSTER_PORT + 1, server.DEFAULT_CLUSTER_PORT + 2),
 
 			TLSConfig:        serverTLSConfig(),
 			ClusterTLSConfig: clusterTLSConfig(),

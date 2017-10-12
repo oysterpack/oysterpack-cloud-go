@@ -18,7 +18,6 @@ import (
 	"net"
 
 	"crypto/tls"
-	"errors"
 	"fmt"
 	"time"
 
@@ -50,9 +49,6 @@ func NewNATSServer(config *NATSServerConfig) (NATSServer, error) {
 	}
 
 	s := natsserver.New(opts)
-	if s == nil {
-		return nil, errors.New("Failed to create new NATS Server - nil was returned.")
-	}
 	if config.Logger == nil {
 		config.Logger = &logger
 	}
@@ -134,12 +130,13 @@ func (a *natsServer) StartUp() error {
 		if a.ReadyForConnections(10 * time.Second) {
 			break
 		}
-		logger.Info().Msg("Waiting for the server to start up ...")
+		logger.Warn().Msg("Waiting for the server to start up ...")
 	}
 
 	if err := a.startExporter(); err != nil {
 		logger.Error().Err(err).Msg("NATSExporter failed to start up. Server will be shutdown.")
-		a.Shutdown()
+		a.NATSExporter = nil
+		a.Server.Shutdown()
 		return err
 	}
 
@@ -172,8 +169,10 @@ func (a *natsServer) Shutdown() {
 	a.Lock()
 	defer a.Unlock()
 
-	a.NATSExporter.Stop()
-	a.NATSExporter = nil
+	if a.NATSExporter != nil {
+		a.NATSExporter.Stop()
+		a.NATSExporter = nil
+	}
 	a.Server.Shutdown()
 }
 
