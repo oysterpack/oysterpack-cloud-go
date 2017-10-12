@@ -18,7 +18,8 @@ import (
 	"fmt"
 	"testing"
 
-	"time"
+	"io/ioutil"
+	"net/http"
 
 	"github.com/nats-io/go-nats"
 	"github.com/oysterpack/oysterpack.go/pkg/messaging"
@@ -48,88 +49,20 @@ EXPECTED RESULT :
 
 */
 
-func skipTestCluster_UsingSeedNodeInRoutes_External(t *testing.T) {
-	const CONN_COUNT = 3
-	configs := createNATSServerConfigs(CONN_COUNT)
-
-	const TOPIC = "TestNewNATSServer"
-	const QUEUE = "TestNewNATSServerQ"
-	var subscriptions []messaging.Subscription
-	var qsubscriptions []messaging.QueueSubscription
-	var conns []*opnats.ManagedConn
-	for _, config := range configs {
-		conn, err := nats.Connect(fmt.Sprintf("tls://localhost:%d", config.ServerPort), nats.Secure(clientTLSConfig()))
-		if err != nil {
-			t.Fatalf("Failed to connect : %v", err)
-		}
-
-		managedConn := opnats.NewManagedConn(config.Cluster, fmt.Sprintf("%s:%d", config.Cluster, config.ServerPort), conn, nil)
-		conns = append(conns, managedConn)
-
-		sub, err := managedConn.TopicSubscribe(TOPIC, nil)
-		if err != nil {
-			t.Errorf("Failed to create subscription on : %v", config.ServerPort)
-		}
-		subscriptions = append(subscriptions, sub)
-
-		qsub, err := managedConn.TopicQueueSubscribe(TOPIC, QUEUE, nil)
-		if err != nil {
-			t.Errorf("Failed to create queue subscription on : %v", config.ServerPort)
-		}
-		qsubscriptions = append(qsubscriptions, qsub)
-	}
-
-	i := 0
-	for _, conn := range conns {
-		conn.Flush()
-		i++
-		conn.Publish(TOPIC, []byte(fmt.Sprintf("MSG #%d", i)))
-	}
-
-	var EXPECTED_MSG_COUNT = (CONN_COUNT * len(subscriptions)) + len(qsubscriptions)
-	msgReceivedCount := 0
-	for i := 1; i <= EXPECTED_MSG_COUNT*2; i++ {
-		select {
-		case msg := <-subscriptions[0].Channel():
-			msgReceivedCount++
-			log.Logger.Info().Msgf("#%d : %v", i, string(msg.Data))
-		case msg := <-subscriptions[1].Channel():
-			msgReceivedCount++
-			log.Logger.Info().Msgf("#%d : %v", i, string(msg.Data))
-		case msg := <-subscriptions[2].Channel():
-			msgReceivedCount++
-			log.Logger.Info().Msgf("#%d : %v", i, string(msg.Data))
-		case msg := <-qsubscriptions[0].Channel():
-			msgReceivedCount++
-			log.Logger.Info().Msgf("#%d : %v", i, string(msg.Data))
-		case msg := <-qsubscriptions[1].Channel():
-			msgReceivedCount++
-			log.Logger.Info().Msgf("#%d : %v", i, string(msg.Data))
-		case msg := <-qsubscriptions[2].Channel():
-			msgReceivedCount++
-			log.Logger.Info().Msgf("#%d : %v", i, string(msg.Data))
-		default:
-			if msgReceivedCount == EXPECTED_MSG_COUNT {
-				break
-			}
-			log.Logger.Info().Msg("*** NO MESSAGE ***")
-			time.Sleep(time.Millisecond)
-		}
-	}
-
-	if msgReceivedCount != EXPECTED_MSG_COUNT {
-		t.Errorf("The number of msgs received did not match what was expected : %d ! %d", msgReceivedCount, EXPECTED_MSG_COUNT)
-	}
-
-}
-
-func TestCluster_UsingSingleSeedNode_DistributedTopicAndQueue(t *testing.T) {
+func TestNATSServer_Cluster_TLS(t *testing.T) {
 	const CONN_COUNT = 3
 	configs := createNATSServerConfigs(CONN_COUNT)
 	servers := createNATSServers(t, configs)
 	startServers(servers)
+	defer shutdownServers(servers)
 	logNATServerInfo(servers, "Servers have been started")
+	if err := waitforClusterMeshToForm(servers); err != nil {
+		t.Fatalf("Full mesh did not form : %v", err)
+	}
 
+	// connect to each server
+	// create a subscription on each server
+	// create a queue subscription on each server
 	const TOPIC = "TestNewNATSServer"
 	const QUEUE = "TestNewNATSServer"
 	var subscriptions []messaging.Subscription
@@ -157,8 +90,10 @@ func TestCluster_UsingSingleSeedNode_DistributedTopicAndQueue(t *testing.T) {
 
 		logNATServerInfo(servers, fmt.Sprintf("created subscription on %d", config.ServerPort))
 	}
-
 	logNATServerInfo(servers, "Connected to each server and created a subsription on each server")
+	if err := checkClientConnectionCounts(servers, 1); err != nil {
+		t.Fatalf("%v", err)
+	}
 	waitForClusterToBecomeAwareOfAllSubscriptions(servers, len(qsubscriptions)+len(qsubscriptions))
 
 	// publish a message on each connection
@@ -181,69 +116,68 @@ func TestCluster_UsingSingleSeedNode_DistributedTopicAndQueue(t *testing.T) {
 	if qsubscriberMsgCount != QSUBSCRIBER_EXPECTED_MSG_COUNT {
 		t.Errorf("qsubscriberMsgCount != QSUBSCRIBER_EXPECTED_MSG_COUNT : %d ! %d", qsubscriberMsgCount, QSUBSCRIBER_EXPECTED_MSG_COUNT)
 	}
+}
 
+func TestNATSServer_Monitoring(t *testing.T) {
+	const CONN_COUNT = 1
+	configs := createNATSServerConfigs(CONN_COUNT)
+	servers := createNATSServers(t, configs)
+	startServers(servers)
 	defer shutdownServers(servers)
-}
+	logNATServerInfo(servers, "Servers have been started")
 
-func receiveMessagesOnSubscriptions(subscriptions []messaging.Subscription, messageCount int) int {
-	msgReceivedCount := 0
-	for i, subscription := range subscriptions {
-		msg := <-subscription.Channel()
-		msgReceivedCount++
-		log.Logger.Info().Msgf("subscriptions[%d] #%d : %v", i, msgReceivedCount, string(msg.Data))
+	// connect to each server
+	// create a subscription on each server
+	// create a queue subscription on each server
+	const TOPIC = "TestNewNATSServer"
+	const QUEUE = "TestNewNATSServerQ"
+	var subscriptions []messaging.Subscription
+	var qsubscriptions []messaging.QueueSubscription
+	var conns []*opnats.ManagedConn
+	for _, config := range configs {
+		conn, err := nats.Connect(fmt.Sprintf("tls://localhost:%d", config.ServerPort), nats.Secure(clientTLSConfig()))
+		if err != nil {
+			t.Fatalf("Failed to connect : %v", err)
+		}
+
+		managedConn := opnats.NewManagedConn(config.Cluster, fmt.Sprintf("%s:%d", config.Cluster, config.ServerPort), conn, nil)
+		conns = append(conns, managedConn)
+		sub, err := managedConn.TopicSubscribe(TOPIC, nil)
+		if err != nil {
+			t.Errorf("Failed to create subscription on : %v", config.ServerPort)
+		}
+		subscriptions = append(subscriptions, sub)
+
+		qsub, err := managedConn.TopicQueueSubscribe(TOPIC, QUEUE, nil)
+		if err != nil {
+			t.Errorf("Failed to create queue subscription on : %v", config.ServerPort)
+		}
+		qsubscriptions = append(qsubscriptions, qsub)
+
+		logNATServerInfo(servers, fmt.Sprintf("created subscription on %d", config.ServerPort))
 	}
 
-	for i := 0; i < 10; i++ {
-		for i, subscription := range subscriptions {
-			select {
-			case msg := <-subscription.Channel():
-				msgReceivedCount++
-				log.Logger.Info().Msgf("subscriptions[%d] #%d : %v", i, msgReceivedCount, string(msg.Data))
-			default:
+	for _, server := range servers {
+		baseMonitoringURL := fmt.Sprintf("http://%v", server.MonitorAddr())
+
+		endpoints := []string{"/varz", "/connz", "/routez", "/subsz"}
+		for _, endpoint := range endpoints {
+			resp, err := http.Get(fmt.Sprintf("%s/%s", baseMonitoringURL, endpoint))
+			if err != nil {
+				t.Errorf("HTTP GET failed for endpoint: %v", endpoint, err)
 			}
+			defer resp.Body.Close()
+			body, err := ioutil.ReadAll(resp.Body)
+			t.Logf("%s response\n%s", endpoint, string(body))
 		}
 
-		if msgReceivedCount >= messageCount {
-			return msgReceivedCount
+		resp, err := http.Get(fmt.Sprintf("http://localhost:%d/metrics", server.PrometheusHTTPExportPort()))
+		if err != nil {
+			t.Errorf("HTTP GET failed for prometheus metric export endpoint : %v", err)
 		}
-		log.Logger.Info().Msgf("receiveMessagesOnQueueSubscriptions: %d / %d", msgReceivedCount, messageCount)
-		time.Sleep(time.Millisecond)
-	}
-	return msgReceivedCount
-}
-
-func receiveMessagesOnQueueSubscriptions(qsubscriptions []messaging.QueueSubscription, messageCount int) int {
-	msgReceivedCount := 0
-	for i := 0; i < 10; i++ {
-		for i, subscription := range qsubscriptions {
-			select {
-			case msg := <-subscription.Channel():
-				msgReceivedCount++
-				log.Logger.Info().Msgf("qsubscriptions[%d] #%d : %v", i, msgReceivedCount, string(msg.Data))
-			default:
-			}
-		}
-
-		if msgReceivedCount >= messageCount {
-			return msgReceivedCount
-		}
-		log.Logger.Info().Msgf("receiveMessagesOnQueueSubscriptions: %d / %d", msgReceivedCount, messageCount)
-		time.Sleep(time.Millisecond)
-	}
-	return msgReceivedCount
-}
-
-func waitForClusterToBecomeAwareOfAllSubscriptions(servers []server.NATSServer, subscriptionCount int) {
-	for {
-		for _, server := range servers {
-			if int(server.NumSubscriptions()) != subscriptionCount {
-				log.Logger.Info().Msgf("Subscription count = %d", server.NumSubscriptions())
-				time.Sleep(time.Millisecond)
-				continue
-			}
-		}
-		log.Logger.Info().Msg("Entire cluster is aware of all subscriptions")
-		break
+		defer resp.Body.Close()
+		body, err := ioutil.ReadAll(resp.Body)
+		t.Logf("prometheus metrics\n%s", string(body))
 	}
 }
 
@@ -268,16 +202,4 @@ func createNATSServerConfigs(count int) []*server.NATSServerConfig {
 		configs = append(configs, config)
 	}
 	return configs
-}
-
-func createNATSServers(t *testing.T, configs []*server.NATSServerConfig) []server.NATSServer {
-	var servers []server.NATSServer
-	for _, config := range configs {
-		server, err := server.NewNATSServer(config)
-		if err != nil {
-			t.Fatalf("server.NewNATSServer failed : %v", err)
-		}
-		servers = append(servers, server)
-	}
-	return servers
 }

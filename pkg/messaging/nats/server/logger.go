@@ -17,36 +17,41 @@ package server
 import (
 	natsserver "github.com/nats-io/gnatsd/server"
 	"github.com/oysterpack/oysterpack.go/pkg/logging"
+	"github.com/rs/zerolog"
 )
 
 type pkgobject struct{}
 
 var logger = logging.NewPackageLogger(pkgobject{})
 
-var natsServerLogger natsserver.Logger = natsLogger{}
+func NewNATSLogger(logger *zerolog.Logger) natsserver.Logger {
+	return natsLogger{logger}
+}
 
-type natsLogger struct{}
+type natsLogger struct {
+	*zerolog.Logger
+}
 
 func (a natsLogger) Noticef(format string, v ...interface{}) {
-	logger.Info().Msgf(format, v...)
+	a.Info().Msgf(format, v...)
 }
 
 // Log a fatal error
 func (a natsLogger) Fatalf(format string, v ...interface{}) {
-	logger.Info().Msgf(format, v...)
+	a.Info().Msgf(format, v...)
 }
 
 // Log an error
 func (a natsLogger) Errorf(format string, v ...interface{}) {
-	logger.Info().Msgf(format, v...)
+	a.Info().Msgf(format, v...)
 }
 
 // Log a debug statement
 func (a natsLogger) Debugf(format string, v ...interface{}) {
-	logger.Info().Msgf(format, v...)
+	a.Info().Msgf(format, v...)
 }
 
 // Log a trace statement
 func (a natsLogger) Tracef(format string, v ...interface{}) {
-	logger.Info().Msgf(format, v...)
+	a.Info().Msgf(format, v...)
 }

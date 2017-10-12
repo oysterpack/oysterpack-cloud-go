@@ -30,6 +30,7 @@ import (
 	natsserver "github.com/nats-io/gnatsd/server"
 	"github.com/nats-io/prometheus-nats-exporter/exporter"
 	"github.com/oysterpack/oysterpack.go/pkg/messaging"
+	"github.com/rs/zerolog"
 )
 
 // Default config settings
@@ -48,17 +49,23 @@ func NewNATSServer(config *NATSServerConfig) (NATSServer, error) {
 		return nil, err
 	}
 
-	// create server
 	s := natsserver.New(opts)
 	if s == nil {
-		return nil, errors.New("No NATS Server object was returned.")
+		return nil, errors.New("Failed to create new NATS Server - nil was returned.")
 	}
-	s.SetLogger(natsServerLogger, config.DebugLogEnabled(), config.TraceLogEnabled())
+	if config.Logger == nil {
+		config.Logger = &logger
+	}
+	s.SetLogger(NewNATSLogger(config.Logger), config.DebugLogEnabled(), config.TraceLogEnabled())
+
+	if config.MetricsExporterPort <= 0 {
+		config.MetricsExporterPort = DEFAULT_PROMETHEUS_EXPORTER_HTTP_PORT
+	}
 
 	return &natsServer{Server: s, exporterPort: config.MetricsExporterPort}, nil
 }
 
-// TODO: metrics, healthchecks
+// TODO: healthchecks
 
 // NATSServer is the Service interface for a NATS server
 type NATSServer interface {
@@ -70,6 +77,9 @@ type NATSServer interface {
 
 	// MonitorAddr will return the net.Addr object for the monitoring listener.
 	MonitorAddr() *net.TCPAddr
+
+	// PrometheusHTTPExportPort returns the HTTP port that the prometheus metrics are exported on
+	PrometheusHTTPExportPort() int
 
 	// NumClients will report the number of registered clients.
 	NumClients() int
@@ -101,9 +111,14 @@ type natsServer struct {
 	sync.Mutex
 
 	*natsserver.Server
+	logger *zerolog.Logger
 
 	exporterPort int
 	*exporter.NATSExporter
+}
+
+func (a *natsServer) PrometheusHTTPExportPort() int {
+	return a.exporterPort
 }
 
 // Start starts the server and monitoring.
@@ -134,17 +149,15 @@ func (a *natsServer) StartUp() error {
 func (a *natsServer) startExporter() error {
 	exporterOpts := exporter.GetDefaultExporterOptions()
 	exporterOpts.ListenPort = a.exporterPort
-	if exporterOpts.ListenPort <= 0 {
-		exporterOpts.ListenPort = DEFAULT_PROMETHEUS_EXPORTER_HTTP_PORT
-	}
 	exporterOpts.GetConnz = true
 	exporterOpts.GetRoutez = true
 	exporterOpts.GetSubz = true
 	exporterOpts.GetVarz = true
-	monitorAddr := a.MonitorAddr()
-	exporterOpts.NATSServerURL = fmt.Sprintf("http://%s", monitorAddr)
 	logger.Info().Str("MonitorURL", exporterOpts.NATSServerURL).Msg("")
 	a.NATSExporter = exporter.NewExporter(exporterOpts)
+
+	monitorAddr := a.MonitorAddr()
+	a.NATSExporter.AddServer(a.ID(), fmt.Sprintf("http://%s", monitorAddr))
 	return a.NATSExporter.Start()
 }
 
@@ -202,6 +215,8 @@ type NATSServerConfig struct {
 
 	// OPTIONAL - Prometheus metrics exporter HTTP port - DEFAULT_PROMETHEUS_EXPORTER_HTTP_PORT
 	MetricsExporterPort int
+
+	Logger *zerolog.Logger
 }
 
 // ServerOpts converts the config to a ServerOpts that can be used to create a new nats.Server.

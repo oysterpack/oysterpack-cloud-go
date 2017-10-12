@@ -12,10 +12,6 @@
   - A high-performance 100% compatible drop-in replacement of "encoding/json"
 
 ## Metrics
-- [go-metrics](https://github.com/rcrowley/go-metrics)
-  - used to collect application metrics
-- [go-metrics-prometheus](https://github.com/deathowl/go-metrics-prometheus)
-  -  [go-metrics](https://github.com/rcrowley/go-metrics) prometheus metrics reporter
 - [Prometheus](https://prometheus.io/)
   - monitoring and alerting service
 - [Grafana](https://grafana.com/)
@@ -30,6 +26,10 @@
 - [nsq](https://github.com/nsqio/nsq)
 
 ## Data Layer
+
+### Key-Value stores
+- [bbolt](https://github.com/coreos/bbolt) 
+  - use case : application configuration
 
 ### NewSQL
 - [CockroachDB](https://www.cockroachlabs.com/)

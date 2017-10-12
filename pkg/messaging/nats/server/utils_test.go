@@ -21,7 +21,13 @@ import (
 	"io/ioutil"
 	"net/url"
 
+	"time"
+
+	"errors"
+	"testing"
+
 	natsserver "github.com/nats-io/gnatsd/server"
+	"github.com/oysterpack/oysterpack.go/pkg/messaging"
 	"github.com/oysterpack/oysterpack.go/pkg/messaging/nats/server"
 	"github.com/rs/zerolog/log"
 )
@@ -118,6 +124,44 @@ func clusterTLSConfig() *tls.Config {
 	}
 }
 
+func waitforClusterMeshToForm(servers []server.NATSServer) error {
+	timeout := time.After(time.Second * 10)
+	expectedRemoteCount := len(servers) - 1
+	for {
+		select {
+		case <-timeout:
+			totalRemoteCount := 0
+			totalRouteCount := 0
+			for _, server := range servers {
+				totalRemoteCount += server.NumRemotes()
+				totalRouteCount += server.NumRoutes()
+			}
+			if totalRemoteCount != expectedRemoteCount*len(servers) {
+				return fmt.Errorf("Remotes are missing : %d / %d", totalRemoteCount, expectedRemoteCount*len(servers))
+			}
+			if totalRouteCount != expectedRemoteCount*len(servers) {
+				return fmt.Errorf("Routes are missing : %d / %d", totalRouteCount, expectedRemoteCount*len(servers))
+			}
+
+			return nil
+		default:
+			for i, server := range servers {
+				if count := server.NumRemotes(); count != expectedRemoteCount {
+					log.Logger.Info().Int("remote count", count).Int("i", i).Msg("")
+					time.Sleep(10 * time.Millisecond)
+					continue
+				}
+				if count := server.NumRoutes(); count != expectedRemoteCount {
+					log.Logger.Info().Int("route count", count).Int("i", i).Msg("")
+					time.Sleep(10 * time.Millisecond)
+					continue
+				}
+			}
+			return nil
+		}
+	}
+}
+
 func defaultRouteURLsWithSeed(ports ...int) []*url.URL {
 	seedRoute, err := url.Parse(NATS_SEED_SERVER_URL)
 	if err != nil {
@@ -160,9 +204,10 @@ func logServerInfo(servers map[string]*natsserver.Server, msg string) {
 			Str("name", name).
 			Str("Addr", fmt.Sprintf("%v", server.Addr())).
 			Str("ClusterAddr", fmt.Sprintf("%v", server.ClusterAddr())).
-			Str("NumRemotes", fmt.Sprintf("%v", server.NumRemotes())).
-			Str("NumClients", fmt.Sprintf("%v", server.NumClients())).
-			Str("NumSubscriptions", fmt.Sprintf("%v", server.NumSubscriptions())).
+			Int("NumRoutes", server.NumRoutes()).
+			Int("NumRemotes", server.NumRemotes()).
+			Int("NumClients", server.NumClients()).
+			Uint32("NumSubscriptions", server.NumSubscriptions()).
 			Msg(msg)
 	}
 }
@@ -172,9 +217,113 @@ func logNATServerInfo(servers []server.NATSServer, msg string) {
 		log.Info().
 			Str("Addr", fmt.Sprintf("%v", server.Addr())).
 			Str("ClusterAddr", fmt.Sprintf("%v", server.ClusterAddr())).
-			Str("NumRemotes", fmt.Sprintf("%v", server.NumRemotes())).
-			Str("NumClients", fmt.Sprintf("%v", server.NumClients())).
-			Str("NumSubscriptions", fmt.Sprintf("%v", server.NumSubscriptions())).
+			Int("NumRoutes", server.NumRoutes()).
+			Int("NumRemotes", server.NumRemotes()).
+			Int("NumClients", server.NumClients()).
+			Uint32("NumSubscriptions", server.NumSubscriptions()).
 			Msg(msg)
 	}
+}
+
+// - returns the number of messages received
+// - stops receiving when the number of messages received reaches messageCount
+// - performs 10 tries, and sleeps for 1 msec between tries
+func receiveMessagesOnQueueSubscriptions(qsubscriptions []messaging.QueueSubscription, messageCount int) int {
+	msgReceivedCount := 0
+	for i := 0; i < 10; i++ {
+		for i, subscription := range qsubscriptions {
+			select {
+			case msg := <-subscription.Channel():
+				msgReceivedCount++
+				log.Logger.Info().Msgf("qsubscriptions[%d] #%d : %v", i, msgReceivedCount, string(msg.Data))
+			default:
+			}
+		}
+
+		if msgReceivedCount >= messageCount {
+			return msgReceivedCount
+		}
+		log.Logger.Info().Msgf("receiveMessagesOnQueueSubscriptions: %d / %d", msgReceivedCount, messageCount)
+		time.Sleep(time.Millisecond)
+	}
+	return msgReceivedCount
+}
+
+// timeout after 5 seconds
+func waitForClusterToBecomeAwareOfAllSubscriptions(servers []server.NATSServer, subscriptionCount int) error {
+	timeout := time.After(time.Second * 5)
+	for {
+		select {
+		case <-timeout:
+			for _, server := range servers {
+				if int(server.NumSubscriptions()) != subscriptionCount {
+					return errors.New("Timed out : waitForClusterToBecomeAwareOfAllSubscriptions()")
+				}
+			}
+			log.Logger.Info().Msg("Entire cluster is aware of all subscriptions")
+			return nil
+		default:
+			for _, server := range servers {
+				if int(server.NumSubscriptions()) != subscriptionCount {
+					log.Logger.Info().Msgf("Subscription count = %d", server.NumSubscriptions())
+					time.Sleep(time.Millisecond)
+					continue
+				}
+			}
+			log.Logger.Info().Msg("Entire cluster is aware of all subscriptions")
+			return nil
+		}
+
+	}
+}
+
+func createNATSServers(t *testing.T, configs []*server.NATSServerConfig) []server.NATSServer {
+	var servers []server.NATSServer
+	for _, config := range configs {
+		server, err := server.NewNATSServer(config)
+		if err != nil {
+			t.Fatalf("server.NewNATSServer failed : %v", err)
+		}
+		servers = append(servers, server)
+	}
+	return servers
+}
+
+func checkClientConnectionCounts(servers []server.NATSServer, countPerServer int) error {
+	for _, server := range servers {
+		if server.NumClients() != countPerServer {
+			return fmt.Errorf("The number of clients did not match : %d != %d", server.NumClients(), countPerServer)
+		}
+	}
+	return nil
+}
+
+// - returns the number of messages received
+// - stops receiving when the number of messages received reaches messageCount
+// - performs 10 tries, and sleeps for 1 msec between tries
+func receiveMessagesOnSubscriptions(subscriptions []messaging.Subscription, messageCount int) int {
+	msgReceivedCount := 0
+	for i, subscription := range subscriptions {
+		msg := <-subscription.Channel()
+		msgReceivedCount++
+		log.Logger.Info().Msgf("subscriptions[%d] #%d : %v", i, msgReceivedCount, string(msg.Data))
+	}
+
+	for i := 0; i < 10; i++ {
+		for i, subscription := range subscriptions {
+			select {
+			case msg := <-subscription.Channel():
+				msgReceivedCount++
+				log.Logger.Info().Msgf("subscriptions[%d] #%d : %v", i, msgReceivedCount, string(msg.Data))
+			default:
+			}
+		}
+
+		if msgReceivedCount >= messageCount {
+			return msgReceivedCount
+		}
+		log.Logger.Info().Msgf("receiveMessagesOnQueueSubscriptions: %d / %d", msgReceivedCount, messageCount)
+		time.Sleep(time.Millisecond)
+	}
+	return msgReceivedCount
 }
