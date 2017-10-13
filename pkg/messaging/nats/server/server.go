@@ -61,8 +61,6 @@ func NewNATSServer(config *NATSServerConfig) (NATSServer, error) {
 	return &natsServer{Server: s, exporterPort: config.MetricsExporterPort}, nil
 }
 
-// TODO: healthchecks
-
 // NATSServer is the Service interface for a NATS server
 type NATSServer interface {
 	// Addr will return the net.Addr object for the current listener.

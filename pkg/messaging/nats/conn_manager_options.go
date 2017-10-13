@@ -21,7 +21,8 @@ import (
 	"github.com/nats-io/go-nats"
 )
 
-// ConnectUrl - if not specified, then the default will be used : "nats://localhost:4222"
+// ConnectUrl converts a NATS connection URL into a connect nats.Option
+// The nats.Option will verify that the url is not blank.
 func ConnectUrl(url string) nats.Option {
 	return func(options *nats.Options) error {
 		url = strings.TrimSpace(url)

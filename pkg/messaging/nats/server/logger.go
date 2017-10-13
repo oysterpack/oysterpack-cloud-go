@@ -24,6 +24,7 @@ type pkgobject struct{}
 
 var logger = logging.NewPackageLogger(pkgobject{})
 
+// NewNATSLogger creates a new NATS logger that delegates to the provided logger
 func NewNATSLogger(logger *zerolog.Logger) natsserver.Logger {
 	return natsLogger{logger}
 }

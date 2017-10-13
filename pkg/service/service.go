@@ -111,6 +111,15 @@ type service struct {
 // Interface represents the interface from the client's perspective, i.e., it defines the service's functionality.
 type Interface reflect.InterfaceType
 
+// ServiceInterface extracts the service interface from the service prototype instance.
+func ServiceInterface(service interface{}) Interface {
+	serviceInterface, err := reflect.ObjectInterface(&service)
+	if err != nil {
+		panic(err)
+	}
+	return serviceInterface
+}
+
 // LifeCycle encapsulates the service lifecycle, including the service's backend functions, i.e., Init, Run, Destroy
 type lifeCycle struct {
 	serviceState *ServiceState

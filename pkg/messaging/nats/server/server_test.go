@@ -29,14 +29,10 @@ import (
 )
 
 /*
-Test Desciption:
+Test Description:
 
 - create a 3 node cluster
   - the first node is used to seed the cluster
-  - TLS and client certs are required between server and client and between servers for routing
-    - in order for the cluster TLS to work properly with verification, the TLS certs need to be created with IP SANS properly
-
-		easypki create --ca-name oysterpack --dns "*" --ip 127.0.0.1 cluster.nats.dev.oysterpack.com
 
 - create a connection to each cluster
 - create a subscriber on each of connections
@@ -48,10 +44,9 @@ EXPECTED RESULT :
 - the queue subscriber pool should receive 3 messages
 
 */
-
 func TestNATSServer_Cluster_TLS(t *testing.T) {
 	const CONN_COUNT = 3
-	configs := createNATSServerConfigs(CONN_COUNT)
+	configs := createNATSServerConfigsWithTLS(CONN_COUNT)
 	servers := createNATSServers(t, configs)
 	startServers(servers)
 	defer shutdownServers(servers)
@@ -118,9 +113,78 @@ func TestNATSServer_Cluster_TLS(t *testing.T) {
 	}
 }
 
+func TestNATSServer_Cluster_NoTLS(t *testing.T) {
+	const CONN_COUNT = 3
+	configs := createNATSServerConfigsNoTLS(CONN_COUNT)
+	servers := createNATSServers(t, configs)
+	startServers(servers)
+	defer shutdownServers(servers)
+	logNATServerInfo(servers, "Servers have been started")
+	if err := waitforClusterMeshToForm(servers); err != nil {
+		t.Fatalf("Full mesh did not form : %v", err)
+	}
+
+	// connect to each server
+	// create a subscription on each server
+	// create a queue subscription on each server
+	const TOPIC = "TestNewNATSServer"
+	const QUEUE = "TestNewNATSServer"
+	var subscriptions []messaging.Subscription
+	var qsubscriptions []messaging.QueueSubscription
+	var conns []*opnats.ManagedConn
+	for _, config := range configs {
+		conn, err := nats.Connect(fmt.Sprintf("nats://localhost:%d", config.ServerPort))
+		if err != nil {
+			t.Fatalf("Failed to connect : %v", err)
+		}
+
+		managedConn := opnats.NewManagedConn(config.Cluster, fmt.Sprintf("%s:%d", config.Cluster, config.ServerPort), conn, nil)
+		conns = append(conns, managedConn)
+		sub, err := managedConn.TopicSubscribe(TOPIC, nil)
+		if err != nil {
+			t.Errorf("Failed to create subscription on : %v", config.ServerPort)
+		}
+		subscriptions = append(subscriptions, sub)
+
+		qsub, err := managedConn.TopicQueueSubscribe(TOPIC, QUEUE, nil)
+		if err != nil {
+			t.Errorf("Failed to create queue subscription on : %v", config.ServerPort)
+		}
+		qsubscriptions = append(qsubscriptions, qsub)
+
+		logNATServerInfo(servers, fmt.Sprintf("created subscription on %d", config.ServerPort))
+	}
+	logNATServerInfo(servers, "Connected to each server and created a subsription on each server")
+	if err := checkClientConnectionCounts(servers, 1); err != nil {
+		t.Fatalf("%v", err)
+	}
+	waitForClusterToBecomeAwareOfAllSubscriptions(servers, len(qsubscriptions)+len(qsubscriptions))
+
+	// publish a message on each connection
+	i := 0
+	for _, conn := range conns {
+		i++
+		conn.Publish(TOPIC, []byte(fmt.Sprintf("MSG #%d", i)))
+	}
+	log.Logger.Info().Msg("Published messages")
+
+	var (
+		SUBSCRIBER_EXPECTED_MSG_COUNT  = (CONN_COUNT * len(subscriptions))
+		QSUBSCRIBER_EXPECTED_MSG_COUNT = len(conns)
+	)
+	subscriberMsgCount := receiveMessagesOnSubscriptions(subscriptions, SUBSCRIBER_EXPECTED_MSG_COUNT)
+	qsubscriberMsgCount := receiveMessagesOnQueueSubscriptions(qsubscriptions, QSUBSCRIBER_EXPECTED_MSG_COUNT)
+	if subscriberMsgCount != SUBSCRIBER_EXPECTED_MSG_COUNT {
+		t.Errorf("subscriberMsgCount != SUBSCRIBER_EXPECTED_MSG_COUNT : %d ! %d", subscriberMsgCount, SUBSCRIBER_EXPECTED_MSG_COUNT)
+	}
+	if qsubscriberMsgCount != QSUBSCRIBER_EXPECTED_MSG_COUNT {
+		t.Errorf("qsubscriberMsgCount != QSUBSCRIBER_EXPECTED_MSG_COUNT : %d ! %d", qsubscriberMsgCount, QSUBSCRIBER_EXPECTED_MSG_COUNT)
+	}
+}
+
 func TestNATSServer_Monitoring(t *testing.T) {
 	const CONN_COUNT = 1
-	configs := createNATSServerConfigs(CONN_COUNT)
+	configs := createNATSServerConfigsWithTLS(CONN_COUNT)
 	servers := createNATSServers(t, configs)
 	startServers(servers)
 	defer shutdownServers(servers)
@@ -168,7 +232,11 @@ func TestNATSServer_Monitoring(t *testing.T) {
 			}
 			defer resp.Body.Close()
 			body, err := ioutil.ReadAll(resp.Body)
-			t.Logf("%s response\n%s", endpoint, string(body))
+			if err != nil {
+				t.Errorf("Failed to read body : %v", err)
+			} else {
+				t.Logf("%s response\n%s", endpoint, string(body))
+			}
 		}
 
 		resp, err := http.Get(fmt.Sprintf("http://localhost:%d/metrics", server.PrometheusHTTPExportPort()))
@@ -177,7 +245,11 @@ func TestNATSServer_Monitoring(t *testing.T) {
 		}
 		defer resp.Body.Close()
 		body, err := ioutil.ReadAll(resp.Body)
-		t.Logf("prometheus metrics\n%s", string(body))
+		if err != nil {
+			t.Errorf("Failed to read body : %v", err)
+		} else {
+			t.Logf("prometheus metrics\n%s", string(body))
+		}
 	}
 }
 
@@ -318,7 +390,7 @@ func TestNatsServer_InvalidLogLevel(t *testing.T) {
 
 }
 
-func createNATSServerConfigs(count int) []*server.NATSServerConfig {
+func createNATSServerConfigsWithTLS(count int) []*server.NATSServerConfig {
 	configs := []*server.NATSServerConfig{}
 	for i := 0; i < count; i++ {
 		config := &server.NATSServerConfig{
@@ -333,6 +405,24 @@ func createNATSServerConfigs(count int) []*server.NATSServerConfig {
 			TLSConfig:        serverTLSConfig(),
 			ClusterTLSConfig: clusterTLSConfig(),
 			LogLevel:         server.DEBUG,
+		}
+		configs = append(configs, config)
+	}
+	return configs
+}
+
+func createNATSServerConfigsNoTLS(count int) []*server.NATSServerConfig {
+	configs := []*server.NATSServerConfig{}
+	for i := 0; i < count; i++ {
+		config := &server.NATSServerConfig{
+			Cluster:             messaging.ClusterName("osyterpack-test"),
+			ServerPort:          server.DEFAULT_SERVER_PORT + i,
+			MonitorPort:         server.DEFAULT_MONITOR_PORT + i,
+			ClusterPort:         server.DEFAULT_CLUSTER_PORT + i,
+			MetricsExporterPort: server.DEFAULT_PROMETHEUS_EXPORTER_HTTP_PORT + i,
+
+			Routes:   defaultRoutesWithSeed(),
+			LogLevel: server.DEBUG,
 		}
 		configs = append(configs, config)
 	}

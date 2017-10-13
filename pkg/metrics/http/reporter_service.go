@@ -15,8 +15,6 @@
 package http
 
 import (
-	"github.com/oysterpack/oysterpack.go/pkg/commons/reflect"
-
 	"github.com/oysterpack/oysterpack.go/pkg/service"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -41,11 +39,7 @@ type Reporter interface {
 // ReporterInterface is the service interface instance that can be used to lookup the registered service
 var ReporterInterface service.Interface = func() service.Interface {
 	var c Reporter = &reporter{}
-	serviceInterface, err := reflect.ObjectInterface(&c)
-	if err != nil {
-		panic(err)
-	}
-	return serviceInterface
+	return service.ServiceInterface(c)
 }()
 
 // NewReporterClient service.ClientConstructor

@@ -15,7 +15,6 @@
 package nats
 
 import (
-	"github.com/oysterpack/oysterpack.go/pkg/commons/reflect"
 	"github.com/oysterpack/oysterpack.go/pkg/messaging"
 	"github.com/oysterpack/oysterpack.go/pkg/service"
 )
@@ -43,13 +42,7 @@ var (
 	ConnManagerRegistryDescriptor = service.NewDescriptor(Namespace, System, Component, Version, ConnManagerRegistryInterface)
 
 	// ConnManagerRegistryInterface service interface
-	ConnManagerRegistryInterface service.Interface = func() service.Interface {
-		serviceInterface, err := reflect.ObjectInterface(&ConnManagerRegistryService)
-		if err != nil {
-			panic(err)
-		}
-		return serviceInterface
-	}()
+	ConnManagerRegistryInterface service.Interface = service.ServiceInterface(ConnManagerRegistryService)
 )
 
 // NewConnManagerRegistryClient service.ClientConstructor
