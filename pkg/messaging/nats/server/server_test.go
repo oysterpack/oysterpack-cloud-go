@@ -55,6 +55,12 @@ func TestNATSServer_Cluster_TLS(t *testing.T) {
 		t.Fatalf("Full mesh did not form : %v", err)
 	}
 
+	for i, server := range servers {
+		if server.Cluster() != configs[i].Cluster {
+			t.Errorf("Cluster name does not match : %s != %s", server.Cluster(), configs[i].Cluster)
+		}
+	}
+
 	// connect to each server
 	// create a subscription on each server
 	// create a queue subscription on each server

@@ -99,11 +99,11 @@ type ConnManagerSettings struct {
 
 // NewConnManager factory method.
 // Default connection options are : DefaultConnectTimeout, DefaultReConnectTimeout, AlwaysReconnect
-func NewConnManager(settings ConnManagerSettings) ConnManager {
+func NewConnManager(settings *ConnManagerSettings) ConnManager {
 	return newConnManager(settings)
 }
 
-func newConnManager(settings ConnManagerSettings) *connManager {
+func newConnManager(settings *ConnManagerSettings) *connManager {
 	if err := settings.ClusterName.Validate(); err != nil {
 		logger.Panic().Err(err).Msg("Failed to create ConnManager")
 	}
@@ -564,16 +564,11 @@ func (a *connManager) CloseAll() {
 	a.mutex.Lock()
 	defer a.mutex.Unlock()
 	for _, nc := range a.conns {
-		nc.Conn.SetClosedHandler(func(conn *nats.Conn) {
-			a.closedCounter.Inc()
-			logger.Info().Str(logging.EVENT, EVENT_CONN_CLOSED).Str(CONN_ID, nc.ID()).Msg("CloseAll")
-		})
 		func() {
 			defer commons.IgnorePanic()
 			nc.Conn.Close()
 		}()
 	}
-	a.conns = make(map[string]*ManagedConn)
 }
 
 func (a *connManager) ConnInfo(id string) *ConnInfo {

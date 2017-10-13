@@ -34,15 +34,23 @@ func (a Topic) TrimSpace() Topic {
 	return Topic(strings.TrimSpace(string(a)))
 }
 
+func (a Topic) AsReplyTo() ReplyTo {
+	return ReplyTo(a)
+}
+
+func (a Topic) AsQueue() Queue {
+	return Queue(a)
+}
+
 // Queue represents the name of a messaging queue
 type Queue string
 
 // Message represents the message envelope
 type Message struct {
 	// Topic is the topic that the message is published to or received from. This is required and must never be blank
-	Topic
+	Topic Topic
 	// ReplyTo is intended to support a request-response model. This is optional, i.e., a blank value means no reply is specified.
-	ReplyTo
+	ReplyTo ReplyTo
 	// Data is the message data
 	Data []byte
 }
@@ -61,6 +69,10 @@ func (a ReplyTo) Validate() error {
 // TrimSpace returns a new ReplyTo with whitespace trimmed
 func (a ReplyTo) TrimSpace() ReplyTo {
 	return ReplyTo(strings.TrimSpace(string(a)))
+}
+
+func (a ReplyTo) AsTopic() Topic {
+	return Topic(a)
 }
 
 // Response is used for request-response messaging

@@ -24,6 +24,10 @@ type Conn interface {
 	// ID is a unique identifier assigned to the connection for tracking pusposes
 	ID() string
 
+	// Tags returns the list of tags the connetion was created it.
+	// Tags are used to tag a connection for tracking purposes, or to document its purpose, e.g., publisher, subscriber, etc
+	Tags() []string
+
 	// Cluster returns the name of the cluster that the connection belongs to
 	Cluster() ClusterName
 

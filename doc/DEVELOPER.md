@@ -1,3 +1,19 @@
+# Ho to run tests in the package hierarchy
+
+    go test ./... -p 1 -race
+    
+    where     
+        -p n
+                the number of programs, such as build commands or test binaries, that can be run in parallel.
+                The default is the number of CPUs available. 
+                
+                The reason we set it 1 is avoid port conflicts when testing multiple packages in parallel.
+                
+        -race
+                enable data race detection.
+                Supported only on linux/amd64, freebsd/amd64, darwin/amd64 and windows/amd64.
+    
+
 # How to run test code coverage
 
     go test -covermode=count -coverprofile=cover.out     

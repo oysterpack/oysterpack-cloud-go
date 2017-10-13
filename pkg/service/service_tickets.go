@@ -21,15 +21,32 @@ import (
 	"github.com/oysterpack/oysterpack.go/pkg/commons"
 )
 
+// NewServiceTicket creates a new ServiceTicket for the specified service Interface
+func NewServiceTicket(serviceInterface Interface) *ServiceTicket {
+	return &ServiceTicket{ServiceInterface: serviceInterface, channel: make(chan Client, 1), Time: time.Now()}
+}
+
 // ServiceTicket represents a ticket issued to a user waiting for a service
 type ServiceTicket struct {
+	mutex sync.Mutex
+
 	// the type of service the user is waiting for
-	Interface
+	ServiceInterface Interface
 	// used to deliver the Client to the user
 	channel chan Client
 
 	// when the ticket was created
-	time.Time
+	Time time.Time
+}
+
+func (a *ServiceTicket) Close(client Client) {
+	a.mutex.Lock()
+	defer a.mutex.Unlock()
+	defer commons.IgnorePanic()
+	if client != nil {
+		a.channel <- client
+	}
+	close(a.channel)
 }
 
 // used to keep track of users who are waiting on services
@@ -45,7 +62,7 @@ func (a *serviceTickets) ServiceTicketCounts() map[Interface]int {
 	defer a.ticketsMutex.RUnlock()
 	counts := make(map[Interface]int)
 	for _, ticket := range a.tickets {
-		counts[ticket.Interface]++
+		counts[ticket.ServiceInterface]++
 	}
 	return counts
 }
@@ -72,10 +89,7 @@ func (a *serviceTickets) closeAllServiceTickets() {
 	a.ticketsMutex.RLock()
 	defer a.ticketsMutex.RUnlock()
 	for _, ticket := range a.tickets {
-		func(ticket *ServiceTicket) {
-			defer commons.IgnorePanic()
-			close(ticket.channel)
-		}(ticket)
+		ticket.Close(nil)
 	}
 }
 
@@ -84,13 +98,9 @@ func (a *serviceTickets) checkServiceTickets(registry Registry) {
 	a.ticketsMutex.RLock()
 	defer a.ticketsMutex.RUnlock()
 	for _, ticket := range a.tickets {
-		serviceClient := registry.ServiceByType(ticket.Interface)
+		serviceClient := registry.ServiceByType(ticket.ServiceInterface)
 		if serviceClient != nil {
-			go func(ticket *ServiceTicket) {
-				defer commons.IgnorePanic()
-				ticket.channel <- serviceClient
-				close(ticket.channel)
-			}(ticket)
+			go ticket.Close(serviceClient)
 			go a.deleteServiceTicket(ticket)
 		}
 	}

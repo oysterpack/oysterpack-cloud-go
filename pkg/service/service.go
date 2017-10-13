@@ -95,6 +95,8 @@ type InterfaceDependencies map[Interface]*semver.Constraints
 // TODO: security
 // TODO: gRPC - frontend
 type service struct {
+	sync.RWMutex
+
 	*Descriptor
 
 	lifeCycle
@@ -453,9 +455,7 @@ func (a *service) awaitState(desiredState State, timeout time.Duration) error {
 		// ignore panics caused by sending on a closed messages
 		// the messages might be closed if the service failed
 		defer commons.IgnorePanic()
-		if stateChangeChann := a.serviceState.stateChangeChannel(l); stateChangeChann != nil {
-			stateChangeChann <- a.State()
-		}
+		a.serviceState.notify(l, a.State())
 	}()
 	for state := range l.Channel() {
 		if reachedState, err := matches(state); err != nil {
@@ -520,8 +520,10 @@ func (a *service) AwaitUntilStopped() error {
 // A stopped service may not be restarted.
 func (a *service) StartAsync() error {
 	const FUNC = "StartAsync"
+	a.Lock()
+	defer a.Unlock()
 
-	if !a.serviceState.state.New() {
+	if state, _ := a.serviceState.State(); !state.New() {
 		err := &IllegalStateError{
 			State:   a.serviceState.state,
 			Message: "A service can only be started in the 'New' state",
@@ -580,12 +582,14 @@ func (a *service) StartAsync() error {
 // If the service has already been stopped, this method returns immediately without taking action.
 func (a *service) StopAsyc() {
 	const FUNC = "StopAsyc"
-	if a.serviceState.state.Stopped() {
+	a.Lock()
+	defer a.Unlock()
+	if state, _ := a.serviceState.State(); state.Stopped() {
 		a.logger.Info().Str(logging.FUNC, FUNC).Msg("service is already stopped")
 		return
 	}
 	a.stopTriggered = true
-	if a.serviceState.state.New() {
+	if state, _ := a.serviceState.State(); state.New() {
 		a.serviceState.Terminated()
 		a.logger.Info().Str(logging.FUNC, FUNC).Msg("service was never started")
 		return

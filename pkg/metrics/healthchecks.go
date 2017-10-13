@@ -179,7 +179,7 @@ type healthcheck struct {
 	labels      []string
 	labelValues []string
 
-	sync.Mutex
+	sync.RWMutex
 	run RunHealthCheck
 
 	status      prometheus.Gauge
@@ -251,10 +251,14 @@ func (a *healthcheck) Run() (result *HealthCheckResult) {
 }
 
 func (a *healthcheck) LastResult() *HealthCheckResult {
+	a.RLock()
+	defer a.RUnlock()
 	return a.lastResult
 }
 
 func (a *healthcheck) String() string {
+	a.RLock()
+	defer a.RUnlock()
 	if a.lastResult != nil {
 		return fmt.Sprintf("%v : %v : %v", a.Key(), a.Help(), a.lastResult.Success())
 	}
@@ -278,7 +282,7 @@ func (a *healthcheck) StopTicker() {
 }
 
 func (a *healthcheck) StartTicker() {
-	if a.runInterval <= 0 {
+	if a.RunInterval() <= 0 {
 		return
 	}
 	a.Lock()
@@ -300,6 +304,8 @@ func (a *healthcheck) StartTicker() {
 }
 
 func (a *healthcheck) Scheduled() bool {
+	a.RLock()
+	defer a.RUnlock()
 	return a.ticker != nil
 }
 

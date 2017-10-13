@@ -58,11 +58,13 @@ func NewNATSServer(config *NATSServerConfig) (NATSServer, error) {
 		config.MetricsExporterPort = DEFAULT_PROMETHEUS_EXPORTER_HTTP_PORT
 	}
 
-	return &natsServer{Server: s, exporterPort: config.MetricsExporterPort}, nil
+	return &natsServer{Server: s, exporterPort: config.MetricsExporterPort, cluster: config.Cluster}, nil
 }
 
 // NATSServer is the Service interface for a NATS server
 type NATSServer interface {
+	Cluster() messaging.ClusterName
+
 	// Addr will return the net.Addr object for the current listener.
 	Addr() net.Addr
 
@@ -104,11 +106,17 @@ type NATSServer interface {
 type natsServer struct {
 	sync.Mutex
 
+	cluster messaging.ClusterName
+
 	*natsserver.Server
 	logger *zerolog.Logger
 
 	exporterPort int
 	*exporter.NATSExporter
+}
+
+func (a *natsServer) Cluster() messaging.ClusterName {
+	return a.cluster
 }
 
 func (a *natsServer) PrometheusHTTPExportPort() int {

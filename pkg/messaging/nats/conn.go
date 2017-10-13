@@ -36,6 +36,10 @@ type conn struct {
 	managedConn *ManagedConn
 }
 
+func (a *conn) Tags() []string {
+	return a.managedConn.Tags()
+}
+
 func (a *conn) ID() string {
 	return a.managedConn.ID()
 }
@@ -50,10 +54,6 @@ func (a *conn) Publish(topic messaging.Topic, data []byte) error {
 
 func (a *conn) PublishRequest(topic messaging.Topic, replyTo messaging.ReplyTo, data []byte) error {
 	return a.managedConn.PublishRequest(string(topic), string(replyTo), data)
-}
-
-func (a *conn) PublishMessage(msg *messaging.Message) error {
-	return a.PublishRequest(msg.Topic, msg.ReplyTo, msg.Data)
 }
 
 func (a *conn) Request(topic messaging.Topic, data []byte, timeout time.Duration) (*messaging.Message, error) {

@@ -206,7 +206,7 @@ func (a *application) serviceByType(serviceInterface Interface) Client {
 
 // ServiceByTypeAsync returns channel that will be used to send the Client, when one is available
 func (a *application) ServiceByTypeAsync(serviceInterface Interface) *ServiceTicket {
-	ticket := &ServiceTicket{serviceInterface, make(chan Client, 1), time.Now()}
+	ticket := NewServiceTicket(serviceInterface)
 	serviceClient := a.ServiceByType(serviceInterface)
 	if serviceClient != nil {
 		ticket.channel <- serviceClient

@@ -27,7 +27,7 @@ import (
 type ServiceState struct {
 	// the mutex is needed to ensure that the ServiceState is consistently accessed and modified in memory from
 	// multiple goroutines, which potentially may be running on different processors with its own local cache of main memeory
-	mutex        sync.Mutex
+	mutex        sync.RWMutex
 	state        State
 	failureCause error
 	timestamp    time.Time
@@ -45,6 +45,8 @@ func NewServiceState() *ServiceState {
 }
 
 func (s *ServiceState) String() string {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
 	if s.failureCause != nil {
 		return fmt.Sprintf("State : %v, Timestamp : %v, len(StateChangeListeners) : %v, FailureCause : %v", s.state, s.timestamp, len(s.stateChangeListeners), s.failureCause)
 	}
@@ -53,8 +55,8 @@ func (s *ServiceState) String() string {
 
 // State returns the current State and when it transitioned to the State
 func (s *ServiceState) State() (State, time.Time) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
 	return s.state, s.timestamp
 }
 
@@ -62,8 +64,8 @@ func (s *ServiceState) State() (State, time.Time) {
 // Returns nil if the service has no error.
 // NOTE: If the service has a FaiureCause, then the State must be Failed
 func (s *ServiceState) FailureCause() error {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
 	return s.failureCause
 }
 
@@ -155,7 +157,7 @@ func (s *ServiceState) NewStateChangeListener() StateChangeListener {
 	} else {
 		s.stateChangeListeners = append(s.stateChangeListeners, c)
 	}
-	return StateChangeListener{c, s}
+	return StateChangeListener{c: c, s: s}
 }
 
 // deleteStateChangeListener closes the listener channel and removes it from its maintained list of StateChangeListener(s)
@@ -201,12 +203,26 @@ func closeStateChanQuietly(c chan State) {
 
 // stateChangeChannel looks up the StateChangeListener channel. If it is not found, then nil is returned.
 func (s *ServiceState) stateChangeChannel(l StateChangeListener) chan State {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	channel := l.Channel()
 	for _, v := range s.stateChangeListeners {
-		if l.c == v {
+		if channel == v {
 			return v
 		}
 	}
 	return nil
+}
+
+func (s *ServiceState) notify(l StateChangeListener, state State) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	channel := l.Channel()
+	for _, v := range s.stateChangeListeners {
+		if channel == v {
+			v <- state
+		}
+	}
 }
 
 // ContainsStateChangeListener returns true if the specified StateChangeListener is registered
@@ -215,6 +231,8 @@ func (s *ServiceState) ContainsStateChangeListener(l StateChangeListener) bool {
 		return false
 	}
 
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
 	return s.stateChangeChannel(l) != nil
 }
 
@@ -258,6 +276,7 @@ func (s *ServiceState) notifyStateChangeListeners(state State) {
 // The 'New' state will never be delivered on an active channel because the StateChangeListener is created after the service.
 // NOTE: a StateChangeListener must be created using ServiceState.NewStateChangeListener()
 type StateChangeListener struct {
+	sync.RWMutex
 	c chan State
 	// owns the listener channel
 	s *ServiceState
@@ -265,7 +284,20 @@ type StateChangeListener struct {
 
 // Channel returns the channel that listener should listen on
 func (a *StateChangeListener) Channel() <-chan State {
+	return a.channel()
+}
+
+// Channel returns the channel that listener should listen on
+func (a *StateChangeListener) channel() chan State {
+	a.RLock()
+	defer a.RUnlock()
 	return a.c
+}
+
+func (a *StateChangeListener) Close() {
+	a.RLock()
+	defer a.RUnlock()
+	closeStateChanQuietly(a.c)
 }
 
 // Cancel deletes itself from the ServiceState that created it, which will also close the channel
@@ -273,12 +305,13 @@ func (a *StateChangeListener) Channel() <-chan State {
 func (a *StateChangeListener) Cancel() {
 	a.s.mutex.Lock()
 	defer a.s.mutex.Unlock()
-	if !a.s.deleteStateChangeListener(a.c) {
+
+	if !a.s.deleteStateChangeListener(a.channel()) {
 		// the ServiceState reported that it did not own the channel
 		// To be safe on the safe side, manually close the channel in case there are goroutines blocked on receiving from this channel
-		closeStateChanQuietly(a.c)
+		a.Close()
 	}
 	// drain the channel
-	for range a.c {
+	for range a.Channel() {
 	}
 }

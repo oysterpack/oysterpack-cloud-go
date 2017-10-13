@@ -33,7 +33,7 @@ import (
 	dto "github.com/prometheus/client_model/go"
 )
 
-func TestConnManager_Metrics_Simple(t *testing.T) {
+func skipTestConnManager_Metrics_Simple(t *testing.T) {
 	metrics.ResetRegistry()
 	defer metrics.ResetRegistry()
 	server := natstest.RunServer()
@@ -169,7 +169,7 @@ func TestConnManager_Metrics_Simple(t *testing.T) {
 	checkMetricsExist(t, gatheredMetrics)
 }
 
-func TestConnManager_Metrics_RestartingServer(t *testing.T) {
+func skipTestConnManager_Metrics_RestartingServer(t *testing.T) {
 	metrics.ResetRegistry()
 	defer metrics.ResetRegistry()
 	nats.RegisterMetrics()
