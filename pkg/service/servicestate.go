@@ -294,7 +294,7 @@ func (a *StateChangeListener) channel() chan State {
 	return a.c
 }
 
-func (a *StateChangeListener) Close() {
+func (a *StateChangeListener) close() {
 	a.RLock()
 	defer a.RUnlock()
 	closeStateChanQuietly(a.c)
@@ -309,7 +309,7 @@ func (a *StateChangeListener) Cancel() {
 	if !a.s.deleteStateChangeListener(a.channel()) {
 		// the ServiceState reported that it did not own the channel
 		// To be safe on the safe side, manually close the channel in case there are goroutines blocked on receiving from this channel
-		a.Close()
+		a.close()
 	}
 	// drain the channel
 	for range a.Channel() {

@@ -28,6 +28,13 @@ var (
 	NATS_SEED_SERVER_URL = fmt.Sprintf("nats://localhost:%d", server.DEFAULT_CLUSTER_PORT)
 )
 
+func LogConnInfo(t *testing.T, connManager nats.ConnManager) {
+	t.Helper()
+	for _, info := range connManager.ConnInfos() {
+		t.Log(info.String())
+	}
+}
+
 func CreateNATSServers(t *testing.T, configs []*server.NATSServerConfig) []server.NATSServer {
 	var servers []server.NATSServer
 	for _, config := range configs {

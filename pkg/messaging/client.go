@@ -34,7 +34,7 @@ type Client interface {
 	// ConnCount returns the number of open connections
 	ConnCount(tags ...string) int
 
-	// HealthCheck that sends a round trip message
+	// HealthChecks returns client side health checks
 	HealthChecks() []metrics.HealthCheck
 
 	// Metrics returns the metrics that are collected for this client

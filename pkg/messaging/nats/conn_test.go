@@ -44,6 +44,10 @@ func TestNewConn(t *testing.T) {
 	client := nats.NewClient(connManager)
 	defer client.CloseAllConns()
 
+	if client.Cluster() != servers[0].Cluster() {
+		t.Errorf("client.Cluster() does not match : %v != %v", client.Cluster(), servers[0].Cluster())
+	}
+
 	conn, err := client.Connect()
 	if err != nil {
 		t.Fatal(err)
@@ -78,14 +82,42 @@ func TestNewConn(t *testing.T) {
 	testRequestChannelWithContext(t, conn)
 	testAsyncRequestChannelWithContext(t, conn)
 
+	checkHealthChecks(t, client)
+	checkMetrics(t, client)
+
+	natstest.LogConnInfo(t, connManager)
+
 	conn.Close()
 	if conn.Status() != messaging.CLOSED || !conn.Closed() {
 		t.Errorf("conn should be closed : %v", conn.Status())
 	}
 }
 
-func TestNewConn2(t *testing.T) {
-	TestNewConn(t)
+func checkMetrics(t *testing.T, client messaging.Client) {
+	metrics := client.Metrics()
+	if metrics == nil {
+		t.Error("no metrics were returned")
+	}
+	if len(metrics.GaugeVecOpts) != len(nats.ConnManagerMetrics.GaugeVecOpts) {
+		t.Errorf("gauge vectors count does not match : %d != %d", len(metrics.GaugeOpts), len(nats.ConnManagerMetrics.GaugeOpts))
+	}
+	if len(metrics.CounterVecOpts) != len(nats.ConnManagerMetrics.CounterVecOpts) {
+		t.Errorf("counter vectors count does not match : %d != %d", len(metrics.GaugeOpts), len(nats.ConnManagerMetrics.GaugeOpts))
+	}
+}
+
+func checkHealthChecks(t *testing.T, client messaging.Client) {
+	healthchecks := client.HealthChecks()
+	if len(healthchecks) == 0 {
+		t.Error("there are 0 healthchecks")
+	}
+
+	for _, healthcheck := range healthchecks {
+		result := healthcheck.Run()
+		if !result.Success() {
+			t.Error(result.Err)
+		}
+	}
 }
 
 func testAsyncRequestChannelWithContext(t *testing.T, conn messaging.Conn) {
@@ -438,6 +470,45 @@ func checkTags(t *testing.T, client messaging.Client) {
 		if !connTags.Equals(tagSet) {
 			t.Errorf("tags do not match : %v != %v", tags, conn.Tags())
 		}
+	}
+
+	if client.ConnCount() < client.ConnCount("a") {
+		t.Errorf("client.ConnCount() should return the total number of live connections : %d", client.ConnCount())
+	}
+
+	if count := client.ConnCount("a"); count != 1 {
+		t.Errorf("count did not match %d != 1", count)
+	}
+	if count := client.ConnCount("a", "b"); count != 1 {
+		t.Errorf("count did not match %d != 1", count)
+	}
+	if count := client.ConnCount(tags...); count != 1 {
+		t.Errorf("count did not match %d != 1", count)
+	}
+
+	client.Connect(tags...)
+	if count := client.ConnCount("a"); count != 2 {
+		t.Errorf("count did not match %d != 1", count)
+	}
+	if count := client.ConnCount("a", "b"); count != 2 {
+		t.Errorf("count did not match %d != 1", count)
+	}
+	if count := client.ConnCount(tags...); count != 2 {
+		t.Errorf("count did not match %d != 1", count)
+	}
+
+	client.Connect("a", "y", "z")
+	if count := client.ConnCount("a"); count != 3 {
+		t.Errorf("count did not match %d != 1", count)
+	}
+	if count := client.ConnCount("a", "b"); count != 2 {
+		t.Errorf("count did not match %d != 1", count)
+	}
+	if count := client.ConnCount(tags...); count != 2 {
+		t.Errorf("count did not match %d != 1", count)
+	}
+	if client.ConnCount() < client.ConnCount("a") {
+		t.Errorf("client.ConnCount() should return the total number of live connections : %d", client.ConnCount())
 	}
 
 }

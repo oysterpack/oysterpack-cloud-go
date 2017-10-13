@@ -15,13 +15,13 @@
 package nats
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/nats-io/go-nats"
 )
 
 // ConnInfo snapshot
+// TODO: expose this information via an HTTP API
 type ConnInfo struct {
 	Id      string
 	Created time.Time
@@ -40,11 +40,7 @@ type ConnInfo struct {
 }
 
 func (a *ConnInfo) String() string {
-	bytes, err := json.Marshal(a)
-	if err != nil {
-		// should never happen
-		logger.Warn().Err(err).Msg("json.Marshal() failed")
-		return fmt.Sprintf("%v", *a)
-	}
+	// ignoring error, because marshalling should never fail
+	bytes, _ := json.Marshal(a)
 	return string(bytes)
 }

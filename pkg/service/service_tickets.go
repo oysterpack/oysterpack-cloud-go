@@ -39,6 +39,8 @@ type ServiceTicket struct {
 	Time time.Time
 }
 
+// Close send the client on the ticket channel and closes the ticket
+// If client is nil, then the ticket channel is simply closed.
 func (a *ServiceTicket) Close(client Client) {
 	a.mutex.Lock()
 	defer a.mutex.Unlock()

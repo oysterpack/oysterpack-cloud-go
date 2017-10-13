@@ -34,10 +34,12 @@ func (a Topic) TrimSpace() Topic {
 	return Topic(strings.TrimSpace(string(a)))
 }
 
+// AsReplyTo converts the topic into a reply to
 func (a Topic) AsReplyTo() ReplyTo {
 	return ReplyTo(a)
 }
 
+// AsQueue converts the topic into a queue
 func (a Topic) AsQueue() Queue {
 	return Queue(a)
 }
@@ -71,6 +73,7 @@ func (a ReplyTo) TrimSpace() ReplyTo {
 	return ReplyTo(strings.TrimSpace(string(a)))
 }
 
+// AsTopic converts the reply to a topic
 func (a ReplyTo) AsTopic() Topic {
 	return Topic(a)
 }

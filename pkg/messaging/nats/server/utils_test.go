@@ -290,8 +290,18 @@ func createNATSServers(t *testing.T, configs []*server.NATSServerConfig) []serve
 }
 
 func checkClientConnectionCounts(servers []server.NATSServer, countPerServer int) error {
+LOOP:
+	for i := 0; i < 3; i++ {
+		for _, server := range servers {
+			if server.NumClients() < countPerServer {
+				// give the server some time for the clients to be registered
+				time.Sleep(5 * time.Millisecond)
+				continue LOOP
+			}
+		}
+	}
 	for _, server := range servers {
-		if server.NumClients() != countPerServer {
+		if server.NumClients() < countPerServer {
 			return fmt.Errorf("The number of clients did not match : %d != %d", server.NumClients(), countPerServer)
 		}
 	}
