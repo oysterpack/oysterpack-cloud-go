@@ -64,43 +64,43 @@ func (a *topicSubscriptions) removeInvalid() {
 	a.Unlock()
 }
 
-func (a *topicSubscriptions) collectMetrics() map[messaging.Topic]*subscriptionMetrics {
+func (a *topicSubscriptions) collectMetrics() map[messaging.Topic]*SubscriptionMetrics {
 	a.removeInvalid()
 	a.RLock()
 	defer a.RUnlock()
-	topicMetrics := map[messaging.Topic]*subscriptionMetrics{}
+	topicMetrics := map[messaging.Topic]*SubscriptionMetrics{}
 	for _, s := range a.subscriptions {
 		if !s.IsValid() {
 			continue
 		}
-		metrics := &subscriptionMetrics{topic: s.Topic(), subscriberCount: 1}
+		metrics := &SubscriptionMetrics{Topic: s.Topic(), SubscriberCount: 1}
 		msgs, bytes, err := s.Pending()
 		if err == nil {
-			metrics.pendingMsgs = msgs
-			metrics.pendingBytes = bytes
+			metrics.PendingMsgs = msgs
+			metrics.PendingBytes = bytes
 		}
 
 		msgs, bytes, err = s.MaxPending()
 		if err == nil {
-			metrics.pendingMsgs = msgs
-			metrics.pendingBytes = bytes
+			metrics.PendingMsgs = msgs
+			metrics.PendingBytes = bytes
 		}
 
 		dropped, err := s.Dropped()
 		if err == nil {
-			metrics.dropped = dropped
+			metrics.Dropped = dropped
 		}
 
 		delivered, err := s.Delivered()
 		if err == nil {
-			metrics.delivered = delivered
+			metrics.Delivered = delivered
 		}
 
-		aggregatedMetrics, exists := topicMetrics[metrics.topic]
+		aggregatedMetrics, exists := topicMetrics[metrics.Topic]
 		if exists {
 			aggregatedMetrics.add(metrics)
 		} else {
-			topicMetrics[metrics.topic] = metrics
+			topicMetrics[metrics.Topic] = metrics
 		}
 	}
 	return topicMetrics
@@ -147,40 +147,40 @@ func (a *queueSubscriptions) removeInvalid() {
 	a.Unlock()
 }
 
-func (a *queueSubscriptions) collectMetrics() map[topicQueueKey]*queueSubscriptionMetrics {
+func (a *queueSubscriptions) collectMetrics() map[TopicQueueKey]*QueueSubscriptionMetrics {
 	a.removeInvalid()
 	a.RLock()
 	defer a.RUnlock()
-	queueMetrics := map[topicQueueKey]*queueSubscriptionMetrics{}
+	queueMetrics := map[TopicQueueKey]*QueueSubscriptionMetrics{}
 	for _, s := range a.subscriptions {
-		metrics := &queueSubscriptionMetrics{subscriptionMetrics: &subscriptionMetrics{topic: s.Topic(), subscriberCount: 1}, queue: s.Queue()}
+		metrics := &QueueSubscriptionMetrics{SubscriptionMetrics: &SubscriptionMetrics{Topic: s.Topic(), SubscriberCount: 1}, Queue: s.Queue()}
 
 		msgs, bytes, err := s.Pending()
 		if err == nil {
-			metrics.pendingMsgs = msgs
-			metrics.pendingBytes = bytes
+			metrics.PendingMsgs = msgs
+			metrics.PendingBytes = bytes
 		}
 
 		msgs, bytes, err = s.MaxPending()
 		if err == nil {
-			metrics.pendingMsgsMax = msgs
-			metrics.pendingBytesMax = bytes
+			metrics.PendingMsgsMax = msgs
+			metrics.PendingBytesMax = bytes
 		}
 
 		dropped, err := s.Dropped()
 		if err == nil {
-			metrics.dropped = dropped
+			metrics.Dropped = dropped
 		}
 
 		delivered, err := s.Delivered()
 		if err == nil {
-			metrics.delivered = delivered
+			metrics.Delivered = delivered
 		}
 
-		key := topicQueueKey{s.Topic(), s.queue}
+		key := TopicQueueKey{s.Topic(), s.queue}
 		aggregatedMetrics, exists := queueMetrics[key]
 		if exists {
-			aggregatedMetrics.add(metrics.subscriptionMetrics)
+			aggregatedMetrics.add(metrics.SubscriptionMetrics)
 		} else {
 			queueMetrics[key] = metrics
 		}
@@ -188,44 +188,47 @@ func (a *queueSubscriptions) collectMetrics() map[topicQueueKey]*queueSubscripti
 	return queueMetrics
 }
 
-type subscriptionMetrics struct {
-	topic                           messaging.Topic
-	subscriberCount                 int
-	pendingMsgs, pendingBytes       int
-	pendingMsgsMax, pendingBytesMax int
-	dropped                         int
-	delivered                       int64
+// SubscriptionMetrics aggregates subscription metrics for a topic
+type SubscriptionMetrics struct {
+	Topic                           messaging.Topic
+	SubscriberCount                 int
+	PendingMsgs, PendingBytes       int
+	PendingMsgsMax, PendingBytesMax int
+	Dropped                         int
+	Delivered                       int64
 }
 
-func (a *subscriptionMetrics) String() string {
+func (a *SubscriptionMetrics) String() string {
 	return fmt.Sprintf("%v", *a)
 }
 
-func (a *subscriptionMetrics) add(b *subscriptionMetrics) {
-	if a.topic != b.topic {
+func (a *SubscriptionMetrics) add(b *SubscriptionMetrics) {
+	if a.Topic != b.Topic {
 		logger.Panic().Msgf("It is illegal to combine metrics from different topics - that would result in reporting false metrics")
 	}
 
-	a.subscriberCount += b.subscriberCount
-	a.pendingMsgs += b.pendingMsgs
-	a.pendingBytes += b.pendingBytes
-	a.dropped += b.dropped
-	a.delivered += b.delivered
+	a.SubscriberCount += b.SubscriberCount
+	a.PendingMsgs += b.PendingMsgs
+	a.PendingBytes += b.PendingBytes
+	a.Dropped += b.Dropped
+	a.Delivered += b.Delivered
 
-	if b.pendingMsgsMax > a.pendingMsgsMax {
-		a.pendingMsgsMax = b.pendingMsgsMax
+	if b.PendingMsgsMax > a.PendingMsgsMax {
+		a.PendingMsgsMax = b.PendingMsgsMax
 	}
-	if b.pendingBytesMax > a.pendingBytesMax {
-		a.pendingBytesMax = b.pendingBytesMax
+	if b.PendingBytesMax > a.PendingBytesMax {
+		a.PendingBytesMax = b.PendingBytesMax
 	}
 }
 
-type queueSubscriptionMetrics struct {
-	*subscriptionMetrics
-	queue messaging.Queue
+// QueueSubscriptionMetrics aggregates subscription metrics for a topic queue
+type QueueSubscriptionMetrics struct {
+	*SubscriptionMetrics
+	Queue messaging.Queue
 }
 
-type topicQueueKey struct {
-	topic messaging.Topic
-	queue messaging.Queue
+// TopicQueueKey topic queue key
+type TopicQueueKey struct {
+	Topic messaging.Topic
+	Queue messaging.Queue
 }

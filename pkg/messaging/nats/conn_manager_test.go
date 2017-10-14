@@ -78,10 +78,431 @@ func collectMetricsWithAfterSendingReceivingMessages(t *testing.T, connManager n
 		t.Errorf("*** ERROR *** The expected number of metricsChan did not match : %d != %d", len(metrics), len(nats.ConnManagerMetrics.GaugeVecOpts)+len(nats.ConnectionCounterMetrics))
 	}
 
-	for _, metric := range dtoMetrics {
-		t.Logf("%v", metric)
+	checkConnCountMetric(t, connManager, metrics)
+	checkMsgMestrics(t, connManager, metrics)
+	checkSubscriberMetrics(t, connManager, metrics)
+	checkQueueSubscriberMetrics(t, connManager, metrics)
+}
+
+func checkQueueSubscriberMetrics(t *testing.T, connManager nats.ConnManager, metrics []prometheus.Metric) {
+	subscriberMetrics := connManager.QueueSubscriberMetrics()
+
+	gaugeMetrics := getMetrics(metrics, getGaugeVecDesc(connManager, nats.QueueSubscriberCount))
+LOOP_TopicSubscriberCount:
+	for _, gaugeMetric := range gaugeMetrics {
+		dtoMetric := &dto.Metric{}
+		gaugeMetric.Write(dtoMetric)
+		for _, labels := range dtoMetric.Label {
+			if *labels.Name == "topic" {
+				topic := messaging.Topic(*labels.Value)
+				for _, labels := range dtoMetric.Label {
+					if *labels.Name == "queue" {
+						topicSubscriberMetrics := subscriberMetrics[nats.TopicQueueKey{topic, messaging.Queue(*labels.Value)}]
+						if topicSubscriberMetrics == nil {
+							t.Errorf("no metrics were found for topic : %s", *labels.Value)
+						} else if topicSubscriberMetrics.SubscriberCount != int(*dtoMetric.Gauge.Value) {
+							t.Errorf("*** ERROR *** count does not match %d != %d", topicSubscriberMetrics.SubscriberCount, *dtoMetric.Gauge.Value)
+						}
+						continue LOOP_TopicSubscriberCount
+					}
+				}
+			}
+		}
+		t.Errorf("No label was found for 'topic' : %v : %v", subscriberMetrics, dtoMetric.Label)
 	}
 
+	gaugeMetrics = getMetrics(metrics, getGaugeVecDesc(connManager, nats.QueuePendingMessages))
+LOOP_TopicPendingMessages:
+	for _, gaugeMetric := range gaugeMetrics {
+		dtoMetric := &dto.Metric{}
+		gaugeMetric.Write(dtoMetric)
+		for _, labels := range dtoMetric.Label {
+			if *labels.Name == "topic" {
+				topic := messaging.Topic(*labels.Value)
+				for _, labels := range dtoMetric.Label {
+					if *labels.Name == "queue" {
+						topicSubscriberMetrics := subscriberMetrics[nats.TopicQueueKey{topic, messaging.Queue(*labels.Value)}]
+						if topicSubscriberMetrics == nil {
+							t.Errorf("no metrics were found for topic : %s", *labels.Value)
+						} else if topicSubscriberMetrics.PendingMsgs != int(*dtoMetric.Gauge.Value) {
+							t.Errorf("*** ERROR *** count does not match %d != %d", topicSubscriberMetrics.PendingMsgs, *dtoMetric.Gauge.Value)
+						}
+						continue LOOP_TopicPendingMessages
+					}
+				}
+			}
+		}
+		t.Errorf("No label was found for 'topic' : %v : %v", subscriberMetrics, dtoMetric.Label)
+	}
+
+	gaugeMetrics = getMetrics(metrics, getGaugeVecDesc(connManager, nats.QueuePendingBytes))
+LOOP_TopicPendingBytes:
+	for _, gaugeMetric := range gaugeMetrics {
+		dtoMetric := &dto.Metric{}
+		gaugeMetric.Write(dtoMetric)
+		for _, labels := range dtoMetric.Label {
+			if *labels.Name == "topic" {
+				topic := messaging.Topic(*labels.Value)
+				for _, labels := range dtoMetric.Label {
+					if *labels.Name == "queue" {
+						topicSubscriberMetrics := subscriberMetrics[nats.TopicQueueKey{topic, messaging.Queue(*labels.Value)}]
+						if topicSubscriberMetrics == nil {
+							t.Errorf("no metrics were found for topic : %s", *labels.Value)
+						} else if topicSubscriberMetrics.PendingBytes != int(*dtoMetric.Gauge.Value) {
+							t.Errorf("*** ERROR *** count does not match %d != %d", topicSubscriberMetrics.PendingBytes, *dtoMetric.Gauge.Value)
+						}
+						continue LOOP_TopicPendingBytes
+					}
+				}
+			}
+		}
+		t.Errorf("No label was found for 'topic' : %v : %v", subscriberMetrics, dtoMetric.Label)
+	}
+
+	gaugeMetrics = getMetrics(metrics, getGaugeVecDesc(connManager, nats.QueueMaxPendingMessages))
+LOOP_TopicMaxPendingMessages:
+	for _, gaugeMetric := range gaugeMetrics {
+		dtoMetric := &dto.Metric{}
+		gaugeMetric.Write(dtoMetric)
+		for _, labels := range dtoMetric.Label {
+			if *labels.Name == "topic" {
+				topic := messaging.Topic(*labels.Value)
+				for _, labels := range dtoMetric.Label {
+					if *labels.Name == "queue" {
+						topicSubscriberMetrics := subscriberMetrics[nats.TopicQueueKey{topic, messaging.Queue(*labels.Value)}]
+						if topicSubscriberMetrics == nil {
+							t.Errorf("no metrics were found for topic : %s", *labels.Value)
+						} else if topicSubscriberMetrics.PendingMsgsMax != int(*dtoMetric.Gauge.Value) {
+							t.Errorf("*** ERROR *** count does not match %d != %d", topicSubscriberMetrics.PendingMsgsMax, *dtoMetric.Gauge.Value)
+						}
+						continue LOOP_TopicMaxPendingMessages
+					}
+				}
+			}
+		}
+		t.Errorf("No label was found for 'topic' : %v : %v", subscriberMetrics, dtoMetric.Label)
+	}
+
+	gaugeMetrics = getMetrics(metrics, getGaugeVecDesc(connManager, nats.QueueMaxPendingBytes))
+LOOP_TopicMaxPendingBytes:
+	for _, gaugeMetric := range gaugeMetrics {
+		dtoMetric := &dto.Metric{}
+		gaugeMetric.Write(dtoMetric)
+		for _, labels := range dtoMetric.Label {
+			if *labels.Name == "topic" {
+				topic := messaging.Topic(*labels.Value)
+				for _, labels := range dtoMetric.Label {
+					if *labels.Name == "queue" {
+						topicSubscriberMetrics := subscriberMetrics[nats.TopicQueueKey{topic, messaging.Queue(*labels.Value)}]
+						if topicSubscriberMetrics == nil {
+							t.Errorf("no metrics were found for topic : %s", *labels.Value)
+						} else if topicSubscriberMetrics.PendingBytesMax != int(*dtoMetric.Gauge.Value) {
+							t.Errorf("*** ERROR *** count does not match %d != %d", topicSubscriberMetrics.PendingBytesMax, *dtoMetric.Gauge.Value)
+						}
+						continue LOOP_TopicMaxPendingBytes
+					}
+				}
+			}
+		}
+		t.Errorf("No label was found for 'topic' : %v : %v", subscriberMetrics, dtoMetric.Label)
+	}
+
+	gaugeMetrics = getMetrics(metrics, getGaugeVecDesc(connManager, nats.QueueMessagesDelivered))
+LOOP_TopicMessagesDelivered:
+	for _, gaugeMetric := range gaugeMetrics {
+		dtoMetric := &dto.Metric{}
+		gaugeMetric.Write(dtoMetric)
+		for _, labels := range dtoMetric.Label {
+			if *labels.Name == "topic" {
+				topic := messaging.Topic(*labels.Value)
+				for _, labels := range dtoMetric.Label {
+					if *labels.Name == "queue" {
+						topicSubscriberMetrics := subscriberMetrics[nats.TopicQueueKey{topic, messaging.Queue(*labels.Value)}]
+						if topicSubscriberMetrics == nil {
+							t.Errorf("no metrics were found for topic : %s", *labels.Value)
+						} else if topicSubscriberMetrics.Delivered != int64(*dtoMetric.Gauge.Value) {
+							t.Errorf("*** ERROR *** count does not match %d != %d", topicSubscriberMetrics.Delivered, *dtoMetric.Gauge.Value)
+						}
+						continue LOOP_TopicMessagesDelivered
+					}
+				}
+			}
+		}
+		t.Errorf("No label was found for 'topic' : %v : %v", subscriberMetrics, dtoMetric.Label)
+	}
+
+	gaugeMetrics = getMetrics(metrics, getGaugeVecDesc(connManager, nats.QueueMessagesDropped))
+LOOP_TopicMessagesDropped:
+	for _, gaugeMetric := range gaugeMetrics {
+		dtoMetric := &dto.Metric{}
+		gaugeMetric.Write(dtoMetric)
+		for _, labels := range dtoMetric.Label {
+			if *labels.Name == "topic" {
+				topic := messaging.Topic(*labels.Value)
+				for _, labels := range dtoMetric.Label {
+					if *labels.Name == "queue" {
+						topicSubscriberMetrics := subscriberMetrics[nats.TopicQueueKey{topic, messaging.Queue(*labels.Value)}]
+						if topicSubscriberMetrics == nil {
+							t.Errorf("no metrics were found for topic : %s", *labels.Value)
+						} else if topicSubscriberMetrics.Dropped != int(*dtoMetric.Gauge.Value) {
+							t.Errorf("*** ERROR *** count does not match %d != %d", topicSubscriberMetrics.Dropped, *dtoMetric.Gauge.Value)
+						}
+						continue LOOP_TopicMessagesDropped
+					}
+				}
+			}
+		}
+		t.Errorf("No label was found for 'topic' : %v : %v", subscriberMetrics, dtoMetric.Label)
+	}
+}
+
+func checkSubscriberMetrics(t *testing.T, connManager nats.ConnManager, metrics []prometheus.Metric) {
+	subscriberMetrics := connManager.TopicSubscriberMetrics()
+
+	gaugeMetrics := getMetrics(metrics, getGaugeVecDesc(connManager, nats.TopicSubscriberCount))
+LOOP_TopicSubscriberCount:
+	for _, gaugeMetric := range gaugeMetrics {
+		dtoMetric := &dto.Metric{}
+		gaugeMetric.Write(dtoMetric)
+		for _, labels := range dtoMetric.Label {
+			if *labels.Name == "topic" {
+				topicSubscriberMetrics := subscriberMetrics[messaging.Topic(*labels.Value)]
+				if topicSubscriberMetrics == nil {
+					t.Errorf("no metrics were found for topic : %s", *labels.Value)
+				} else if topicSubscriberMetrics.SubscriberCount != int(*dtoMetric.Gauge.Value) {
+					t.Errorf("*** ERROR *** count does not match %d != %d", topicSubscriberMetrics.SubscriberCount, *dtoMetric.Gauge.Value)
+				}
+				continue LOOP_TopicSubscriberCount
+			}
+		}
+		t.Error("No label was found for 'topic'")
+	}
+
+	gaugeMetrics = getMetrics(metrics, getGaugeVecDesc(connManager, nats.TopicPendingMessages))
+LOOP_TopicPendingMessages:
+	for _, gaugeMetric := range gaugeMetrics {
+		dtoMetric := &dto.Metric{}
+		gaugeMetric.Write(dtoMetric)
+		for _, labels := range dtoMetric.Label {
+			if *labels.Name == "topic" {
+				topicSubscriberMetrics := subscriberMetrics[messaging.Topic(*labels.Value)]
+				if topicSubscriberMetrics == nil {
+					t.Errorf("no metrics were found for topic : %s", *labels.Value)
+				} else if topicSubscriberMetrics.PendingMsgs != int(*dtoMetric.Gauge.Value) {
+					t.Errorf("*** ERROR *** count does not match %d != %d", topicSubscriberMetrics.PendingMsgs, *dtoMetric.Gauge.Value)
+				}
+				continue LOOP_TopicPendingMessages
+			}
+		}
+		t.Error("No label was found for 'topic'")
+	}
+
+	gaugeMetrics = getMetrics(metrics, getGaugeVecDesc(connManager, nats.TopicPendingBytes))
+LOOP_TopicPendingBytes:
+	for _, gaugeMetric := range gaugeMetrics {
+		dtoMetric := &dto.Metric{}
+		gaugeMetric.Write(dtoMetric)
+		for _, labels := range dtoMetric.Label {
+			if *labels.Name == "topic" {
+				topicSubscriberMetrics := subscriberMetrics[messaging.Topic(*labels.Value)]
+				if topicSubscriberMetrics == nil {
+					t.Errorf("no metrics were found for topic : %s", *labels.Value)
+				} else if topicSubscriberMetrics.PendingBytes != int(*dtoMetric.Gauge.Value) {
+					t.Errorf("*** ERROR *** count does not match %d != %d", topicSubscriberMetrics.PendingBytes, *dtoMetric.Gauge.Value)
+				}
+				continue LOOP_TopicPendingBytes
+			}
+		}
+		t.Error("No label was found for 'topic'")
+	}
+
+	gaugeMetrics = getMetrics(metrics, getGaugeVecDesc(connManager, nats.TopicMaxPendingMessages))
+LOOP_TopicMaxPendingMessages:
+	for _, gaugeMetric := range gaugeMetrics {
+		dtoMetric := &dto.Metric{}
+		gaugeMetric.Write(dtoMetric)
+		for _, labels := range dtoMetric.Label {
+			if *labels.Name == "topic" {
+				topicSubscriberMetrics := subscriberMetrics[messaging.Topic(*labels.Value)]
+				if topicSubscriberMetrics == nil {
+					t.Errorf("no metrics were found for topic : %s", *labels.Value)
+				} else if topicSubscriberMetrics.PendingMsgsMax != int(*dtoMetric.Gauge.Value) {
+					t.Errorf("*** ERROR *** count does not match %d != %d", topicSubscriberMetrics.PendingMsgsMax, *dtoMetric.Gauge.Value)
+				}
+				continue LOOP_TopicMaxPendingMessages
+			}
+		}
+		t.Error("No label was found for 'topic'")
+	}
+
+	gaugeMetrics = getMetrics(metrics, getGaugeVecDesc(connManager, nats.TopicMaxPendingBytes))
+LOOP_TopicMaxPendingBytes:
+	for _, gaugeMetric := range gaugeMetrics {
+		dtoMetric := &dto.Metric{}
+		gaugeMetric.Write(dtoMetric)
+		for _, labels := range dtoMetric.Label {
+			if *labels.Name == "topic" {
+				topicSubscriberMetrics := subscriberMetrics[messaging.Topic(*labels.Value)]
+				if topicSubscriberMetrics == nil {
+					t.Errorf("no metrics were found for topic : %s", *labels.Value)
+				} else if topicSubscriberMetrics.PendingBytesMax != int(*dtoMetric.Gauge.Value) {
+					t.Errorf("*** ERROR *** count does not match %d != %d", topicSubscriberMetrics.PendingMsgsMax, *dtoMetric.Gauge.Value)
+				}
+				continue LOOP_TopicMaxPendingBytes
+			}
+		}
+		t.Error("No label was found for 'topic'")
+	}
+
+	gaugeMetrics = getMetrics(metrics, getGaugeVecDesc(connManager, nats.TopicMessagesDelivered))
+LOOP_TopicMessagesDelivered:
+	for _, gaugeMetric := range gaugeMetrics {
+		dtoMetric := &dto.Metric{}
+		gaugeMetric.Write(dtoMetric)
+		for _, labels := range dtoMetric.Label {
+			if *labels.Name == "topic" {
+				topicSubscriberMetrics := subscriberMetrics[messaging.Topic(*labels.Value)]
+				if topicSubscriberMetrics == nil {
+					t.Errorf("no metrics were found for topic : %s", *labels.Value)
+				} else if topicSubscriberMetrics.Delivered != int64(*dtoMetric.Gauge.Value) {
+					t.Errorf("*** ERROR *** count does not match %d != %d", topicSubscriberMetrics.Delivered, *dtoMetric.Gauge.Value)
+				}
+				continue LOOP_TopicMessagesDelivered
+			}
+		}
+		t.Error("No label was found for 'topic'")
+	}
+
+	gaugeMetrics = getMetrics(metrics, getGaugeVecDesc(connManager, nats.TopicMessagesDropped))
+LOOP_TopicMessagesDropped:
+	for _, gaugeMetric := range gaugeMetrics {
+		dtoMetric := &dto.Metric{}
+		gaugeMetric.Write(dtoMetric)
+		for _, labels := range dtoMetric.Label {
+			if *labels.Name == "topic" {
+				topicSubscriberMetrics := subscriberMetrics[messaging.Topic(*labels.Value)]
+				if topicSubscriberMetrics == nil {
+					t.Errorf("no metrics were found for topic : %s", *labels.Value)
+				} else if topicSubscriberMetrics.Dropped != int(*dtoMetric.Gauge.Value) {
+					t.Errorf("*** ERROR *** count does not match %d != %d", topicSubscriberMetrics.Dropped, *dtoMetric.Gauge.Value)
+				}
+				continue LOOP_TopicMessagesDropped
+			}
+		}
+		t.Error("No label was found for 'topic'")
+	}
+
+}
+
+func checkMsgMestrics(t *testing.T, connManager nats.ConnManager, metrics []prometheus.Metric) {
+	gaugeMetrics := getMetrics(metrics, getGaugeVecDesc(connManager, nats.MsgsInGauge))
+	if len(gaugeMetrics) != 1 {
+		t.Errorf("metric count should be 1 : %d", len(gaugeMetrics))
+	} else {
+		dtoMetric := &dto.Metric{}
+		gaugeMetrics[0].Write(dtoMetric)
+		if uint64(*dtoMetric.Gauge.Value) != connManager.TotalMsgsIn() {
+			t.Errorf("*** ERROR *** count does not match : %d != %d", *dtoMetric.Gauge.Value, connManager.TotalMsgsIn())
+		}
+	}
+
+	gaugeMetrics = getMetrics(metrics, getGaugeVecDesc(connManager, nats.MsgsOutGauge))
+	if len(gaugeMetrics) != 1 {
+		t.Errorf("*** ERROR *** metric count should be 1 : %d", len(gaugeMetrics))
+	} else {
+		dtoMetric := &dto.Metric{}
+		gaugeMetrics[0].Write(dtoMetric)
+		if uint64(*dtoMetric.Gauge.Value) != connManager.TotalMsgsOut() {
+			t.Errorf("*** ERROR *** count does not match : %d != %d", *dtoMetric.Gauge.Value, connManager.TotalMsgsOut())
+		}
+	}
+
+	gaugeMetrics = getMetrics(metrics, getGaugeVecDesc(connManager, nats.BytesInGauge))
+	if len(gaugeMetrics) != 1 {
+		t.Errorf("*** ERROR *** metric count should be 1 : %d", len(gaugeMetrics))
+	} else {
+		dtoMetric := &dto.Metric{}
+		gaugeMetrics[0].Write(dtoMetric)
+		if uint64(*dtoMetric.Gauge.Value) != connManager.TotalBytesIn() {
+			t.Errorf("*** ERROR *** count does not match : %d != %d", *dtoMetric.Gauge.Value, connManager.TotalMsgsIn())
+		}
+	}
+
+	gaugeMetrics = getMetrics(metrics, getGaugeVecDesc(connManager, nats.BytesOutGauge))
+	if len(gaugeMetrics) != 1 {
+		t.Errorf("metric count should be 1 : %d", len(gaugeMetrics))
+	} else {
+		dtoMetric := &dto.Metric{}
+		gaugeMetrics[0].Write(dtoMetric)
+		if uint64(*dtoMetric.Gauge.Value) != connManager.TotalBytesOut() {
+			t.Errorf("count does not match : %d != %d", *dtoMetric.Gauge.Value, connManager.TotalBytesOut())
+		}
+	}
+
+	publisherCounts := connManager.PublisherCountsPerTopic()
+	gaugeMetrics = getMetrics(metrics, getGaugeVecDesc(connManager, nats.PublisherCount))
+	if len(gaugeMetrics) != len(publisherCounts) {
+		t.Errorf("metric count should be 1 : %d", len(gaugeMetrics))
+	} else {
+		dtoMetric := &dto.Metric{}
+
+		diffCount := 0
+		for _, m := range gaugeMetrics {
+			m.Write(dtoMetric)
+			diffCount += int(*dtoMetric.Gauge.Value)
+		}
+
+		for _, count := range publisherCounts {
+			diffCount -= count
+		}
+
+		if diffCount != 0 {
+			t.Errorf("counts differ by %d", diffCount)
+		}
+	}
+}
+
+func checkConnCountMetric(t *testing.T, connManager nats.ConnManager, metrics []prometheus.Metric) {
+	gaugeMetrics := getMetrics(metrics, getGaugeVecDesc(connManager, nats.ConnCountOpts))
+	if len(gaugeMetrics) != 1 {
+		t.Errorf("*** ERROR *** metric count should be 1 : %d", len(gaugeMetrics))
+	} else {
+		dtoMetric := &dto.Metric{}
+		gaugeMetrics[0].Write(dtoMetric)
+		if int(*dtoMetric.Gauge.Value) != connManager.ConnCount() {
+			t.Errorf("*** ERROR *** conn count does not match : %d != %d", *dtoMetric.Gauge.Value, connManager.ConnCount())
+		}
+	}
+
+	gaugeMetrics = getMetrics(metrics, getGaugeVecDesc(connManager, nats.NotConnectedCountOpts))
+	if len(gaugeMetrics) != 1 {
+		t.Errorf("*** ERROR *** metric count should be 1 : %d", len(gaugeMetrics))
+	} else {
+		dtoMetric := &dto.Metric{}
+		gaugeMetrics[0].Write(dtoMetric)
+		if int(*dtoMetric.Gauge.Value) != 0 {
+			t.Errorf("*** ERROR *** there should be no disconnected connections : %d", *dtoMetric.Gauge.Value)
+		}
+	}
+}
+
+func getGaugeVecDesc(connManager nats.ConnManager, opts *metrics.GaugeVecOpts) *metrics.GaugeVecDesc {
+	for _, desc := range connManager.GaugeMetricDescs() {
+		if metrics.GaugeFQName(desc.Opts.GaugeOpts) == metrics.GaugeFQName(opts.GaugeOpts) {
+			return desc
+		}
+	}
+	return nil
+}
+
+func getMetrics(metrics []prometheus.Metric, desc *metrics.GaugeVecDesc) []prometheus.Metric {
+	gauges := []prometheus.Metric{}
+	for _, metric := range metrics {
+		if metric.Desc() == desc.Desc {
+			gauges = append(gauges, metric)
+		}
+	}
+	return gauges
 }
 
 func collectMetricsWithNoActiveConnections(t *testing.T, connManager nats.ConnManager) {
