@@ -86,10 +86,34 @@ func TestNewConn(t *testing.T) {
 	checkMetrics(t, client)
 
 	natstest.LogConnInfo(t, connManager)
+	testConnInfoLookup(t, connManager)
+	testManagedConnLookup(t, connManager)
 
 	conn.Close()
 	if conn.Status() != messaging.CLOSED || !conn.Closed() {
 		t.Errorf("conn should be closed : %v", conn.Status())
+	}
+}
+
+func testConnInfoLookup(t *testing.T, connManager nats.ConnManager) {
+	for _, info := range connManager.ConnInfos() {
+		if connInfo := connManager.ConnInfo(info.Id); connInfo == nil {
+			t.Errorf("Lookup for ConnInfo(%v) failed", connInfo.Id)
+		} else if info.Id != connInfo.Id {
+			t.Errorf("Wrong ConnInfo(%v) was returned : %v", info.Id, connInfo.Id)
+		}
+	}
+
+	if connInfo := connManager.ConnInfo(nuid.Next()); connInfo != nil {
+		t.Error("Lookup should have found nothing for random id")
+	}
+}
+
+func testManagedConnLookup(t *testing.T, connManager nats.ConnManager) {
+	for _, info := range connManager.ConnInfos() {
+		if conn := connManager.ManagedConn(info.Id); conn == nil {
+			t.Errorf("Lookup for ManagedConn(%v) failed", conn.ID())
+		}
 	}
 }
 

@@ -95,30 +95,6 @@ var (
 	}
 	closedCounter = metrics.GetOrMustRegisterCounterVec(ClosedCounterOpts)
 
-	// ConnCountOpts tracks the number of current connections
-	ConnCountOpts = &metrics.GaugeVecOpts{
-		&prometheus.GaugeOpts{
-			Namespace:   metrics.METRIC_NAMESPACE_OYSTERPACK,
-			Subsystem:   messaging.MetricsSubSystem,
-			Name:        "count",
-			Help:        "The number of active connections",
-			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
-		},
-		MetricLabels,
-	}
-
-	// NotConnectedCountOpts tracks the number of connections that are not currently connected. They may be disconnected, reconnecting, or connecting.
-	NotConnectedCountOpts = &metrics.GaugeVecOpts{
-		&prometheus.GaugeOpts{
-			Namespace:   metrics.METRIC_NAMESPACE_OYSTERPACK,
-			Subsystem:   messaging.MetricsSubSystem,
-			Name:        "not_connected_count",
-			Help:        "The number of connections that are not connected",
-			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
-		},
-		MetricLabels,
-	}
-
 	// ReconnectedCounterOpts tracks when connections have reconnected
 	ReconnectedCounterOpts = &metrics.CounterVecOpts{
 		&prometheus.CounterOpts{
@@ -146,8 +122,32 @@ var (
 	errorCounter = metrics.GetOrMustRegisterCounterVec(SubscriberErrorCounterOpts)
 )
 
-// These metrics are collected by each ConnManager.
+// Connection related gauge metrics are collected by the ConnManager prometheus.Collector.
 var (
+	// ConnCountOpts tracks the number of current connections
+	ConnCountOpts = &metrics.GaugeVecOpts{
+		&prometheus.GaugeOpts{
+			Namespace:   metrics.METRIC_NAMESPACE_OYSTERPACK,
+			Subsystem:   messaging.MetricsSubSystem,
+			Name:        "count",
+			Help:        "The number of active connections",
+			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
+		},
+		MetricLabels,
+	}
+
+	// NotConnectedCountOpts tracks the number of connections that are not currently connected. They may be disconnected, reconnecting, or connecting.
+	NotConnectedCountOpts = &metrics.GaugeVecOpts{
+		&prometheus.GaugeOpts{
+			Namespace:   metrics.METRIC_NAMESPACE_OYSTERPACK,
+			Subsystem:   messaging.MetricsSubSystem,
+			Name:        "not_connected_count",
+			Help:        "The number of connections that are not connected",
+			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
+		},
+		MetricLabels,
+	}
+
 	// MsgsInGauge tracks the total number of messages that have been received on current connections
 	MsgsInGauge = &metrics.GaugeVecOpts{
 		&prometheus.GaugeOpts{
@@ -192,8 +192,15 @@ var (
 		},
 		MetricLabels,
 	}
+
+	ConnectionMetrics = []*metrics.GaugeVecOpts{
+		ConnCountOpts, NotConnectedCountOpts,
+		MsgsInGauge, MsgsOutGauge,
+		BytesInGauge, BytesOutGauge,
+	}
 )
 
+// Topic / Queue related gauge metrics are collected by the ConnManager
 var (
 	// TopicMetricLabels are the variable labels for topic subscriptions
 	TopicMetricLabels = append(MetricLabels, "topic")
@@ -385,7 +392,11 @@ var (
 	}
 )
 
-// message counters
+// published and received message counts per topic and queue are tracked by subscriptions and the Publisher
+// The low level publish methods are not tracked, because the topics may not be "stable". For example, they may be reply
+// topics that are temporary, uniquely named, and short lived.
+//
+// Publisher(s) created for topics are assumed to be long-lived and stable.
 var (
 	// TopicMessagesReceivedCounter tracks the number of messsages received per topic since the app started
 	TopicMessagesReceivedCounter = &metrics.CounterVecOpts{

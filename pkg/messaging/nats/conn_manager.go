@@ -60,9 +60,9 @@ type ConnManager interface {
 
 	CloseAll()
 
-	ConnectedCount() (count int, total int)
+	ConnectedCount() int
 
-	DisconnectedCount() (count int, total int)
+	DisconnectedCount() int
 
 	// TotalMsgsIn returns the total number of messages that have been received on all current connections
 	TotalMsgsIn() uint64
@@ -77,6 +77,8 @@ type ConnManager interface {
 	TotalBytesOut() uint64
 
 	HealthChecks() []metrics.HealthCheck
+
+	prometheus.Collector
 }
 
 // DefaultOptions that are applied when creating a new ConnManager
@@ -506,7 +508,8 @@ func (a *connManager) init() {
 		a.healthChecks = []metrics.HealthCheck{
 			metrics.NewHealthCheckVector(connectivityHealthCheck, runinterval,
 				func() error {
-					connected, total := a.ConnectedCount()
+					total := a.ConnCount()
+					connected := a.ConnectedCount()
 					if connected != total {
 						return fmt.Errorf("%d / %d connections are disconnected", total-connected, total)
 					}
@@ -598,10 +601,9 @@ func (a *connManager) ManagedConn(id string) *ManagedConn {
 	return a.conns[id]
 }
 
-func (a *connManager) ConnectedCount() (count int, total int) {
+func (a *connManager) ConnectedCount() (count int) {
 	a.mutex.RLock()
 	defer a.mutex.RUnlock()
-	total = len(a.conns)
 	for _, c := range a.conns {
 		if c.Conn.IsConnected() {
 			count++
@@ -610,10 +612,9 @@ func (a *connManager) ConnectedCount() (count int, total int) {
 	return
 }
 
-func (a *connManager) DisconnectedCount() (count int, total int) {
+func (a *connManager) DisconnectedCount() (count int) {
 	a.mutex.RLock()
 	defer a.mutex.RUnlock()
-	total = len(a.conns)
 	for _, c := range a.conns {
 		if !c.Conn.IsConnected() {
 			count++
