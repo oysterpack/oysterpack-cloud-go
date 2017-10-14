@@ -31,6 +31,7 @@ const (
 )
 
 var (
+	// ServiceInterface NATSServer interface
 	ServiceInterface service.Interface = func() service.Interface {
 		var server NATSServer = &natsServer{}
 		serviceInterface, err := reflect.ObjectInterface(&server)
