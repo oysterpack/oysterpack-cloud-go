@@ -455,7 +455,7 @@ func (a *service) awaitState(desiredState State, timeout time.Duration) error {
 		// ignore panics caused by sending on a closed messages
 		// the messages might be closed if the service failed
 		defer commons.IgnorePanic()
-		a.serviceState.notify(l, a.State())
+		a.serviceState.notify(&l, a.State())
 	}()
 	for state := range l.Channel() {
 		if reachedState, err := matches(state); err != nil {

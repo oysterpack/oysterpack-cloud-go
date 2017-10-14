@@ -318,7 +318,7 @@ func testPublishSubscribe_WithEmptySubscriptionSettings(t *testing.T, conn messa
 		t.Error(err)
 		return
 	}
-	publisher, err := conn.Publisher(topic)
+	publisher, _ := conn.Publisher(topic)
 
 	publisher.Publish([]byte("CIAO MUNDO #1"))
 	msg := <-subscriber.Channel()
@@ -336,7 +336,7 @@ func testPublishSubscribe_WithSubscriptionSettings_WithValidLimits(t *testing.T,
 		t.Error(err)
 		return
 	}
-	publisher, err := conn.Publisher(topic)
+	publisher, _ := conn.Publisher(topic)
 
 	publisher.Publish([]byte("CIAO MUNDO #1"))
 	msg := <-subscriber.Channel()
@@ -368,7 +368,7 @@ func testPublishSubscribe_WithSubscriptionSettings_Unlimited(t *testing.T, conn 
 		t.Error(err)
 		return
 	}
-	publisher, err := conn.Publisher(topic)
+	publisher, _ := conn.Publisher(topic)
 
 	publisher.Publish([]byte("CIAO MUNDO #1"))
 	msg := <-subscriber.Channel()
@@ -431,7 +431,7 @@ func testPublishSubscribe(t *testing.T, conn messaging.Conn) {
 		t.Error(err)
 		return
 	}
-	publisher, err := conn.Publisher(topic)
+	publisher, _ := conn.Publisher(topic)
 
 	publisher.Publish([]byte("CIAO MUNDO #1"))
 	msg := <-subscriber.Channel()

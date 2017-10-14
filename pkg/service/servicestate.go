@@ -202,7 +202,7 @@ func closeStateChanQuietly(c chan State) {
 }
 
 // stateChangeChannel looks up the StateChangeListener channel. If it is not found, then nil is returned.
-func (s *ServiceState) stateChangeChannel(l StateChangeListener) chan State {
+func (s *ServiceState) stateChangeChannel(l *StateChangeListener) chan State {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	channel := l.Channel()
@@ -214,7 +214,7 @@ func (s *ServiceState) stateChangeChannel(l StateChangeListener) chan State {
 	return nil
 }
 
-func (s *ServiceState) notify(l StateChangeListener, state State) {
+func (s *ServiceState) notify(l *StateChangeListener, state State) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	channel := l.Channel()
@@ -233,7 +233,7 @@ func (s *ServiceState) ContainsStateChangeListener(l StateChangeListener) bool {
 
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	return s.stateChangeChannel(l) != nil
+	return s.stateChangeChannel(&l) != nil
 }
 
 // Each StateChangeListener is notified async, i.e., concurrently.
@@ -294,7 +294,7 @@ func (a *StateChangeListener) channel() chan State {
 	return a.c
 }
 
-func (a *StateChangeListener) close() {
+func (a *StateChangeListener) Close() {
 	a.RLock()
 	defer a.RUnlock()
 	closeStateChanQuietly(a.c)
@@ -309,7 +309,7 @@ func (a *StateChangeListener) Cancel() {
 	if !a.s.deleteStateChangeListener(a.channel()) {
 		// the ServiceState reported that it did not own the channel
 		// To be safe on the safe side, manually close the channel in case there are goroutines blocked on receiving from this channel
-		a.close()
+		a.Close()
 	}
 	// drain the channel
 	for range a.Channel() {
