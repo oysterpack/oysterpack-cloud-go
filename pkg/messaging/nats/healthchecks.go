@@ -29,7 +29,7 @@ var connectivityHealthCheck = &metrics.GaugeVecOpts{
 		Subsystem:   messaging.MetricsSubSystem,
 		Name:        "connectivity",
 		Help:        "The healthcheck fails if any connections are disconnected.",
-		ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
+		ConstLabels: service.AddServiceMetricLabels(ConstLabels, ClientRegistryDescriptor),
 	},
 	MetricLabels,
 }

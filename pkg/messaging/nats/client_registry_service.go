@@ -31,38 +31,35 @@ const (
 )
 
 var (
-	registry = &connManagerRegistry{
-		registry: make(map[messaging.ClusterName]ConnManager),
+	registry = &clientRegistry{
+		registry: make(map[messaging.ClusterName]messaging.Client),
 	}
 
-	// ConnManagerRegistryService service singleton
-	ConnManagerRegistryService ConnManagerRegistry = registry
+	// ClientRegistryService service singleton
+	ClientRegistryService messaging.ClientRegistry = registry
 
-	// ConnManagerRegistryDescriptor service descriptor
-	ConnManagerRegistryDescriptor = service.NewDescriptor(Namespace, System, Component, Version, ConnManagerRegistryInterface)
+	// ClientRegistryDescriptor service descriptor
+	ClientRegistryDescriptor = service.NewDescriptor(Namespace, System, Component, Version, ClientRegistryInterface)
 
-	// ConnManagerRegistryInterface service interface
-	ConnManagerRegistryInterface service.Interface = service.ServiceInterface(ConnManagerRegistryService)
+	// ClientRegistryInterface service interface
+	ClientRegistryInterface service.Interface = service.ServiceInterface(ClientRegistryService)
 )
 
-// NewConnManagerRegistryClient service.ClientConstructor
-func NewConnManagerRegistryClient(app service.Application) service.Client {
+// NewConnManagerRegistry service.ClientConstructor
+func NewConnManagerRegistry(app service.Application) service.Client {
 	registry.RestartableService = service.NewRestartableService(registry.newService)
 	return registry
 }
 
-func (a *connManagerRegistry) newService() service.Service {
+func (a *clientRegistry) newService() service.Service {
 	settings := service.Settings{
-		Descriptor: ConnManagerRegistryDescriptor,
-		Destroy: func(ctx *service.Context) error {
-			a.CloseAll()
-			return nil
-		},
-		Metrics: ConnManagerMetrics,
+		Descriptor: ClientRegistryDescriptor,
+		Destroy:    a.Destroy,
+		Metrics:    ConnManagerMetrics,
 	}
 	return service.NewService(settings)
 }
 
 func init() {
-	service.App().MustRegisterService(NewConnManagerRegistryClient)
+	service.App().MustRegisterService(NewConnManagerRegistry)
 }

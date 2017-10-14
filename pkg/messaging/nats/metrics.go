@@ -70,6 +70,7 @@ var (
 		},
 	}
 
+	// ConnectionCounterMetrics connection count related metrics
 	ConnectionCounterMetrics = []*metrics.CounterVecOpts{
 		CreatedCounterOpts,
 		ClosedCounterOpts,
@@ -82,7 +83,7 @@ var (
 			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "created",
 			Help:        "The number of connections that have been created",
-			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
+			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ClientRegistryDescriptor),
 		},
 		MetricLabels,
 	}
@@ -95,7 +96,7 @@ var (
 			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "closed",
 			Help:        "The number of connections that have been closed",
-			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
+			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ClientRegistryDescriptor),
 		},
 		MetricLabels,
 	}
@@ -108,7 +109,7 @@ var (
 			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "reconnects",
 			Help:        "The total number of reconnects",
-			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
+			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ClientRegistryDescriptor),
 		},
 		MetricLabels,
 	}
@@ -121,7 +122,7 @@ var (
 			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "subscriber_errors",
 			Help:        "The number of errors encountered while processing inbound messages",
-			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
+			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ClientRegistryDescriptor),
 		},
 		MetricLabels,
 	}
@@ -137,7 +138,7 @@ var (
 			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "count",
 			Help:        "The number of active connections",
-			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
+			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ClientRegistryDescriptor),
 		},
 		MetricLabels,
 	}
@@ -149,7 +150,7 @@ var (
 			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "not_connected_count",
 			Help:        "The number of connections that are not connected",
-			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
+			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ClientRegistryDescriptor),
 		},
 		MetricLabels,
 	}
@@ -161,7 +162,7 @@ var (
 			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "msgs_in",
 			Help:        "The number of messages that have been received on all active connections.",
-			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
+			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ClientRegistryDescriptor),
 		},
 		MetricLabels,
 	}
@@ -172,7 +173,7 @@ var (
 			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "msgs_out",
 			Help:        "The number of messages that have been sent on all active connections.",
-			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
+			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ClientRegistryDescriptor),
 		},
 		MetricLabels,
 	}
@@ -183,7 +184,7 @@ var (
 			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "bytes_in",
 			Help:        "The number of bytes that have been received on all active connections.",
-			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
+			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ClientRegistryDescriptor),
 		},
 		MetricLabels,
 	}
@@ -194,7 +195,7 @@ var (
 			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "bytes_out",
 			Help:        "The number of bytes that have been sent on all active connections.",
-			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
+			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ClientRegistryDescriptor),
 		},
 		MetricLabels,
 	}
@@ -220,7 +221,7 @@ var (
 			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "publisher_count",
 			Help:        "The number of publishers per topic across all active connections.",
-			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
+			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ClientRegistryDescriptor),
 		},
 		TopicMetricLabels,
 	}
@@ -232,7 +233,7 @@ var (
 			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "topic_subscriber_count",
 			Help:        "The number of subscribers per topic across all active connections.",
-			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
+			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ClientRegistryDescriptor),
 		},
 		TopicMetricLabels,
 	}
@@ -244,7 +245,7 @@ var (
 			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "topic_pending_msgs",
 			Help:        "The number of queued messages per topic across all active connections.",
-			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
+			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ClientRegistryDescriptor),
 		},
 		TopicMetricLabels,
 	}
@@ -256,7 +257,7 @@ var (
 			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "topic_pending_bytes",
 			Help:        "The number of queued message bytes per topic across all active connections.",
-			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
+			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ClientRegistryDescriptor),
 		},
 		TopicMetricLabels,
 	}
@@ -268,7 +269,7 @@ var (
 			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "topic_pending_msgs_max",
 			Help:        "The max number of queued messages per topic across all active connections.",
-			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
+			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ClientRegistryDescriptor),
 		},
 		TopicMetricLabels,
 	}
@@ -280,7 +281,7 @@ var (
 			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "topic_pending_bytes_max",
 			Help:        "The max number of queued message bytes per topic across all active connections.",
-			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
+			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ClientRegistryDescriptor),
 		},
 		TopicMetricLabels,
 	}
@@ -294,7 +295,7 @@ var (
 			Help: "The number of known dropped messages per topic across all active connections. " +
 				"This will correspond to messages dropped by violations of PendingLimits. " +
 				"If the server declares the connection a SlowConsumer, this number may not be valid.",
-			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
+			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ClientRegistryDescriptor),
 		},
 		TopicMetricLabels,
 	}
@@ -306,7 +307,7 @@ var (
 			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "topic_msgs_delivered",
 			Help:        "The number of messages delivered to subscriptions per topic across all active connections.",
-			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
+			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ClientRegistryDescriptor),
 		},
 		TopicMetricLabels,
 	}
@@ -318,7 +319,7 @@ var (
 			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "queue_subscriber_count",
 			Help:        "The number of subscribers per topic queue across all active connections.",
-			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
+			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ClientRegistryDescriptor),
 		},
 		QueueMetricLabels,
 	}
@@ -330,7 +331,7 @@ var (
 			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "queue_pending_msgs",
 			Help:        "The number of queued messages per queue across all active connections.",
-			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
+			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ClientRegistryDescriptor),
 		},
 		QueueMetricLabels,
 	}
@@ -342,7 +343,7 @@ var (
 			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "queue_pending_bytes",
 			Help:        "The number of queued message bytes per queue across all active connections.",
-			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
+			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ClientRegistryDescriptor),
 		},
 		QueueMetricLabels,
 	}
@@ -354,7 +355,7 @@ var (
 			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "queue_pending_msgs_max",
 			Help:        "The max number of queued messages per queue across all active connections.",
-			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
+			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ClientRegistryDescriptor),
 		},
 		QueueMetricLabels,
 	}
@@ -366,7 +367,7 @@ var (
 			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "queue_pending_bytes_max",
 			Help:        "The max number of queued message bytes per queue across all active connections.",
-			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
+			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ClientRegistryDescriptor),
 		},
 		QueueMetricLabels,
 	}
@@ -380,7 +381,7 @@ var (
 			Help: "The number of known dropped messages per queue across all active connections. " +
 				"This will correspond to messages dropped by violations of PendingLimits. " +
 				"If the server declares the connection a SlowConsumer, this number may not be valid.",
-			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
+			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ClientRegistryDescriptor),
 		},
 		QueueMetricLabels,
 	}
@@ -392,7 +393,7 @@ var (
 			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "queue_msgs_delivered",
 			Help:        "The number of messages delivered to subscriptions per queue across all active connections.",
-			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
+			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ClientRegistryDescriptor),
 		},
 		QueueMetricLabels,
 	}
@@ -411,7 +412,7 @@ var (
 			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "topic_msgs_received",
 			Help:        "The number of messages received per topic since the app started.",
-			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
+			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ClientRegistryDescriptor),
 		},
 		TopicMetricLabels,
 	}
@@ -424,7 +425,7 @@ var (
 			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "queue_msgs_received",
 			Help:        "The number of messages received per topic queue since the app started.",
-			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
+			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ClientRegistryDescriptor),
 		},
 		QueueMetricLabels,
 	}
@@ -437,7 +438,7 @@ var (
 			Subsystem:   messaging.MetricsSubSystem,
 			Name:        "topic_msgs_published",
 			Help:        "The number of messages published per topic since the app started.",
-			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ConnManagerRegistryDescriptor),
+			ConstLabels: service.AddServiceMetricLabels(ConstLabels, ClientRegistryDescriptor),
 		},
 		TopicMetricLabels,
 	}

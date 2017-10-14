@@ -26,12 +26,30 @@ import (
 	"github.com/oysterpack/oysterpack.go/pkg/metrics"
 	"github.com/prometheus/client_golang/prometheus"
 
+	natsio "github.com/nats-io/go-nats"
 	dto "github.com/prometheus/client_model/go"
 )
+
+func TestConnectUrl(t *testing.T) {
+	options := &natsio.Options{}
+
+	if err := nats.ConnectUrl("")(options); err == nil {
+		t.Error("blank connection URL should be allowed")
+	} else {
+		t.Log(err)
+	}
+
+	if err := nats.ConnectUrl("   ")(options); err == nil {
+		t.Error("blank connection URL should be allowed")
+	} else {
+		t.Log(err)
+	}
+}
 
 func TestConnManager_Metrics(t *testing.T) {
 	metrics.ResetRegistry()
 	defer metrics.ResetRegistry()
+	nats.RegisterMetrics()
 
 	serverConfigs := natstest.CreateNATSServerConfigsNoTLS(1)
 	servers := natstest.CreateNATSServers(t, serverConfigs)
@@ -39,6 +57,7 @@ func TestConnManager_Metrics(t *testing.T) {
 	defer natstest.ShutdownServers(servers)
 
 	connManager := nats.NewConnManager(natstest.ConnManagerSettings(serverConfigs[0]))
+	defer connManager.CloseAll()
 
 	metricDescs := make(chan *prometheus.Desc, 100)
 	connManager.Describe(metricDescs)

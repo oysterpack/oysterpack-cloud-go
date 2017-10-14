@@ -15,7 +15,6 @@
 package nats
 
 import (
-	"fmt"
 	"sync"
 	"time"
 
@@ -106,53 +105,11 @@ func (a *ManagedConn) Cluster() messaging.ClusterName {
 	return a.cluster
 }
 
-// Created is when the conn was created
-func (a *ManagedConn) Created() time.Time {
-	a.mutex.RLock()
-	defer a.mutex.RUnlock()
-	return a.created
-}
-
 // Tags are used for tracking connections based on application needs
 func (a *ManagedConn) Tags() []string {
 	a.mutex.RLock()
 	defer a.mutex.RUnlock()
 	return a.tags
-}
-
-// Disconnects tracks when the connection is disconnected
-func (a *ManagedConn) Disconnects() int {
-	a.mutex.RLock()
-	defer a.mutex.RUnlock()
-	return a.disconnects
-}
-
-// LastDisconnectTime records the last time a disconnect happened
-func (a *ManagedConn) LastDisconnectTime() time.Time {
-	a.mutex.RLock()
-	defer a.mutex.RUnlock()
-	return a.lastDisconnectTime
-}
-
-// LastReconnectTime records the last time the conn reconnected
-func (a *ManagedConn) LastReconnectTime() time.Time {
-	a.mutex.RLock()
-	defer a.mutex.RUnlock()
-	return a.lastReconnectTime
-}
-
-// LastErrorTime reports when the last error occurred
-func (a *ManagedConn) LastErrorTime() time.Time {
-	a.mutex.RLock()
-	defer a.mutex.RUnlock()
-	return a.lastErrorTime
-}
-
-// Errors returns the number of errors that have occurred on this connection
-func (a *ManagedConn) Errors() int {
-	a.mutex.RLock()
-	defer a.mutex.RUnlock()
-	return a.errors
 }
 
 // updates are protected by a mutex to make changes concurrency safe
@@ -256,16 +213,14 @@ func (a *ManagedConn) ConnInfo() *ConnInfo {
 		LastErrorTime: a.lastErrorTime,
 
 		Status: a.Conn.Status(),
+
+		SubscriptionCount:      len(a.topicSubscriptions.subscriptions),
+		QueueSubscriptionCount: len(a.queueSubscriptions.subscriptions),
 	}
 }
 
 func (a *ManagedConn) String() string {
-	bytes, err := json.Marshal(a.ConnInfo())
-	if err != nil {
-		// should never happen
-		logger.Warn().Err(err).Msg("json.Marshal() failed")
-		return fmt.Sprintf("%v", *a.ConnInfo())
-	}
+	bytes, _ := json.Marshal(a.ConnInfo())
 	return string(bytes)
 }
 
@@ -336,20 +291,6 @@ func (a *ManagedConn) TopicQueueSubscribe(topic messaging.Topic, queue messaging
 	qSubscription := &queueSubscription{Subscription: topicSubscription, queue: queue}
 	a.queueSubscriptions.add(qSubscription)
 	return qSubscription, nil
-}
-
-// TopicSubscriptionCount returns the number of currently tracked subscriptions
-func (a *ManagedConn) TopicSubscriptionCount() int {
-	a.topicSubscriptions.RLock()
-	defer a.topicSubscriptions.RUnlock()
-	return len(a.topicSubscriptions.subscriptions)
-}
-
-// QueueSubscriptionCount returns the number of currently tracked queue subscriptions
-func (a *ManagedConn) QueueSubscriptionCount() int {
-	a.queueSubscriptions.RLock()
-	defer a.queueSubscriptions.RUnlock()
-	return len(a.queueSubscriptions.subscriptions)
 }
 
 // Publisher will return a Publisher for the specified topic.

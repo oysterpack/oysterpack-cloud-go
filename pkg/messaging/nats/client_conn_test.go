@@ -95,6 +95,167 @@ func TestNewConn(t *testing.T) {
 	}
 }
 
+func TestConn_Reconnect(t *testing.T) {
+	metrics.ResetRegistry()
+	defer metrics.ResetRegistry()
+
+	serverConfigs := natstest.CreateNATSServerConfigsNoTLS(1)
+	servers := natstest.CreateNATSServers(t, serverConfigs)
+	natstest.StartServers(servers)
+	defer natstest.ShutdownServers(servers)
+
+	connManager := nats.NewConnManager(natstest.ConnManagerSettings(serverConfigs[0]))
+	client := nats.NewClient(connManager)
+	defer client.CloseAllConns()
+
+	conn, err := client.Connect()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	natstest.ShutdownServers(servers)
+	for i := 0; i < 10; i++ {
+		if conn.Connected() {
+			t.Error("connection should be disconnected")
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+
+	servers = natstest.CreateNATSServers(t, serverConfigs)
+	natstest.StartServers(servers)
+	defer natstest.ShutdownServers(servers)
+	time.Sleep(natstest.ReConnectTimeout + (5 * time.Millisecond))
+	if !conn.Connected() {
+		t.Error("connection should be disconnected")
+	}
+}
+
+func TestConn_AutoReconnectInCluster(t *testing.T) {
+	metrics.ResetRegistry()
+	defer metrics.ResetRegistry()
+
+	serverConfigs := natstest.CreateNATSServerConfigsNoTLS(2)
+	servers := natstest.CreateNATSServers(t, serverConfigs)
+	natstest.StartServers(servers)
+	defer natstest.ShutdownServers(servers)
+
+	connManager := nats.NewConnManager(natstest.ConnManagerSettings(serverConfigs[0]))
+	client := nats.NewClient(connManager)
+	defer client.CloseAllConns()
+
+	conn, err := client.Connect()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	servers[0].Shutdown()
+	time.Sleep(natstest.ReConnectTimeout + (5 * time.Millisecond))
+	if !conn.Connected() {
+		t.Error("connection should be disconnected")
+	}
+}
+
+func TestPublisherCaching(t *testing.T) {
+	metrics.ResetRegistry()
+	defer metrics.ResetRegistry()
+
+	serverConfigs := natstest.CreateNATSServerConfigsNoTLS(1)
+	servers := natstest.CreateNATSServers(t, serverConfigs)
+	natstest.StartServers(servers)
+	defer natstest.ShutdownServers(servers)
+
+	connManager := nats.NewConnManager(natstest.ConnManagerSettings(serverConfigs[0]))
+	client := nats.NewClient(connManager)
+	defer client.CloseAllConns()
+
+	conn, err := client.Connect()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	topic := messaging.Topic(nuid.Next())
+	publisher, err := conn.Publisher(topic)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = conn.Publisher(topic)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	publisher2, err := conn.Publisher(messaging.Topic(nuid.Next()))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	publisherCounts := connManager.PublisherCountsPerTopic()
+	if publisherCounts[publisher.Topic()] != 1 {
+		t.Errorf("There should be 1 publisher per topic per connection")
+	}
+
+	if publisherCounts[publisher2.Topic()] != 1 {
+		t.Errorf("There should be 1 publisher per topic per connection")
+	}
+
+	conn.Close()
+	if _, err := conn.Publisher(messaging.Topic(nuid.Next())); err == nil {
+		t.Error("Creating publisher should fail when the connection is closed")
+	}
+
+}
+
+func TestUnsubscribe(t *testing.T) {
+	metrics.ResetRegistry()
+	defer metrics.ResetRegistry()
+
+	serverConfigs := natstest.CreateNATSServerConfigsNoTLS(1)
+	servers := natstest.CreateNATSServers(t, serverConfigs)
+	natstest.StartServers(servers)
+	defer natstest.ShutdownServers(servers)
+
+	connManager := nats.NewConnManager(natstest.ConnManagerSettings(serverConfigs[0]))
+	client := nats.NewClient(connManager)
+	defer client.CloseAllConns()
+
+	conn, err := client.Connect()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	subscription, err := conn.Subscribe(messaging.Topic(nuid.Next()), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	subscription.Unsubscribe()
+	conn.Publish(subscription.Topic(), []byte("data"))
+	if subscription.IsValid() {
+		t.Error("subscription should been cancelled")
+	}
+	select {
+	case <-subscription.Channel():
+		t.Error("No message should have been reeived")
+	default:
+	}
+
+	qsubscription, err := conn.QueueSubscribe(messaging.Topic(nuid.Next()), messaging.Topic(nuid.Next()).AsQueue(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	qsubscription.Unsubscribe()
+	conn.Publish(qsubscription.Topic(), []byte("data"))
+	if qsubscription.IsValid() {
+		t.Error("subscription should been cancelled")
+	}
+	select {
+	case <-qsubscription.Channel():
+		t.Error("No message should have been reeived")
+	default:
+	}
+}
+
 func testConnInfoLookup(t *testing.T, connManager nats.ConnManager) {
 	for _, info := range connManager.ConnInfos() {
 		if connInfo := connManager.ConnInfo(info.Id); connInfo == nil {

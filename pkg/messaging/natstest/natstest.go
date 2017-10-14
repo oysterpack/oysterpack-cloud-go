@@ -19,15 +19,26 @@ import (
 
 	"testing"
 
+	"time"
+
+	natsio "github.com/nats-io/go-nats"
 	"github.com/oysterpack/oysterpack.go/pkg/messaging"
 	"github.com/oysterpack/oysterpack.go/pkg/messaging/nats"
 	"github.com/oysterpack/oysterpack.go/pkg/messaging/nats/server"
 )
 
+const ReConnectTimeout = 10 * time.Millisecond
+
+func init() {
+	nats.DefaultReConnectTimeout = natsio.ReconnectWait(ReConnectTimeout)
+}
+
 var (
+	// NATS_SEED_SERVER_URL default seed cluster url : nats://localhost:5222
 	NATS_SEED_SERVER_URL = fmt.Sprintf("nats://localhost:%d", server.DEFAULT_CLUSTER_PORT)
 )
 
+// LogConnInfo logs the ConnInfo(s) using the test's Log
 func LogConnInfo(t *testing.T, connManager nats.ConnManager) {
 	t.Helper()
 	for _, info := range connManager.ConnInfos() {
@@ -35,6 +46,7 @@ func LogConnInfo(t *testing.T, connManager nats.ConnManager) {
 	}
 }
 
+// CreateNATSServers creates NATSServer(s) using the provided configs
 func CreateNATSServers(t *testing.T, configs []*server.NATSServerConfig) []server.NATSServer {
 	var servers []server.NATSServer
 	for _, config := range configs {
@@ -47,6 +59,7 @@ func CreateNATSServers(t *testing.T, configs []*server.NATSServerConfig) []serve
 	return servers
 }
 
+// CreateNATSServerConfigsNoTLS returns a list of server configs with no TLS configured
 func CreateNATSServerConfigsNoTLS(count int) []*server.NATSServerConfig {
 	configs := []*server.NATSServerConfig{}
 	for i := 0; i < count; i++ {
@@ -73,18 +86,21 @@ func defaultRoutesWithSeed(ports ...int) []string {
 	return routes
 }
 
+// StartServers starts the provided servers
 func StartServers(servers []server.NATSServer) {
 	for _, server := range servers {
 		server.Start()
 	}
 }
 
+// ShutdownServers shutsdown the provided servers
 func ShutdownServers(servers []server.NATSServer) {
 	for _, server := range servers {
 		server.Shutdown()
 	}
 }
 
+// ConnManagerSettings converts the config to settings that can be used to create a ConnManager
 func ConnManagerSettings(config *server.NATSServerConfig) *nats.ConnManagerSettings {
 	settings := &nats.ConnManagerSettings{ClusterName: config.Cluster}
 

@@ -70,38 +70,6 @@ func skipTestConnManager_ConnInfo(t *testing.T) {
 
 }
 
-func skipTestConnManager_CloseAll(t *testing.T) {
-	metrics.ResetRegistry()
-	server := natstest.RunServer()
-	defer server.Shutdown()
-
-	connMgr := nats.NewConnManager(TestConnManagerSettings)
-	defer connMgr.CloseAll()
-	conn := mustConnect(t, connMgr)
-
-	connMgr.CloseAll()
-
-	if conn.IsConnected() {
-		t.Errorf("*** ERROR *** should be closed")
-	}
-
-	for i := 0; conn.Disconnects() != 1 && i < 3; i++ {
-		time.Sleep(10 * time.Millisecond)
-	}
-	t.Logf("after the connection is closed : %v", conn)
-	if conn.Disconnects() != 1 {
-		t.Errorf("*** ERROR *** The disonnect handler should have run by now")
-	}
-
-	if connMgr.ConnCount() != 0 {
-		t.Errorf("*** ERROR *** There should be no conns")
-	}
-
-	if connMgr.ConnInfo(conn.ConnInfo().Id) != nil {
-		t.Errorf("*** ERROR *** should have been removed")
-	}
-}
-
 func skipTestManagedConn_CloseConn(t *testing.T) {
 	metrics.ResetRegistry()
 	server := natstest.RunServer()
@@ -135,91 +103,6 @@ func skipTestManagedConn_CloseConn(t *testing.T) {
 	// verify that ConnManager has removed the closed conn
 	if connMgr.ConnCount() != COUNT-1 {
 		t.Errorf("*** ERROR *** There should be %d conns, but the ConnManager reported : %d", COUNT-1, connMgr.ConnCount())
-	}
-}
-
-func skipTestNewConnManager_CreatedTimestamp(t *testing.T) {
-	metrics.ResetRegistry()
-	server := natstest.RunServer()
-	defer server.Shutdown()
-
-	connMgr := nats.NewConnManager(TestConnManagerSettings)
-	defer connMgr.CloseAll()
-
-	now := time.Now()
-	conn := mustConnect(t, connMgr)
-	if !conn.Created().After(now) {
-		t.Errorf("*** ERROR *** Created (%v) should be after (%v)", conn.Created(), now)
-	}
-}
-
-func skipTestManagedConn_DisconnectReconnect(t *testing.T) {
-	metrics.ResetRegistry()
-	backup := nats.DefaultReConnectTimeout
-	const ReConnectTimeout = 10 * time.Millisecond
-	nats.DefaultReConnectTimeout = natsio.ReconnectWait(ReConnectTimeout)
-	defer func() { nats.DefaultReConnectTimeout = backup }()
-
-	server := natstest.RunServer()
-	defer server.Shutdown()
-
-	connMgr := nats.NewConnManager(TestConnManagerSettings)
-	defer connMgr.CloseAll()
-
-	// create some connection
-	conns := []*nats.ManagedConn{}
-	const COUNT = 5
-	for i := 0; i < COUNT; i++ {
-		conns = append(conns, mustConnect(t, connMgr))
-	}
-	// make sure they all connected
-	if count := connMgr.ConnectedCount(); count != 5 {
-		t.Fatalf("Connected count is less than expected : connected = %d", count)
-	}
-
-	server.Shutdown()
-
-	// wait for all of the connections to report as disconnected
-	for i := 0; i < 3; i++ {
-		if count := connMgr.ConnectedCount(); count == 0 {
-			break
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
-	// check that none are connected
-	if count := connMgr.ConnectedCount(); count != 0 {
-		t.Errorf("*** ERROR *** All connections should be disconnected because the server is down : connected = %d", count)
-	}
-	// check that all are disconnected
-	if count := connMgr.DisconnectedCount(); count != len(conns) {
-		t.Errorf("*** ERROR *** All connections should be disconnected because the server is down : connected = %d", count)
-	}
-
-	server = natstest.RunServer()
-	defer server.Shutdown()
-
-	// create a new connection the server - verifying that we can connect to the new server
-	conn := mustConnect(t, connMgr)
-	t.Logf("new connection after server restarted: %v", conn)
-
-	// wait until the reconnect wait period expires
-	time.Sleep(ReConnectTimeout)
-	// check that all connections are connected
-	if count := connMgr.DisconnectedCount(); count != 0 {
-		t.Errorf("*** ERROR *** All connections should be reconnected")
-	}
-	if count := connMgr.ConnectedCount(); count != len(connMgr.ConnInfos()) {
-		t.Errorf("*** ERROR *** All connections should be reconnected")
-	}
-	// check that LastDisconnectTime and LastReconnectTime were updated
-	for _, c := range conns {
-		t.Logf("after reconnect : %v", c)
-		if !c.LastDisconnectTime().After(c.Created()) {
-			t.Errorf("*** ERROR *** LastDisconnectTime (%v) should be after Created (%v)", c.LastDisconnectTime(), c.Created())
-		}
-		if !c.LastReconnectTime().After(c.LastDisconnectTime()) {
-			t.Errorf("*** ERROR *** LastReconnectTime (%v) should be after LastDisconnectTime (%v)", c.LastReconnectTime(), c.LastDisconnectTime())
-		}
 	}
 }
 

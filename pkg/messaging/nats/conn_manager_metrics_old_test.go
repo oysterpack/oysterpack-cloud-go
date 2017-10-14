@@ -22,152 +22,14 @@ import (
 	"github.com/oysterpack/oysterpack.go/pkg/metrics"
 
 	"encoding/json"
-	"fmt"
 	"strings"
 	"time"
 
 	natsio "github.com/nats-io/go-nats"
-	"github.com/oysterpack/oysterpack.go/pkg/messaging"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_model/go"
 	dto "github.com/prometheus/client_model/go"
 )
-
-func skipTestConnManager_Metrics_Simple(t *testing.T) {
-	metrics.ResetRegistry()
-	defer metrics.ResetRegistry()
-	server := natstest.RunServer()
-	defer server.Shutdown()
-
-	nats.RegisterMetrics()
-
-	connMgr := nats.NewConnManager(TestConnManagerSettings)
-	defer connMgr.CloseAll()
-	pubConn := mustConnect(t, connMgr)
-	subConn := mustConnect(t, connMgr)
-
-	const TOPIC = "TestConnManager_Metrics"
-	const QUEUE = "TestConnManager_Metrics_Q"
-
-	subscription, err := subConn.TopicSubscribe(messaging.Topic(TOPIC), nil)
-	if err != nil {
-		t.Fatalf("TopicSubscribe failed : %v", err)
-	}
-	msgReceivedCount := 0
-	go func() {
-		for {
-			msg := <-subscription.Channel()
-
-			if msg != nil {
-				msgReceivedCount++
-				t.Logf("received message : %v", string(msg.Data))
-			} else {
-				t.Log("NO MESSAGE")
-			}
-			if !subscription.IsValid() {
-				t.Logf("SUBSCRIPTION IS NOT VALID - EXITING")
-				break
-			}
-		}
-	}()
-
-	qsubscription, err := subConn.TopicQueueSubscribe(messaging.Topic(TOPIC), messaging.Queue(QUEUE), nil)
-	if err != nil {
-		t.Fatalf("TopicQueueSubscribe failed : %v", err)
-	}
-	qmsgReceivedCount := 0
-	go func() {
-		for {
-			msg := <-qsubscription.Channel()
-
-			if msg != nil {
-				qmsgReceivedCount++
-				t.Logf("queue received message : %v", string(msg.Data))
-			} else {
-				t.Log("NO MESSAGE ON QUEUE")
-			}
-			if !subscription.IsValid() {
-				t.Logf("SUBSCRIPTION IS NOT VALID - EXITING")
-				break
-			}
-		}
-	}()
-
-	for _, healthcheck := range connMgr.HealthChecks() {
-		result := healthcheck.Run()
-		if !result.Success() {
-			t.Errorf("*** ERROR *** healthcheck failed: %v", result)
-		}
-	}
-
-	const MSG_COUNT = 10
-	publisher, err := pubConn.Publisher(TOPIC)
-	if err != nil {
-		t.Fatalf("Failed to created Publisher : %v", err)
-	}
-	for i := 1; i <= MSG_COUNT; i++ {
-		publisher.Publish([]byte(fmt.Sprintf("#%d", i)))
-	}
-
-	pubConn.Flush()
-
-	for msgReceivedCount != MSG_COUNT && qmsgReceivedCount != MSG_COUNT {
-		t.Logf("msgReceivedCount = %d, qmsgReceivedCount = %d", msgReceivedCount, qmsgReceivedCount)
-		time.Sleep(5 * time.Millisecond)
-	}
-
-	gatheredMetrics, err := metrics.Registry.Gather()
-	if err != nil {
-		t.Fatalf("Failed to gather gatheredMetrics : %v", err)
-	}
-
-	// log the gatheredMetrics
-	for _, metric := range gatheredMetrics {
-		//t.Log(*metric.Name)
-		if strings.HasPrefix(*metric.Name, metrics.METRIC_NAMESPACE_OYSTERPACK) {
-			jsonBytes, _ := json.MarshalIndent(metric, "", "   ")
-			t.Logf("%v", string(jsonBytes))
-		}
-	}
-
-	t.Logf("pubConn : %v", pubConn)
-	t.Logf("subConn : %v", subConn)
-
-	// check msg and bytes related gatheredMetrics
-	totalMsgsIn := connMgr.TotalMsgsIn()
-	totalMsgsOut := connMgr.TotalMsgsOut()
-	totalBytesIn := connMgr.TotalBytesIn()
-	totalBytesOut := connMgr.TotalBytesOut()
-	t.Logf("totalMsgsIn = %d, totalMsgsOut = %d, totalBytesIn = %d, totalBytesOut = %d", totalMsgsIn, totalMsgsOut, totalBytesIn, totalBytesOut)
-	delivered, _ := subscription.Delivered()
-	t.Logf("delivered = %d", delivered)
-	t.Logf("topic subscription count = %d", subConn.TopicSubscriptionCount())
-
-	gatheredMetrics, err = metrics.Registry.Gather()
-	if err != nil {
-		t.Fatalf("Failed to gather gatheredMetrics : %v", err)
-	}
-	topicMessagesDelivered := gauge(gatheredMetrics, nats.TopicMessagesDelivered)
-	t.Logf("topicMessagesDelivered = %v", *topicMessagesDelivered.GetMetric()[0].Gauge.Value)
-	if delivered != int64(*topicMessagesDelivered.GetMetric()[0].Gauge.Value) {
-		t.Errorf("*** ERROR *** delivered count did not match : %d", *topicMessagesDelivered.GetMetric()[0].Gauge.Value)
-	}
-
-	if totalMsgsIn != pubConn.InMsgs+subConn.InMsgs {
-		t.Errorf("*** ERROR *** counts do not match : %d != %d", totalMsgsIn, pubConn.InMsgs+subConn.InMsgs)
-	}
-	if totalMsgsOut != pubConn.OutMsgs+subConn.OutMsgs {
-		t.Errorf("*** ERROR *** counts do not match : %d != %d", totalMsgsOut, pubConn.OutMsgs+subConn.OutMsgs)
-	}
-	if totalBytesIn != pubConn.InBytes+subConn.InBytes {
-		t.Errorf("*** ERROR *** counts do not match : %d != %d", totalBytesIn, pubConn.InBytes+subConn.InBytes)
-	}
-	if totalBytesOut != pubConn.OutBytes+subConn.OutBytes {
-		t.Errorf("*** ERROR *** counts do not match : %d != %d", totalBytesOut, pubConn.OutBytes+subConn.OutBytes)
-	}
-
-	checkMetricsExist(t, gatheredMetrics)
-}
 
 func skipTestConnManager_Metrics_RestartingServer(t *testing.T) {
 	metrics.ResetRegistry()
@@ -252,9 +114,6 @@ func checkMsgPublishSubscribeStats(t *testing.T, gatheredMetrics []*dto.MetricFa
 	t.Logf("pubConn : %v", pubConn)
 	t.Logf("subConn : %v", subConn)
 
-	if value := *counter(gatheredMetrics, nats.SubscriberErrorCounterOpts).GetMetric()[0].GetCounter().Value; int(value) != subConn.Errors() {
-		t.Errorf("*** ERROR *** subscriber error count is wrong : %v", value)
-	}
 	if value := *gauge(gatheredMetrics, nats.MsgsInGauge).GetMetric()[0].GetGauge().Value; uint64(value) != 0 {
 		t.Errorf("*** ERROR *** msgs in is wrong : %v", value)
 	}

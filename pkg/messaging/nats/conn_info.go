@@ -37,6 +37,9 @@ type ConnInfo struct {
 	LastErrorTime time.Time
 
 	nats.Status
+
+	SubscriptionCount      int
+	QueueSubscriptionCount int
 }
 
 func (a *ConnInfo) String() string {

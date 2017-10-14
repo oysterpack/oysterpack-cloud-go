@@ -47,7 +47,7 @@
 //		Subsystem:   MetricsSubSystem,
 //		Name:        "connectivity",
 //		Help:        "The healthcheck fails if any connections are disconnected.",
-//		ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, ConnManagerRegistryDescriptor),
+//		ConstLabels: service.AddServiceMetricLabels(prometheus.Labels{}, ClientRegistryDescriptor),
 //	}
 //
 package nats
