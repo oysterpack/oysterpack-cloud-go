@@ -32,6 +32,7 @@ var (
 		CounterVecOpts: []*metrics.CounterVecOpts{
 			CreatedCounterOpts,
 			ClosedCounterOpts,
+
 			ReconnectedCounterOpts,
 			SubscriberErrorCounterOpts,
 
@@ -67,6 +68,11 @@ var (
 			QueueMessagesDelivered,
 			QueueMessagesDropped,
 		},
+	}
+
+	ConnectionCounterMetrics = []*metrics.CounterVecOpts{
+		CreatedCounterOpts,
+		ClosedCounterOpts,
 	}
 
 	// CreatedCounterOpts tracks the number of connections that have been created
@@ -193,7 +199,7 @@ var (
 		MetricLabels,
 	}
 
-	ConnectionMetrics = []*metrics.GaugeVecOpts{
+	ConnectionGaugeMetrics = []*metrics.GaugeVecOpts{
 		ConnCountOpts, NotConnectedCountOpts,
 		MsgsInGauge, MsgsOutGauge,
 		BytesInGauge, BytesOutGauge,

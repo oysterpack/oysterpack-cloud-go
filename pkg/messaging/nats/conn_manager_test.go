@@ -25,6 +25,8 @@ import (
 	"github.com/oysterpack/oysterpack.go/pkg/messaging/natstest"
 	"github.com/oysterpack/oysterpack.go/pkg/metrics"
 	"github.com/prometheus/client_golang/prometheus"
+
+	dto "github.com/prometheus/client_model/go"
 )
 
 func TestConnManager_Metrics(t *testing.T) {
@@ -46,31 +48,40 @@ func TestConnManager_Metrics(t *testing.T) {
 		metricCount++
 		t.Logf("(%d) : %s", metricCount, desc)
 	}
-	if metricCount != len(nats.ConnManagerMetrics.GaugeVecOpts) {
-		t.Error("The metric descriptors that were returned by the ConnManager do not align with nats.ConnManagerMetrics.GaugeVecOpts")
+	if metricCount != len(nats.ConnManagerMetrics.GaugeVecOpts)+len(nats.ConnectionCounterMetrics) {
+		t.Errorf("*** ERROR *** The metric descriptor count that were returned by the ConnManager do not match with nats.ConnManagerMetrics.GaugeVecOpts : %d != %d", metricCount, len(nats.ConnManagerMetrics.GaugeVecOpts)+len(nats.ConnectionCounterMetrics))
 	}
 
 	collectMetricsWithNoActiveConnections(t, connManager)
 	sendReceiveMessages(t, connManager)
 	if connManager.DisconnectedCount() > 0 {
-		t.Errorf("There should be no connections disconnected : %d", connManager.DisconnectedCount())
+		t.Errorf("*** ERROR *** There should be no connections disconnected : %d", connManager.DisconnectedCount())
 	}
 	collectMetricsWithAfterSendingReceivingMessages(t, connManager)
 }
 
 func collectMetricsWithAfterSendingReceivingMessages(t *testing.T, connManager nats.ConnManager) {
-	metrics := make(chan prometheus.Metric, 100)
-	connManager.Collect(metrics)
-	close(metrics)
-	metricCount := 0
-	for metric := range metrics {
-		metricCount++
-		t.Logf("(%d) : %s", metricCount, metric)
+	metricsChan := make(chan prometheus.Metric, 100)
+	connManager.Collect(metricsChan)
+	close(metricsChan)
+	metrics := []prometheus.Metric{}
+	dtoMetrics := []*dto.Metric{}
+	for metric := range metricsChan {
+		metrics = append(metrics, metric)
+		dtoMetric := &dto.Metric{}
+		metric.Write(dtoMetric)
+		dtoMetrics = append(dtoMetrics, dtoMetric)
+		t.Logf("(%d) : %s", len(metrics)+1, metric)
 	}
-	// we are only checking if the number of metrics returned is what's expected
-	if metricCount != len(nats.ConnManagerMetrics.GaugeVecOpts) {
-		t.Error("The expected number of metrics did not match : %d != %d", metricCount, len(nats.ConnManagerMetrics.GaugeVecOpts))
+	// we are only checking if the number of metricsChan returned is what's expected
+	if len(metrics) != len(nats.ConnManagerMetrics.GaugeVecOpts)+len(nats.ConnectionCounterMetrics) {
+		t.Errorf("*** ERROR *** The expected number of metricsChan did not match : %d != %d", len(metrics), len(nats.ConnManagerMetrics.GaugeVecOpts)+len(nats.ConnectionCounterMetrics))
 	}
+
+	for _, metric := range dtoMetrics {
+		t.Logf("%v", metric)
+	}
+
 }
 
 func collectMetricsWithNoActiveConnections(t *testing.T, connManager nats.ConnManager) {
@@ -82,8 +93,8 @@ func collectMetricsWithNoActiveConnections(t *testing.T, connManager nats.ConnMa
 		metricCount++
 		t.Logf("(%d) : %s", metricCount, metric)
 	}
-	if metricCount != len(nats.ConnectionMetrics) {
-		t.Error("The expected number of metrics did not match : %d != %d", metricCount, len(nats.ConnectionMetrics))
+	if metricCount != len(nats.ConnectionGaugeMetrics)+len(nats.ConnectionCounterMetrics) {
+		t.Error("*** ERROR *** The expected number of metrics did not match : %d != %d", metricCount, len(nats.ConnectionGaugeMetrics)+len(nats.ConnectionCounterMetrics))
 	}
 }
 
@@ -141,19 +152,19 @@ func sendReceiveMessages(t *testing.T, connManager nats.ConnManager) {
 		totalMsgReceivedCount += count
 	}
 	if totalMsgReceivedCount != TOTAL_EXPECTED_MSG_RECEIVED_COUNT {
-		t.Errorf("totalMsgReceivedCount != TOTAL_EXPECTED_MSG_RECEIVED_COUNT : %d != %d", totalMsgReceivedCount, TOTAL_EXPECTED_MSG_RECEIVED_COUNT)
+		t.Errorf("*** ERROR *** totalMsgReceivedCount != TOTAL_EXPECTED_MSG_RECEIVED_COUNT : %d != %d", totalMsgReceivedCount, TOTAL_EXPECTED_MSG_RECEIVED_COUNT)
 	}
 
 	if connManager.TotalMsgsIn() != TOTAL_EXPECTED_MSG_RECEIVED_COUNT {
-		t.Errorf("connManager.TotalMsgsIn() did not match : %d != %d", connManager.TotalMsgsIn(), TOTAL_EXPECTED_MSG_RECEIVED_COUNT)
+		t.Errorf("*** ERROR *** connManager.TotalMsgsIn() did not match : %d != %d", connManager.TotalMsgsIn(), TOTAL_EXPECTED_MSG_RECEIVED_COUNT)
 	}
 	if connManager.TotalMsgsOut() != MESSAGE_COUNT*2 {
-		t.Errorf("connManager.TotalMsgsOut() did not match %d != %d", connManager.TotalMsgsOut(), MESSAGE_COUNT*2)
+		t.Errorf("*** ERROR *** connManager.TotalMsgsOut() did not match %d != %d", connManager.TotalMsgsOut(), MESSAGE_COUNT*2)
 	}
 
 	t.Logf("total bytes in : %d, total bytes out : %d", connManager.TotalBytesIn(), connManager.TotalBytesOut())
 	if connManager.TotalBytesIn() != connManager.TotalBytesOut()*3 {
-		t.Errorf("TotalBytesIn did not match what's expected : %d != %d", connManager.TotalBytesIn(), connManager.TotalBytesOut()*3)
+		t.Errorf("*** ERROR *** TotalBytesIn did not match what's expected : %d != %d", connManager.TotalBytesIn(), connManager.TotalBytesOut()*3)
 	}
 
 }
@@ -165,7 +176,7 @@ func TestNewConnManager_InvalidClusterName(t *testing.T) {
 		settings := natstest.ConnManagerSettings(serverConfig)
 		defer func() {
 			if p := recover(); p == nil {
-				t.Errorf("NewConnManager should have panicked because ClusterName is invalid : [%s]", settings.ClusterName)
+				t.Errorf("*** ERROR *** NewConnManager should have panicked because ClusterName is invalid : [%s]", settings.ClusterName)
 			} else {
 				t.Log(p)
 			}

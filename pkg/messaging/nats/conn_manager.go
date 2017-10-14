@@ -123,107 +123,34 @@ func newConnManager(settings *ConnManagerSettings) *connManager {
 
 		createdCounter: createdCounter.WithLabelValues(settings.ClusterName.String()),
 		closedCounter:  closedCounter.WithLabelValues(settings.ClusterName.String()),
-
-		connCountDesc:         prometheus.NewDesc(metrics.GaugeFQName(ConnCountOpts.GaugeOpts), ConnCountOpts.GaugeOpts.Help, ConnCountOpts.Labels, ConnCountOpts.GaugeOpts.ConstLabels),
-		notConnectedCountDesc: prometheus.NewDesc(metrics.GaugeFQName(NotConnectedCountOpts.GaugeOpts), NotConnectedCountOpts.GaugeOpts.Help, NotConnectedCountOpts.Labels, NotConnectedCountOpts.GaugeOpts.ConstLabels),
-
-		msgsInDesc:   prometheus.NewDesc(metrics.GaugeFQName(MsgsInGauge.GaugeOpts), MsgsInGauge.GaugeOpts.Help, MsgsInGauge.Labels, MsgsInGauge.GaugeOpts.ConstLabels),
-		msgsOutDesc:  prometheus.NewDesc(metrics.GaugeFQName(MsgsOutGauge.GaugeOpts), MsgsOutGauge.GaugeOpts.Help, MsgsOutGauge.Labels, MsgsOutGauge.GaugeOpts.ConstLabels),
-		bytesInDesc:  prometheus.NewDesc(metrics.GaugeFQName(BytesInGauge.GaugeOpts), BytesInGauge.GaugeOpts.Help, BytesInGauge.Labels, BytesInGauge.GaugeOpts.ConstLabels),
-		bytesOutDesc: prometheus.NewDesc(metrics.GaugeFQName(BytesOutGauge.GaugeOpts), BytesOutGauge.GaugeOpts.Help, BytesOutGauge.Labels, BytesOutGauge.GaugeOpts.ConstLabels),
-
-		topicSubscriberCount: prometheus.NewDesc(
-			metrics.GaugeFQName(TopicSubscriberCount.GaugeOpts),
-			TopicSubscriberCount.GaugeOpts.Help,
-			TopicSubscriberCount.Labels,
-			TopicSubscriberCount.GaugeOpts.ConstLabels,
-		),
-		topicPendingMessages: prometheus.NewDesc(
-			metrics.GaugeFQName(TopicPendingMessages.GaugeOpts),
-			TopicPendingMessages.GaugeOpts.Help,
-			TopicPendingMessages.Labels,
-			TopicPendingMessages.GaugeOpts.ConstLabels,
-		),
-		topicPendingBytes: prometheus.NewDesc(
-			metrics.GaugeFQName(TopicPendingBytes.GaugeOpts),
-			TopicPendingBytes.GaugeOpts.Help,
-			TopicPendingBytes.Labels,
-			TopicPendingBytes.GaugeOpts.ConstLabels,
-		),
-		topicMaxPendingMessages: prometheus.NewDesc(
-			metrics.GaugeFQName(TopicMaxPendingMessages.GaugeOpts),
-			TopicMaxPendingMessages.GaugeOpts.Help,
-			TopicMaxPendingMessages.Labels,
-			TopicMaxPendingMessages.GaugeOpts.ConstLabels,
-		),
-		topicMaxPendingBytes: prometheus.NewDesc(
-			metrics.GaugeFQName(TopicMaxPendingBytes.GaugeOpts),
-			TopicMaxPendingBytes.GaugeOpts.Help,
-			TopicMaxPendingBytes.Labels,
-			TopicMaxPendingBytes.GaugeOpts.ConstLabels,
-		),
-		topicMessagesDropped: prometheus.NewDesc(
-			metrics.GaugeFQName(TopicMessagesDropped.GaugeOpts),
-			TopicMessagesDropped.GaugeOpts.Help,
-			TopicMessagesDropped.Labels,
-			TopicMessagesDropped.GaugeOpts.ConstLabels,
-		),
-		topicMessagesDelivered: prometheus.NewDesc(
-			metrics.GaugeFQName(TopicMessagesDelivered.GaugeOpts),
-			TopicMessagesDelivered.GaugeOpts.Help,
-			TopicMessagesDelivered.Labels,
-			TopicMessagesDelivered.GaugeOpts.ConstLabels,
-		),
-
-		queueSubscriberCount: prometheus.NewDesc(
-			metrics.GaugeFQName(QueueSubscriberCount.GaugeOpts),
-			QueueSubscriberCount.GaugeOpts.Help,
-			QueueSubscriberCount.Labels,
-			QueueSubscriberCount.GaugeOpts.ConstLabels,
-		),
-		queuePendingMessages: prometheus.NewDesc(
-			metrics.GaugeFQName(QueuePendingMessages.GaugeOpts),
-			QueuePendingMessages.GaugeOpts.Help,
-			QueuePendingMessages.Labels,
-			QueuePendingMessages.GaugeOpts.ConstLabels,
-		),
-		queuePendingBytes: prometheus.NewDesc(
-			metrics.GaugeFQName(QueuePendingBytes.GaugeOpts),
-			QueuePendingBytes.GaugeOpts.Help,
-			QueuePendingBytes.Labels,
-			QueuePendingBytes.GaugeOpts.ConstLabels,
-		),
-		queueMaxPendingMessages: prometheus.NewDesc(
-			metrics.GaugeFQName(QueueMaxPendingMessages.GaugeOpts),
-			QueueMaxPendingMessages.GaugeOpts.Help,
-			QueueMaxPendingMessages.Labels,
-			QueueMaxPendingMessages.GaugeOpts.ConstLabels,
-		),
-		queueMaxPendingBytes: prometheus.NewDesc(
-			metrics.GaugeFQName(QueueMaxPendingBytes.GaugeOpts),
-			QueueMaxPendingBytes.GaugeOpts.Help,
-			QueueMaxPendingBytes.Labels,
-			QueueMaxPendingBytes.GaugeOpts.ConstLabels,
-		),
-		queueMessagesDropped: prometheus.NewDesc(
-			metrics.GaugeFQName(QueueMessagesDropped.GaugeOpts),
-			QueueMessagesDropped.GaugeOpts.Help,
-			QueueMessagesDropped.Labels,
-			QueueMessagesDropped.GaugeOpts.ConstLabels,
-		),
-		queueMessagesDelivered: prometheus.NewDesc(
-			metrics.GaugeFQName(QueueMessagesDelivered.GaugeOpts),
-			QueueMessagesDelivered.GaugeOpts.Help,
-			QueueMessagesDelivered.Labels,
-			QueueMessagesDelivered.GaugeOpts.ConstLabels,
-		),
-		publisherCount: prometheus.NewDesc(
-			metrics.GaugeFQName(PublisherCount.GaugeOpts),
-			PublisherCount.GaugeOpts.Help,
-			PublisherCount.Labels,
-			PublisherCount.GaugeOpts.ConstLabels,
-		),
 	}
+
+	connMgr.connCountDesc = connMgr.addGaugeDesc(ConnCountOpts)
+	connMgr.notConnectedCountDesc = connMgr.addGaugeDesc(NotConnectedCountOpts)
+
+	connMgr.msgsInDesc = connMgr.addGaugeDesc(MsgsInGauge)
+	connMgr.msgsOutDesc = connMgr.addGaugeDesc(MsgsOutGauge)
+	connMgr.bytesInDesc = connMgr.addGaugeDesc(BytesInGauge)
+	connMgr.bytesOutDesc = connMgr.addGaugeDesc(BytesOutGauge)
+
+	connMgr.topicSubscriberCount = connMgr.addGaugeDesc(TopicSubscriberCount)
+	connMgr.topicPendingMessages = connMgr.addGaugeDesc(TopicPendingMessages)
+	connMgr.topicPendingBytes = connMgr.addGaugeDesc(TopicPendingBytes)
+	connMgr.topicMaxPendingMessages = connMgr.addGaugeDesc(TopicMaxPendingMessages)
+	connMgr.topicMaxPendingBytes = connMgr.addGaugeDesc(TopicMaxPendingBytes)
+	connMgr.topicMessagesDropped = connMgr.addGaugeDesc(TopicMessagesDropped)
+	connMgr.topicMessagesDelivered = connMgr.addGaugeDesc(TopicMessagesDelivered)
+
+	connMgr.queueSubscriberCount = connMgr.addGaugeDesc(QueueSubscriberCount)
+	connMgr.queuePendingMessages = connMgr.addGaugeDesc(QueuePendingMessages)
+	connMgr.queuePendingBytes = connMgr.addGaugeDesc(QueuePendingBytes)
+	connMgr.queueMaxPendingMessages = connMgr.addGaugeDesc(QueueMaxPendingMessages)
+	connMgr.queueMaxPendingBytes = connMgr.addGaugeDesc(QueueMaxPendingBytes)
+	connMgr.queueMessagesDropped = connMgr.addGaugeDesc(QueueMessagesDropped)
+	connMgr.queueMessagesDelivered = connMgr.addGaugeDesc(QueueMessagesDelivered)
+
+	connMgr.publisherCount = connMgr.addGaugeDesc(PublisherCount)
+
 	connMgr.init()
 	metrics.Registry.MustRegister(connMgr)
 	return connMgr
@@ -270,6 +197,20 @@ type connManager struct {
 	queueMessagesDropped    *prometheus.Desc
 
 	publisherCount *prometheus.Desc
+
+	descs []*prometheus.Desc
+}
+
+func (a *connManager) addCounterDesc(opts *metrics.CounterVecOpts) *prometheus.Desc {
+	desc := prometheus.NewDesc(metrics.CounterFQName(opts.CounterOpts), opts.CounterOpts.Help, opts.Labels, opts.CounterOpts.ConstLabels)
+	a.descs = append(a.descs, desc)
+	return desc
+}
+
+func (a *connManager) addGaugeDesc(opts *metrics.GaugeVecOpts) *prometheus.Desc {
+	desc := prometheus.NewDesc(metrics.GaugeFQName(opts.GaugeOpts), opts.GaugeOpts.Help, opts.Labels, opts.GaugeOpts.ConstLabels)
+	a.descs = append(a.descs, desc)
+	return desc
 }
 
 // Describe implements prometheus.Collector
@@ -277,34 +218,18 @@ func (a *connManager) Describe(ch chan<- *prometheus.Desc) {
 	ch <- a.connCountDesc
 	ch <- a.notConnectedCountDesc
 
-	ch <- a.msgsInDesc
-	ch <- a.msgsOutDesc
-	ch <- a.bytesInDesc
-	ch <- a.bytesOutDesc
-
-	ch <- a.topicSubscriberCount
-	ch <- a.topicPendingMessages
-	ch <- a.topicPendingBytes
-	ch <- a.topicMaxPendingMessages
-	ch <- a.topicMaxPendingBytes
-	ch <- a.topicMessagesDelivered
-	ch <- a.topicMessagesDropped
-
-	ch <- a.queueSubscriberCount
-	ch <- a.queuePendingMessages
-	ch <- a.queuePendingBytes
-	ch <- a.queueMaxPendingMessages
-	ch <- a.queueMaxPendingBytes
-	ch <- a.queueMessagesDelivered
-	ch <- a.queueMessagesDropped
-
-	ch <- a.publisherCount
+	for _, desc := range a.descs {
+		ch <- desc
+	}
 }
 
 // Collect implements prometheus.Collector
 func (a *connManager) Collect(ch chan<- prometheus.Metric) {
 	a.mutex.RLock()
 	defer a.mutex.RUnlock()
+
+	ch <- a.createdCounter
+	ch <- a.closedCounter
 
 	var msgsIn, msgsOut, bytesIn, bytesOut uint64
 	notConnectedCount := 0
