@@ -226,14 +226,14 @@ func (s *ServiceState) notify(l *StateChangeListener, state State) {
 }
 
 // ContainsStateChangeListener returns true if the specified StateChangeListener is registered
-func (s *ServiceState) ContainsStateChangeListener(l StateChangeListener) bool {
+func (s *ServiceState) ContainsStateChangeListener(l *StateChangeListener) bool {
 	if l.s != s {
 		return false
 	}
 
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	return s.stateChangeChannel(&l) != nil
+	return s.stateChangeChannel(l) != nil
 }
 
 // Each StateChangeListener is notified async, i.e., concurrently.

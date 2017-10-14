@@ -249,27 +249,27 @@ func TestServiceState_NewStateChangeListener_NonBlocking(t *testing.T) {
 func TestStateChangeListener_Cancel(t *testing.T) {
 	serviceState := service.NewServiceState()
 	l := serviceState.NewStateChangeListener()
-	if !serviceState.ContainsStateChangeListener(l) {
+	if !serviceState.ContainsStateChangeListener(&l) {
 		t.Error("ServiceState should have contained the StateChangeListener")
 	}
 	l.Cancel()
-	if serviceState.ContainsStateChangeListener(l) {
+	if serviceState.ContainsStateChangeListener(&l) {
 		t.Error("ServiceState should not contain the StateChangeListener because it was cancelled")
 	}
 	// Cancelling again should be ok
 	l.Cancel()
 
 	l = serviceState.NewStateChangeListener()
-	if !serviceState.ContainsStateChangeListener(l) {
+	if !serviceState.ContainsStateChangeListener(&l) {
 		t.Error("ServiceState should have contained the StateChangeListener")
 	}
 	serviceState2 := service.NewServiceState()
-	if serviceState2.ContainsStateChangeListener(l) {
+	if serviceState2.ContainsStateChangeListener(&l) {
 		t.Error("ServiceState should not contain the StateChangeListener because it was created by a different ServiceState")
 	}
 
 	serviceState.Terminated()
-	if serviceState.ContainsStateChangeListener(l) {
+	if serviceState.ContainsStateChangeListener(&l) {
 		t.Error("ServiceState should not contain the StateChangeListener because the ServiceState reached a terminal state")
 	}
 }
