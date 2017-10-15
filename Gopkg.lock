@@ -14,6 +14,12 @@
   revision = "4c0e84591b9aa9e6dcfdf3e020114cd81f89d5f9"
 
 [[projects]]
+  name = "github.com/coreos/bbolt"
+  packages = ["."]
+  revision = "583e8937c61f1af6513608ccc75c97b6abdf4ff9"
+  version = "v1.3.0"
+
+[[projects]]
   branch = "master"
   name = "github.com/golang/protobuf"
   packages = ["proto"]
@@ -33,7 +39,7 @@
 
 [[projects]]
   name = "github.com/nats-io/gnatsd"
-  packages = ["conf","logger","server","server/pse","test","util"]
+  packages = ["conf","logger","server","server/pse","util"]
   revision = "12a5ced612f30aa511906c0de12a124233752f70"
   version = "v1.0.4"
 
@@ -100,6 +106,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "70801d3ebb4c6d535f8688f28d983df39412a08139b4ba74055788e5e90094d4"
+  inputs-digest = "81a72e3f2f6380e31e690e220b610756ba5ab9d3d5c27afa96ae90060cf17adc"
   solver-name = "gps-cdcl"
   solver-version = 1
