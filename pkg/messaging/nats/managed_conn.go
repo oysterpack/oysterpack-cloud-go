@@ -142,7 +142,7 @@ func (a *ManagedConn) subscriptionError(subscription *nats.Subscription, err err
 	a.errors++
 	a.lastErrorTime = time.Now()
 
-	event := logger.Error().Str(logging.EVENT, EVENT_CONN_ERR).Str(CONN_ID, a.id).Err(err).Bool(SUBSCRIPTION_VALID, subscription.IsValid())
+	event := logger.Error().Str(logging.EVENT, EVENT_CONN_SUBSCRIBER_ERR).Str(CONN_ID, a.id).Err(err).Bool(SUBSCRIPTION_VALID, subscription.IsValid())
 	if len(a.tags) > 0 {
 		event.Strs(CONN_TAGS, a.tags)
 	}
@@ -234,7 +234,7 @@ func (a *ManagedConn) TopicSubscribe(topic messaging.Topic, settings *messaging.
 	c := make(chan *messaging.Message)
 	sub, err := a.Subscribe(string(topic), func(msg *nats.Msg) {
 		counter.Inc()
-		c <- toMessage(msg)
+		sendMessage(msg, c)
 	})
 	if err != nil {
 		return nil, err
@@ -246,8 +246,9 @@ func (a *ManagedConn) TopicSubscribe(topic messaging.Topic, settings *messaging.
 	if settings != nil && settings.PendingLimits != nil {
 		sub.SetPendingLimits(settings.MsgLimit, settings.BytesLimit)
 	}
-	topicSubscription := &subscription{id: nuid.Next(), cluster: a.Cluster(), sub: sub, c: c, unsubscribe: func(subscription *subscription) {
+	topicSubscription := &subscription{id: nuid.Next(), cluster: a.Cluster(), sub: sub, c: c, unsubscribed: func(subscription *subscription) {
 		go a.topicSubscriptions.remove(subscription.id)
+		closeMessageChannel(c)
 	}}
 	a.topicSubscriptions.add(topicSubscription)
 	return topicSubscription, nil
@@ -262,6 +263,24 @@ func (a *ManagedConn) Flush() error {
 	return a.Conn.FlushTimeout(a.config.FlushTimeout)
 }
 
+func closeMessageChannel(c chan *messaging.Message) {
+	// we can't close the channel, because only the sending gorouting can close the channel
+	// if we close the channel, then that would cause a race condition
+
+	// instead, in case there are goroutines blocked on this channel, we'll send nil msg
+	// a nil message signals that the subscription is no longer valid
+	sendMessage(nil, c)
+}
+
+func sendMessage(msg *nats.Msg, c chan *messaging.Message) {
+	defer func() {
+		if p := recover(); p != nil {
+			logger.Warn().Msg("Message was received after the channel was closed")
+		}
+	}()
+	c <- toMessage(msg)
+}
+
 // TopicQueueSubscribe creates a QueueSubscription
 // The QueueSubscription is registered and tracked for metrics collection purposes
 func (a *ManagedConn) TopicQueueSubscribe(topic messaging.Topic, queue messaging.Queue, settings *messaging.SubscriptionSettings) (messaging.QueueSubscription, error) {
@@ -272,7 +291,7 @@ func (a *ManagedConn) TopicQueueSubscribe(topic messaging.Topic, queue messaging
 	c := make(chan *messaging.Message)
 	sub, err := a.QueueSubscribe(string(topic), string(queue), func(msg *nats.Msg) {
 		counter.Inc()
-		c <- toMessage(msg)
+		sendMessage(msg, c)
 	})
 	if err != nil {
 		return nil, err
@@ -285,8 +304,9 @@ func (a *ManagedConn) TopicQueueSubscribe(topic messaging.Topic, queue messaging
 		sub.SetPendingLimits(settings.MsgLimit, settings.BytesLimit)
 	}
 	id := nuid.Next()
-	topicSubscription := &subscription{id: id, cluster: a.Cluster(), sub: sub, c: c, unsubscribe: func(subscription *subscription) {
+	topicSubscription := &subscription{id: id, cluster: a.Cluster(), sub: sub, c: c, unsubscribed: func(subscription *subscription) {
 		go a.queueSubscriptions.remove(subscription.id)
+		closeMessageChannel(c)
 	}}
 	qSubscription := &queueSubscription{Subscription: topicSubscription, queue: queue}
 	a.queueSubscriptions.add(qSubscription)

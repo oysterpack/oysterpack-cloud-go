@@ -41,7 +41,7 @@ const (
 	EVENT_CONN_DISCONNECT         = "conn_disconnect"
 	EVENT_CONN_RECONNECT          = "conn_reconnect"
 	EVENT_CONN_DISCOVERED_SERVERS = "conn_discovered_servers"
-	EVENT_CONN_ERR                = "conn_err"
+	EVENT_CONN_SUBSCRIBER_ERR     = "conn_subscriber_err"
 )
 
 // log event fields

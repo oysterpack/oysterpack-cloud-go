@@ -23,76 +23,73 @@ import (
 
 	"context"
 
+	"fmt"
+
 	"github.com/nats-io/nuid"
 	"github.com/oysterpack/oysterpack.go/pkg/commons/collections/sets"
 	"github.com/oysterpack/oysterpack.go/pkg/messaging"
 	"github.com/oysterpack/oysterpack.go/pkg/messaging/nats"
+	"github.com/oysterpack/oysterpack.go/pkg/messaging/nats/server"
 	"github.com/oysterpack/oysterpack.go/pkg/messaging/natstest"
 	"github.com/oysterpack/oysterpack.go/pkg/metrics"
+	"github.com/rs/zerolog/log"
 )
 
 func TestNewConn(t *testing.T) {
-	metrics.ResetRegistry()
-	defer metrics.ResetRegistry()
+	runTestSingleServer(t, func(server server.NATSServer, serverConfig *server.NATSServerConfig, client messaging.Client, connManager nats.ConnManager) {
 
-	serverConfigs := natstest.CreateNATSServerConfigsNoTLS(1)
-	servers := natstest.CreateNATSServers(t, serverConfigs)
-	natstest.StartServers(servers)
-	defer natstest.ShutdownServers(servers)
+		if client.Cluster() != server.Cluster() {
+			t.Errorf("client.Cluster() does not match : %v != %v", client.Cluster(), server.Cluster())
+		}
 
-	connManager := nats.NewConnManager(natstest.ConnManagerSettings(serverConfigs[0]))
-	client := nats.NewClient(connManager)
-	defer client.CloseAllConns()
+		conn, err := client.Connect()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if conn.Status() != messaging.CONNECTED || !conn.Connected() || conn.Closed() || conn.Reconnecting() {
+			t.Errorf("connection is reporting incorrect status")
+		}
+		if conn.Cluster() != connManager.Cluster() {
+			t.Errorf("cluster does not match : %v != %v", conn.Cluster(), connManager.Cluster())
+		}
+		if int(conn.MaxPayload()) != serverConfig.MaxPayload {
+			t.Errorf("MaxPayload did not match the server config : %d != %d", conn.MaxPayload(), serverConfig.MaxPayload)
+		}
+		if conn.LastError() != nil {
+			t.Error(conn.LastError())
+		}
 
-	if client.Cluster() != servers[0].Cluster() {
-		t.Errorf("client.Cluster() does not match : %v != %v", client.Cluster(), servers[0].Cluster())
-	}
+		checkTags(t, client)
+		checkUniqueConnIds(t, client)
 
-	conn, err := client.Connect()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if conn.Status() != messaging.CONNECTED || !conn.Connected() || conn.Closed() || conn.Reconnecting() {
-		t.Errorf("connection is reporting incorrect status")
-	}
-	if conn.Cluster() != connManager.Cluster() {
-		t.Errorf("cluster does not match : %v != %v", conn.Cluster(), connManager.Cluster())
-	}
-	if int(conn.MaxPayload()) != serverConfigs[0].MaxPayload {
-		t.Errorf("MaxPayload did not match the server config : %d != %d", conn.MaxPayload(), serverConfigs[0].MaxPayload)
-	}
-	if conn.LastError() != nil {
-		t.Error(conn.LastError())
-	}
+		testPublishSubscribe(t, conn)
+		testPublishQueueSubscribe(t, conn)
+		testPublishSubscribe_WithEmptySubscriptionSettings(t, conn)
+		testPublishSubscribe_WithSubscriptionSettings_WithValidLimits(t, conn)
+		testPublishSubscribe_WithSubscriptionSettings_WithInvalidLimits(t, conn)
+		testPublishSubscribe_WithSubscriptionSettings_Unlimited(t, conn)
 
-	checkTags(t, client)
-	checkUniqueConnIds(t, client)
+		testAutoUnsubscribe(t, conn)
 
-	testPublishSubscribe(t, conn)
-	testPublishQueueSubscribe(t, conn)
-	testPublishSubscribe_WithEmptySubscriptionSettings(t, conn)
-	testPublishSubscribe_WithSubscriptionSettings_WithValidLimits(t, conn)
-	testPublishSubscribe_WithSubscriptionSettings_WithInvalidLimits(t, conn)
-	testPublishSubscribe_WithSubscriptionSettings_Unlimited(t, conn)
+		testRequest(t, conn)
+		testAsyncRequest(t, conn)
+		testRequestChannel(t, conn)
+		testRequestWithContext(t, conn)
+		testRequestChannelWithContext(t, conn)
+		testAsyncRequestChannelWithContext(t, conn)
 
-	testRequest(t, conn)
-	testAsyncRequest(t, conn)
-	testRequestChannel(t, conn)
-	testRequestWithContext(t, conn)
-	testRequestChannelWithContext(t, conn)
-	testAsyncRequestChannelWithContext(t, conn)
+		checkHealthChecks(t, client)
+		checkMetrics(t, client)
 
-	checkHealthChecks(t, client)
-	checkMetrics(t, client)
+		natstest.LogConnInfo(t, connManager)
+		testConnInfoLookup(t, connManager)
+		testManagedConnLookup(t, connManager)
 
-	natstest.LogConnInfo(t, connManager)
-	testConnInfoLookup(t, connManager)
-	testManagedConnLookup(t, connManager)
-
-	conn.Close()
-	if conn.Status() != messaging.CLOSED || !conn.Closed() {
-		t.Errorf("conn should be closed : %v", conn.Status())
-	}
+		conn.Close()
+		if conn.Status() != messaging.CLOSED || !conn.Closed() {
+			t.Errorf("conn should be closed : %v", conn.Status())
+		}
+	})
 }
 
 func TestConn_Reconnect(t *testing.T) {
@@ -108,7 +105,7 @@ func TestConn_Reconnect(t *testing.T) {
 	client := nats.NewClient(connManager)
 	defer client.CloseAllConns()
 
-	conn, err := client.Connect()
+	conn, err := client.Connect("reconnect")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -116,9 +113,11 @@ func TestConn_Reconnect(t *testing.T) {
 	natstest.ShutdownServers(servers)
 	for i := 0; i < 10; i++ {
 		if conn.Connected() {
-			t.Error("connection should be disconnected")
+			time.Sleep(5 * time.Millisecond)
 		}
-		time.Sleep(5 * time.Millisecond)
+	}
+	if conn.Connected() {
+		t.Error("connection should be disconnected")
 	}
 
 	servers = natstest.CreateNATSServers(t, serverConfigs)
@@ -131,81 +130,181 @@ func TestConn_Reconnect(t *testing.T) {
 }
 
 func TestConn_AutoReconnectInCluster(t *testing.T) {
-	metrics.ResetRegistry()
-	defer metrics.ResetRegistry()
+	runTestWithMultipleServer(t, 2, func(servers []server.NATSServer, serverConfigs []*server.NATSServerConfig) {
+		connManager := nats.NewConnManager(natstest.ConnManagerSettings(serverConfigs[0]))
+		client := nats.NewClient(connManager)
+		defer client.CloseAllConns()
 
-	serverConfigs := natstest.CreateNATSServerConfigsNoTLS(2)
-	servers := natstest.CreateNATSServers(t, serverConfigs)
-	natstest.StartServers(servers)
-	defer natstest.ShutdownServers(servers)
+		conn, err := client.Connect("auto-reconnect")
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	connManager := nats.NewConnManager(natstest.ConnManagerSettings(serverConfigs[0]))
-	client := nats.NewClient(connManager)
-	defer client.CloseAllConns()
-
-	conn, err := client.Connect()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	servers[0].Shutdown()
-	time.Sleep(natstest.ReConnectTimeout + (5 * time.Millisecond))
-	if !conn.Connected() {
-		t.Error("connection should be disconnected")
-	}
+		servers[0].Shutdown()
+		time.Sleep(natstest.ReConnectTimeout + (5 * time.Millisecond))
+		if !conn.Connected() {
+			t.Error("connection should be disconnected")
+		}
+	})
 }
 
 func TestPublisherCaching(t *testing.T) {
-	metrics.ResetRegistry()
-	defer metrics.ResetRegistry()
+	runTestSingleServer(t, func(server server.NATSServer, config *server.NATSServerConfig, client messaging.Client, connManager nats.ConnManager) {
+		conn, err := client.Connect()
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	serverConfigs := natstest.CreateNATSServerConfigsNoTLS(1)
-	servers := natstest.CreateNATSServers(t, serverConfigs)
-	natstest.StartServers(servers)
-	defer natstest.ShutdownServers(servers)
+		topic := messaging.Topic(nuid.Next())
+		publisher, err := conn.Publisher(topic)
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	connManager := nats.NewConnManager(natstest.ConnManagerSettings(serverConfigs[0]))
-	client := nats.NewClient(connManager)
-	defer client.CloseAllConns()
+		_, err = conn.Publisher(topic)
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	conn, err := client.Connect()
-	if err != nil {
-		t.Fatal(err)
-	}
+		publisher2, err := conn.Publisher(messaging.Topic(nuid.Next()))
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	topic := messaging.Topic(nuid.Next())
-	publisher, err := conn.Publisher(topic)
-	if err != nil {
-		t.Fatal(err)
-	}
+		publisherCounts := connManager.PublisherCountsPerTopic()
+		if publisherCounts[publisher.Topic()] != 1 {
+			t.Errorf("There should be 1 publisher per topic per connection")
+		}
 
-	_, err = conn.Publisher(topic)
-	if err != nil {
-		t.Fatal(err)
-	}
+		if publisherCounts[publisher2.Topic()] != 1 {
+			t.Errorf("There should be 1 publisher per topic per connection")
+		}
 
-	publisher2, err := conn.Publisher(messaging.Topic(nuid.Next()))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	publisherCounts := connManager.PublisherCountsPerTopic()
-	if publisherCounts[publisher.Topic()] != 1 {
-		t.Errorf("There should be 1 publisher per topic per connection")
-	}
-
-	if publisherCounts[publisher2.Topic()] != 1 {
-		t.Errorf("There should be 1 publisher per topic per connection")
-	}
-
-	conn.Close()
-	if _, err := conn.Publisher(messaging.Topic(nuid.Next())); err == nil {
-		t.Error("Creating publisher should fail when the connection is closed")
-	}
+		conn.Close()
+		if _, err := conn.Publisher(messaging.Topic(nuid.Next())); err == nil {
+			t.Error("Creating publisher should fail when the connection is closed")
+		}
+	})
 
 }
 
 func TestUnsubscribe(t *testing.T) {
+	runTestSingleServer(t, func(server server.NATSServer, config *server.NATSServerConfig, client messaging.Client, connManager nats.ConnManager) {
+		conn, err := client.Connect()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		subscription, err := conn.Subscribe(messaging.Topic(nuid.Next()), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		subscription.Unsubscribe()
+		conn.Publish(subscription.Topic(), []byte("data"))
+		if subscription.IsValid() {
+			t.Error("subscription should been cancelled")
+		}
+		if msg := <-subscription.Channel(); msg != nil {
+			t.Error("No message should have been reeived")
+		}
+
+		qsubscription, err := conn.QueueSubscribe(messaging.Topic(nuid.Next()), messaging.Topic(nuid.Next()).AsQueue(), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		qsubscription.Unsubscribe()
+		conn.Publish(qsubscription.Topic(), []byte("data"))
+		if qsubscription.IsValid() {
+			t.Error("subscription should been cancelled")
+		}
+		if msg := <-qsubscription.Channel(); msg != nil {
+			t.Error("No message should have been reeived")
+		}
+	})
+}
+
+func TestSlowSubscriber(t *testing.T) {
+	runTestSingleServer(t, func(server server.NATSServer, serverConfig *server.NATSServerConfig, client messaging.Client, connManager nats.ConnManager) {
+		conn, _ := client.Connect("slow-consumer")
+		topic := messaging.Topic(nuid.Next())
+		subscriber, _ := conn.Subscribe(topic, &messaging.SubscriptionSettings{&messaging.PendingLimits{MsgLimit: 1, BytesLimit: 64}})
+
+		msgLimit, byteLimit, err := subscriber.PendingLimits()
+		if err != nil {
+			t.Error(err)
+		} else {
+			if msgLimit != 1 {
+				t.Errorf("Msg limit does not match : %d", msgLimit)
+			}
+			if byteLimit != 64 {
+				t.Errorf("Byte limit does not match : %d", byteLimit)
+			}
+		}
+
+		go func() {
+			for {
+				if !subscriber.IsValid() {
+					return
+				}
+				msg := <-subscriber.Channel()
+				log.Logger.Info().Msgf("TestSlowSubscriber() : received msg : %s", string(msg.Data))
+				time.Sleep(50 * time.Millisecond)
+			}
+
+		}()
+
+		pubConn, _ := client.Connect()
+		publisher, _ := pubConn.Publisher(topic)
+		for i := 0; i < 100; i++ {
+			msg := fmt.Sprintf("MSG #%d", i)
+			publisher.Publish([]byte(msg))
+			log.Logger.Info().Msgf("TestSlowSubscriber() published msg : %s", msg)
+		}
+		time.Sleep(10 * time.Millisecond)
+
+		msgsMaxPending, bytesMaxPending, err := subscriber.MaxPending()
+		if err != nil {
+			t.Error(err)
+		} else {
+			t.Logf("msgsMaxPending = %d, bytesMaxPending = %d", msgsMaxPending, bytesMaxPending)
+			if msgsMaxPending == 0 || bytesMaxPending == 0 {
+				t.Error("There should have been pending messages")
+			}
+		}
+		subscriber.ClearMaxPending()
+		msgsMaxPending, bytesMaxPending, err = subscriber.MaxPending()
+		if err != nil {
+			t.Error(err)
+		} else {
+			t.Logf("msgsMaxPending = %d, bytesMaxPending = %d", msgsMaxPending, bytesMaxPending)
+		}
+
+		info, err := subscriber.SubscriptionInfo()
+		if err != nil {
+			t.Error(err)
+		} else {
+			t.Logf("subscription info : %v", info)
+		}
+
+		subscriber.Unsubscribe()
+	})
+}
+
+func runTestWithMultipleServer(t *testing.T, serverCount int, test func(servers []server.NATSServer, serverConfigs []*server.NATSServerConfig)) {
+	metrics.ResetRegistry()
+	defer metrics.ResetRegistry()
+
+	serverConfigs := natstest.CreateNATSServerConfigsNoTLS(serverCount)
+	servers := natstest.CreateNATSServers(t, serverConfigs)
+	natstest.StartServers(servers)
+	defer natstest.ShutdownServers(servers)
+
+	test(servers, serverConfigs)
+}
+
+func runTestSingleServer(t *testing.T, test func(server server.NATSServer, serverConfig *server.NATSServerConfig, client messaging.Client, connManager nats.ConnManager)) {
 	metrics.ResetRegistry()
 	defer metrics.ResetRegistry()
 
@@ -218,42 +317,7 @@ func TestUnsubscribe(t *testing.T) {
 	client := nats.NewClient(connManager)
 	defer client.CloseAllConns()
 
-	conn, err := client.Connect()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	subscription, err := conn.Subscribe(messaging.Topic(nuid.Next()), nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	subscription.Unsubscribe()
-	conn.Publish(subscription.Topic(), []byte("data"))
-	if subscription.IsValid() {
-		t.Error("subscription should been cancelled")
-	}
-	select {
-	case <-subscription.Channel():
-		t.Error("No message should have been reeived")
-	default:
-	}
-
-	qsubscription, err := conn.QueueSubscribe(messaging.Topic(nuid.Next()), messaging.Topic(nuid.Next()).AsQueue(), nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	qsubscription.Unsubscribe()
-	conn.Publish(qsubscription.Topic(), []byte("data"))
-	if qsubscription.IsValid() {
-		t.Error("subscription should been cancelled")
-	}
-	select {
-	case <-qsubscription.Channel():
-		t.Error("No message should have been reeived")
-	default:
-	}
+	test(servers[0], serverConfigs[0], client, connManager)
 }
 
 func testConnInfoLookup(t *testing.T, connManager nats.ConnManager) {
@@ -274,6 +338,8 @@ func testManagedConnLookup(t *testing.T, connManager nats.ConnManager) {
 	for _, info := range connManager.ConnInfos() {
 		if conn := connManager.ManagedConn(info.Id); conn == nil {
 			t.Errorf("Lookup for ManagedConn(%v) failed", conn.ID())
+		} else {
+			t.Logf("conn : %s", conn)
 		}
 	}
 }
@@ -479,6 +545,10 @@ func testPublishSubscribe_WithEmptySubscriptionSettings(t *testing.T, conn messa
 		t.Error(err)
 		return
 	}
+	if subscriber.Cluster() != conn.Cluster() {
+		t.Errorf("subscriber Cluster does not match : %s", subscriber.Cluster())
+	}
+
 	publisher, _ := conn.Publisher(topic)
 
 	publisher.Publish([]byte("CIAO MUNDO #1"))
@@ -486,6 +556,35 @@ func testPublishSubscribe_WithEmptySubscriptionSettings(t *testing.T, conn messa
 	t.Logf("Received msg : %v", string(msg.Data))
 	if msg.Topic != topic {
 		t.Errorf("topic did not match : %v", msg.Topic)
+	}
+}
+
+func testAutoUnsubscribe(t *testing.T, conn messaging.Conn) {
+	topic := messaging.Topic(nuid.Next())
+
+	subscriber, err := conn.Subscribe(topic, &messaging.SubscriptionSettings{})
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	if subscriber.Cluster() != conn.Cluster() {
+		t.Errorf("subscriber Cluster does not match : %s", subscriber.Cluster())
+	}
+	subscriber.AutoUnsubscribe(1)
+
+	publisher, _ := conn.Publisher(topic)
+
+	publisher.Publish([]byte("CIAO MUNDO #1"))
+	msg := <-subscriber.Channel()
+	t.Logf("Received msg : %v", string(msg.Data))
+	if msg.Topic != topic {
+		t.Errorf("topic did not match : %v", msg.Topic)
+	}
+
+	publisher.Publish([]byte("CIAO MUNDO #1"))
+	msg = <-subscriber.Channel()
+	if msg != nil {
+		t.Error("subscriber should have auto-unsubsctibed after receiving 1 message")
 	}
 }
 
@@ -578,6 +677,7 @@ LOOP:
 	for _, sub := range subscriptions {
 		count, _ := sub.Delivered()
 		msgReceivedCount += int(count)
+		t.Log(sub.QueueSubscriptionInfo())
 	}
 	if msgReceivedCount != 1 {
 		t.Error("Only 1 of the subscribers should have received the message")

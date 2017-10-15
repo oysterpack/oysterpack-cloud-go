@@ -16,6 +16,7 @@ package nats
 
 import (
 	"github.com/nats-io/go-nats"
+	"github.com/oysterpack/oysterpack.go/pkg/commons"
 	"github.com/oysterpack/oysterpack.go/pkg/messaging"
 )
 
@@ -26,8 +27,8 @@ type subscription struct {
 	c       chan *messaging.Message
 
 	// used as a callback
-	// use case : when the subscription is unscribed, then stop tracking it for metrics collections
-	unsubscribe func(*subscription)
+	// use case : when the subscription is unsubscribed, then stop tracking it for metrics collections
+	unsubscribed func(*subscription)
 }
 
 func (a *subscription) ID() string {
@@ -71,12 +72,6 @@ func (a *subscription) PendingLimits() (int, int, error) {
 	return a.sub.PendingLimits()
 }
 
-// SetPendingLimits sets the limits for pending msgs and bytes for this subscription. Zero is not allowed.
-// Any negative value means that the given metric is not limited.
-func (a *subscription) SetPendingLimits(msgLimit, bytesLimit int) error {
-	return a.sub.SetPendingLimits(msgLimit, bytesLimit)
-}
-
 // Delivered returns the number of delivered messages for this subscription.
 func (a *subscription) Delivered() (int64, error) {
 	return a.sub.Delivered()
@@ -95,14 +90,22 @@ func (a *subscription) IsValid() bool {
 
 // Unsubscribe will remove interest in the given subject.
 func (a *subscription) Unsubscribe() error {
-	if a.unsubscribe != nil {
-		a.unsubscribe(a)
+	err := a.sub.Unsubscribe()
+	if a.unsubscribed != nil {
+		a.unsubscribed(a)
 	}
-	return a.sub.Unsubscribe()
+	return err
 }
 
 // Channel is used to receive the messages subscribed to
 func (a *subscription) Channel() <-chan *messaging.Message {
+	if !a.IsValid() {
+		func() {
+			defer commons.IgnorePanic()
+			close(a.c)
+		}()
+	}
+
 	return a.c
 }
 

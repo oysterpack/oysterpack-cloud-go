@@ -44,10 +44,6 @@ type Subscription interface {
 	// that the given metric is not limited.
 	PendingLimits() (int, int, error)
 
-	// SetPendingLimits sets the limits for pending msgs and bytes for this subscription. Zero is not allowed.
-	// Any negative value means that the given metric is not limited.
-	SetPendingLimits(msgLimit, bytesLimit int) error
-
 	// Delivered returns the number of delivered messages for this subscription.
 	Delivered() (int64, error)
 

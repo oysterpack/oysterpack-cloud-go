@@ -53,8 +53,10 @@ func TestPublisher_PublishRequest(t *testing.T) {
 	go func() {
 		for subscriber.IsValid() {
 			msg := <-subscriber.Channel()
-			conn.Publish(msg.ReplyTo.AsTopic(), msg.Data)
-			replyWait.Done()
+			if msg != nil {
+				conn.Publish(msg.ReplyTo.AsTopic(), msg.Data)
+				replyWait.Done()
+			}
 		}
 	}()
 
@@ -65,8 +67,10 @@ func TestPublisher_PublishRequest(t *testing.T) {
 	go func() {
 		for replySubscriber.IsValid() {
 			msg := <-replySubscriber.Channel()
-			conn.Publish(msg.ReplyTo.AsTopic(), msg.Data)
-			replyWait.Done()
+			if msg != nil {
+				conn.Publish(msg.ReplyTo.AsTopic(), msg.Data)
+				replyWait.Done()
+			}
 		}
 	}()
 
@@ -102,7 +106,9 @@ func TestPublisher_Request(t *testing.T) {
 	go func() {
 		for subscriber.IsValid() {
 			msg := <-subscriber.Channel()
-			conn.Publish(msg.ReplyTo.AsTopic(), msg.Data)
+			if msg != nil {
+				conn.Publish(msg.ReplyTo.AsTopic(), msg.Data)
+			}
 		}
 	}()
 
@@ -173,7 +179,9 @@ func TestPublisher_RequestWithContext(t *testing.T) {
 	go func() {
 		for subscriber.IsValid() {
 			msg := <-subscriber.Channel()
-			conn.Publish(msg.ReplyTo.AsTopic(), msg.Data)
+			if msg != nil {
+				conn.Publish(msg.ReplyTo.AsTopic(), msg.Data)
+			}
 		}
 	}()
 
@@ -248,7 +256,9 @@ func TestPublisher_AsyncRequest(t *testing.T) {
 	go func() {
 		for subscriber.IsValid() {
 			msg := <-subscriber.Channel()
-			conn.Publish(msg.ReplyTo.AsTopic(), msg.Data)
+			if msg != nil {
+				conn.Publish(msg.ReplyTo.AsTopic(), msg.Data)
+			}
 		}
 	}()
 
@@ -290,7 +300,9 @@ func TestPublisher_AsyncRequestWithContext(t *testing.T) {
 	go func() {
 		for subscriber.IsValid() {
 			msg := <-subscriber.Channel()
-			conn.Publish(msg.ReplyTo.AsTopic(), msg.Data)
+			if msg != nil {
+				conn.Publish(msg.ReplyTo.AsTopic(), msg.Data)
+			}
 		}
 	}()
 
@@ -310,5 +322,85 @@ func TestPublisher_AsyncRequestWithContext(t *testing.T) {
 		}
 	})
 	wait.Wait()
+	subscriber.Unsubscribe()
+}
+
+func TestPublisher_RequestChannel(t *testing.T) {
+	metrics.ResetRegistry()
+	defer metrics.ResetRegistry()
+
+	serverConfigs := natstest.CreateNATSServerConfigsNoTLS(1)
+	servers := natstest.CreateNATSServers(t, serverConfigs)
+	natstest.StartServers(servers)
+	defer natstest.ShutdownServers(servers)
+
+	connManager := nats.NewConnManager(natstest.ConnManagerSettings(serverConfigs[0]))
+	client := nats.NewClient(connManager)
+	defer client.CloseAllConns()
+
+	conn, _ := client.Connect()
+
+	topic := messaging.Topic(nuid.Next())
+
+	subscriber, _ := conn.Subscribe(topic, nil)
+	go func() {
+		for subscriber.IsValid() {
+			msg := <-subscriber.Channel()
+			if msg != nil {
+				conn.Publish(msg.ReplyTo.AsTopic(), msg.Data)
+			}
+		}
+	}()
+
+	publisher, _ := conn.Publisher(topic)
+	response := <-publisher.RequestChannel([]byte("HELLO"), time.Millisecond*50)
+	if response.Error != nil {
+		t.Error(response.Error)
+	} else {
+		if string(response.Data) != "HELLO" {
+			t.Errorf("received different response : %v", string(response.Data))
+		}
+	}
+	subscriber.Unsubscribe()
+}
+
+func TestPublisher_RequestChannelWithContext(t *testing.T) {
+	metrics.ResetRegistry()
+	defer metrics.ResetRegistry()
+
+	serverConfigs := natstest.CreateNATSServerConfigsNoTLS(1)
+	servers := natstest.CreateNATSServers(t, serverConfigs)
+	natstest.StartServers(servers)
+	defer natstest.ShutdownServers(servers)
+
+	connManager := nats.NewConnManager(natstest.ConnManagerSettings(serverConfigs[0]))
+	client := nats.NewClient(connManager)
+	defer client.CloseAllConns()
+
+	conn, _ := client.Connect()
+
+	topic := messaging.Topic(nuid.Next())
+
+	subscriber, _ := conn.Subscribe(topic, nil)
+	go func() {
+		for subscriber.IsValid() {
+			msg := <-subscriber.Channel()
+			if msg != nil {
+				conn.Publish(msg.ReplyTo.AsTopic(), msg.Data)
+			}
+		}
+	}()
+
+	publisher, _ := conn.Publisher(topic)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*50)
+	defer cancel()
+	response := <-publisher.RequestChannelWithContext(ctx, []byte("HELLO"))
+	if response.Error != nil {
+		t.Error(response.Error)
+	} else {
+		if string(response.Data) != "HELLO" {
+			t.Errorf("received different response : %v", string(response.Data))
+		}
+	}
 	subscriber.Unsubscribe()
 }
