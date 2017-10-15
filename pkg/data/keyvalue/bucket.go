@@ -14,9 +14,7 @@
 
 package keyvalue
 
-import (
-	"github.com/coreos/bbolt"
-)
+import "github.com/coreos/bbolt"
 
 // Bucket represents a bucket of key-value pairs. Keys are strings, but values are simply bytes.
 // Buckets can form a hierarchy of buckets.
@@ -29,13 +27,14 @@ type Bucket interface {
 	Put(key string, value []byte) error
 
 	// PutMultiple will put all values received on the data channel within the same transaction, i.e., either all or none will be stored.
-	// Once nil is received on the data channel, then this signals to commit transaction.
-	// The returned channel is to communicate an error, if the transaction failed to commit.
+	// The puts are performed async, and when the the puts are done, then the result will be communicated via the response channel.
+	// Once nil is received on the data channel, then this signals the transation was successfully committed.
+	// If the transaction failed, then the error is returned on the response channel.
 	PutMultiple(data <-chan *KeyValue) <-chan error
 
 	// Delete removes the keys from the bucket. If the key does not exist then nothing is done and a nil error is returned.
 	// All or none are deleted within the same transaction.
-	Delete(key ...string) error
+	Delete(keys ...string) error
 
 	// CreateBucket creates a new bucket at the given key and returns the new bucket.
 	// Returns an error if the key already exists, if the bucket name is blank, or if the bucket name is too long.
@@ -57,140 +56,119 @@ type Bucket interface {
 	Bucket(path ...string) Bucket
 }
 
-// BucketView is a read-only view of the Bucket
-type BucketView interface {
-	// Name returns the Bucket name
-	Name() string
-
-	// Get returns the value for the specified key
-	// If the key does not exist, or if the key actually refers to a child Bucket, then nil is returned
-	Get(key string) []byte
-
-	// Keys returns the keys stored in this bucket. Keys are sorted, thus seek may be used to seek a position to start iterating.
-	// seek is optional - if specified, then seek moves the cursor to a given key and returns it. If the key does not exist then the next key is used.
-	Keys(seek string, cancel <-chan struct{}) <-chan string
-
-	// KeyValues iterates through all key-value pairs and returns them via the channel.
-	// The cancel channel is used to terminate the iteration early by the client.
-	KeyValues(seek string, cancel <-chan struct{}) <-chan *KeyValue
-
-	// BucketViews iterate through the top-level children buckets and returns them on the returned channel.
-	// The cancel channel is used to terminate the iteration early by the client.
-	BucketViews(cancel <-chan struct{}) <-chan BucketView
-
-	// BucketView returns the bucket for the specified name. If the bucket does not exist, then nil is returned.
-	// If path is specified, then the bucket will traverse the path to locate the Bucket within its hierarchy.
-	BucketView(path ...string) BucketView
+type bucket struct {
+	*bucketView
 }
 
-type KeyValue struct {
-	Key   string
-	Value []byte
-}
-
-type bucketView struct {
-	name string
-
-	path []string
-
-	db *bolt.DB
-}
-
-func (a *bucketView) Name() string {
-	return a.name
-}
-
-// Get returns the value for the specified key
-// If the key does not exist, or if the key actually refers to a child Bucket, then nil is returned
-func (a *bucketView) Get(key string) []byte {
-	data := make(chan []byte, 1)
-
-	a.db.View(func(tx *bolt.Tx) error {
-		b := bucket(tx, nil, a.path)
+func (a *bucket) Put(key string, value []byte) error {
+	return a.db.Update(func(tx *bolt.Tx) error {
+		b := lookupBucket(tx, nil, a.path)
 		if b == nil {
-			data <- nil
-			return nil
+			return bucketDoesNotExist(a.path)
 		}
-
-		data <- b.Get([]byte(key))
+		b.Put([]byte(key), value)
 		return nil
 	})
-
-	return <-data
 }
 
-// Keys returns the keys stored in this bucket. Keys are sorted, thus seek may be used to seek a position to start iterating.
-// seek is optional - if specified, then seek moves the cursor to a given key and returns it. If the key does not exist then the next key is used.
-func (a *bucketView) Keys(seek string, cancel <-chan struct{}) <-chan string {
-	c := make(chan chan string)
+func (a *bucket) PutMultiple(data <-chan *KeyValue) <-chan error {
+	c := make(chan chan error)
 
-	go a.db.View(func(tx *bolt.Tx) error {
-		data := make(chan string)
-		c <- data
-		b := bucket(tx, nil, a.path)
-		if b == nil {
-			close(data)
-			return nil
-		}
+	go func() {
+		response := make(chan error)
+		defer close(response)
+		c <- response
 
-		cursor := b.Cursor()
-		for k, _ := cursor.Seek([]byte(seek)); k != nil; k, _ = cursor.Next() {
-			select {
-			case <-cancel:
-				break
-			default:
-				data <- string(k)
+		err := a.db.Update(func(tx *bolt.Tx) error {
+			b := lookupBucket(tx, nil, a.path)
+			if b == nil {
+				return bucketDoesNotExist(a.path)
 			}
-		}
-		close(data)
+			for kv := range data {
+				b.Put([]byte(kv.Key), kv.Value)
+			}
 
-		return nil
-	})
+			return nil
+		})
+
+		if err != nil {
+			response <- err
+		}
+	}()
 
 	return <-c
 }
 
-// KeyValues iterates through all key-value pairs and returns them via the channel.
-// The cancel channel is used to terminate the iteration early by the client.
-func (a *bucketView) KeyValues(seek string, cancel <-chan struct{}) <-chan *KeyValue {
-	c := make(chan chan *KeyValue)
-
-	go a.db.View(func(tx *bolt.Tx) error {
-		data := make(chan *KeyValue)
-		c <- data
-		b := bucket(tx, nil, a.path)
+func (a *bucket) Delete(keys ...string) error {
+	return a.db.Update(func(tx *bolt.Tx) error {
+		b := lookupBucket(tx, nil, a.path)
 		if b == nil {
-			close(data)
-			return nil
+			return bucketDoesNotExist(a.path)
 		}
-
-		cursor := b.Cursor()
-		for k, v := cursor.Seek([]byte(seek)); k != nil; k, v = cursor.Next() {
-			select {
-			case <-cancel:
-				break
-			default:
-				data <- &KeyValue{string(k), v}
+		for _, k := range keys {
+			if err := b.Delete([]byte(k)); err != nil {
+				return err
 			}
-
 		}
-		close(data)
-
 		return nil
 	})
-
-	return <-c
 }
 
-func (a *bucketView) BucketViews(cancel <-chan struct{}) <-chan BucketView {
-	c := make(chan chan BucketView)
+func (a *bucket) CreateBucket(name string) (Bucket, error) {
+	err := a.db.Update(func(tx *bolt.Tx) error {
+		b := lookupBucket(tx, nil, a.path)
+		if b == nil {
+			return bucketDoesNotExist(a.path)
+		}
+		_, err := b.CreateBucket([]byte(name))
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &bucket{&bucketView{name: name, path: append(a.path, name), db: a.db}}, nil
+}
+
+func (a *bucket) CreateBucketIfNotExists(name string) (Bucket, error) {
+	err := a.db.Update(func(tx *bolt.Tx) error {
+		b := lookupBucket(tx, nil, a.path)
+		if b == nil {
+			return bucketDoesNotExist(a.path)
+		}
+		_, err := b.CreateBucketIfNotExists([]byte(name))
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &bucket{&bucketView{name: name, path: append(a.path, name), db: a.db}}, nil
+}
+
+func (a *bucket) DeleteBucket(name string) error {
+	return a.db.Update(func(tx *bolt.Tx) error {
+		b := lookupBucket(tx, nil, a.path)
+		if b == nil {
+			return bucketDoesNotExist(a.path)
+		}
+		return b.DeleteBucket([]byte(name))
+	})
+}
+
+func (a *bucket) Buckets(cancel <-chan struct{}) <-chan Bucket {
+	c := make(chan chan Bucket)
 
 	go a.db.View(func(tx *bolt.Tx) error {
-		buckets := make(chan BucketView)
-		c <- buckets
-		b := bucket(tx, nil, a.path)
+		data := make(chan Bucket)
+		c <- data
+		b := lookupBucket(tx, nil, a.path)
 		if b == nil {
-			close(buckets)
+			close(data)
 			return nil
 		}
 
@@ -200,12 +178,13 @@ func (a *bucketView) BucketViews(cancel <-chan struct{}) <-chan BucketView {
 			case <-cancel:
 				break
 			default:
+				// nil values mean the value is a bucket
 				if v == nil {
-					buckets <- &bucketView{string(k), append(a.path, string(k)), a.db}
+					data <- &bucket{&bucketView{string(k), append(a.path, string(k)), a.db}}
 				}
 			}
 		}
-		close(buckets)
+		close(data)
 
 		return nil
 	})
@@ -213,44 +192,10 @@ func (a *bucketView) BucketViews(cancel <-chan struct{}) <-chan BucketView {
 	return <-c
 }
 
-func (a *bucketView) BucketView(path ...string) BucketView {
-	if len(path) == 0 {
-		return a
+func (a *bucket) Bucket(path ...string) Bucket {
+	view := a.bucketView.bucketView(path...)
+	if view != nil {
+		return &bucket{view}
 	}
-
-	b := make(chan BucketView, 1)
-	a.db.View(func(tx *bolt.Tx) error {
-		parent := bucket(tx, nil, a.path)
-		if parent == nil {
-			b <- nil
-			return nil
-		}
-		target := bucket(tx, parent, path)
-		if target == nil {
-			b <- nil
-			return nil
-		}
-
-		b <- &bucketView{path[len(path)-1], path, a.db}
-
-		return nil
-	})
-
-	return <-b
-}
-
-func bucket(tx *bolt.Tx, parent *bolt.Bucket, path []string) *bolt.Bucket {
-	if len(path) == 0 {
-		return parent
-	}
-
-	if parent != nil {
-		parent = parent.Bucket([]byte(path[0]))
-	} else {
-		parent = tx.Bucket([]byte(path[0]))
-	}
-	if parent == nil {
-		return nil
-	}
-	return bucket(tx, parent, path[1:])
+	return nil
 }

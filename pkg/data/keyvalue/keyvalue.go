@@ -14,21 +14,7 @@
 
 package keyvalue
 
-import (
-	"errors"
-	"fmt"
-)
-
-var (
-	ErrPathIsRequired                     = errors.New("Path is required")
-	ErrDatabaseNameIsRequired             = errors.New("Database name is required")
-	ErrBucketWasFoundForDatabaseNameValue = errors.New("A bucket was stored using the database 'name' key in the root 'db' bucket")
-)
-
-func bucketDoesNotExist(path []string) error {
-	return fmt.Errorf("Bucket does not exist at path : %v", path)
-}
-
-func databaseNameDoesNotMatch(expected, actual string) error {
-	return fmt.Errorf("Database name does not match : expected = %q, actual = %q", expected, actual)
+type KeyValue struct {
+	Key   string
+	Value []byte
 }

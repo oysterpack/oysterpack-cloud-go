@@ -14,21 +14,20 @@
 
 package keyvalue
 
-import (
-	"errors"
-	"fmt"
-)
+import "github.com/coreos/bbolt"
 
-var (
-	ErrPathIsRequired                     = errors.New("Path is required")
-	ErrDatabaseNameIsRequired             = errors.New("Database name is required")
-	ErrBucketWasFoundForDatabaseNameValue = errors.New("A bucket was stored using the database 'name' key in the root 'db' bucket")
-)
+func lookupBucket(tx *bolt.Tx, parent *bolt.Bucket, path []string) *bolt.Bucket {
+	if len(path) == 0 {
+		return parent
+	}
 
-func bucketDoesNotExist(path []string) error {
-	return fmt.Errorf("Bucket does not exist at path : %v", path)
-}
-
-func databaseNameDoesNotMatch(expected, actual string) error {
-	return fmt.Errorf("Database name does not match : expected = %q, actual = %q", expected, actual)
+	if parent != nil {
+		parent = parent.Bucket([]byte(path[0]))
+	} else {
+		parent = tx.Bucket([]byte(path[0]))
+	}
+	if parent == nil {
+		return nil
+	}
+	return lookupBucket(tx, parent, path[1:])
 }
