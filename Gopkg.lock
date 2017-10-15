@@ -22,8 +22,8 @@
 [[projects]]
   name = "github.com/json-iterator/go"
   packages = ["."]
-  revision = "6ed27152e0428abfde127acb33b08b03a1e67cac"
-  version = "1.0.2"
+  revision = "6240e1e7983a85228f7fd9c3e1b6932d46ec58e2"
+  version = "1.0.3"
 
 [[projects]]
   name = "github.com/matttproud/golang_protobuf_extensions"
@@ -48,6 +48,12 @@
   packages = ["."]
   revision = "289cccf02c178dc782430d534e3c1f5b72af807f"
   version = "v1.0.0"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/nats-io/prometheus-nats-exporter"
+  packages = ["collector","exporter"]
+  revision = "15af619d1b4b69a1894a7286cda77fe54f81f377"
 
 [[projects]]
   name = "github.com/prometheus/client_golang"
@@ -89,11 +95,11 @@
   branch = "master"
   name = "golang.org/x/sys"
   packages = ["unix","windows","windows/registry","windows/svc","windows/svc/debug","windows/svc/eventlog","windows/svc/mgr"]
-  revision = "ebfc5b4631820b793c9010c87fd8fef0f39eb082"
+  revision = "686000749eaec0b8855b8eef5336cf63899fe51d"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "65f8d13f697f0528a918331276fd8a96e58325718654ec8e91c962ca0afb84b7"
+  inputs-digest = "70801d3ebb4c6d535f8688f28d983df39412a08139b4ba74055788e5e90094d4"
   solver-name = "gps-cdcl"
   solver-version = 1

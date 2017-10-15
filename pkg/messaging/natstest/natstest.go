@@ -27,6 +27,7 @@ import (
 	"github.com/oysterpack/oysterpack.go/pkg/messaging/nats/server"
 )
 
+// ReConnectTimeout is short for tests
 const ReConnectTimeout = 10 * time.Millisecond
 
 func init() {

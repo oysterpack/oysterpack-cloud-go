@@ -41,6 +41,7 @@ var (
 		return serviceInterface
 	}()
 
+	// ServiceDescriptor for the NATSServer
 	ServiceDescriptor = service.NewDescriptor(Namespace, System, Component, Version, ServiceInterface)
 )
 
