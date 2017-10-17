@@ -64,7 +64,7 @@ func (a *bucket) Put(key string, value []byte) error {
 	return a.db.Update(func(tx *bolt.Tx) error {
 		b := lookupBucket(tx, nil, a.path)
 		if b == nil {
-			return bucketDoesNotExist(a.path)
+			return errBucketDoesNotExist(a.path)
 		}
 		b.Put([]byte(key), value)
 		return nil
@@ -82,7 +82,7 @@ func (a *bucket) PutMultiple(data <-chan *KeyValue) <-chan error {
 		err := a.db.Update(func(tx *bolt.Tx) error {
 			b := lookupBucket(tx, nil, a.path)
 			if b == nil {
-				return bucketDoesNotExist(a.path)
+				return errBucketDoesNotExist(a.path)
 			}
 			for kv := range data {
 				b.Put([]byte(kv.Key), kv.Value)
@@ -103,7 +103,7 @@ func (a *bucket) Delete(keys ...string) error {
 	return a.db.Update(func(tx *bolt.Tx) error {
 		b := lookupBucket(tx, nil, a.path)
 		if b == nil {
-			return bucketDoesNotExist(a.path)
+			return errBucketDoesNotExist(a.path)
 		}
 		for _, k := range keys {
 			if err := b.Delete([]byte(k)); err != nil {
@@ -118,7 +118,7 @@ func (a *bucket) CreateBucket(name string) (Bucket, error) {
 	err := a.db.Update(func(tx *bolt.Tx) error {
 		b := lookupBucket(tx, nil, a.path)
 		if b == nil {
-			return bucketDoesNotExist(a.path)
+			return errBucketDoesNotExist(a.path)
 		}
 		_, err := b.CreateBucket([]byte(name))
 		if err != nil {
@@ -136,7 +136,7 @@ func (a *bucket) CreateBucketIfNotExists(name string) (Bucket, error) {
 	err := a.db.Update(func(tx *bolt.Tx) error {
 		b := lookupBucket(tx, nil, a.path)
 		if b == nil {
-			return bucketDoesNotExist(a.path)
+			return errBucketDoesNotExist(a.path)
 		}
 		_, err := b.CreateBucketIfNotExists([]byte(name))
 		if err != nil {
@@ -154,7 +154,7 @@ func (a *bucket) DeleteBucket(name string) error {
 	return a.db.Update(func(tx *bolt.Tx) error {
 		b := lookupBucket(tx, nil, a.path)
 		if b == nil {
-			return bucketDoesNotExist(a.path)
+			return errBucketDoesNotExist(a.path)
 		}
 		return b.DeleteBucket([]byte(name))
 	})

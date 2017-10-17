@@ -15,24 +15,20 @@
 package keyvalue
 
 import (
-	"fmt"
 	"strings"
 	"time"
+
+	"os"
 
 	"github.com/coreos/bbolt"
 )
 
 // DatabaseView provides a read-only view of the database
 type DatabaseView interface {
-	Name() string
+	BucketView
 
-	// Buckets return the bucket names on the returned channel. Only Top-level buckets are returned.
-	// The cancel channel is used to terminate the iteration early by the client.
-	BucketViews(cancel <-chan struct{}) <-chan BucketView
-
-	// Bucket returns the bucket for the specified name. If the bucket does not exist, then nil is returned.
-	// If path is specified, then the database will traverse the path to locate the Bucket within its hierarchy.
-	BucketView(path ...string) BucketView
+	// Created returns when the database was created, or an error if it cannot be determined
+	Created() (time.Time, error)
 
 	// Close releases all database resources. All transactions must be closed before closing the database.
 	Close() error
@@ -43,12 +39,21 @@ type DatabaseView interface {
 // from opening the database in read-write mode.
 //
 // The path must point to a bbolt file. The file must have the following structure :
-// - a root bucket must exist named 'db'
+// - a root bucket must exist with the db name
 // - the root 'db' bucket must contain a key named 'name', which is the database name
-func OpenDatabaseView(path string) (DatabaseView, error) {
-	path = strings.TrimSpace(path)
-	if path == "" {
-		return nil, ErrPathIsRequired
+func OpenDatabaseView(filePath string, dbName string) (DatabaseView, error) {
+	filePath = strings.TrimSpace(filePath)
+	if filePath == "" {
+		return nil, ErrFilePathIsBlank
+	}
+
+	dbName = strings.TrimSpace(dbName)
+	if dbName == "" {
+		return nil, ErrDatabaseNameMustNotBeBlank
+	}
+
+	if _, err := os.Stat(filePath); err != nil {
+		return nil, err
 	}
 
 	options := &bolt.Options{
@@ -56,28 +61,22 @@ func OpenDatabaseView(path string) (DatabaseView, error) {
 		Timeout:  time.Second * 30,
 	}
 
-	db, err := bolt.Open(path, READ_MODE, options)
+	db, err := bolt.Open(filePath, READ_MODE, options)
 	if err != nil {
 		return nil, err
 	}
 
-	var dbName []byte
 	err = db.View(func(tx *bolt.Tx) error {
-		root := tx.Bucket(database_bucket)
-		if root != nil {
-			dbName = root.Get(database_name)
-		} else {
-			err = fmt.Errorf("Root database bucket does not exist : %s", DATABASE_BUCKET)
+		dbBucket := tx.Bucket([]byte(dbName))
+		if dbBucket == nil {
+			return errRootDatabaseBucketDoesNotExist(dbName)
 		}
 		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
-	if len(dbName) == 0 {
-		return nil, ErrDatabaseNameIsRequired
-	}
-	dbBucket := &bucketView{name: string(dbName), path: database_path, db: db}
+	dbBucket := &bucketView{name: string(dbName), path: []string{dbName}, db: db}
 	return &databaseView{dbBucket}, nil
 }
 
@@ -85,10 +84,12 @@ type databaseView struct {
 	*bucketView
 }
 
-func (a *databaseView) Name() string {
-	return string(a.Get(DATABASE_NAME))
-}
-
 func (a *databaseView) Close() error {
 	return a.db.Close()
+}
+
+func (a *databaseView) Created() (time.Time, error) {
+	t := time.Time{}
+	err := t.UnmarshalBinary(a.Get(CREATED))
+	return t, err
 }

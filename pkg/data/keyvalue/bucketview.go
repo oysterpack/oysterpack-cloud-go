@@ -33,12 +33,12 @@ type BucketView interface {
 	// The cancel channel is used to terminate the iteration early by the client.
 	KeyValues(seek string, cancel <-chan struct{}) <-chan *KeyValue
 
-	// BucketViews iterate through the top-level children buckets and returns them on the returned channel.
+	// BucketViews iterate through the top-level children buckets and returns via the returned channel.
 	// The cancel channel is used to terminate the iteration early by the client.
 	BucketViews(cancel <-chan struct{}) <-chan BucketView
 
-	// BucketView returns the bucket for the specified name. If the bucket does not exist, then nil is returned.
-	// If path is specified, then the bucket will traverse the path to locate the Bucket within its hierarchy.
+	// BucketView returns the bucket for the specified path. If the bucket does not exist, then nil is returned.
+	// The path is traversed to locate the Bucket within its hierarchy.
 	BucketView(path ...string) BucketView
 }
 

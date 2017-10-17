@@ -20,15 +20,19 @@ import (
 )
 
 var (
-	ErrPathIsRequired                     = errors.New("Path is required")
-	ErrDatabaseNameIsRequired             = errors.New("Database name is required")
-	ErrBucketWasFoundForDatabaseNameValue = errors.New("A bucket was stored using the database 'name' key in the root 'db' bucket")
+	ErrFilePathIsBlank             = errors.New("Path must not be blank")
+	ErrDatabaseNameMustNotBeBlank  = errors.New("Database name must not be blank.")
+	ErrDatabaseBucketAlreadyExists = errors.New("Database bucket already exists")
 )
 
-func bucketDoesNotExist(path []string) error {
+func errBucketDoesNotExist(path []string) error {
 	return fmt.Errorf("Bucket does not exist at path : %v", path)
 }
 
-func databaseNameDoesNotMatch(expected, actual string) error {
-	return fmt.Errorf("Database name does not match : expected = %q, actual = %q", expected, actual)
+func errRootDatabaseBucketDoesNotExist(dbName string) error {
+	return fmt.Errorf("Root database bucket does not exist : %s", dbName)
+}
+
+func errDatabaseFilePathIsDir(filePath string) error {
+	return fmt.Errorf("The database file path must point to a file, not a directory : %s", filePath)
 }
