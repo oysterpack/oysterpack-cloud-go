@@ -14,7 +14,11 @@
 
 package keyvalue
 
-import "github.com/coreos/bbolt"
+import (
+	"strings"
+
+	"github.com/coreos/bbolt"
+)
 
 // Bucket represents a bucket of key-value pairs. Keys are strings, but values are simply bytes.
 // Buckets can form a hierarchy of buckets.
@@ -62,7 +66,7 @@ type bucket struct {
 
 func (a *bucket) Put(key string, value []byte) error {
 	return a.db.Update(func(tx *bolt.Tx) error {
-		b := lookupBucket(tx, nil, a.path)
+		b := lookupBucket(tx, a.path)
 		if b == nil {
 			return errBucketDoesNotExist(a.path)
 		}
@@ -80,7 +84,7 @@ func (a *bucket) PutMultiple(data <-chan *KeyValue) <-chan error {
 		c <- response
 
 		err := a.db.Update(func(tx *bolt.Tx) error {
-			b := lookupBucket(tx, nil, a.path)
+			b := lookupBucket(tx, a.path)
 			if b == nil {
 				return errBucketDoesNotExist(a.path)
 			}
@@ -101,7 +105,7 @@ func (a *bucket) PutMultiple(data <-chan *KeyValue) <-chan error {
 
 func (a *bucket) Delete(keys ...string) error {
 	return a.db.Update(func(tx *bolt.Tx) error {
-		b := lookupBucket(tx, nil, a.path)
+		b := lookupBucket(tx, a.path)
 		if b == nil {
 			return errBucketDoesNotExist(a.path)
 		}
@@ -115,13 +119,16 @@ func (a *bucket) Delete(keys ...string) error {
 }
 
 func (a *bucket) CreateBucket(name string) (Bucket, error) {
-	err := a.db.Update(func(tx *bolt.Tx) error {
-		b := lookupBucket(tx, nil, a.path)
+	name, err := checkBucketName(name)
+	if err != nil {
+		return nil, err
+	}
+	err = a.db.Update(func(tx *bolt.Tx) error {
+		b := lookupBucket(tx, a.path)
 		if b == nil {
 			return errBucketDoesNotExist(a.path)
 		}
-		_, err := b.CreateBucket([]byte(name))
-		if err != nil {
+		if _, err := b.CreateBucket([]byte(name)); err != nil {
 			return err
 		}
 		return nil
@@ -129,17 +136,21 @@ func (a *bucket) CreateBucket(name string) (Bucket, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &bucket{&bucketView{name: name, path: append(a.path, name), db: a.db}}, nil
+	child := &bucket{&bucketView{path: append(a.path, name), db: a.db}}
+	return child, nil
 }
 
 func (a *bucket) CreateBucketIfNotExists(name string) (Bucket, error) {
-	err := a.db.Update(func(tx *bolt.Tx) error {
-		b := lookupBucket(tx, nil, a.path)
+	name, err := checkBucketName(name)
+	if err != nil {
+		return nil, err
+	}
+	err = a.db.Update(func(tx *bolt.Tx) error {
+		b := lookupBucket(tx, a.path)
 		if b == nil {
 			return errBucketDoesNotExist(a.path)
 		}
-		_, err := b.CreateBucketIfNotExists([]byte(name))
-		if err != nil {
+		if _, err := b.CreateBucketIfNotExists([]byte(name)); err != nil {
 			return err
 		}
 		return nil
@@ -147,12 +158,16 @@ func (a *bucket) CreateBucketIfNotExists(name string) (Bucket, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &bucket{&bucketView{name: name, path: append(a.path, name), db: a.db}}, nil
+	return &bucket{&bucketView{path: append(a.path, name), db: a.db}}, nil
 }
 
 func (a *bucket) DeleteBucket(name string) error {
+	name, err := checkBucketName(name)
+	if err != nil {
+		return err
+	}
 	return a.db.Update(func(tx *bolt.Tx) error {
-		b := lookupBucket(tx, nil, a.path)
+		b := lookupBucket(tx, a.path)
 		if b == nil {
 			return errBucketDoesNotExist(a.path)
 		}
@@ -166,24 +181,34 @@ func (a *bucket) Buckets(cancel <-chan struct{}) <-chan Bucket {
 	go a.db.View(func(tx *bolt.Tx) error {
 		data := make(chan Bucket)
 		c <- data
-		b := lookupBucket(tx, nil, a.path)
+		b := lookupBucket(tx, a.path)
 		if b == nil {
 			close(data)
 			return nil
 		}
 
 		cursor := b.Cursor()
-		for k, v := cursor.First(); k != nil; k, v = cursor.Next() {
-			select {
-			case <-cancel:
-				break
-			default:
+		if cancel != nil {
+			for k, v := cursor.First(); k != nil; k, v = cursor.Next() {
+				select {
+				case <-cancel:
+					break
+				default:
+					// nil values mean the value is a bucket
+					if v == nil {
+						data <- &bucket{&bucketView{append(a.path, string(k)), a.db}}
+					}
+				}
+			}
+		} else {
+			for k, v := cursor.First(); k != nil; k, v = cursor.Next() {
 				// nil values mean the value is a bucket
 				if v == nil {
-					data <- &bucket{&bucketView{string(k), append(a.path, string(k)), a.db}}
+					data <- &bucket{&bucketView{append(a.path, string(k)), a.db}}
 				}
 			}
 		}
+
 		close(data)
 
 		return nil
@@ -198,4 +223,12 @@ func (a *bucket) Bucket(path ...string) Bucket {
 		return &bucket{view}
 	}
 	return nil
+}
+
+func checkBucketName(name string) (string, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return name, ErrBucketNameMustNotBeBlank
+	}
+	return name, nil
 }

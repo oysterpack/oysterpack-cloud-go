@@ -23,9 +23,12 @@ import (
 )
 
 const (
-	READ_MODE       os.FileMode = 0400
+	// READ_MODE is used when opening the database in read-only mode
+	READ_MODE os.FileMode = 0400
+	// READ_WRITE_MODE is used when opening the database in read-write mode
 	READ_WRITE_MODE os.FileMode = 0600
 
+	// CREATED is used as the key to store the database creation timestamp in the root database bucket
 	CREATED = "created"
 )
 
@@ -44,6 +47,11 @@ type Database interface {
 // The filePath must point to a bbolt file. The file must have the following structure :
 // - a root bucket must exist that matches the database name
 func OpenDatabase(filePath string, dbName string) (Database, error) {
+	dbName = strings.TrimSpace(dbName)
+	if dbName == "" {
+		return nil, ErrDatabaseNameMustNotBeBlank
+	}
+
 	filePath = strings.TrimSpace(filePath)
 	if filePath == "" {
 		return nil, ErrFilePathIsBlank
@@ -53,11 +61,6 @@ func OpenDatabase(filePath string, dbName string) (Database, error) {
 		return nil, err
 	} else if stat.IsDir() {
 		return nil, errDatabaseFilePathIsDir(filePath)
-	}
-
-	dbName = strings.TrimSpace(dbName)
-	if dbName == "" {
-		return nil, ErrDatabaseNameMustNotBeBlank
 	}
 
 	dbKey := []byte(dbName)
@@ -79,10 +82,11 @@ func OpenDatabase(filePath string, dbName string) (Database, error) {
 		return nil
 	})
 	if err != nil {
+		db.Close()
 		return nil, err
 	}
 
-	dbBucket := &bucket{&bucketView{name: string(dbName), path: []string{dbName}, db: db}}
+	dbBucket := &bucket{&bucketView{path: []string{dbName}, db: db}}
 	return &database{dbBucket}, nil
 }
 
@@ -139,7 +143,7 @@ func CreateDatabase(filePath string, dbName string, ifNotExists bool) (Database,
 	if err != nil {
 		return nil, err
 	}
-	dbBucket := &bucket{&bucketView{name: string(dbName), path: []string{dbName}, db: db}}
+	dbBucket := &bucket{&bucketView{path: []string{dbName}, db: db}}
 	return &database{dbBucket}, nil
 }
 

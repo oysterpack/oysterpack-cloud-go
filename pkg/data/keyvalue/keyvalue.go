@@ -14,6 +14,7 @@
 
 package keyvalue
 
+// KeyValue key-value pair
 type KeyValue struct {
 	Key   string
 	Value []byte

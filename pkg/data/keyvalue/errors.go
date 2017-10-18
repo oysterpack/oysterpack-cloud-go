@@ -19,9 +19,11 @@ import (
 	"fmt"
 )
 
+// Database related errors
 var (
 	ErrFilePathIsBlank             = errors.New("Path must not be blank")
 	ErrDatabaseNameMustNotBeBlank  = errors.New("Database name must not be blank.")
+	ErrBucketNameMustNotBeBlank    = errors.New("Bucket name must not be blank.")
 	ErrDatabaseBucketAlreadyExists = errors.New("Database bucket already exists")
 )
 

@@ -14,15 +14,28 @@
 
 package keyvalue
 
-import "github.com/coreos/bbolt"
+import (
+	"strings"
+
+	"fmt"
+
+	"github.com/coreos/bbolt"
+)
 
 // BucketView is a read-only view of the Bucket
 type BucketView interface {
 	// Name returns the Bucket name
 	Name() string
 
+	// Path returns the bucket's path location
+	Path() []string
+
+	// Exists returns true if the bucket exists. It might have been deleted.
+	Exists() bool
+
 	// Get returns the value for the specified key
 	// If the key does not exist, or if the key actually refers to a child Bucket, then nil is returned
+	// If bucket does not exist, then by definition, the bucket has no data and nil is returned.
 	Get(key string) []byte
 
 	// Keys returns the keys stored in this bucket. Keys are sorted, thus seek may be used to seek a position to start iterating.
@@ -43,15 +56,32 @@ type BucketView interface {
 }
 
 type bucketView struct {
-	name string
-
 	path []string
 
 	db *bolt.DB
 }
 
+func (a *bucketView) String() string {
+	return fmt.Sprintf("[%s]", strings.Join(a.path, " -> "))
+}
+
 func (a *bucketView) Name() string {
-	return a.name
+	return a.path[len(a.path)-1]
+}
+
+func (a *bucketView) Path() []string {
+	return a.path
+}
+
+func (a *bucketView) Exists() bool {
+	data := make(chan bool, 1)
+
+	a.db.View(func(tx *bolt.Tx) error {
+		data <- lookupBucket(tx, a.path) != nil
+		return nil
+	})
+
+	return <-data
 }
 
 // Get returns the value for the specified key
@@ -60,7 +90,7 @@ func (a *bucketView) Get(key string) []byte {
 	data := make(chan []byte, 1)
 
 	a.db.View(func(tx *bolt.Tx) error {
-		b := lookupBucket(tx, nil, a.path)
+		b := lookupBucket(tx, a.path)
 		if b == nil {
 			data <- nil
 			return nil
@@ -74,28 +104,36 @@ func (a *bucketView) Get(key string) []byte {
 }
 
 // Keys returns the keys stored in this bucket. Keys are sorted, thus seek may be used to seek a position to start iterating.
-// seek is optional - if specified, then seek moves the cursor to a given key and returns it. If the key does not exist then the next key is used.
+// seek is optional - if specified, i.e., not "", then seek moves the cursor to a given key and returns it. If the key does not exist then the next key is used.
+// cancel is option, i.e., it can be nil
 func (a *bucketView) Keys(seek string, cancel <-chan struct{}) <-chan string {
 	c := make(chan chan string)
 
 	go a.db.View(func(tx *bolt.Tx) error {
 		data := make(chan string)
 		c <- data
-		b := lookupBucket(tx, nil, a.path)
+		b := lookupBucket(tx, a.path)
 		if b == nil {
 			close(data)
 			return nil
 		}
 
 		cursor := b.Cursor()
-		for k, _ := cursor.Seek([]byte(seek)); k != nil; k, _ = cursor.Next() {
-			select {
-			case <-cancel:
-				break
-			default:
+		if cancel != nil {
+			for k, _ := cursor.Seek([]byte(seek)); k != nil; k, _ = cursor.Next() {
+				select {
+				case <-cancel:
+					break
+				default:
+					data <- string(k)
+				}
+			}
+		} else {
+			for k, _ := cursor.Seek([]byte(seek)); k != nil; k, _ = cursor.Next() {
 				data <- string(k)
 			}
 		}
+
 		close(data)
 
 		return nil
@@ -105,29 +143,37 @@ func (a *bucketView) Keys(seek string, cancel <-chan struct{}) <-chan string {
 }
 
 // KeyValues iterates through all key-value pairs and returns them via the channel.
-// The cancel channel is used to terminate the iteration early by the client.
+// seek is optional - if specified, i.e., not "", then seek moves the cursor to a given key and returns it. If the key does not exist then the next key is used.
+// The cancel channel is optional, i.e., it can be nil. The cancel channel is used to terminate the iteration early by the client.
 func (a *bucketView) KeyValues(seek string, cancel <-chan struct{}) <-chan *KeyValue {
 	c := make(chan chan *KeyValue)
 
 	go a.db.View(func(tx *bolt.Tx) error {
 		data := make(chan *KeyValue)
 		c <- data
-		b := lookupBucket(tx, nil, a.path)
+		b := lookupBucket(tx, a.path)
 		if b == nil {
 			close(data)
 			return nil
 		}
 
 		cursor := b.Cursor()
-		for k, v := cursor.Seek([]byte(seek)); k != nil; k, v = cursor.Next() {
-			select {
-			case <-cancel:
-				break
-			default:
+		if cancel != nil {
+			for k, v := cursor.Seek([]byte(seek)); k != nil; k, v = cursor.Next() {
+				select {
+				case <-cancel:
+					break
+				default:
+					data <- &KeyValue{string(k), v}
+				}
+
+			}
+		} else {
+			for k, v := cursor.Seek([]byte(seek)); k != nil; k, v = cursor.Next() {
 				data <- &KeyValue{string(k), v}
 			}
-
 		}
+
 		close(data)
 
 		return nil
@@ -142,23 +188,32 @@ func (a *bucketView) BucketViews(cancel <-chan struct{}) <-chan BucketView {
 	go a.db.View(func(tx *bolt.Tx) error {
 		buckets := make(chan BucketView)
 		c <- buckets
-		b := lookupBucket(tx, nil, a.path)
+		b := lookupBucket(tx, a.path)
 		if b == nil {
 			close(buckets)
 			return nil
 		}
 
 		cursor := b.Cursor()
-		for k, v := cursor.First(); k != nil; k, v = cursor.Next() {
-			select {
-			case <-cancel:
-				break
-			default:
+		if cancel != nil {
+			for k, v := cursor.First(); k != nil; k, v = cursor.Next() {
+				select {
+				case <-cancel:
+					break
+				default:
+					if v == nil {
+						buckets <- &bucketView{append(a.path, string(k)), a.db}
+					}
+				}
+			}
+		} else {
+			for k, v := cursor.First(); k != nil; k, v = cursor.Next() {
 				if v == nil {
-					buckets <- &bucketView{string(k), append(a.path, string(k)), a.db}
+					buckets <- &bucketView{append(a.path, string(k)), a.db}
 				}
 			}
 		}
+
 		close(buckets)
 
 		return nil
@@ -168,7 +223,11 @@ func (a *bucketView) BucketViews(cancel <-chan struct{}) <-chan BucketView {
 }
 
 func (a *bucketView) BucketView(path ...string) BucketView {
-	return a.bucketView(path...)
+	view := a.bucketView(path...)
+	if view == nil {
+		return nil
+	}
+	return view
 }
 
 func (a *bucketView) bucketView(path ...string) *bucketView {
@@ -178,18 +237,18 @@ func (a *bucketView) bucketView(path ...string) *bucketView {
 
 	b := make(chan *bucketView, 1)
 	a.db.View(func(tx *bolt.Tx) error {
-		parent := lookupBucket(tx, nil, a.path)
+		parent := lookupBucket(tx, a.path)
 		if parent == nil {
 			b <- nil
 			return nil
 		}
-		target := lookupBucket(tx, parent, path)
+		target := lookupChildBucket(tx, parent, path)
 		if target == nil {
 			b <- nil
 			return nil
 		}
 
-		b <- &bucketView{path[len(path)-1], path, a.db}
+		b <- &bucketView{append(a.path, path...), a.db}
 
 		return nil
 	})

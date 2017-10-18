@@ -74,9 +74,10 @@ func OpenDatabaseView(filePath string, dbName string) (DatabaseView, error) {
 		return nil
 	})
 	if err != nil {
+		db.Close()
 		return nil, err
 	}
-	dbBucket := &bucketView{name: string(dbName), path: []string{dbName}, db: db}
+	dbBucket := &bucketView{path: []string{dbName}, db: db}
 	return &databaseView{dbBucket}, nil
 }
 

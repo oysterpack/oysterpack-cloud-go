@@ -16,7 +16,11 @@ package keyvalue
 
 import "github.com/coreos/bbolt"
 
-func lookupBucket(tx *bolt.Tx, parent *bolt.Bucket, path []string) *bolt.Bucket {
+func lookupBucket(tx *bolt.Tx, path []string) *bolt.Bucket {
+	return lookupChildBucket(tx, nil, path)
+}
+
+func lookupChildBucket(tx *bolt.Tx, parent *bolt.Bucket, path []string) *bolt.Bucket {
 	if len(path) == 0 {
 		return parent
 	}
@@ -29,5 +33,5 @@ func lookupBucket(tx *bolt.Tx, parent *bolt.Bucket, path []string) *bolt.Bucket 
 	if parent == nil {
 		return nil
 	}
-	return lookupBucket(tx, parent, path[1:])
+	return lookupChildBucket(tx, parent, path[1:])
 }
