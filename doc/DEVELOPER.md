@@ -65,12 +65,15 @@ the -benchmem flag will include memory allocation statistics in the report
             return fmt.Sprintf("%v : %v", e.State, e.Message)
         }
         
-# How to run prometheus locally
-1. Install prometheus locally using go (see [https://github.com/prometheus/prometheus](https://github.com/prometheus/prometheus))
+# GO IDE Setup
+1. Plugins
+    - Docker
+    - Markdown
+    - YAML
+2. [Configuring Inotify Watches Limit](https://confluence.jetbrains.com/display/IDEADEV/Inotify+Watches+Limit)
 
-        GO15VENDOREXPERIMENT=1 go get github.com/prometheus/prometheus/cmd/prometheus
-        
-2. prometheus -config.file <prometheus.yml>
+Execute the following commands from this directory:
 
-   **NOTE**: run prometheus outside of the workspace because by default prometheus will create its data directory in the current working directory.
+    sudo cp 60-idea.conf /etc/sysctl.d/
+    sudo service procps start
 

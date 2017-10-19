@@ -15,4 +15,7 @@
 
 # vendor
 vendor/
+
 /pkg/data/keyvalue/testdata/temp/*
+
+/capnproto/*

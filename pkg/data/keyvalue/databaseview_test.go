@@ -78,7 +78,6 @@ func TestOpenDatabase_BlankFilePath(t *testing.T) {
 	} else {
 		t.Log(err)
 	}
-
 }
 
 func TestOpenDatabase_BlankDBName(t *testing.T) {

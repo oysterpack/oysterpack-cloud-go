@@ -31,6 +31,12 @@
 - [bbolt](https://github.com/coreos/bbolt) 
   - use case : application configuration
 
+### PKI  
+- [easypki](https://github.com/google/easypki)
+
+### Serialization
+- [capnp](https://capnproto.org/index.html)
+
 ### NewSQL
 - [CockroachDB](https://www.cockroachlabs.com/)
 
@@ -57,3 +63,6 @@
 - [lint](https://www.timeferret.com/lint)
   - integrated via **lint/lint_test.go**
     - all code underneath the **oysterpack** package will be linted - excluding test files
+    
+## Web UI
+- [Gowut (Go Web UI Toolkit)](https://github.com/icza/gowut)
