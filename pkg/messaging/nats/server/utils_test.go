@@ -68,10 +68,20 @@ func clientTLSConfig() *tls.Config {
 }
 
 func serverTLSConfig() *tls.Config {
-	certKeyPair, err := tls.LoadX509KeyPair(
-		PKI_ROOT+"/oysterpack/certs/nats.dev.oysterpack.com.crt",
-		PKI_ROOT+"/oysterpack/keys/nats.dev.oysterpack.com.key",
-	)
+	const certName = "nats.dev.oysterpack.com"
+	cert, err := ioutil.ReadFile(fmt.Sprintf("%s/oysterpack/certs/%s.crt", PKI_ROOT, certName))
+	if err != nil {
+		panic(err)
+	}
+	key, err := ioutil.ReadFile(fmt.Sprintf("%s/oysterpack/keys/%s.key", PKI_ROOT, certName))
+	if err != nil {
+		panic(err)
+	}
+	certKeyPair, err := tls.X509KeyPair(cert, key)
+	//certKeyPair, err := tls.LoadX509KeyPair(
+	//	PKI_ROOT+"/oysterpack/certs/nats.dev.oysterpack.com.crt",
+	//	PKI_ROOT+"/oysterpack/keys/nats.dev.oysterpack.com.key",
+	//)
 	if err != nil {
 		panic(err)
 	}

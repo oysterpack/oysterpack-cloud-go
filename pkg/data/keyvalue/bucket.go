@@ -32,7 +32,7 @@ type Bucket interface {
 
 	// PutMultiple will put all values received on the data channel within the same transaction, i.e., either all or none will be stored.
 	// The puts are performed async, and when the the puts are done, then the result will be communicated via the response channel.
-	// Once nil is received on the data channel, then this signals the transation was successfully committed.
+	// Once nil is received on the data channel, then this signals the transaction was successfully committed.
 	// If the transaction failed, then the error is returned on the response channel.
 	PutMultiple(data <-chan *KeyValue) <-chan error
 

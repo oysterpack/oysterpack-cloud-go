@@ -14,12 +14,12 @@ type NATSServerConfig struct{ capnp.Struct }
 const NATSServerConfig_TypeID = 0xe6c2ada3d6363f58
 
 func NewNATSServerConfig(s *capnp.Segment) (NATSServerConfig, error) {
-	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 5})
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 7})
 	return NATSServerConfig{st}, err
 }
 
 func NewRootNATSServerConfig(s *capnp.Segment) (NATSServerConfig, error) {
-	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 5})
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 7})
 	return NATSServerConfig{st}, err
 }
 
@@ -196,12 +196,62 @@ func (s NATSServerConfig) SetMetricsExporterPort(v int32) {
 	s.Struct.SetUint32(12, uint32(v)^4444)
 }
 
+func (s NATSServerConfig) ServerX509KeyPair() (NATSServerConfig_X509KeyPair, error) {
+	p, err := s.Struct.Ptr(5)
+	return NATSServerConfig_X509KeyPair{Struct: p.Struct()}, err
+}
+
+func (s NATSServerConfig) HasServerX509KeyPair() bool {
+	p, err := s.Struct.Ptr(5)
+	return p.IsValid() || err != nil
+}
+
+func (s NATSServerConfig) SetServerX509KeyPair(v NATSServerConfig_X509KeyPair) error {
+	return s.Struct.SetPtr(5, v.Struct.ToPtr())
+}
+
+// NewServerX509KeyPair sets the serverX509KeyPair field to a newly
+// allocated NATSServerConfig_X509KeyPair struct, preferring placement in s's segment.
+func (s NATSServerConfig) NewServerX509KeyPair() (NATSServerConfig_X509KeyPair, error) {
+	ss, err := NewNATSServerConfig_X509KeyPair(s.Struct.Segment())
+	if err != nil {
+		return NATSServerConfig_X509KeyPair{}, err
+	}
+	err = s.Struct.SetPtr(5, ss.Struct.ToPtr())
+	return ss, err
+}
+
+func (s NATSServerConfig) ClusterX509KeyPair() (NATSServerConfig_X509KeyPair, error) {
+	p, err := s.Struct.Ptr(6)
+	return NATSServerConfig_X509KeyPair{Struct: p.Struct()}, err
+}
+
+func (s NATSServerConfig) HasClusterX509KeyPair() bool {
+	p, err := s.Struct.Ptr(6)
+	return p.IsValid() || err != nil
+}
+
+func (s NATSServerConfig) SetClusterX509KeyPair(v NATSServerConfig_X509KeyPair) error {
+	return s.Struct.SetPtr(6, v.Struct.ToPtr())
+}
+
+// NewClusterX509KeyPair sets the clusterX509KeyPair field to a newly
+// allocated NATSServerConfig_X509KeyPair struct, preferring placement in s's segment.
+func (s NATSServerConfig) NewClusterX509KeyPair() (NATSServerConfig_X509KeyPair, error) {
+	ss, err := NewNATSServerConfig_X509KeyPair(s.Struct.Segment())
+	if err != nil {
+		return NATSServerConfig_X509KeyPair{}, err
+	}
+	err = s.Struct.SetPtr(6, ss.Struct.ToPtr())
+	return ss, err
+}
+
 // NATSServerConfig_List is a list of NATSServerConfig.
 type NATSServerConfig_List struct{ capnp.List }
 
 // NewNATSServerConfig creates a new list of NATSServerConfig.
 func NewNATSServerConfig_List(s *capnp.Segment, sz int32) (NATSServerConfig_List, error) {
-	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 16, PointerCount: 5}, sz)
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 16, PointerCount: 7}, sz)
 	return NATSServerConfig_List{l}, err
 }
 
@@ -234,6 +284,14 @@ func (p NATSServerConfig_Promise) Monitor() NATSServerConfig_HostPort_Promise {
 
 func (p NATSServerConfig_Promise) Cluster() NATSServerConfig_HostPort_Promise {
 	return NATSServerConfig_HostPort_Promise{Pipeline: p.Pipeline.GetPipelineDefault(3, x_f8151d76c79d7b95[200:240])}
+}
+
+func (p NATSServerConfig_Promise) ServerX509KeyPair() NATSServerConfig_X509KeyPair_Promise {
+	return NATSServerConfig_X509KeyPair_Promise{Pipeline: p.Pipeline.GetPipeline(5)}
+}
+
+func (p NATSServerConfig_Promise) ClusterX509KeyPair() NATSServerConfig_X509KeyPair_Promise {
+	return NATSServerConfig_X509KeyPair_Promise{Pipeline: p.Pipeline.GetPipeline(6)}
 }
 
 type NATSServerConfig_HostPort struct{ capnp.Struct }
@@ -378,66 +436,163 @@ func (l NATSServerConfig_NATSLogLevel_List) Set(i int, v NATSServerConfig_NATSLo
 	ul.Set(i, uint16(v))
 }
 
-const schema_f8151d76c79d7b95 = "x\xda\x94TAh\x1c\xd5\x1f\xfe}of\xb3)\xe4" +
-	"\xdf\xcd0[\xc8\xff\x10\xf7E\x82\xd6\xd0\x86\xa4\x11\x91" +
-	"\\bR\x84&\x84:\xe3\xecA\xa4\xb5Nf\xdf\xee" +
-	"\x8e\xec\xcc\xdb\xcc{\xbbM\xb1\x18\x85*T\x14D\xe9" +
-	"E\x14\x8b\x82\x14\xc5C\xaf\x05/\x82\xd4\x83^\x83x" +
-	"\xf3\xe2I\x0f\x1e\xc4\xdeF\xde\xec&\xbb\x87\xb4\"{" +
-	"\xd8\xe1\xfb~\xfc\xbe\xef}\xbf\xdf{K\xb7\xf1\x1c[" +
-	".\xddgD>/M\xe4\xbb\x7fo}}\xf9\xce\xe2" +
-	"O\xe4,\xb0\xfc\xa5\xb5g\x0e\xbe\xf8\xe6\xbb\xdf\x88\xb0" +
-	"\xb2\x89{pC\x94\x89\xdc\xcbx\x81\x90\xfbO|9" +
-	"{\xfd\x87\x99\x03\xf2\x17\x80Qi\xc9\x94\xac\xec\xe2c" +
-	"\xb87\x8b\xea\xb7q\x95\xc6x\xff\xff`\xf9\xad\xd7?" +
-	"\xbd\xdf\x9f=\xf5\x80J%S\xfd+^\x84\xfb\x17\x9e" +
-	"$ZqX\x0ez6OC\xad\xae(\x91\x95\xfa\"" +
-	"\xbb\x12\xc9\xb4\x19\xb7\x16\xa3\xb0\x9bvW/\xae\xd7\x83" +
-	"@d}\x91\x9d\x1f\xc0\x06\xd8\x96k\xadm\xd1\x17\x1d" +
-	"\x0f\xf0\xa7\xc0\x88\x9c\xd9sD\x80s\xca\xfc1\xe7\x7f" +
-	"\xe7\x88j\xa9\xec\xc8V\xad!vz\xad\x9a\xce\xc2H" +
-	"\xfc\x17\x99\x0bRiOZ\x996\x12\x93\x96Md\x83" +
-	"\xc8yj\x81\xc8\x9f\xb7\xe0/1\x00U\x18\xec\xac\xc1" +
-	"N[\xf0\x9ff\xa8\xb4\xa5\xd2\x98\"\x86)B\xa5+" +
-	"3\x0d\x9b\x18l\xc2\x91\xb8\xfdo\xe2h\xf9\x93\x18\x0b" +
-	"\xdc9\xb156\xa7\x13\xaf\xe5\x03o\x99&\xa2|\x10" +
-	"Gk\x9b*&\x0f\x7f\xfe\xc8\xe9\x1f;\xce\x9f\xb5`" +
-	"\x06\x16\x82y08\x85[\xc0\x9d\xc3\xaa;\x87Z\xe0" +
-	"\x19\xe6\x92a\x18\xab\x82\x01\xae\xc0\x86+P\x0b>1" +
-	"\xcc\x1d\xc3XV\x15\x16\xe0\xde\xc5\x86{\x17\xb5\xe0w" +
-	"\xc3<0\x8cmWa\x13\xb9`\xab.X-x\x95" +
-	"Y\x08\xae3\x06\x94\xaa(\x01\xee5\xb6E\x14\xec\x19" +
-	"\xf8\x06cp&P\xc5\x04\xe0\xbe\xc5^&\x0a\xde4" +
-	"\xf8{\x06/\xb3*\xca\x80{\x93m\x10\x057\x0c\xfe" +
-	"\x81\xc1'\xad*&\x01\xf7}\xf6\xb9{\x8b\xd5\x82\x1f" +
-	"\x0d\xf33c\xc8\xa3NOi\x91]\xa4r\x98\x08\xdf" +
-	"\x06\xcb_\xf9\xe83\xff\xdb\x83w\xbf'\xdffX\x9f" +
-	"\x01\xa6\x88\x1c|Xd\xc3\xa3N\x0f\xa6\x9e\xa7a\x02" +
-	"At8\x9c5U$~L\x03^4X\xc6\xe3\xc8" +
-	"\xebm\xc1\xc3F#\xb3\x84R\\\xb7C\xcd\xa3N," +
-	"R\xadx$\xd3TD\xba\xcc\xb5$\xc2\xf4hZ\x04" +
-	"L\x13y\x80\xf5\xc6\xb4\x83\x8d\xfd\xa5\xc5\xe2\xb7\x9f\xc8" +
-	"4\xd6\xf28\xbd\xd3C\xbd\xafFz%\xa3\xd7S\xa2" +
-	"\xc1\xb5\xe4b\xcf\xec\x11/N3\xec\x12\xa7-~\xa1" +
-	"^\xf7xe\xdd\xdbT\x0f3\xf0\x18\x1f70\xcc\xed" +
-	"\x18\x03g\x86\x06~\x19\x19\x98\x187\x10\xc9$\x89\xd3" +
-	"(\xd4\x82_\x8du\x9b\xeb\xb6\xe0\x87\xd9\x0e\xa2\x95\x0d" +
-	"K<\xd4F\xb3:fc-\x93=-\xd41.\xbc" +
-	"\xa1\x8b\x0d;\xaf\xb7c\xc5U[N\xf7:\x0d\xbe#" +
-	"\xb8\x12\xda\xf8\xe8\xca8->\x94\x10\x0d#*\xd4\"" +
-	"\xdfl\xf2Tj\xae\xba\"\x8a\x9b\xb1h\x9c1\xf6R" +
-	"\x1eks\x0e\xc5c\xadD\xa7\xc9C\xc5C^H\xf3" +
-	"\xb3<T\xaa\x97\x98\x08\x8b\x89j#\x16\x1b\xfe\xf08" +
-	"G\xed\x89\x08'\x09\x9e\x85bkN\x12\xf2\x8e\x1c\xbc" +
-	"<\x86\xaa\x8c\xae%\x01\x15B\x9e\x84{^x\xad#" +
-	"\xc9\x0a\x1b\xe6\xe2\xef\xda\xb7\xdf\x01a?\x09\xf7\xce\xcb" +
-	"45\xd0\x9cm\x1e\x83D\xe8,\x8e\xd4\xf3(f+" +
-	"2\xaf,3\xfd\x88\xdd\xb8\xf7\xe8\xdd\xe8f2\x11\xba" +
-	"-z\x8a\x0f;\xf3~\xbc\x16\x16;Bdd\x97\xed" +
-	"K\x0e\xe1\x9f\x00\x00\x00\xff\xffS\x95\xa3\xd3"
+type NATSServerConfig_X509KeyPair struct{ capnp.Struct }
+
+// NATSServerConfig_X509KeyPair_TypeID is the unique identifier for the type NATSServerConfig_X509KeyPair.
+const NATSServerConfig_X509KeyPair_TypeID = 0x8ab1c24f4ecb6266
+
+func NewNATSServerConfig_X509KeyPair(s *capnp.Segment) (NATSServerConfig_X509KeyPair, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
+	return NATSServerConfig_X509KeyPair{st}, err
+}
+
+func NewRootNATSServerConfig_X509KeyPair(s *capnp.Segment) (NATSServerConfig_X509KeyPair, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
+	return NATSServerConfig_X509KeyPair{st}, err
+}
+
+func ReadRootNATSServerConfig_X509KeyPair(msg *capnp.Message) (NATSServerConfig_X509KeyPair, error) {
+	root, err := msg.RootPtr()
+	return NATSServerConfig_X509KeyPair{root.Struct()}, err
+}
+
+func (s NATSServerConfig_X509KeyPair) String() string {
+	str, _ := text.Marshal(0x8ab1c24f4ecb6266, s.Struct)
+	return str
+}
+
+func (s NATSServerConfig_X509KeyPair) CertPEMBlock() ([]byte, error) {
+	p, err := s.Struct.Ptr(0)
+	return []byte(p.Data()), err
+}
+
+func (s NATSServerConfig_X509KeyPair) HasCertPEMBlock() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s NATSServerConfig_X509KeyPair) SetCertPEMBlock(v []byte) error {
+	return s.Struct.SetData(0, v)
+}
+
+func (s NATSServerConfig_X509KeyPair) KeyPEMBlock() ([]byte, error) {
+	p, err := s.Struct.Ptr(1)
+	return []byte(p.Data()), err
+}
+
+func (s NATSServerConfig_X509KeyPair) HasKeyPEMBlock() bool {
+	p, err := s.Struct.Ptr(1)
+	return p.IsValid() || err != nil
+}
+
+func (s NATSServerConfig_X509KeyPair) SetKeyPEMBlock(v []byte) error {
+	return s.Struct.SetData(1, v)
+}
+
+// NATSServerConfig_X509KeyPair_List is a list of NATSServerConfig_X509KeyPair.
+type NATSServerConfig_X509KeyPair_List struct{ capnp.List }
+
+// NewNATSServerConfig_X509KeyPair creates a new list of NATSServerConfig_X509KeyPair.
+func NewNATSServerConfig_X509KeyPair_List(s *capnp.Segment, sz int32) (NATSServerConfig_X509KeyPair_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2}, sz)
+	return NATSServerConfig_X509KeyPair_List{l}, err
+}
+
+func (s NATSServerConfig_X509KeyPair_List) At(i int) NATSServerConfig_X509KeyPair {
+	return NATSServerConfig_X509KeyPair{s.List.Struct(i)}
+}
+
+func (s NATSServerConfig_X509KeyPair_List) Set(i int, v NATSServerConfig_X509KeyPair) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s NATSServerConfig_X509KeyPair_List) String() string {
+	str, _ := text.MarshalList(0x8ab1c24f4ecb6266, s.List)
+	return str
+}
+
+// NATSServerConfig_X509KeyPair_Promise is a wrapper for a NATSServerConfig_X509KeyPair promised by a client call.
+type NATSServerConfig_X509KeyPair_Promise struct{ *capnp.Pipeline }
+
+func (p NATSServerConfig_X509KeyPair_Promise) Struct() (NATSServerConfig_X509KeyPair, error) {
+	s, err := p.Pipeline.Struct()
+	return NATSServerConfig_X509KeyPair{s}, err
+}
+
+const schema_f8151d76c79d7b95 = "x\xda\x94TAh\x1cU\x18\xfe\xbf\xf7f\xb3mI" +
+	"\x9a\x0co\x03U\xac\xfb\x94*mhB\xd2X\xb5E" +
+	"H\x9bRhklw\x9c\x1cR\xa9\x96\xc9\xec\xdb\xdd" +
+	"iw\xe7\xa53o\xd3\x06\xc5zQ\xb4\xe8\xa5*h" +
+	"\xa1(\x0a\"\x8a`\xc5\x83\x96z\xb0X,Ho\xd2" +
+	"CO\x9e\x84\x1e<\xebm\xe4\xcd\xee&\x8b\xa4\x95\x92" +
+	"C\x96\xff{\xf3\x7f\xdf\xff\x7f\xdf{\x93\x82\xedcS" +
+	"\x852'\xf2\xb6\x15\x06\xb2\xda\xe2oG\x8f]\xbfr" +
+	"\x81\xdc1d\x0b3O\xdf\xfe\xfc\x9b\xeb\x7fR\x81\x15" +
+	"\x89\xa6\xdb\xf8\x0e\xe2=\x14\x89\xc4;8K\xc8\xce\xfc" +
+	"}\xe4\xeb\x97\xbf\x9c\xb8E\xee\x18[;L\x98\xfe\x0b" +
+	"W!\xf2\x8f\x04\xd81B\xe6=\xf9\xc5\xd6\xd7nn" +
+	"\xb9M\xde\x18\xfa\xfb\xdaf\xd3\xa3\xec\x12\xc4x~z" +
+	"\x07\xb3}Wq\xef!\xb0\xec\xc3W/\xff\xba\xbcu" +
+	"\xf4\x1f*\x14\xed\xe97\xd9\x8b\x10\x1f\xb3g\x88\xa6o" +
+	"0\xcd\xe8\xd9,\x0eLz2UIaY%'C" +
+	"\x1d\xd7\xa2\xfaD\x18,\xc5K{\x8f\xee\x9f\xf7}\x95" +
+	",\xab\xe4@\xa7\xbc\xb0{r\xcf\xf3\xaa\xbcR\x09\xa2" +
+	"\xa4\x02x\x1b\xb8C\xe4\x80\xc8\xddq\x8a\xc8\xdb\xce\xe1" +
+	"=\xc5\xe0\x02%\xd8\xe2\xd4\"\x917\xc9\xe1=\xc7\x90" +
+	"\x85*1\x95\x83/\xcc\xd2pS\x87\xa71D\x0cC" +
+	"\x84\xec\xb4Z\xb1\xd5&\x15\xfb\xab\x0f\xa0\xc9\x16\xe6\xf4" +
+	"L}N-\xab\xa6\x155\x08F\xe4n\xddE\x04\xb8" +
+	"\xa3\xf6\x1fs\x87v\x11\x95c\xdd\xd4\xf5rU-\xb6" +
+	"\xebe\x93\x04\xa1z\x10\x9aC:5\x15\xcd\x13\xf3\x9f" +
+	"\xb9\xc7\xac\xf3\x1c\xde$Co\xec\xf1\xb1\xb5]\x0c7" +
+	"tj0H\x0c\x83\x84\xe1%\x9d\x188\xc4\xe0\xf4\xcd" +
+	"\xe8\xfc\x1f9\xea\xde \xfaB\xe0\xbaG\xfa\xb2\xe3\x9e" +
+	"\xeaK\x9d\xbb\x98u\x84&\x86\x88\xb2\xcen\xeas4" +
+	"l\x97\x93u\xec[\xa9P1\x88\x12ogo\x08\xf1" +
+	"\x04\x16\xc5\x0e\x94\xfd\x0a8\xfc\x13\xe89\x08\x88\xe3\xd8" +
+	"+\x8e\xa3\xec\xbfm\x91\x0f,\xc2X\x09\x0c\x10\x971" +
+	"+.\xa3\xec\xffn\x91?,\xc2y\x09\x1c\x10w1" +
+	"+\xee\xa2\xecoc\x1c\xfe$cp\x1d\xa7\x04\x87H" +
+	"\xeca{\xc5\x1eV\xf6?\xb2\xc8\xf7\x8c\x01\x85\x12\x0a" +
+	"\x80\xb8\xc2\x8e\x10\xf9\xdf\xda\xf25\xfb\xc1\x00J\x18\x00" +
+	"\xc4\x8f\xec%\"\xff\x07[\xff\xc5\xd6\x8b\xac\x84\" " +
+	"~f\xb3D\xfe5[\xbfi\xeb\x1bx\x09\x1b\x00q" +
+	"\x83}&n\xb1\xb2\xefp\x0e\x7f\x843\xb8\x1b\x0b%" +
+	"l$\x12C\xfc\xa2\x18\xe5e\x7f\x9fE\xe6,\xb2i" +
+	"\xa0\x84MD\xe20\xbf$<^\xf6\xdf\xb0\xc8\xbb\xdc" +
+	"&\xb5\xd9N\x8dJ\x8eR1h)\xcf\x01\xcb^y" +
+	"\xff\x13\xef\xa7\xdb\x17n\x90\xe70\xec\xdf\x02\x0c\x12\xb9" +
+	"\xb8\x98\xefW\x86\xcd6\xecy\x19\x07-(\xa2\x9e\xdb" +
+	"3in\xe1:\x0dd\xde`\x0a\x8f#\x9bo(\x19" +
+	"T\xab\x09Wi*M#02lF*6\xa9\x0c" +
+	"u\x1c\xab\xd0\x14\xa5\xd1D\x18Y\xb3\x9f\x80\x11\xa2\x0a" +
+	"\xc0_\x1fq1{~r\"\xff;\xdf\xd2qd\xf4" +
+	"z|\xdb\xbb|_\xad\xf1\x15,_;UUi\xb4" +
+	"T\xe7l0e>M\xb7K\x14\xd7\xe5\xa1\xf9\xf9\x8a" +
+	"\x1c\xde_9\x9c\xdeK\xc0\xa3\xb2_@wo\xeb\x08" +
+	"\xd8\xd9\x15pgM\xc0@\xbf\x80P\xb7ZQ\x1c\x06" +
+	"F\xc9\xb3\x91iH\xd3P\xb2\xb7\xdb\xceju\x95\xab" +
+	"{\xca\xa8\x95\xfad\xcc$\xbamT\xba\x8e\x8aJW" +
+	"\xc5\xac\x93\xcd7\xa2T\xa6\x0d=\xd2nV\xe5\xa2\x92" +
+	"\xa92V\xc7\x92\x8e\xe2\xfcG\xaaT\xd5\x92\xaatB" +
+	"\x1e\xae\xc9X\x1b\x99.\xa90\xaaE\xaa\xba\xd3\xca\x8b" +
+	"ed\xec\x1c\xa9\x8cL\xaa\x9a5\x19\xa42\x909\xb5" +
+	"\x1c\x97A\x9a\xb6[v\x85\xb9\xa3\xc6\x92E\x16\xef\x8d" +
+	"\xb3\xda\x9e\x88\xb0\x99P\xe1\xc8S\xb3\x99\x905u\xe7" +
+	")\xb3\xd0\xf0\xda='`\x98\x90\xb5\x82s\x95`\xa5" +
+	"\xa9\x89\x07U\xfb\x92\x9cq>}\x0b\x84\xf3\xad\xe0\xdc" +
+	"\x01\x1d\xc7\xb6\xf4\x98c_\x97\x962I\x14\xa6\x07\x91" +
+	"{\xab\x92JQ'\xe6>\xd9\xb8z\xffl,%\xba" +
+	"\xa5LC\xb5S\xd9\xed,\x97\xa3\x99 \xcf\x08\x91\xa5" +
+	"\x9drN\xb8\x84\xac\x13\xfa\x85\xdd\xe8<5A\x84\xf5" +
+	"\x02\xf1H\xf7\x0a\xdd\xc9r\x9e\x9aNX7\xf8\xe3\x9d" +
+	"\x06r\x9e\xcf\xf9\xb9\xdf\xab\x8f[\xee\xf7\xea\xed\\@" +
+	"\xf71\x0bxt\xbf;\xf60V)\xb8\xec\xf4\xeeQ" +
+	"\xf4\xdc\xb8\x17\xd5\xbf\x01\x00\x00\xff\xff<\x07%\xfa"
 
 func init() {
 	schemas.Register(schema_f8151d76c79d7b95,
+		0x8ab1c24f4ecb6266,
 		0xcd2ea85dab4af771,
 		0xd618c87c1da62651,
 		0xe6c2ada3d6363f58)
