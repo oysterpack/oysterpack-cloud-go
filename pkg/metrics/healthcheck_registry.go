@@ -32,7 +32,7 @@ type HealthCheckRegistry struct {
 
 // NewHealthCheck creates a new HealthCheck.
 // check is required - panics if nil.
-// The healthcheck metrics are registered. Failing to registering the metrics will trigger a panic.
+// The healthcheck metrics are registered. Failing to register the metrics will trigger a panic.
 func (a *HealthCheckRegistry) NewHealthCheck(opts prometheus.GaugeOpts, runInterval time.Duration, check RunHealthCheck) HealthCheck {
 	a.Lock()
 	defer a.Unlock()

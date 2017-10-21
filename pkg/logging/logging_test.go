@@ -33,13 +33,13 @@ func TestNewPackageLogger(t *testing.T) {
 	now := time.Now()
 	t.Logf("now = %v", now.Format(zerolog.TimeFieldFormat))
 
-	event := logging.Event{0, "RUNNING"}
+	event := logging.Event("RUNNING")
 	logger := logging.NewPackageLogger(A{})
-	logger.Info().Dict(logging.EVENT, event.Dict()).Msg("")
+	event.Log(logger.Info()).Msg("")
 
 	var buf bytes.Buffer
 	logger = logger.Output(io.Writer(&buf))
-	logger.Info().Dict(logging.EVENT, event.Dict()).Msg("")
+	event.Log(logger.Info()).Msg("")
 	t.Log(buf.String())
 
 	logEvent := &logging.LogEvent{}

@@ -12,12 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package service
+package domain
 
-import "github.com/oysterpack/oysterpack.go/pkg/logging"
-
-// service related log events
-const (
-	STOP_TRIGGERED logging.Event = "STOP_TRIGGERED"
-	STATE_CHANGED  logging.Event = "STATE_CHANGED"
+import (
+	"crypto/tls"
+	"time"
 )
+
+// SubjectId subject id
+type SubjectId string
+
+// Subject subject
+type Subject interface {
+	// Id subject id
+	Id() SubjectId
+
+	// OrgId the organization the subject belongs to
+	OrgId() OrgId
+
+	Created() time.Time
+
+	// Enabled can only be changed by an organization owner
+	Enabled() bool
+
+	// Certificate which is signed by the organization's CA cert
+	Cert() tls.Certificate
+}

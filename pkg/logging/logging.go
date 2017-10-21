@@ -152,17 +152,17 @@ func (e *LogEvent) String() string {
 	return fmt.Sprint(*e)
 }
 
-// Event represents some event
-type Event struct {
-	Id   int    `json:"id"`
-	Code string `json:"code"`
-}
+type Event string
+
+//// Event represents some event
+//type Event struct {
+//	Id   int    `json:"id"`
+//	Code string `json:"code"`
+//}
 
 // Dict converts the Event to a zerolog sub dictionary
-func (e *Event) Dict() *zerolog.Event {
-	return zerolog.Dict().
-		Int("id", e.Id).
-		Str("code", e.Code)
+func (e Event) Log(event *zerolog.Event) *zerolog.Event {
+	return event.Str(EVENT, string(e))
 }
 
 // InterfaceTypeDict returns a standard zerolog dictionary for an interface type

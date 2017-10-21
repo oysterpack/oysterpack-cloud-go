@@ -342,6 +342,38 @@ func TestNewNATSServerConfig_LZ4(t *testing.T) {
 	}
 }
 
+func TestNewRootNATSServerConfig_MultiMessages(t *testing.T) {
+	buf := new(bytes.Buffer)
+	compressor := zlib.NewWriter(buf)
+	encoder := capnp.NewEncoder(compressor)
+	func() {
+		defer compressor.Close()
+		for i := 0; i < 10; i++ {
+			msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+			if err != nil {
+				t.Fatal(err)
+			}
+			cfg, err := config.NewRootNATSServerConfig(seg)
+			cfg.SetClusterName(fmt.Sprintf("oysterpack-%d", i))
+			encoder.Encode(msg)
+		}
+	}()
+
+	reader, _ := zlib.NewReader(buf)
+	decoder := capnp.NewDecoder(reader)
+	func() {
+		defer reader.Close()
+		for i := 0; i < 10; i++ {
+			msg, err := decoder.Decode()
+			checkError(t, err)
+			cfg, err := config.ReadRootNATSServerConfig(msg)
+			checkError(t, err)
+			cluster, _ := cfg.ClusterName()
+			t.Log(cluster)
+		}
+	}()
+}
+
 func readCertKeyPairFiles(t *testing.T, name string, seg *capnp.Segment) config.NATSServerConfig_X509KeyPair {
 	t.Helper()
 	const PKI_ROOT = "../testdata/.easypki/pki/oysterpack"

@@ -190,7 +190,7 @@ func (a *ServiceDependencyErrors) HasErrors() bool {
 	return len(a.Errors) > 0
 }
 
-// ServiceDependenciesMissingErrors returns any ServiceDependenciesMissing errors
+// DependenciesMissingErrors returns any ServiceDependenciesMissing errors
 func (a *ServiceDependencyErrors) ServiceDependenciesMissingErrors() []*ServiceDependenciesMissing {
 	errors := []*ServiceDependenciesMissing{}
 	for _, err := range a.Errors {
@@ -202,7 +202,7 @@ func (a *ServiceDependencyErrors) ServiceDependenciesMissingErrors() []*ServiceD
 	return errors
 }
 
-// ServiceDependenciesNotRunningErrors returns any ServiceDependenciesNotRunning errors
+// DependenciesNotRunningErrors returns any ServiceDependenciesNotRunning errors
 func (a *ServiceDependencyErrors) ServiceDependenciesNotRunningErrors() []*ServiceDependenciesNotRunning {
 	errors := []*ServiceDependenciesNotRunning{}
 	for _, err := range a.Errors {

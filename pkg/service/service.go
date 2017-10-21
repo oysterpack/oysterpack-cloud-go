@@ -539,8 +539,7 @@ func (a *service) StartAsync() error {
 		wait.Done()
 		l := a.lifeCycle.serviceState.NewStateChangeListener()
 		for stateChange := range l.Channel() {
-			a.logger.Info().
-				Dict(logging.EVENT, STATE_CHANGED.Dict()).
+			STATE_CHANGED.Log(a.logger.Info()).
 				Str(logging.STATE, stateChange.String()).
 				Msg("")
 		}
@@ -599,7 +598,7 @@ func (a *service) StopAsyc() {
 		close(a.stopTrigger)
 	}()
 
-	a.logger.Info().Str(logging.FUNC, FUNC).Dict(logging.EVENT, STOP_TRIGGERED.Dict()).Msg("")
+	STOP_TRIGGERED.Log(a.logger.Info()).Str(logging.FUNC, FUNC).Msg("")
 }
 
 // Stop invokes StopAsync() followed by AwaitUntilStopped()

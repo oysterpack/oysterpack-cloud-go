@@ -12,12 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package service
+package comp
 
 import "github.com/oysterpack/oysterpack.go/pkg/logging"
 
-// service related log events
-const (
-	STOP_TRIGGERED logging.Event = "STOP_TRIGGERED"
-	STATE_CHANGED  logging.Event = "STATE_CHANGED"
-)
+type pkgobject struct{}
+
+var logger = logging.NewPackageLogger(pkgobject{})

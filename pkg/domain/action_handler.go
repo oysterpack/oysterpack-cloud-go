@@ -12,12 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package service
+package domain
 
-import "github.com/oysterpack/oysterpack.go/pkg/logging"
-
-// service related log events
-const (
-	STOP_TRIGGERED logging.Event = "STOP_TRIGGERED"
-	STATE_CHANGED  logging.Event = "STATE_CHANGED"
-)
+type ActionHandler interface {
+	Execute(request <-chan ActionRequest) <-chan ActionResponse
+}

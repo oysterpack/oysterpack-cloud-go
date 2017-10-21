@@ -16,68 +16,24 @@ package pkg_test
 
 import (
 	"testing"
-
-	"regexp"
-
-	"github.com/json-iterator/go"
 )
 
-var json = jsoniter.ConfigCompatibleWithStandardLibrary
-
-type Name string
-
-type Foo struct {
-	Name
+type Foo interface {
+	Foo()
 }
 
-var clusterRegex = regexp.MustCompile(`^[a-z][0-9a-z_\-]+$`)
-
-func TestRegex(t *testing.T) {
-	t.Logf("%v", clusterRegex)
-
-	if !clusterRegex.MatchString("oysterpack-nats") {
-		t.Error("match failed")
-	}
-
-	if clusterRegex.MatchString("oysterpack-nats:") {
-		t.Error("should not have matched")
-	}
+type Bar interface {
+	Bar()
 }
 
-func TestMarshalCustomAlias(t *testing.T) {
-
-	foo := Foo{Name: "Alfio Zappala"}
-
-	bytes, err := json.Marshal(&foo)
-	if err != nil {
-		t.Fatalf("Marshal failed : %v", err)
-	}
-
-	foo2 := &Foo{}
-	if err := json.Unmarshal(bytes, foo2); err != nil {
-		t.Fatalf("Unmarshal failed : %v", err)
-	}
-
-	t.Logf("foo2 : %v", foo2)
-
-	if foo.Name != foo2.Name {
-		t.Errorf("Marshal / Unmarshal did not work : [%v] != [%v]", foo, foo2)
-	}
-
+type FooBar struct {
 }
 
-func TestStructKey(t *testing.T) {
-	m := map[Key]int{
-		{"a", "b"}: 1,
-		{"a", "b"}: 2,
-		{"a", "z"}: 3,
-	}
-	t.Logf("%v", m)
-	m[Key{"a", "b"}] = 4
-	t.Logf("%v", m)
-}
+func (a FooBar) Foo() {}
+func (a FooBar) Bar() {}
 
-type Key struct {
-	topic string
-	queue string
+func TestFooBar(t *testing.T) {
+	var foo Foo = &FooBar{}
+	var bar Bar = foo.(Bar)
+	bar.Bar()
 }
