@@ -57,30 +57,22 @@ type Container interface {
 	//     the first component that is started will be the last one that is stopped.
 	//  3. Runs all registered ShutdownHook(s) in the reverse order they were registered.
 	//  4. Cancels all registered goroutines
+	//  5. The metrics and health check registries are reset.
 	Stop() error
 
 	// State the current container lifecycle state
-	State() State
-
-	// StateChan returns a channel that can be used to monitor container lifecycle state transitions.
-	// The channel is closed once the state reaches a terminal state.
-	StateChan() <-chan State
-
-	// FailureCause if the container is in FAILED state, then this is the error that caused it
-	FailureCause() error
+	Alive() bool
 
 	NotifyStopped() <-chan struct{}
 }
 
+// NewContainer creates and returns a new Container
 func NewContainer(desc *Descriptor, config func(Component) *capnp.Message) Container {
 	c := &container{
 		desc:   desc,
 		config: config,
 
 		serverChan: make(chan interface{}),
-
-		state:     STATE_NEW,
-		stateChan: make(chan State, 4),
 
 		comps:       make(map[Interface]Component),
 		compLookups: make(map[Interface][]chan Component),
@@ -110,10 +102,6 @@ type container struct {
 	t          tomb.Tomb
 	serverChan chan interface{}
 
-	state     State
-	stateChan chan State
-	err       error
-
 	comps map[Interface]Component
 
 	dependencyHealthCheck metrics.HealthCheck
@@ -121,8 +109,16 @@ type container struct {
 	compLookups map[Interface][]chan Component
 }
 
+func (a *container) Alive() bool {
+	return a.t.Alive()
+}
+
 func (a *container) Desc() *Descriptor {
 	return a.desc
+}
+
+func (a *container) CheckAllDependenciesHealthCheck() metrics.HealthCheck {
+	return a.dependencyHealthCheck
 }
 
 func (a *container) NotifyStopped() <-chan struct{} {
@@ -130,6 +126,11 @@ func (a *container) NotifyStopped() <-chan struct{} {
 }
 
 func (a *container) Stop() error {
+	defer metrics.ResetRegistry()
+
+	if !a.Alive() {
+		return a.t.Err()
+	}
 	// stop all healthchecks before shutting down because if healthchecks fail during container shutdown, then false healthcheck failure may be reported
 	metrics.HealthChecks.StopAllHealthCheckTickers()
 	a.t.Kill(nil)
@@ -147,40 +148,27 @@ func (a *container) server() error {
 			return nil
 		case sig := <-sigs:
 			OS_SIGNAL.Log(logger.Info()).Str(logging.SIGNAL, sig.String()).Msg("")
-			a.Stop()
+			go a.Stop()
+		case msg := <-a.serverChan:
+			switch req := msg.(type) {
+			case RegisterComponent:
+				comp, err := a.register(req.newComp)
+				if err != nil {
+					req.err <- err
+				} else {
+					req.comp <- comp
+				}
+			default:
+				logger.Panic().Msgf("Unhandled message : %T", req)
+			}
 		}
 	}
 }
 
-type shutdownHook struct {
-	name string
-	f    func()
-}
-
-func (a shutdownHook) run() {
-	defer func() {
-		if p := recover(); p != nil {
-			logger.Error().Str("ShutdownHook", a.name).Err(fmt.Errorf("%v", p)).Msg("failed")
-		}
-	}()
-	a.f()
-	logger.Info().Str("ShutdownHook", a.name).Msg("success")
-}
-
-func (a *container) CheckAllDependenciesHealthCheck() metrics.HealthCheck {
-	return a.dependencyHealthCheck
-}
-
-func (a *container) State() State {
-	return a.state
-}
-
-func (a *container) StateChan() <-chan State {
-	return a.stateChan
-}
-
-func (a *container) FailureCause() error {
-	return a.err
+type RegisterComponent struct {
+	newComp ComponentConstructor
+	comp    chan Component
+	err     chan error
 }
 
 func (a *container) MustRegister(newComp ComponentConstructor) Component {
@@ -192,6 +180,17 @@ func (a *container) MustRegister(newComp ComponentConstructor) Component {
 }
 
 func (a *container) Register(newComp ComponentConstructor) (Component, error) {
+	req := RegisterComponent{newComp, make(chan Component), make(chan error)}
+	a.serverChan <- req
+	select {
+	case comp := <-req.comp:
+		return comp, nil
+	case err := <-req.err:
+		return nil, err
+	}
+}
+
+func (a *container) register(newComp ComponentConstructor) (Component, error) {
 	comp := newComp()
 
 	if comp.Desc() == nil {
