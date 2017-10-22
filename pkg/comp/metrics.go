@@ -12,10 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package domain
+package comp
 
-import "golang.org/x/net/context"
-
-type ActionHandler interface {
-	Execute(ctx context.Context, request <-chan ActionRequest) <-chan ActionResponse
-}
+// standard service metric labels
+const (
+	// METRIC_LABEL_NAMESPACE ns -> Descriptor.NameSpace
+	METRIC_LABEL_NAMESPACE = "ns"
+	// METRIC_LABEL_SYSTEM  sys -> Descriptor.System
+	METRIC_LABEL_SYSTEM = "sys"
+	// METRIC_LABEL_COMPONENT comp -> Descriptor.Component
+	METRIC_LABEL_COMPONENT = "comp"
+	// METRIC_LABEL_VERSION ver -> Descriptor.Version
+	METRIC_LABEL_VERSION = "ver"
+)

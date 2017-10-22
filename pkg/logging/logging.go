@@ -50,6 +50,7 @@ const (
 	HEALTHCHECK = "healthcheck"
 	ERRORS      = "errors"
 	VERSION     = "ver"
+	SIGNAL      = "sig"
 )
 
 // NewTypeLogger returns a new logger with pkg={pkg}, type={type}

@@ -21,57 +21,9 @@ import (
 	"github.com/oysterpack/oysterpack.go/pkg/commons/reflect"
 )
 
-// DependencyMissingError indicates that a service's Dependencies are missing at runtime
-type DependencyMissingError struct {
-	*DependencyMappings
-}
-
-func (a *DependencyMissingError) Error() string {
-	return fmt.Sprintf("Service Dependencies are missing : %v", a.DependencyMappings)
-}
-
-// AddMissingDependency will add the missing dependency, if it has not yet already been added
-func (a *DependencyMissingError) AddMissingDependency(dependency reflect.InterfaceType) {
-	a.addDependency(dependency)
-}
-
-// Missing returns true if the service is missing the specified dependency
-func (a *DependencyMissingError) Missing(dependency reflect.InterfaceType) bool {
-	return a.contains(dependency)
-}
-
-// HasMissing returns true if the service has any missing Dependencies
-func (a *DependencyMissingError) HasMissing() bool {
-	return len(a.Dependencies) > 0
-}
-
-// DependenciesNotRunningError indicates that a service's Dependencies are registered, but not running
-type DependenciesNotRunningError struct {
-	*DependencyMappings
-}
-
-func (a *DependenciesNotRunningError) Error() string {
-	return fmt.Sprintf("Service Dependencies are not running : %v", a.DependencyMappings)
-}
-
-// AddDependencyNotRunning will add the missing dependency, if it has not yet already been added
-func (a *DependenciesNotRunningError) AddDependencyNotRunning(dependency reflect.InterfaceType) {
-	a.addDependency(dependency)
-}
-
-// NotRunning returns true if the service is missing the specified dependency
-func (a *DependenciesNotRunningError) NotRunning(dependency reflect.InterfaceType) bool {
-	return a.contains(dependency)
-}
-
-// HasNotRunning returns true if the service has any missing Dependencies
-func (a *DependenciesNotRunningError) HasNotRunning() bool {
-	return len(a.Dependencies) > 0
-}
-
 // DependencyErrors aggregates service dependency related errors. The types of errors are :
 // 1. DependencyMissingError
-// 2. DependenciesNotRunningError
+// 2. DependencyNotRunningError
 type DependencyErrors struct {
 	Errors []error
 }
@@ -101,14 +53,62 @@ func (a *DependencyErrors) DependencyMissingErrors() []*DependencyMissingError {
 	return errors
 }
 
-// DependenciesNotRunningErrors returns any DependenciesNotRunningError errors
-func (a *DependencyErrors) DependencyNotRunningErrors() []*DependenciesNotRunningError {
-	errors := []*DependenciesNotRunningError{}
+// DependenciesNotRunningErrors returns any DependencyNotRunningError errors
+func (a *DependencyErrors) DependencyNotRunningErrors() []*DependencyNotRunningError {
+	errors := []*DependencyNotRunningError{}
 	for _, err := range a.Errors {
 		switch e := err.(type) {
-		case *DependenciesNotRunningError:
+		case *DependencyNotRunningError:
 			errors = append(errors, e)
 		}
 	}
 	return errors
+}
+
+// DependencyMissingError indicates that a service's Dependencies are missing at runtime
+type DependencyMissingError struct {
+	*DependencyMappings
+}
+
+func (a *DependencyMissingError) Error() string {
+	return fmt.Sprintf("Service Dependencies are missing : %v", a.DependencyMappings)
+}
+
+// AddMissingDependency will add the missing dependency, if it has not yet already been added
+func (a *DependencyMissingError) AddMissingDependency(dependency reflect.InterfaceType) {
+	a.addDependency(dependency)
+}
+
+// Missing returns true if the service is missing the specified dependency
+func (a *DependencyMissingError) Missing(dependency reflect.InterfaceType) bool {
+	return a.contains(dependency)
+}
+
+// HasMissing returns true if the service has any missing Dependencies
+func (a *DependencyMissingError) HasMissing() bool {
+	return len(a.Dependencies) > 0
+}
+
+// DependencyNotRunningError indicates that a service's Dependencies are registered, but not running
+type DependencyNotRunningError struct {
+	*DependencyMappings
+}
+
+func (a *DependencyNotRunningError) Error() string {
+	return fmt.Sprintf("Service Dependencies are not running : %v", a.DependencyMappings)
+}
+
+// AddDependencyNotRunning will add the missing dependency, if it has not yet already been added
+func (a *DependencyNotRunningError) AddDependencyNotRunning(dependency reflect.InterfaceType) {
+	a.addDependency(dependency)
+}
+
+// NotRunning returns true if the service is missing the specified dependency
+func (a *DependencyNotRunningError) NotRunning(dependency reflect.InterfaceType) bool {
+	return a.contains(dependency)
+}
+
+// HasNotRunning returns true if the service has any missing Dependencies
+func (a *DependencyNotRunningError) HasNotRunning() bool {
+	return len(a.Dependencies) > 0
 }

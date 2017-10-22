@@ -18,10 +18,13 @@ import (
 	"fmt"
 
 	"github.com/oysterpack/oysterpack.go/pkg/commons/reflect"
+	"github.com/oysterpack/oysterpack.go/pkg/metrics"
 )
 
 // DependencyChecks groups methods that are used to check component dependencies
 type DependencyChecks interface {
+	// CheckAllDependenciesHealthCheck invokes CheckAllDependencies()
+	CheckAllDependenciesHealthCheck() metrics.HealthCheck
 
 	// CheckAllDependencies checks that all Dependencies for each component are available
 	CheckAllDependencies() *DependencyErrors
@@ -30,7 +33,7 @@ type DependencyChecks interface {
 	CheckAllDependenciesRegistered() []*DependencyMissingError
 
 	//CheckAllDependenciesRunning checks that all Dependencies for each component are running
-	CheckAllDependenciesRunning() []*DependenciesNotRunningError
+	CheckAllDependenciesRunning() []*DependencyNotRunningError
 
 	// CheckDependencies checks that the service Dependencies are available for the specified component
 	CheckDependencies(comp Component) *DependencyErrors
@@ -39,7 +42,7 @@ type DependencyChecks interface {
 	CheckDependenciesRegistered(comp Component) *DependencyMissingError
 
 	// CheckDependenciesRunning checks that the service Dependencies are running for the specified component
-	CheckDependenciesRunning(comp Component) *DependenciesNotRunningError
+	CheckDependenciesRunning(comp Component) *DependencyNotRunningError
 }
 
 // DependencyMappings maps an Interface to its Interface dependencies

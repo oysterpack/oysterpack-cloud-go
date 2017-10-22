@@ -18,20 +18,59 @@ package comp
 type State int
 
 // State enum values
-// Normal component life cycle : New -> Starting -> Running -> Stopping -> Terminated
+// Normal component life cycle : STATE_NEW -> STATE_STARTING -> STATE_RUNNING -> STATE_STOPPING -> STATE_TERMINATED
 // If the component fails while starting, running, or stopping, then it goes into state FAILED.
 // The ordering of the State enum is defined such that if there is a state transition from A -> B then A < B.
 const (
 	// A service in this state is inactive. It does minimal work and consumes minimal resources.
-	New State = iota
+	STATE_NEW State = iota
 	// A service in this state is transitioning to RUNNING.
-	Starting
+	STATE_STARTING
 	// A service in this state is operational.
-	Running
+	STATE_RUNNING
 	// A service in this state is transitioning to TERMINATED.
-	Stopping
+	STATE_STOPPING
 	// A service in this state has completed execution normally. It does minimal work and consumes minimal resources.
-	Terminated
+	STATE_TERMINATED
 	// A service in this state has encountered a problem and may not be operational. It cannot be started nor stopped.
-	Failed
+	STATE_FAILED
 )
+
+// Terminal returns true if the state has reacjed a terminal state, i.e., terminated or failed state.
+func (a State) Terminal() bool {
+	return a == STATE_TERMINATED || a == STATE_FAILED
+}
+
+// New indicates a new state
+func (a State) New() bool {
+	return a == STATE_NEW
+}
+
+// Running indicates a running state
+func (a State) Running() bool {
+	return a == STATE_RUNNING
+}
+
+// Starting indicates a starting state
+func (a State) Starting() bool {
+	return a == STATE_STARTING
+}
+
+// Stoping indicates a stopping state
+func (a State) Stopping() bool {
+	return a == STATE_STOPPING
+}
+
+// Terminated indicates a terminated state
+func (a State) Terminated() bool {
+	return a == STATE_TERMINATED
+}
+
+// Failed indicates a failed state
+func (a State) Failed() bool {
+	return a == STATE_FAILED
+}
+
+func (a State) RunningOrLater() bool {
+	return a >= STATE_RUNNING
+}

@@ -15,7 +15,10 @@
 package pkg_test
 
 import (
+	"errors"
 	"testing"
+
+	"golang.org/x/net/context"
 )
 
 type Foo interface {
@@ -36,4 +39,41 @@ func TestFooBar(t *testing.T) {
 	var foo Foo = &FooBar{}
 	var bar Bar = foo.(Bar)
 	bar.Bar()
+}
+
+func TestContext(t *testing.T) {
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	result := make(chan error)
+	go func(ctx context.Context, result chan<- error) {
+		select {
+		case <-ctx.Done():
+			result <- errors.New("Cancelled")
+			close(result)
+		default:
+			close(result)
+		}
+	}(ctx, result)
+
+	t.Logf("result : %v", <-result)
+
+}
+
+func TestContext_Cancelled(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	result := make(chan error)
+	go func(ctx context.Context, result chan<- error) {
+		select {
+		case <-ctx.Done():
+			result <- errors.New("Cancelled")
+			close(result)
+		default:
+			close(result)
+		}
+	}(ctx, result)
+
+	t.Logf("result : %v", <-result)
+
 }

@@ -19,3 +19,13 @@ import "github.com/oysterpack/oysterpack.go/pkg/logging"
 type pkgobject struct{}
 
 var logger = logging.NewPackageLogger(pkgobject{})
+
+// used for logging
+const (
+	// types
+	TYPE_REGISTRY = "Registry"
+
+	// events
+	CONTAINER_KILLED logging.Event = "CONTAINER_KILLED"
+	OS_SIGNAL        logging.Event = "OS_SIGNAL"
+)

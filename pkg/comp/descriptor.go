@@ -19,6 +19,7 @@ import (
 	"strings"
 
 	"github.com/Masterminds/semver"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 // Descriptor is used to describe the service
@@ -96,4 +97,16 @@ func (a *Descriptor) Component() string {
 // Version returns the service version
 func (a *Descriptor) Version() *semver.Version {
 	return a.version
+}
+
+// AddMetricLabels adds labels to help identify component metrics. The above constants define the labels that are added, e.g.,
+//
+//		ns="oysterpack",sys="metrics",comp="http",ver="1.0.0"
+//
+func (a *Descriptor) AddMetricLabels(labels prometheus.Labels) prometheus.Labels {
+	labels[METRIC_LABEL_NAMESPACE] = a.Namespace()
+	labels[METRIC_LABEL_SYSTEM] = a.System()
+	labels[METRIC_LABEL_COMPONENT] = a.Component()
+	labels[METRIC_LABEL_VERSION] = a.Version().String()
+	return labels
 }

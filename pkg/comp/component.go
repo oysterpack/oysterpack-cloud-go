@@ -17,10 +17,13 @@ package comp
 import (
 	stdreflect "reflect"
 
+	"time"
+
 	"github.com/Masterminds/semver"
 	"github.com/oysterpack/oysterpack.go/pkg/commons/reflect"
 	"github.com/oysterpack/oysterpack.go/pkg/logging"
 	"github.com/oysterpack/oysterpack.go/pkg/metrics"
+	"github.com/rs/zerolog"
 	"zombiezen.com/go/capnproto2"
 )
 
@@ -36,17 +39,22 @@ type Component interface {
 
 	// State the current component lifecycle state
 	State() State
-	// FailureCause if the service is in FAILED state, then this is the error that caused it
+
+	// StateChan returns a channel that can be used to monitor component lifecycle state transitions.
+	// The channel is closed once the state reaches a terminal state.
+	StateChan() <-chan StateChanged
+
+	// FailureCause if the component is in FAILED state, then this is the error that caused it
 	FailureCause() error
 
-	// Start the service, if not already started
+	// Start the component, if not already started
 	// As the component transitions states, the new state is sent on the channel.
 	// The channel will be closed once the component is running or reaches a FAILED state
 	// If the component requires config to start, then it is passed in as a capnp message.
 	// The registry is provided for the component to lookup dependencies.
-	Start(config *capnp.Message, registry ComponentRegistry) <-chan State
+	Start(config *capnp.Message, registry Registry) <-chan State
 
-	// Stop the service, if not already stopped.
+	// Stop the component, if not already stopped.
 	// As the component transitions states, the new state is sent on the channel.
 	// The channel will be closed once the component reaches a terminal state.
 	Stop() <-chan State
@@ -69,9 +77,19 @@ type Component interface {
 
 	// Dependencies lists what other components this component depends on
 	Dependencies() Dependencies
+
+	Logger() *zerolog.Logger
 }
 
-// Dependencies represents a service's interface dependencies with version constraints
+// StateChanged represents a state change event for a Component.
+// NOTE: based on timing, the current state of the Component could have changed since this event was fired.
+type StateChanged struct {
+	Component Component
+	State     State
+	Time      time.Time
+}
+
+// Dependencies represents a component's interface dependencies with version constraints
 type Dependencies map[Interface]*semver.Constraints
 
 type ConfigTag string

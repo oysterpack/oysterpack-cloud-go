@@ -341,7 +341,7 @@ func (a *application) run(ctx *Context) error {
 			Namespace:   metrics.METRIC_NAMESPACE_OYSTERPACK,
 			Subsystem:   "application",
 			Name:        "check_service_dependencies",
-			Help:        "The healthcheck fails if any connections are disconnected.",
+			Help:        "The healthcheck fails if any dependencies are not satisfied.",
 			ConstLabels: AddServiceMetricLabels(prometheus.Labels{}, a.Descriptor()),
 		}
 		runInterval := time.Minute
