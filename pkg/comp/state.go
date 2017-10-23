@@ -14,6 +14,8 @@
 
 package comp
 
+import "fmt"
+
 // State is an enum representing the service lifecycle state
 type State int
 
@@ -35,6 +37,25 @@ const (
 	// A service in this state has encountered a problem and may not be operational. It cannot be started nor stopped.
 	STATE_FAILED
 )
+
+func (a State) String() string {
+	switch a {
+	case STATE_NEW:
+		return "NEW"
+	case STATE_STARTING:
+		return "STARTING"
+	case STATE_RUNNING:
+		return "RUNNING"
+	case STATE_STOPPING:
+		return "STOPPING"
+	case STATE_TERMINATED:
+		return "TERMINATED"
+	case STATE_FAILED:
+		return "FAILED"
+	default:
+		panic(fmt.Sprintf("Invalid state : %d", a))
+	}
+}
 
 // Terminal returns true if the state has reacjed a terminal state, i.e., terminated or failed state.
 func (a State) Terminal() bool {

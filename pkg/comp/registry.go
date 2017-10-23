@@ -38,9 +38,7 @@ type Registry interface {
 	Component(comp Interface) <-chan Component
 
 	// Components returns all registered components
-	Components() <-chan Component
-
-	DependencyChecks
+	Components() []Component
 
 	// RegisterShutdownHook registers a function that will be invoked when the container shuts down.
 	// The function will be invoked after all container managed components are stopped.

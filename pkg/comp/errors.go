@@ -14,20 +14,12 @@
 
 package comp
 
-import "github.com/oysterpack/oysterpack.go/pkg/logging"
+import "fmt"
 
-type pkgobject struct{}
+type UnsupportedMessageError struct {
+	msg interface{}
+}
 
-var logger = logging.NewPackageLogger(pkgobject{})
-
-// used for logging
-const (
-	// types
-	TYPE_REGISTRY = "Registry"
-
-	// events
-	CONTAINER_KILLED  logging.Event = "CONTAINER_KILLED"
-	OS_SIGNAL         logging.Event = "OS_SIGNAL"
-	COMP_STATE_CHANGE logging.Event = "COMP_STATE_CHANGE"
-	COMP_FAILED       logging.Event = "COMP_FAILED"
-)
+func (a *UnsupportedMessageError) Error() string {
+	return fmt.Sprintf("Unsupported message type : %T", a.msg)
+}

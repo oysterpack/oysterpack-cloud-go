@@ -19,6 +19,10 @@ import (
 
 	"time"
 
+	"fmt"
+
+	"errors"
+
 	"github.com/Masterminds/semver"
 	"github.com/oysterpack/oysterpack.go/pkg/commons/reflect"
 	"github.com/oysterpack/oysterpack.go/pkg/logging"
@@ -31,7 +35,7 @@ type ComponentConstructor func() Component
 
 // Component represents a component that provides the functionality defined by the Interface
 type Component interface {
-	// Desc describes the component
+	// Desc provides component's name and version, as well as the namespace and system it belongs to.
 	Desc() *Descriptor
 
 	// Interface is the interface the component implements, i.e., the component instance can be safely casted to this interface
@@ -51,13 +55,8 @@ type Component interface {
 	// As the component transitions states, the new state is sent on the channel.
 	// The channel will be closed once the component is running or reaches a FAILED state
 	// If the component requires config to start, then it is passed in as a capnp message.
-	// The registry is provided for the component to lookup dependencies.
-	Start(config *capnp.Message, registry Registry) <-chan State
-
-	// Stop the component, if not already stopped.
-	// As the component transitions states, the new state is sent on the channel.
-	// The channel will be closed once the component reaches a terminal state.
-	Stop() <-chan State
+	// The ctx is provided for the component to lookup dependencies.
+	Start(config *capnp.Message, ctx Context) <-chan State
 
 	// MetricOpts returns the metrics that are collected for this component
 	MetricOpts() *metrics.MetricOpts
@@ -97,17 +96,122 @@ type ConfigTag string
 // Interface represents the interface from the client's perspective, i.e., it defines the compoenent's functionality.
 type Interface reflect.InterfaceType
 
-func checkInterface(compInterface Interface) Interface {
+func checkInterface(compInterface Interface) (Interface, error) {
 	if compInterface == nil {
-		logger.Panic().Msg("Interface is required")
+		return nil, errors.New("Interface is required")
 	}
 	switch compInterface.Kind() {
 	case stdreflect.Interface:
 	default:
 		if kind := compInterface.Elem().Kind(); kind != stdreflect.Interface {
-			logger.Panic().Msgf("Interface (%T) must be an interface, but was a %v", compInterface, kind)
+			return nil, fmt.Errorf("Interface (%T) must be an interface, but was a %v", compInterface, kind)
 		}
 		compInterface = compInterface.Elem()
 	}
-	return compInterface
+	return compInterface, nil
+}
+
+type component struct {
+	desc          *Descriptor
+	compInterface Interface
+
+	state        State
+	failureCause error
+
+	configTag  ConfigTag
+	configType stdreflect.Type
+
+	metrics      *metrics.MetricOpts
+	healthchecks HealthChecks
+	logEvents    []logging.Event
+	dependencies Dependencies
+
+	logger *zerolog.Logger
+
+	init      func(comp *component, config *capnp.Message, ctx Context)
+	handleMsg func(comp *component, msg interface{}) error
+	destroy   func(comp *component)
+
+	serverChan chan interface{}
+}
+
+func (a *component) server(stopping <-chan struct{}) error {
+	for {
+		select {
+		case <-stopping:
+			a.destroy(a)
+			return a.failureCause
+		case msg := <-a.serverChan:
+			if err := a.handleComponentMessage(msg); err != nil {
+				switch err.(type) {
+				case *UnsupportedMessageError:
+					if err := a.handleMsg(a, msg); err != nil {
+						return err
+					}
+				}
+			}
+		}
+	}
+}
+
+func (a *component) handleComponentMessage(msg interface{}) error {
+	// TODO
+	return &UnsupportedMessageError{nil}
+}
+
+func (a *component) Desc() *Descriptor {
+	return a.desc
+}
+
+func (a *component) Interface() Interface {
+	return a.compInterface
+}
+
+func (a *component) State() State {
+	return a.state
+}
+
+func (a *component) StateChan() <-chan StateChanged {
+	c := make(chan StateChanged, 4)
+	//TODO
+	return c
+}
+
+func (a *component) FailureCause() error {
+	return a.failureCause
+}
+
+func (a *component) Start(config *capnp.Message, ctx Context) <-chan State {
+	c := make(chan State, 4)
+	//TODO
+	return c
+}
+
+// MetricOpts returns the metrics that are collected for this component
+func (a *component) MetricOpts() *metrics.MetricOpts {
+	return a.metrics
+}
+
+func (a *component) HealthChecks() HealthChecks {
+	return a.healthchecks
+}
+
+func (a *component) LogEvents() []logging.Event {
+	return a.logEvents
+}
+
+func (a *component) ConfigTag() ConfigTag {
+	return a.configTag
+}
+
+func (a *component) ConfigType() stdreflect.Type {
+	return a.configType
+}
+
+func (a *component) Dependencies() Dependencies {
+	return a.dependencies
+}
+
+func (a *component) Logger() *zerolog.Logger {
+	return a.logger
 }

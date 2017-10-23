@@ -18,13 +18,10 @@ import (
 	"fmt"
 
 	"github.com/oysterpack/oysterpack.go/pkg/commons/reflect"
-	"github.com/oysterpack/oysterpack.go/pkg/metrics"
 )
 
 // DependencyChecks groups methods that are used to check component dependencies
 type DependencyChecks interface {
-	// CheckAllDependenciesHealthCheck invokes CheckAllDependencies()
-	CheckAllDependenciesHealthCheck() metrics.HealthCheck
 
 	// CheckAllDependencies checks that all Dependencies for each component are available
 	CheckAllDependencies() *DependencyErrors

@@ -42,10 +42,15 @@ import (
 // The container shutdown can be triggered via:
 //	1. Container.Stop()
 //  2. OS signals : syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT
+//  3. One of the registered compononets fails.
+//
+// If a ShutdownHook returns an error, then it is simply logged and moves on.
 type Container interface {
 	Desc() *Descriptor
 
 	Registry
+
+	DependencyChecks
 
 	// DumpAllStacks dumps all goroutine stacks to the specified writer.
 	// Used for troubleshooting purposes.
@@ -64,6 +69,9 @@ type Container interface {
 	Alive() bool
 
 	NotifyStopped() <-chan struct{}
+
+	// Wait blocks until the container has been stopped.
+	Wait() error
 }
 
 // NewContainer creates and returns a new Container
@@ -78,7 +86,7 @@ func NewContainer(desc *Descriptor, config func(Component) *capnp.Message) Conta
 		compLookups: make(map[Interface][]chan Component),
 	}
 	registerContainerHealthChecks(c)
-	c.t.Go(c.server)
+	c.Go(c.server)
 	return c
 }
 
@@ -92,58 +100,66 @@ func registerContainerHealthChecks(c *container) {
 	}
 	runInterval := time.Minute
 	healthcheck := func() error { return c.CheckAllDependencies() }
-	c.dependencyHealthCheck = metrics.NewHealthCheck(gauge, runInterval, healthcheck)
+	metrics.NewHealthCheck(gauge, runInterval, healthcheck)
 }
 
+// The container is designed to be concurrency safe. It uses the classic client-server design pattern using channels to communicate between goroutines.
+// The container state is managed by the backend server goroutine. All mutable requests are sent to the server via the serverChan.
+// The container's lifetime is defined by the server goroutine's lifetime.
+// All container goroutines are tracked and managed by the Tomb. When the Tomb is killed, the container is shutdown.
+//
+// Container goroutines:
+//  1. server goroutine - main backend goroutine
+//  2. component goroutines :
+//     1. a goroutine to start the component
+//     2. after the component is started, a goroutine is used to monitor the component's lifecycle - if the component fails, then trigger the container shutdown
+//     3. a goroutine that will shutdown the component after it is notified that the container is stopping
+//  3. A goroutine per shutdown hook that waits until the container is stopping to run the shutdown hook
 type container struct {
 	desc   *Descriptor
 	config func(Component) *capnp.Message
 
-	t          tomb.Tomb
+	tomb.Tomb
 	serverChan chan interface{}
 
 	comps map[Interface]Component
 
-	dependencyHealthCheck metrics.HealthCheck
-
 	compLookups map[Interface][]chan Component
-}
-
-func (a *container) Alive() bool {
-	return a.t.Alive()
 }
 
 func (a *container) Desc() *Descriptor {
 	return a.desc
 }
 
-func (a *container) CheckAllDependenciesHealthCheck() metrics.HealthCheck {
-	return a.dependencyHealthCheck
-}
-
 func (a *container) NotifyStopped() <-chan struct{} {
-	return a.t.Dead()
+	return a.Dead()
 }
 
 func (a *container) Stop() error {
-	defer metrics.ResetRegistry()
-
 	if !a.Alive() {
-		return a.t.Err()
+		return a.Err()
 	}
+
+	defer metrics.ResetRegistry()
 	// stop all healthchecks before shutting down because if healthchecks fail during container shutdown, then false healthcheck failure may be reported
 	metrics.HealthChecks.StopAllHealthCheckTickers()
-	a.t.Kill(nil)
-	return a.t.Wait()
+	a.Kill(nil)
+	return a.Wait()
 }
 
-func (a *container) server() error {
+func (a *container) Go(f func(stopping <-chan struct{}) error) {
+	a.Tomb.Go(func() error {
+		return f(a.Dying())
+	})
+}
+
+func (a *container) server(stopping <-chan struct{}) error {
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 
 	for {
 		select {
-		case <-a.t.Dying():
+		case <-stopping:
 			CONTAINER_KILLED.Log(logger.Info()).Msg("")
 			return nil
 		case sig := <-sigs:
@@ -151,13 +167,17 @@ func (a *container) server() error {
 			go a.Stop()
 		case msg := <-a.serverChan:
 			switch req := msg.(type) {
-			case RegisterComponent:
+			case registerComponent:
 				comp, err := a.register(req.newComp)
 				if err != nil {
 					req.err <- err
 				} else {
 					req.comp <- comp
 				}
+			case getComponent:
+				req.response <- a.component(req.comp)
+			case getComponents:
+				req.response <- a.components()
 			default:
 				logger.Panic().Msgf("Unhandled message : %T", req)
 			}
@@ -165,7 +185,7 @@ func (a *container) server() error {
 	}
 }
 
-type RegisterComponent struct {
+type registerComponent struct {
 	newComp ComponentConstructor
 	comp    chan Component
 	err     chan error
@@ -180,7 +200,7 @@ func (a *container) MustRegister(newComp ComponentConstructor) Component {
 }
 
 func (a *container) Register(newComp ComponentConstructor) (Component, error) {
-	req := RegisterComponent{newComp, make(chan Component), make(chan error)}
+	req := registerComponent{newComp, make(chan Component), make(chan error)}
 	a.serverChan <- req
 	select {
 	case comp := <-req.comp:
@@ -202,6 +222,8 @@ func (a *container) register(newComp ComponentConstructor) (Component, error) {
 		return nil, fmt.Errorf("Component has no Interface : %s/%s/%s/%s", desc.namespace, desc.system, desc.component, desc.version)
 	}
 
+	checkInterface(comp.Interface())
+
 	if !stdreflect.TypeOf(comp).AssignableTo(comp.Interface()) {
 		return nil, fmt.Errorf("The component does not implement the Interface : %T is not assignable to %v", comp, comp.Interface())
 	}
@@ -216,26 +238,47 @@ func (a *container) register(newComp ComponentConstructor) (Component, error) {
 }
 
 func (a *container) startComponent(comp Component) {
-	a.t.Go(func() error {
+	a.Go(func(stopping <-chan struct{}) error {
 		for {
 			select {
-			case <-a.t.Dying():
+			case <-stopping:
 				return nil
 			case <-comp.Start(a.config(comp), a):
-				a.componentStateChanged(comp)
+				a.compStarted(comp)
+
+				// monitor the component life cycle
+				// if the component fails, then fail fast and kill the container
+				a.Go(func(stopping <-chan struct{}) error {
+					for {
+						select {
+						case <-stopping:
+							return nil
+						case stateChange := <-comp.StateChan():
+							COMP_STATE_CHANGE.Log(comp.Logger().Info()).Str("state", stateChange.State.String()).Msg("")
+							if comp.State().Terminal() {
+								err := comp.FailureCause()
+								if err != nil {
+									COMP_FAILED.Log(comp.Logger().Error()).Err(err).Msg("")
+								}
+								return err
+							}
+						}
+					}
+				})
+				return nil
 			}
 		}
 	})
 
 	// when the container is killed, then stop the registered component
-	a.t.Go(func() error {
-		<-a.t.Dying()
-		<-comp.Stop()
-		return comp.FailureCause()
-	})
+	//a.Go(func(stopping <-chan struct{}) error {
+	//	<-stopping
+	//	<-comp.Stop()
+	//	return nil
+	//})
 }
 
-func (a *container) componentStateChanged(comp Component) {
+func (a *container) compStarted(comp Component) {
 	if comp.State().RunningOrLater() {
 		for _, c := range a.compLookups[comp.Interface()] {
 			c <- comp
@@ -260,7 +303,18 @@ func (a *container) componentStateChanged(comp Component) {
 	}
 }
 
+type getComponent struct {
+	comp     Interface
+	response chan chan Component
+}
+
 func (a *container) Component(comp Interface) <-chan Component {
+	req := &getComponent{comp, make(chan chan Component)}
+	a.serverChan <- req
+	return <-req.response
+}
+
+func (a *container) component(comp Interface) chan Component {
 	c := make(chan Component, 1)
 
 	if component := a.comps[comp]; component.State().Running() {
@@ -273,36 +327,43 @@ func (a *container) Component(comp Interface) <-chan Component {
 	return c
 }
 
-func (a *container) Components() <-chan Component {
-	c := make(chan Component, len(a.comps))
-	go func() {
-		for _, comp := range a.comps {
-			c <- comp
-		}
-	}()
-	return c
+type getComponents struct {
+	response chan []Component
+}
+
+func (a *container) Components() []Component {
+	req := &getComponents{make(chan []Component)}
+	a.serverChan <- req
+	return <-req.response
+}
+
+func (a *container) components() []Component {
+	comps := make([]Component, len(a.comps))
+	for _, comp := range a.comps {
+		comps = append(comps, comp)
+	}
+	return comps
 }
 
 func (a *container) RegisterShutdownHook(name string, f func() error) {
 	const SHUTDOWNHOOK = "ShutdownHook"
-	hook := func() error {
+	hook := func(stopping <-chan struct{}) error {
 		defer func() {
 			if p := recover(); p != nil {
 				logger.Error().Err(fmt.Errorf("%v", p)).Str(SHUTDOWNHOOK, name).Msg("panic")
 			}
 		}()
 
-		<-a.t.Dying()
+		<-stopping
 
-		err := f()
-		if err != nil {
+		if err := f(); err != nil {
 			logger.Error().Err(err).Str(SHUTDOWNHOOK, name).Msg("")
 		} else {
 			logger.Info().Str(SHUTDOWNHOOK, name).Msg("success")
 		}
-		return err
+		return nil
 	}
-	a.t.Go(hook)
+	a.Go(hook)
 	logger.Info().Str(SHUTDOWNHOOK, name).Msg("registered")
 }
 
