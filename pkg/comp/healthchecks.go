@@ -20,44 +20,13 @@ import (
 	"github.com/oysterpack/oysterpack.go/pkg/metrics"
 )
 
-// HealthChecks service health checks
-type HealthChecks interface {
-
-	// HealthChecks returns all registered service health checks
-	HealthChecks() []metrics.HealthCheck
-
-	// FailedHealthChecks returns all failed health checks based on the last result.
-	FailedHealthChecks() []metrics.HealthCheck
-
-	// SucceededHealthChecks returns all health checks that succeeded based on the last result.
-	SucceededHealthChecks() []metrics.HealthCheck
-
-	// RunAllHealthChecks runs all registered health checks.
-	// After a health check is run it is delivered on the channel.
-	RunAllHealthChecks() <-chan metrics.HealthCheck
-
-	// RunAllFailedHealthChecks all failed health checks based on the last result
-	RunAllFailedHealthChecks() <-chan metrics.HealthCheck
-}
-
-// NewHealthChecks is a factory method for HealthChecks
-func NewHealthChecks(checks ...metrics.HealthCheck) HealthChecks {
-	return &healthchecks{checks}
-}
-
-type healthchecks struct {
-	healthchecks []metrics.HealthCheck
-}
-
-func (a *healthchecks) HealthChecks() []metrics.HealthCheck {
-	return a.healthchecks
-}
+type HealthChecks []metrics.HealthCheck
 
 // FailedHealthChecks returns all failed health checks based on the last result.
 // If a HealthCheck has not yet been run, then it will be run.
-func (a *healthchecks) FailedHealthChecks() []metrics.HealthCheck {
+func (a HealthChecks) FailedHealthChecks() []metrics.HealthCheck {
 	failed := []metrics.HealthCheck{}
-	for _, healthcheck := range a.healthchecks {
+	for _, healthcheck := range a {
 		if healthcheck.LastResult() != nil && !healthcheck.LastResult().Success() {
 			failed = append(failed, healthcheck)
 		}
@@ -67,9 +36,9 @@ func (a *healthchecks) FailedHealthChecks() []metrics.HealthCheck {
 
 // SucceededHealthChecks returns all health checks that succeeded based on the last result.
 // If a HealthCheck has not yet been run, then it will be run.
-func (a *healthchecks) SucceededHealthChecks() []metrics.HealthCheck {
+func (a HealthChecks) SucceededHealthChecks() []metrics.HealthCheck {
 	succeeded := []metrics.HealthCheck{}
-	for _, healthcheck := range a.healthchecks {
+	for _, healthcheck := range a {
 		if healthcheck.LastResult() != nil && healthcheck.LastResult().Success() {
 			succeeded = append(succeeded, healthcheck)
 		}
@@ -79,13 +48,13 @@ func (a *healthchecks) SucceededHealthChecks() []metrics.HealthCheck {
 
 // RunAllHealthChecks runs all registered health checks.
 // After a health check is run it is delivered on the channel.
-func (a *healthchecks) RunAllHealthChecks() <-chan metrics.HealthCheck {
-	count := len(a.healthchecks)
+func (a HealthChecks) RunAllHealthChecks() <-chan metrics.HealthCheck {
+	count := len(a)
 	c := make(chan metrics.HealthCheck, count)
 	wait := sync.WaitGroup{}
 	wait.Add(count)
 
-	for _, healthcheck := range a.healthchecks {
+	for _, healthcheck := range a {
 		go func(healthcheck metrics.HealthCheck) {
 			defer func() {
 				c <- healthcheck
@@ -104,7 +73,7 @@ func (a *healthchecks) RunAllHealthChecks() <-chan metrics.HealthCheck {
 }
 
 // RunAllFailedHealthChecks all failed health checks based on the last result
-func (a *healthchecks) RunAllFailedHealthChecks() <-chan metrics.HealthCheck {
+func (a HealthChecks) RunAllFailedHealthChecks() <-chan metrics.HealthCheck {
 	failedHealthChecks := a.FailedHealthChecks()
 	c := make(chan metrics.HealthCheck, len(failedHealthChecks))
 	wait := sync.WaitGroup{}

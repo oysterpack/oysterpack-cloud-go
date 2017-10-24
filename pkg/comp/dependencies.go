@@ -20,26 +20,100 @@ import (
 	"github.com/oysterpack/oysterpack.go/pkg/commons/reflect"
 )
 
-// DependencyChecks groups methods that are used to check component dependencies
-type DependencyChecks interface {
+// CheckAllDependencies checks that all Dependencies for each  are available
+// nil is returned if there are no errors
+func CheckAllDependencies(container *Container) *DependencyErrors {
+	errors := []error{}
+	for _, err := range CheckAllDependenciesRegistered(container) {
+		errors = append(errors, err)
+	}
 
-	// CheckAllDependencies checks that all Dependencies for each component are available
-	CheckAllDependencies() *DependencyErrors
+	for _, err := range CheckAllDependenciesRunning(container) {
+		errors = append(errors, err)
+	}
 
-	// CheckAllDependenciesRegistered checks that all Dependencies for each component are registered
-	CheckAllDependenciesRegistered() []*DependencyMissingError
+	if len(errors) > 0 {
+		return &DependencyErrors{errors}
+	}
+	return nil
+}
 
-	//CheckAllDependenciesRunning checks that all Dependencies for each component are running
-	CheckAllDependenciesRunning() []*DependencyNotRunningError
+// CheckAllDependenciesRegistered checks that all Dependencies are currently satisfied.
+func CheckAllDependenciesRegistered(container *Container) []*DependencyMissingError {
+	errors := []*DependencyMissingError{}
+	for _, comp := range container.comps {
+		if missingDependencies := CheckDependenciesRegistered(container, comp); missingDependencies != nil {
+			errors = append(errors, missingDependencies)
+		}
+	}
+	return errors
+}
 
-	// CheckDependencies checks that the service Dependencies are available for the specified component
-	CheckDependencies(comp Component) *DependencyErrors
+// CheckAllDependenciesRunning checks that all Dependencies are currently satisfied.
+func CheckAllDependenciesRunning(container *Container) []*DependencyNotRunningError {
+	errors := []*DependencyNotRunningError{}
+	for _, comp := range container.comps {
+		if notRunning := CheckDependenciesRunning(container, comp); notRunning != nil {
+			errors = append(errors, notRunning)
+		}
+	}
+	return errors
+}
 
-	// CheckDependenciesRegistered checks that the service Dependencies are registered for the specified component
-	CheckDependenciesRegistered(comp Component) *DependencyMissingError
+// CheckDependencies checks that the all Dependencies are available
+func CheckDependencies(container *Container, comp Component) *DependencyErrors {
+	errors := []error{}
+	if err := CheckDependenciesRegistered(container, comp); err != nil {
+		errors = append(errors, err)
+	}
 
-	// CheckDependenciesRunning checks that the service Dependencies are running for the specified component
-	CheckDependenciesRunning(comp Component) *DependencyNotRunningError
+	if err := CheckDependenciesRunning(container, comp); err != nil {
+		errors = append(errors, err)
+	}
+
+	if len(errors) > 0 {
+		return &DependencyErrors{errors}
+	}
+	return nil
+}
+
+// CheckDependenciesRegistered checks that the component's Dependencies are currently registered
+// nil is returned if there is no error
+func CheckDependenciesRegistered(container *Container, comp Component) *DependencyMissingError {
+	missingDependencies := &DependencyMissingError{&DependencyMappings{Interface: comp.Interface()}}
+	for dependency, constraints := range comp.Dependencies() {
+		b, exists := container.comps[dependency]
+		if !exists {
+			missingDependencies.AddMissingDependency(dependency)
+		} else {
+			if constraints != nil {
+				if !constraints.Check(b.Desc().Version()) {
+					missingDependencies.AddMissingDependency(dependency)
+				}
+			}
+		}
+	}
+	if missingDependencies.HasMissing() {
+		return missingDependencies
+	}
+	return nil
+}
+
+// CheckDependenciesRunning checks that the component's Dependencies are currently running
+// nil is returned if there is no error
+func CheckDependenciesRunning(container *Container, comp Component) *DependencyNotRunningError {
+	notRunning := &DependencyNotRunningError{&DependencyMappings{Interface: comp.Interface()}}
+	for dependency, constraints := range comp.Dependencies() {
+		if compDependency, exists := container.comps[dependency]; !exists ||
+			(constraints != nil && !constraints.Check(compDependency.Desc().Version())) ||
+			!compDependency.State().Running() {
+			notRunning.AddDependencyNotRunning(dependency)
+		}
+	}
+	if notRunning.HasNotRunning() {
+		return notRunning
+	}
+	return nil
 }
 
 // DependencyMappings maps an Interface to its Interface dependencies

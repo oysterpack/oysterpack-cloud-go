@@ -15,6 +15,9 @@
 package commons
 
 import (
+	"io"
+	"runtime"
+
 	"github.com/rs/zerolog/log"
 )
 
@@ -40,4 +43,18 @@ func IgnorePanic() {
 func CloseQuietly(c chan struct{}) {
 	defer IgnorePanic()
 	close(c)
+}
+
+// DumpAllStacks dumps all goroutine stacks to the specified writer.
+// Used for troubleshooting purposes.
+func DumpAllStacks(out io.Writer) {
+	size := 1024 * 8
+	for {
+		buf := make([]byte, size)
+		if len := runtime.Stack(buf, true); len <= size {
+			out.Write(buf[:len])
+			return
+		}
+		size = size + (1024 * 8)
+	}
 }

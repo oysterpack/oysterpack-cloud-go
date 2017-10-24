@@ -67,17 +67,45 @@ type Component interface {
 	// LogEvents returns what events are logged by this component
 	LogEvents() []logging.Event
 
-	// ConfigTag is optional, but if specified, it is used to lookup a config with the specified tag.
-	// The config id is constructed using the component Desc and the ConfigTag
-	ConfigTag() ConfigTag
-
-	// ConfigType is the expected type for the config capnp message
-	ConfigType() stdreflect.Type
+	ConfigDesc() *ConfigDesc
 
 	// Dependencies lists what other components this component depends on
 	Dependencies() Dependencies
 
 	Logger() *zerolog.Logger
+}
+
+type ConfigDesc struct {
+	// ConfigType is the expected type for the config capnp message
+	Type stdreflect.Type
+
+	// Tag is optional, but if specified, it is used to lookup a config with the specified tag.
+	// The config id is constructed using the component Desc and the ConfigTag
+	Tag string
+}
+
+func NewComponent(settings *ComponentSettings) Component {
+
+	c := &component{
+		ComponentSettings: settings,
+		serverChan:        make(chan interface{}),
+	}
+
+	// TODO: augment init and destroy funcs :
+	// - log events
+
+	// TODO: collect metrics
+	c.process = func(comp Component, msg interface{}) error {
+		err := settings.process(comp, msg)
+		switch err.(type) {
+		case *UnsupportedMessageError:
+			return c.handleComponentMessage(msg)
+		default:
+			return err
+		}
+	}
+
+	return c
 }
 
 // StateChanged represents a state change event for a Component.
@@ -90,8 +118,6 @@ type StateChanged struct {
 
 // Dependencies represents a component's interface dependencies with version constraints
 type Dependencies map[Interface]*semver.Constraints
-
-type ConfigTag string
 
 // Interface represents the interface from the client's perspective, i.e., it defines the compoenent's functionality.
 type Interface reflect.InterfaceType
@@ -111,15 +137,11 @@ func checkInterface(compInterface Interface) (Interface, error) {
 	return compInterface, nil
 }
 
-type component struct {
+type ComponentSettings struct {
 	desc          *Descriptor
 	compInterface Interface
 
-	state        State
-	failureCause error
-
-	configTag  ConfigTag
-	configType stdreflect.Type
+	configDesc *ConfigDesc
 
 	metrics      *metrics.MetricOpts
 	healthchecks HealthChecks
@@ -128,12 +150,26 @@ type component struct {
 
 	logger *zerolog.Logger
 
-	init      func(comp *component, config *capnp.Message, ctx Context)
-	handleMsg func(comp *component, msg interface{}) error
-	destroy   func(comp *component)
+	init    ComponentInit
+	process ComponentProcess
+	destroy ComponentDestroy
+}
+
+// Component provides functionality defined by its Interface, i.e., it implements the Interface
+type component struct {
+	*ComponentSettings
+
+	state        State
+	failureCause error
 
 	serverChan chan interface{}
 }
+
+type ComponentInit func(comp Component, config *capnp.Message, ctx Context)
+
+type ComponentProcess func(comp Component, msg interface{}) error
+
+type ComponentDestroy func(comp Component)
 
 func (a *component) server(stopping <-chan struct{}) error {
 	for {
@@ -142,13 +178,8 @@ func (a *component) server(stopping <-chan struct{}) error {
 			a.destroy(a)
 			return a.failureCause
 		case msg := <-a.serverChan:
-			if err := a.handleComponentMessage(msg); err != nil {
-				switch err.(type) {
-				case *UnsupportedMessageError:
-					if err := a.handleMsg(a, msg); err != nil {
-						return err
-					}
-				}
+			if err := a.process(a, msg); err != nil {
+				return err
 			}
 		}
 	}
@@ -200,12 +231,8 @@ func (a *component) LogEvents() []logging.Event {
 	return a.logEvents
 }
 
-func (a *component) ConfigTag() ConfigTag {
-	return a.configTag
-}
-
-func (a *component) ConfigType() stdreflect.Type {
-	return a.configType
+func (a *component) ConfigDesc() *ConfigDesc {
+	return a.configDesc
 }
 
 func (a *component) Dependencies() Dependencies {
