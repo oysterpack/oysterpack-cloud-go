@@ -14,15 +14,24 @@
 
 package actor
 
-type Context struct {
-	// Message returns the current message to be processed
-	Message
+import "time"
 
-	// Actor returns the actor associated with this context
-	*Actor
+type Message struct {
+	*Header
+	Data interface{}
 }
 
-// SetBehaivor is used to alter the actor's behavior, i.e., how user messages are processed
-func (a *Context) SetBehavior(behavior func(ctx *Context)) {
-	a.behavior = behavior
+type Header struct {
+	// unique message id - for message tracking purposes
+	Id      string
+	Created time.Time
+	Sender  Address
+}
+
+type Address struct {
+	System string
+
+	// At least one of path or id must be set. Either can be set or both.
+	Path []string
+	Id   string
 }

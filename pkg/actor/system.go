@@ -14,9 +14,25 @@
 
 package actor
 
+import "errors"
+
 // An ActorSystem is a hierarchical group of actors.
 //  It is also the entry point for creating or looking up actors.
 type ActorSystem struct {
 	// The name of this actor system, used to distinguish multiple ones within the same process
 	Name string
+
+	root *Actor
+}
+
+// Tell sends a message to the given address.
+//
+// If the address is for this actor system, then first try to send the message to a local actor.
+// If no such local actor exists, then try sending it to a remote actor.
+//
+// If the address is for another actor system, then check if this actor system is linked to the specified actor system.
+// If not, then return an error - actor system unknown
+func (a *ActorSystem) Tell(address *Address, msg *Message) error {
+	//TODO
+	return errors.New("NOT IMPLEMENTED")
 }
