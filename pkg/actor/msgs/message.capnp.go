@@ -60,26 +60,26 @@ func (s Header) SetCreated(v int64) {
 	s.Struct.SetUint64(0, uint64(v))
 }
 
-func (s Header) Sender() (Address, error) {
+func (s Header) Reply() (ChannelAddress, error) {
 	p, err := s.Struct.Ptr(1)
-	return Address{Struct: p.Struct()}, err
+	return ChannelAddress{Struct: p.Struct()}, err
 }
 
-func (s Header) HasSender() bool {
+func (s Header) HasReply() bool {
 	p, err := s.Struct.Ptr(1)
 	return p.IsValid() || err != nil
 }
 
-func (s Header) SetSender(v Address) error {
+func (s Header) SetReply(v ChannelAddress) error {
 	return s.Struct.SetPtr(1, v.Struct.ToPtr())
 }
 
-// NewSender sets the sender field to a newly
-// allocated Address struct, preferring placement in s's segment.
-func (s Header) NewSender() (Address, error) {
-	ss, err := NewAddress(s.Struct.Segment())
+// NewReply sets the reply field to a newly
+// allocated ChannelAddress struct, preferring placement in s's segment.
+func (s Header) NewReply() (ChannelAddress, error) {
+	ss, err := NewChannelAddress(s.Struct.Segment())
 	if err != nil {
-		return Address{}, err
+		return ChannelAddress{}, err
 	}
 	err = s.Struct.SetPtr(1, ss.Struct.ToPtr())
 	return ss, err
@@ -111,8 +111,8 @@ func (p Header_Promise) Struct() (Header, error) {
 	return Header{s}, err
 }
 
-func (p Header_Promise) Sender() Address_Promise {
-	return Address_Promise{Pipeline: p.Pipeline.GetPipeline(1)}
+func (p Header_Promise) Reply() ChannelAddress_Promise {
+	return ChannelAddress_Promise{Pipeline: p.Pipeline.GetPipeline(1)}
 }
 
 type Address struct{ capnp.Struct }
@@ -229,39 +229,146 @@ func (p Address_Promise) Struct() (Address, error) {
 	return Address{s}, err
 }
 
-const schema_87fc44aa3255d2ae = "x\xda|\x92\xbfk\x14A\x18\x86\xbfw\xe6V\x0b\x8f" +
-	"\xbb\x0cwE\x08\xca\x8e\x85M\x88\xe2\xd9\xa8\xd7$\xa7" +
-	"\x1eh\xb0\xc8\x80\x07b!\x8c\xbb\xa3\xb7\x92\xfdq;" +
-	"\xbb\x90k\xb4\x11\x04\xb1R\xb1M\x1f\x88\x11\x0b\xbbt" +
-	"\x0a\x16\x06\x82J*\xff\x08\xc1\xc2FX\xd9\xcd\x1d\x91" +
-	"\xa0\xe9>>\xde\xe7\x9b\x97\x87\x99\xf9\xb5\xc4:N\xcc" +
-	"\x88\xd4I\xe7X\xb1\xfd\xe4\xfd\xcd\x1f\xb7\xbf\xae\x93h" +
-	"\xa0x\xf3epa\xe3\xda\xef\xa7\xe4\xf0\xe3D\xadS" +
-	"x\xd7:\x83r:\x8d-B\xb1\xf3\xe8\xf5\xec\xde\xe7" +
-	"\xe7?I5\xf0w\x98\x95\x91\x1e\xdbh\xdd\xa8\xa6>" +
-	"\xdb\xa2KEh\xac\xd5\x0f\xcc9x:\x89\x92n\xcf" +
-	"w\xfd\xd4X\xbb\x02\xa8:\xaf\x11\xd5@$\xfa]\xd1" +
-	"w\xd5\x90Ce\x0c\x02h\xa3\xdc\x8e\xe6\xc5\xc8U\xaf" +
-	"8\xd4[\x06\xc1X\x1b\x8cHl\xce\x89MW\xedr" +
-	"\xa8\xef\x0c\x8bvl3\x13\xaa\x1aXq\xf7\xe5\xba\xda" +
-	"\xde{\xf6\x91T\x8d\xa1\xd7\x06\xeaD\x02\x0f\x0b\xede" +
-	"q*\xed\x98\x9ae\x94\x08ub\xa8\x13\x9a\x89\xce\x86" +
-	"G\x90w&d\xa2\x89gC\"4\x08+\x1c\x15\xde" +
-	" \xf0\xc0?\x02^\x9e\xc0\x81O\x84\xe9\x8b\x87e\\" +
-	"7M\xed\x9b\xf4\x90\x8b\xb9\xd2\xc5*\x87Zc\x98\xaa" +
-	"\xc8\xaf\x88\xdcU\x1f8\xd4n\xa9\x02\xfb*v\xbaD" +
-	"\xea\x13\x87\xfa\xc6\xfeSgvR\xe7E\x91G\xc1(" +
-	"72\xc4~\x05\x19\xc0?P\xf1\xd8K\x8d\xce\xcc\xbf" +
-	".,U\x17:\x98\xe7\xd3\xf6\xf2D\x95\x0e\xe2Hf" +
-	"Ahl\xa6\xc3D\x9e\x95\xdaJ-\x07Q\xb0Vm" +
-	"\x17d642\xca\xc3{&\x95\xf1}i\x8d\x17G" +
-	"\xbe\x95fU'\xd6\xf8\xd2\x06\x91g\xe4\xb2\x8er\x9d" +
-	"\x8eegAv._<\xdf\x94\x83[W\x89\xe0\x10" +
-	"\x83CX\xb4&\xf2M\x8a\x99\x83\xdfI\xc0\x0c\xe1O" +
-	"\x00\x00\x00\xff\xff\xd1\xdd\xb8\x06"
+type ChannelAddress struct{ capnp.Struct }
+
+// ChannelAddress_TypeID is the unique identifier for the type ChannelAddress.
+const ChannelAddress_TypeID = 0xd801266d9df371b7
+
+func NewChannelAddress(s *capnp.Segment) (ChannelAddress, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
+	return ChannelAddress{st}, err
+}
+
+func NewRootChannelAddress(s *capnp.Segment) (ChannelAddress, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
+	return ChannelAddress{st}, err
+}
+
+func ReadRootChannelAddress(msg *capnp.Message) (ChannelAddress, error) {
+	root, err := msg.RootPtr()
+	return ChannelAddress{root.Struct()}, err
+}
+
+func (s ChannelAddress) String() string {
+	str, _ := text.Marshal(0xd801266d9df371b7, s.Struct)
+	return str
+}
+
+func (s ChannelAddress) Channel() (string, error) {
+	p, err := s.Struct.Ptr(0)
+	return p.Text(), err
+}
+
+func (s ChannelAddress) HasChannel() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s ChannelAddress) ChannelBytes() ([]byte, error) {
+	p, err := s.Struct.Ptr(0)
+	return p.TextBytes(), err
+}
+
+func (s ChannelAddress) SetChannel(v string) error {
+	return s.Struct.SetText(0, v)
+}
+
+func (s ChannelAddress) Address() (Address, error) {
+	p, err := s.Struct.Ptr(1)
+	return Address{Struct: p.Struct()}, err
+}
+
+func (s ChannelAddress) HasAddress() bool {
+	p, err := s.Struct.Ptr(1)
+	return p.IsValid() || err != nil
+}
+
+func (s ChannelAddress) SetAddress(v Address) error {
+	return s.Struct.SetPtr(1, v.Struct.ToPtr())
+}
+
+// NewAddress sets the address field to a newly
+// allocated Address struct, preferring placement in s's segment.
+func (s ChannelAddress) NewAddress() (Address, error) {
+	ss, err := NewAddress(s.Struct.Segment())
+	if err != nil {
+		return Address{}, err
+	}
+	err = s.Struct.SetPtr(1, ss.Struct.ToPtr())
+	return ss, err
+}
+
+// ChannelAddress_List is a list of ChannelAddress.
+type ChannelAddress_List struct{ capnp.List }
+
+// NewChannelAddress creates a new list of ChannelAddress.
+func NewChannelAddress_List(s *capnp.Segment, sz int32) (ChannelAddress_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2}, sz)
+	return ChannelAddress_List{l}, err
+}
+
+func (s ChannelAddress_List) At(i int) ChannelAddress { return ChannelAddress{s.List.Struct(i)} }
+
+func (s ChannelAddress_List) Set(i int, v ChannelAddress) error { return s.List.SetStruct(i, v.Struct) }
+
+func (s ChannelAddress_List) String() string {
+	str, _ := text.MarshalList(0xd801266d9df371b7, s.List)
+	return str
+}
+
+// ChannelAddress_Promise is a wrapper for a ChannelAddress promised by a client call.
+type ChannelAddress_Promise struct{ *capnp.Pipeline }
+
+func (p ChannelAddress_Promise) Struct() (ChannelAddress, error) {
+	s, err := p.Pipeline.Struct()
+	return ChannelAddress{s}, err
+}
+
+func (p ChannelAddress_Promise) Address() Address_Promise {
+	return Address_Promise{Pipeline: p.Pipeline.GetPipeline(1)}
+}
+
+const schema_87fc44aa3255d2ae = "x\xda|\x93\xbfk\x14A\x1c\xc5\xbfo\xe6N\x05\x8f" +
+	"\xbb,\x97\"\xa4\xd9i\x14\x12\x12\xc9\xa5Qca~" +
+	"\x18\xd0\xa0\x90\x01\x03FD\x18oGo\xe5voo" +
+	"g\x17s \xa6\x11\x14\xb1R\xb1\x93\xf4\x81\x18\xb1\xd0" +
+	"*\x9d\xa2\x85\x81\xa0\x12,\xfc\x0b\xac\x84\xb4\xc2\xca\xed" +
+	"\xed%!\xc6\xeb\x86\xe1\xbd\xefw\xde\xe7\xed\x8e\x9d\xc3" +
+	"$\xab\xe4?1\")\xf2G\x92\x8d\x87\xef.\xff\xbe" +
+	"\xf6m\x85\xac\"\x92\xd7_\x17\xc6W/\xfcyDy" +
+	"~\x94\xa8|\x09o\xcb\x12\xed\xd3\x15\xac\x13\x92\xf7\xcd" +
+	"\x9dW\xdeI\xfc8\xa0em\x85\xc7~\x95[\xe9)" +
+	"f\xf7\x08\xc9\xe6\x83\x97\x03\xdb_\x9e\xee\x90,\xe2\x1f" +
+	"\xf1\x09\xbeZ\x1eMW\x0c\xf1u:\x93x\xda\x18u" +
+	"G\x9fBU\x05~01\xe5\xd8N\xa8\x8d\x99\x07d" +
+	"\x81\xe7\x88r \xb2f'\xacY[\xd68d\xc4`" +
+	"\x01\xfdh\xdf6\x87\xad\xa6-_p\xc87\x0c\x16c" +
+	"\xfd`D\xd6\xda\xa0\xb5f\xcb-\x0e\xf9\x93\xe1\xbci" +
+	"\x99H{2\x07\x96\xdc|\xbe\"7\xb6\x9f|$\x99" +
+	"c\x98\xea\x07\x0aD\x16\xee&\xaa\x1a5BaZT" +
+	"jK\x89P \x86\x02\xa1\x14\xa8\xa8\xd6\xc3y=s" +
+	"\x06\x8axT#B\x910\xcf\x91\xda\x8b\x04\xee:=" +
+	"\xccs\x99\xd9u\x88\xd0\xdd\xb8\x0b\x83u`\xcc\xd4\x94" +
+	"\xef\xeb\xfa\x94\xe3\x94\xbaL\x8e\xed2\x19\x9a\xb6\x86l" +
+	"9\xcf!o\xecc\xb28m-\xda\xf2>\x87|\xcc" +
+	"\xb0\\\xed\x0c8\xe4\x1d\x03\xd9;V\xbb;\x052\xb1" +
+	"(\xf9\xca\xd3{\x18\x96\x95\x936\xd2#L\x98\x85Q" +
+	"\x0eu\xda#B\xdf\xde\xe7E@\xdf\xbepY\xd3\x17" +
+	"uI9:<P\xf4`\xbb\xe8:\x87\\b\xe8f" +
+	"\x8a\xa7\xad\xd8\x96\x1f8\xe4V\xbbgtz\xde\x1c'" +
+	"\x92\x9f9\xe4w\xf6\x1f\xd6\xdd\x8c\xcf\x92\xd8w\x9b\xb1" +
+	"\x16\x1e\xb2\xac.\x9c}\x01\xab\xa1V\x91>l\xc2d" +
+	":\xa1\x82a\xbe\x8b\xe9x\xaav\x1b\xbe\x88\\O\x9b" +
+	"Hy\x81\x18\x15\xca\x08%\x16|w)\xbd\x1d\x11Q" +
+	"M\x0b?\xf6n\xe9P4n\x0b\xa3\xab\x0d\xdf1B" +
+	"\xd7U`\xb4#\x8c\xebW\xb5\x98S~\xac\xc2\x96\xa8" +
+	"\x8c\x88\xca\xd9\xd3c%\xb1pu\x86\x08yb\xc8\x13" +
+	"\xecP\x07\xf5\x16\xfa\xf6\xfe\xbc\x0e\xc6\xbf\x01\x00\x00\xff" +
+	"\xff\x99Y\x01+"
 
 func init() {
 	schemas.Register(schema_87fc44aa3255d2ae,
 		0x9fd358f04cb684bd,
+		0xd801266d9df371b7,
 		0xf38cccd618967ecd)
 }

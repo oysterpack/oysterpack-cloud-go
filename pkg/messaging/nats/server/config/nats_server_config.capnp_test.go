@@ -64,6 +64,12 @@ func TestNewNATSServerConfig(t *testing.T) {
 	cfg.SetClusterX509KeyPair(readCertKeyPairFiles(t, "cluster.nats.dev.oysterpack.com", seg))
 	cfg.SetServerX509KeyPair(readCertKeyPairFiles(t, "nats.dev.oysterpack.com", seg))
 
+	_, serverHostPortSeg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	serverHostPort, err := config.NewNATSServerConfig_HostPort(serverHostPortSeg)
+	serverHostPort.SetHost("node-1")
+	serverHostPort.SetPort(8080)
+	cfg.SetServer(serverHostPort)
+
 	buf := new(bytes.Buffer)
 	encoder := capnp.NewEncoder(buf)
 	if err := encoder.Encode(msg); err != nil {
@@ -83,6 +89,17 @@ func TestNewNATSServerConfig(t *testing.T) {
 
 	cluster2, err := cfg2.ClusterName()
 	checkError(t, err)
+
+	serverHostPort2, err := cfg2.Server()
+	checkError(t, err)
+	serverHost, err := serverHostPort2.Host()
+	checkError(t, err)
+	if serverHost != "node-1" {
+		t.Errorf("Host did not match : %v", serverHostPort2)
+	}
+	if serverHostPort2.Port() != serverHostPort.Port() {
+		t.Errorf("Port did not match : %v", serverHostPort2)
+	}
 
 	if cluster != cluster2 {
 		t.Errorf("cluster did not match : %s != %s", cluster, cluster2)

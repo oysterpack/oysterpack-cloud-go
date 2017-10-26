@@ -16,12 +16,6 @@ package actor
 
 import (
 	"time"
-
-	"sync"
-
-	"fmt"
-
-	"gopkg.in/tomb.v2"
 )
 
 // Actor represents an actor in the Actor Model. Actors are objects which encapsulate state and behavior, they communicate exclusively by exchanging messages.
@@ -32,111 +26,124 @@ import (
 // Actors communicate via messages over channels.
 // All messages must be capnp messages to support distributed messaging.
 // Actors are defined by an actor path. The actor path must be unique within a local process.
-type Actor struct {
-	// each new actor instance is assigned a unique id
-	address Address
-	created time.Time
+type Actor interface {
+	// System the system that the actor belongs to
+	System() ActorSystem
 
-	system *ActorSystem
+	// Address is where the actor lives. Actors receive messages on this address.
+	Address()
 
-	parent   *Actor
-	children map[string]*Actor
+	// Created is the actor creation time
+	Created() time.Time
 
-	// user messages are forwarded to the actor instance
-	userMsgs chan interface{}
-	// system messages are handled internally, i.e., by the Actor
-	sysMsgs chan interface{}
+	// Parent actor parent. The root actor of the system will have no parent.
+	Parent() Actor
 
-	instance Instance
-	behavior func(ctx *Context)
+	// ChildrenNames actor children names
+	ChildrenNames() []string
 
-	tomb.Tomb
+	// Child returns the child actor for the specified name
+	Child(name string) Actor
 
-	msgSeqLock sync.Mutex
-	msgSeq     uint64
+	Channels() Channels
+
+	// Alive indicates if the actor is still alive.
+	Alive() bool
+
+	// Dead returns the channel that can be used to wait until the actor is dead
+	Dead() <-chan struct{}
+
+	// Dying returns the channel that can be used to wait until Actor.Kill() is called.
+	Dying() <-chan struct{}
+
+	// Err returns the death reason, or ErrStillAlive if the tomb is not in a dying or dead state.
+	Err() (reason error)
+
+	// Kill puts the actor in a dying state for the given reason, closes the Dying channel, and sets Alive to false.
+	//
+	// Although Kill may be called multiple times, only the first non-nil error is recorded as the death reason.
+	// If reason is ErrDying, the previous reason isn't replaced even if nil. It's a runtime error to call Kill with
+	// ErrDying if t is not in a dying state.
+	Kill(reason error)
+
+	// Wait blocks until the actor has finished running, and then returns the reason for their death.
+	Wait() error
 }
 
-type Instance interface {
-	// Receive is the actor instance initial behavior
-	Receive(ctx *Context)
+type Channels interface {
+	// ChannelNames return the message channel names
+	ChannelNames() []string
+
+	// ChannelMessageType returns the type that the message sent on the channel will be converted to by this actor.
+	ChannelMessageType(channel string) string
+
+	// ChannelMessageTypes returns the supported types per channel
+	ChannelMessageTypes(channel string) map[string]string
+
+	// Send the message to the actor on the specified channel asynchronously. The method may block depending on the channel's buffer.
+	//
+	// An error can occur under the following conditions:
+	// 	- validation fails - see Actor.ValidateMessage() for the types of errors that can be returned
+	//  - the actor is not alive -> ActorNotAliveError
+	Send(channel string, msg interface{}) error
+
+	SendViaChannel(channel string, msgs <-chan interface{}) error
+
+	// SendRequest sends a messages asynchronously to the actor. The actor is expected to send a reply back on the specified address.
+	// `reply` must not be nil.
+	SendRequest(channel string, msg interface{}, reply *ChannelAddress) error
+
+	// SendRequestViaChannel sends messages asynchronously to the actor. The actor is expected to send a reply back on the specified address.
+	// `reply` must not be nil.
+	SendRequestViaChannel(channel string, msgs <-chan interface{}, reply *ChannelAddress) error
+
+	// ValidateMessage will check if the message is valid for the channel, i.e., can it be sent on the channel
+	//
+	// The following types of errors may be returned:
+	// 	- InvalidChannelError
+	//	- InvalidChannelMessageTypeError
+	//	- InvalidMessageError
+	ValidateMessage(channel string, msg interface{}) error
 }
 
-// Id is the unique actor id within the actor system. It can be used to send a message directly to this instance.
-// In a distributed environment, there may be multiple instances of the actor running - each running in their own separate process.
-// Withing a local actor system, there is 1 actor instance per path. However, in a distributed actor system, there may be multiple
-// actor instances per path - this is how the actor is scaled.
-func (a *Actor) Id() string {
-	return a.address.Id
-}
+type ActorRef interface {
+	Address()
 
-// Created is when the actor was created.
-func (a *Actor) Created() time.Time {
-	return a.Created()
-}
+	// ChannelMessageType returns the type that the message sent on the channel will be converted to by this actor.
+	ChannelMessageType(channel string) string
 
-// System is the actor system that the actor belongs to
-func (a *Actor) System() *ActorSystem {
-	return a.system
-}
+	// ChannelMessageTypes returns the supported types per channel
+	ChannelMessageTypes(channel string) map[string]string
 
-// Path is the actor path within the actor system
-func (a *Actor) Path() []string {
-	return a.address.Path
-}
+	// Message sends the message to the actor on the specified channel asynchronously. The operation is back pressured.
+	// If the actor is not ready to receive the message, then the operation will be block
+	//
+	// An error can occur under the following conditions:
+	// 	- validation fails - see Actor.ValidateMessage() for the types of errors that can be returned
+	//  - the actor is not alive -> ActorNotAliveError
+	Message(channel string, msg interface{}) error
 
-// Name corresponds to the actor's name relative to its parent, i.e., it corresponds to the last path element.
-func (a *Actor) Name() string {
-	return a.address.Path[len(a.address.Path)-1]
-}
+	//
+	Messages(channel string, msgs <-chan interface{}) error
 
-// Parent actor
-func (a *Actor) Parent() *Actor {
-	return a.parent
-}
+	// Request sends a message asynchronously to the actor. The actor is expected to send a reply back on the specified address.
+	// `reply` must not be nil.
+	Request(channel string, msg interface{}, reply *ChannelAddress) error
 
-// Children actors
-func (a *Actor) Children() []*Actor {
-	size := len(a.children)
-	children := make([]*Actor, size)
-	i := 0
-	for _, child := range a.children {
-		children[i] = child
-		i++
-	}
-	return children
-}
+	// Requests sends messages asynchronously to the actor. The actor is expected to send a reply back on the specified address.
+	// `reply` must not be nil.
+	Requests(channel string, msgs <-chan interface{}, reply *ChannelAddress) error
 
-// ChildrenNames returns the names of the child actors
-func (a *Actor) ChildrenNames() []string {
-	size := len(a.children)
-	children := make([]string, size)
-	i := 0
-	for name := range a.children {
-		children[i] = name
-		i++
-	}
-	return children
-}
+	// ValidateMessage will check if the message is valid for the channel, i.e., can it be sent on the channel
+	//
+	// The following types of errors may be returned:
+	// 	- InvalidChannelError
+	//	- InvalidChannelMessageTypeError
+	//	- InvalidMessageError
+	ValidateMessage(channel string, msg interface{}) error
 
-//Tell sends a message to the given address
-func (a *Actor) Tell(to *Address, msg interface{}) error {
-	return a.system.Tell(to, a.NewMessage(msg))
-}
-
-func (a *Actor) NewMessage(data interface{}) *Message {
-	return &Message{
-		&Header{Id: a.nextMsgId(), Created: time.Now(), Sender: a.address},
-		data,
-	}
-}
-
-func (a *Actor) nextMsgSequence() uint64 {
-	a.msgSeqLock.Lock()
-	defer a.msgSeqLock.Unlock()
-	a.msgSeq++
-	return a.msgSeq
-}
-
-func (a *Actor) nextMsgId() string {
-	return fmt.Sprintf("%s%d", a.address.Id, a.nextMsgSequence())
+	// Remote returns true if the actor is referencing a remote actor, i.e., outside the local actor system.
+	// More accurately, the actor is accessed remotely. There may exist a local actor with the same address, but the
+	// communication is remote, i.e., via the network.
+	Remote() bool
 }
