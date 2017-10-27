@@ -15,9 +15,5 @@
 package actor
 
 // An ActorSystem is a hierarchical group of actors. Think of an ActorSystem as the root actor of a system.
-type ActorSystem interface {
-	// Name is the actor system name
-	Name() string
-
-	Actor
+type ActorSystem struct {
 }

@@ -14,10 +14,6 @@
 
 package actor
 
-import (
-	"time"
-)
-
 // Actor represents an actor in the Actor Model. Actors are objects which encapsulate state and behavior, they communicate exclusively by exchanging messages.
 //
 // The actors model provide a high level abstraction for writing concurrent and distributed systems. This approach simplifies
@@ -26,48 +22,7 @@ import (
 // Actors communicate via messages over channels.
 // All messages must be capnp messages to support distributed messaging.
 // Actors are defined by an actor path. The actor path must be unique within a local process.
-type Actor interface {
-	// System the system that the actor belongs to
-	System() ActorSystem
-
-	// Address is where the actor lives. Actors receive messages on this address.
-	Address()
-
-	// Created is the actor creation time
-	Created() time.Time
-
-	// Parent actor parent. The root actor of the system will have no parent.
-	Parent() Actor
-
-	// ChildrenNames actor children names
-	ChildrenNames() []string
-
-	// Child returns the child actor for the specified name
-	Child(name string) Actor
-
-	Channels() Channels
-
-	// Alive indicates if the actor is still alive.
-	Alive() bool
-
-	// Dead returns the channel that can be used to wait until the actor is dead
-	Dead() <-chan struct{}
-
-	// Dying returns the channel that can be used to wait until Actor.Kill() is called.
-	Dying() <-chan struct{}
-
-	// Err returns the death reason, or ErrStillAlive if the tomb is not in a dying or dead state.
-	Err() (reason error)
-
-	// Kill puts the actor in a dying state for the given reason, closes the Dying channel, and sets Alive to false.
-	//
-	// Although Kill may be called multiple times, only the first non-nil error is recorded as the death reason.
-	// If reason is ErrDying, the previous reason isn't replaced even if nil. It's a runtime error to call Kill with
-	// ErrDying if t is not in a dying state.
-	Kill(reason error)
-
-	// Wait blocks until the actor has finished running, and then returns the reason for their death.
-	Wait() error
+type Actor struct {
 }
 
 type Channels interface {

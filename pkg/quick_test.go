@@ -77,3 +77,21 @@ func TestContext_Cancelled(t *testing.T) {
 	t.Logf("result : %v", <-result)
 
 }
+
+type Error1 struct {
+}
+
+func (a *Error1) Error() string {
+	return "ERR1"
+}
+
+func TestErrorTypeAssertion(t *testing.T) {
+	var err error = &Error1{}
+	switch err := err.(type) {
+	case *Error1:
+		t.Log(err)
+	default:
+		t.Error("Unable to match type to *Error1")
+	}
+
+}

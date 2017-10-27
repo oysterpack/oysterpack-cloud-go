@@ -77,3 +77,27 @@ func (a *ActorNotAliveError) String() string {
 var (
 	ErrStillAlive = errors.New("Actor is still alive")
 )
+
+type ChildAlreadyExists struct {
+	Path []string
+}
+
+func (a *ChildAlreadyExists) Error() string {
+	return a.String()
+}
+
+func (a *ChildAlreadyExists) String() string {
+	return fmt.Sprintf("Child already exists at path : %v", a.Path)
+}
+
+type ProducerError struct {
+	Err error
+}
+
+func (a *ProducerError) Error() string {
+	return a.String()
+}
+
+func (a *ProducerError) String() string {
+	return fmt.Sprintf("Child already exists at path : %v", a.Err)
+}
