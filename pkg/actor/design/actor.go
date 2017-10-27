@@ -14,7 +14,10 @@
 
 package design
 
-import "time"
+import (
+	"encoding"
+	"time"
+)
 
 type Actor interface {
 	System() System
@@ -75,6 +78,12 @@ const (
 
 type System interface {
 	Actor
+
+	// Inbox returns a new Inbox with the specified channel buffer size
+	Inbox(chanBufSize int) Inbox
+
+	// RefAddresses returns the addresses that are currently in use and watched
+	RefAddresses() []Address
 }
 
 // Management groups together actor management related operations.
@@ -116,6 +125,9 @@ type Management interface {
 	// Ping sends a Ping message to the actor, and will return the PingResponse on the channel
 	// Multiple actors may respond in a cluster. The channel will be closed upon timeout.
 	Ping(timeout time.Duration) <-chan PingResponse
+
+	// Remote returns true if the referenced actor is remote
+	Remote() bool
 }
 
 // Ref is an actor reference. The actor reference can be used in 2 modes :
@@ -123,6 +135,8 @@ type Management interface {
 //
 type Ref interface {
 	Management() Management
+
+	Address() Address
 
 	ChannelNames() []string
 
@@ -139,9 +153,28 @@ type Ref interface {
 	// Messages enables streaming messages to the actor over the channel.
 	// The returned channel can be monitored for client message failures. For example, message may be invalid, or the actor may be dead.
 	Requests(channel string, msgs <-chan interface{}, replyTo ChannelAddress) <-chan Failure
+
+	Channel(name string) Channel
 }
 
 type Channel interface {
+	Address() ChannelAddress
+
+	Remote() bool
+
+	ValidateMessage(msg interface{}) error
+
+	// Message is used to send messages to the actor
+	Message(msg interface{}) error
+	// Messages enables streaming messages to the actor over the channel.
+	// The returned channel can be monitored for client message failures. For example, message may be invalid, or the actor may be dead.
+	Messages(msgs <-chan interface{}) <-chan Failure
+
+	// Message is used to send messages to the actor
+	Request(msg interface{}, replyTo ChannelAddress) error
+	// Messages enables streaming messages to the actor over the channel.
+	// The returned channel can be monitored for client message failures. For example, message may be invalid, or the actor may be dead.
+	Requests(msgs <-chan interface{}, replyTo ChannelAddress) <-chan Failure
 }
 
 // Address is used to locate an actor within the specified system
@@ -241,7 +274,24 @@ type Instance interface {
 	Receive(msgCtx MessageContext) error
 }
 
+type Message interface {
+	encoding.BinaryMarshaler
+	encoding.BinaryUnmarshaler
+}
+
+type MessageFactory func() Message
+
+type Envelope interface {
+	Message
+
+	Channel() string
+	Message() Message
+	ReplyTo() ChannelAddress
+}
+
 type MessageContext interface {
+	Actor
+	Envelope() Envelope
 }
 
 type Receive func(msgCtx MessageContext) error
