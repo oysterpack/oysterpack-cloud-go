@@ -56,7 +56,7 @@ type Actor interface {
 	//
 	// The following type of errors can occur :
 	// 	- ChildAlreadyExists
-	NewChild(props Props, name string) (Actor, error)
+	NewChild(settings Settings, name string) (Actor, error)
 
 	RestartStatistics() RestartStatistics
 
@@ -76,15 +76,33 @@ const (
 	REFMODE_BY_PATH
 )
 
+// System represents an actor system. Think of the system as the root actor.
+// The root actor's name is the actor system's name.
 type System interface {
 	Actor
 
 	// Inbox returns a new Inbox with the specified channel buffer size
 	Inbox(chanBufSize int) Inbox
 
-	// RefAddresses returns the addresses that are currently in use and watched
+	// RefAddresses returns the addresses that have been requested. The corresponding Ref(s) are cachked.
+	// They are watched, and when they terminate, the cached Ref is removed.
 	RefAddresses() []Address
+
+	// Mode returns the actor system mode
+	Mode() SystemMode
 }
+
+// SystemMode is an enum for the various actor system modes
+type SystemMode int
+
+// SystemMode enum values
+const (
+	// the actor system is local only, i.e., it is not clustered over the network
+	SYSTEM_MODE_LOCAL = iota
+
+	// the actor system is part of a distributed actor system cluster over the network
+	SYSTEM_MODE_CLUSTER
+)
 
 // Management groups together actor management related operations.
 // TODO: Metrics
@@ -267,11 +285,10 @@ func (a *PingResponse) SystemMessage() {}
 type RestartStatistics interface {
 }
 
-type InstanceProducer interface {
-}
+type InstanceFactory func() Instance
 
 type Instance interface {
-	Receive(msgCtx MessageContext) error
+	Receive(ctx MessageContext) error
 }
 
 type Message interface {
@@ -294,9 +311,10 @@ type MessageContext interface {
 	Envelope() Envelope
 }
 
-type Receive func(msgCtx MessageContext) error
+type Receive func(ctx MessageContext) error
 
-type Props interface {
+type Settings interface {
+	Factory() InstanceFactory
 }
 
 type ChannelMiddleware func(next Receive) Receive
