@@ -18,6 +18,8 @@ import (
 	"errors"
 	"testing"
 
+	"time"
+
 	"golang.org/x/net/context"
 )
 
@@ -93,5 +95,17 @@ func TestErrorTypeAssertion(t *testing.T) {
 	default:
 		t.Error("Unable to match type to *Error1")
 	}
+
+}
+
+func TestTimeUnix(t *testing.T) {
+	now := time.Now()
+
+	t.Logf("now = %v", now)
+	t.Logf("time.Unix(now.Unix(),0) -> %v", time.Unix(now.Unix(), 0))
+	t.Logf("time.Unix(now.Unix(),now.UnixNano()) -> %v", time.Unix(now.Unix(), now.UnixNano()))
+	t.Logf("time.Unix(0,now.UnixNano()) -> %v", time.Unix(0, now.UnixNano()))
+	t.Logf("time.Unix(now.Unix(),now.UnixNano()).Equal(now) -> %v", time.Unix(now.Unix(), now.UnixNano()).Equal(now))
+	t.Logf("time.Unix(0,now.UnixNano()).Equal(now) -> %v", time.Unix(0, now.UnixNano()).Equal(now))
 
 }

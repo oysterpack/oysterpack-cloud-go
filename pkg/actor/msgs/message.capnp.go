@@ -8,75 +8,75 @@ import (
 	schemas "zombiezen.com/go/capnproto2/schemas"
 )
 
-type Header struct{ capnp.Struct }
+type Envelope struct{ capnp.Struct }
 
-// Header_TypeID is the unique identifier for the type Header.
-const Header_TypeID = 0xf38cccd618967ecd
+// Envelope_TypeID is the unique identifier for the type Envelope.
+const Envelope_TypeID = 0xf38cccd618967ecd
 
-func NewHeader(s *capnp.Segment) (Header, error) {
-	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 2})
-	return Header{st}, err
+func NewEnvelope(s *capnp.Segment) (Envelope, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 4})
+	return Envelope{st}, err
 }
 
-func NewRootHeader(s *capnp.Segment) (Header, error) {
-	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 2})
-	return Header{st}, err
+func NewRootEnvelope(s *capnp.Segment) (Envelope, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 4})
+	return Envelope{st}, err
 }
 
-func ReadRootHeader(msg *capnp.Message) (Header, error) {
+func ReadRootEnvelope(msg *capnp.Message) (Envelope, error) {
 	root, err := msg.RootPtr()
-	return Header{root.Struct()}, err
+	return Envelope{root.Struct()}, err
 }
 
-func (s Header) String() string {
+func (s Envelope) String() string {
 	str, _ := text.Marshal(0xf38cccd618967ecd, s.Struct)
 	return str
 }
 
-func (s Header) Id() (string, error) {
+func (s Envelope) Id() (string, error) {
 	p, err := s.Struct.Ptr(0)
 	return p.Text(), err
 }
 
-func (s Header) HasId() bool {
+func (s Envelope) HasId() bool {
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
 
-func (s Header) IdBytes() ([]byte, error) {
+func (s Envelope) IdBytes() ([]byte, error) {
 	p, err := s.Struct.Ptr(0)
 	return p.TextBytes(), err
 }
 
-func (s Header) SetId(v string) error {
+func (s Envelope) SetId(v string) error {
 	return s.Struct.SetText(0, v)
 }
 
-func (s Header) Created() int64 {
+func (s Envelope) Created() int64 {
 	return int64(s.Struct.Uint64(0))
 }
 
-func (s Header) SetCreated(v int64) {
+func (s Envelope) SetCreated(v int64) {
 	s.Struct.SetUint64(0, uint64(v))
 }
 
-func (s Header) Reply() (ChannelAddress, error) {
+func (s Envelope) ReplyTo() (ChannelAddress, error) {
 	p, err := s.Struct.Ptr(1)
 	return ChannelAddress{Struct: p.Struct()}, err
 }
 
-func (s Header) HasReply() bool {
+func (s Envelope) HasReplyTo() bool {
 	p, err := s.Struct.Ptr(1)
 	return p.IsValid() || err != nil
 }
 
-func (s Header) SetReply(v ChannelAddress) error {
+func (s Envelope) SetReplyTo(v ChannelAddress) error {
 	return s.Struct.SetPtr(1, v.Struct.ToPtr())
 }
 
-// NewReply sets the reply field to a newly
+// NewReplyTo sets the replyTo field to a newly
 // allocated ChannelAddress struct, preferring placement in s's segment.
-func (s Header) NewReply() (ChannelAddress, error) {
+func (s Envelope) NewReplyTo() (ChannelAddress, error) {
 	ss, err := NewChannelAddress(s.Struct.Segment())
 	if err != nil {
 		return ChannelAddress{}, err
@@ -85,33 +85,66 @@ func (s Header) NewReply() (ChannelAddress, error) {
 	return ss, err
 }
 
-// Header_List is a list of Header.
-type Header_List struct{ capnp.List }
-
-// NewHeader creates a new list of Header.
-func NewHeader_List(s *capnp.Segment, sz int32) (Header_List, error) {
-	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 2}, sz)
-	return Header_List{l}, err
+func (s Envelope) Channel() (string, error) {
+	p, err := s.Struct.Ptr(2)
+	return p.Text(), err
 }
 
-func (s Header_List) At(i int) Header { return Header{s.List.Struct(i)} }
+func (s Envelope) HasChannel() bool {
+	p, err := s.Struct.Ptr(2)
+	return p.IsValid() || err != nil
+}
 
-func (s Header_List) Set(i int, v Header) error { return s.List.SetStruct(i, v.Struct) }
+func (s Envelope) ChannelBytes() ([]byte, error) {
+	p, err := s.Struct.Ptr(2)
+	return p.TextBytes(), err
+}
 
-func (s Header_List) String() string {
+func (s Envelope) SetChannel(v string) error {
+	return s.Struct.SetText(2, v)
+}
+
+func (s Envelope) Message() ([]byte, error) {
+	p, err := s.Struct.Ptr(3)
+	return []byte(p.Data()), err
+}
+
+func (s Envelope) HasMessage() bool {
+	p, err := s.Struct.Ptr(3)
+	return p.IsValid() || err != nil
+}
+
+func (s Envelope) SetMessage(v []byte) error {
+	return s.Struct.SetData(3, v)
+}
+
+// Envelope_List is a list of Envelope.
+type Envelope_List struct{ capnp.List }
+
+// NewEnvelope creates a new list of Envelope.
+func NewEnvelope_List(s *capnp.Segment, sz int32) (Envelope_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 4}, sz)
+	return Envelope_List{l}, err
+}
+
+func (s Envelope_List) At(i int) Envelope { return Envelope{s.List.Struct(i)} }
+
+func (s Envelope_List) Set(i int, v Envelope) error { return s.List.SetStruct(i, v.Struct) }
+
+func (s Envelope_List) String() string {
 	str, _ := text.MarshalList(0xf38cccd618967ecd, s.List)
 	return str
 }
 
-// Header_Promise is a wrapper for a Header promised by a client call.
-type Header_Promise struct{ *capnp.Pipeline }
+// Envelope_Promise is a wrapper for a Envelope promised by a client call.
+type Envelope_Promise struct{ *capnp.Pipeline }
 
-func (p Header_Promise) Struct() (Header, error) {
+func (p Envelope_Promise) Struct() (Envelope, error) {
 	s, err := p.Pipeline.Struct()
-	return Header{s}, err
+	return Envelope{s}, err
 }
 
-func (p Header_Promise) Reply() ChannelAddress_Promise {
+func (p Envelope_Promise) ReplyTo() ChannelAddress_Promise {
 	return ChannelAddress_Promise{Pipeline: p.Pipeline.GetPipeline(1)}
 }
 
@@ -121,12 +154,12 @@ type Address struct{ capnp.Struct }
 const Address_TypeID = 0x9fd358f04cb684bd
 
 func NewAddress(s *capnp.Segment) (Address, error) {
-	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 3})
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
 	return Address{st}, err
 }
 
 func NewRootAddress(s *capnp.Segment) (Address, error) {
-	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 3})
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
 	return Address{st}, err
 }
 
@@ -140,37 +173,18 @@ func (s Address) String() string {
 	return str
 }
 
-func (s Address) System() (string, error) {
-	p, err := s.Struct.Ptr(0)
-	return p.Text(), err
-}
-
-func (s Address) HasSystem() bool {
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
-}
-
-func (s Address) SystemBytes() ([]byte, error) {
-	p, err := s.Struct.Ptr(0)
-	return p.TextBytes(), err
-}
-
-func (s Address) SetSystem(v string) error {
-	return s.Struct.SetText(0, v)
-}
-
 func (s Address) Path() (capnp.TextList, error) {
-	p, err := s.Struct.Ptr(1)
+	p, err := s.Struct.Ptr(0)
 	return capnp.TextList{List: p.List()}, err
 }
 
 func (s Address) HasPath() bool {
-	p, err := s.Struct.Ptr(1)
+	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
 
 func (s Address) SetPath(v capnp.TextList) error {
-	return s.Struct.SetPtr(1, v.List.ToPtr())
+	return s.Struct.SetPtr(0, v.List.ToPtr())
 }
 
 // NewPath sets the path field to a newly
@@ -180,27 +194,27 @@ func (s Address) NewPath(n int32) (capnp.TextList, error) {
 	if err != nil {
 		return capnp.TextList{}, err
 	}
-	err = s.Struct.SetPtr(1, l.List.ToPtr())
+	err = s.Struct.SetPtr(0, l.List.ToPtr())
 	return l, err
 }
 
 func (s Address) Id() (string, error) {
-	p, err := s.Struct.Ptr(2)
+	p, err := s.Struct.Ptr(1)
 	return p.Text(), err
 }
 
 func (s Address) HasId() bool {
-	p, err := s.Struct.Ptr(2)
+	p, err := s.Struct.Ptr(1)
 	return p.IsValid() || err != nil
 }
 
 func (s Address) IdBytes() ([]byte, error) {
-	p, err := s.Struct.Ptr(2)
+	p, err := s.Struct.Ptr(1)
 	return p.TextBytes(), err
 }
 
 func (s Address) SetId(v string) error {
-	return s.Struct.SetText(2, v)
+	return s.Struct.SetText(1, v)
 }
 
 // Address_List is a list of Address.
@@ -208,7 +222,7 @@ type Address_List struct{ capnp.List }
 
 // NewAddress creates a new list of Address.
 func NewAddress_List(s *capnp.Segment, sz int32) (Address_List, error) {
-	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 3}, sz)
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2}, sz)
 	return Address_List{l}, err
 }
 
@@ -328,43 +342,49 @@ func (p ChannelAddress_Promise) Address() Address_Promise {
 	return Address_Promise{Pipeline: p.Pipeline.GetPipeline(1)}
 }
 
-const schema_87fc44aa3255d2ae = "x\xda|\x93\xbfk\x14A\x1c\xc5\xbfo\xe6N\x05\x8f" +
-	"\xbb,\x97\"\xa4\xd9i\x14\x12\x12\xc9\xa5Qca~" +
-	"\x18\xd0\xa0\x90\x01\x03FD\x18oGo\xe5voo" +
-	"g\x17s \xa6\x11\x14\xb1R\xb1\x93\xf4\x81\x18\xb1\xd0" +
-	"*\x9d\xa2\x85\x81\xa0\x12,\xfc\x0b\xac\x84\xb4\xc2\xca\xed" +
-	"\xed%!\xc6\xeb\x86\xe1\xbd\xefw\xde\xe7\xed\x8e\x9d\xc3" +
-	"$\xab\xe4?1\")\xf2G\x92\x8d\x87\xef.\xff\xbe" +
-	"\xf6m\x85\xac\"\x92\xd7_\x17\xc6W/\xfcyDy" +
-	"~\x94\xa8|\x09o\xcb\x12\xed\xd3\x15\xac\x13\x92\xf7\xcd" +
-	"\x9dW\xdeI\xfc8\xa0em\x85\xc7~\x95[\xe9)" +
-	"f\xf7\x08\xc9\xe6\x83\x97\x03\xdb_\x9e\xee\x90,\xe2\x1f" +
-	"\xf1\x09\xbeZ\x1eMW\x0c\xf1u:\x93x\xda\x18u" +
-	"G\x9fBU\x05~01\xe5\xd8N\xa8\x8d\x99\x07d" +
-	"\x81\xe7\x88r \xb2f'\xacY[\xd68d\xc4`" +
-	"\x01\xfdh\xdf6\x87\xad\xa6-_p\xc87\x0c\x16c" +
-	"\xfd`D\xd6\xda\xa0\xb5f\xcb-\x0e\xf9\x93\xe1\xbci" +
-	"\x99H{2\x07\x96\xdc|\xbe\"7\xb6\x9f|$\x99" +
-	"c\x98\xea\x07\x0aD\x16\xee&\xaa\x1a5BaZT" +
-	"jK\x89P \x86\x02\xa1\x14\xa8\xa8\xd6\xc3y=s" +
-	"\x06\x8axT#B\x910\xcf\x91\xda\x8b\x04\xee:=" +
-	"\xccs\x99\xd9u\x88\xd0\xdd\xb8\x0b\x83u`\xcc\xd4\x94" +
-	"\xef\xeb\xfa\x94\xe3\x94\xbaL\x8e\xed2\x19\x9a\xb6\x86l" +
-	"9\xcf!o\xecc\xb28m-\xda\xf2>\x87|\xcc" +
-	"\xb0\\\xed\x0c8\xe4\x1d\x03\xd9;V\xbb;\x052\xb1" +
-	"(\xf9\xca\xd3{\x18\x96\x95\x936\xd2#L\x98\x85Q" +
-	"\x0eu\xda#B\xdf\xde\xe7E@\xdf\xbepY\xd3\x17" +
-	"uI9:<P\xf4`\xbb\xe8:\x87\\b\xe8f" +
-	"\x8a\xa7\xad\xd8\x96\x1f8\xe4V\xbbgtz\xde\x1c'" +
-	"\x92\x9f9\xe4w\xf6\x1f\xd6\xdd\x8c\xcf\x92\xd8w\x9b\xb1" +
-	"\x16\x1e\xb2\xac.\x9c}\x01\xab\xa1V\x91>l\xc2d" +
-	":\xa1\x82a\xbe\x8b\xe9x\xaav\x1b\xbe\x88\\O\x9b" +
-	"Hy\x81\x18\x15\xca\x08%\x16|w)\xbd\x1d\x11Q" +
-	"M\x0b?\xf6n\xe9P4n\x0b\xa3\xab\x0d\xdf1B" +
-	"\xd7U`\xb4#\x8c\xebW\xb5\x98S~\xac\xc2\x96\xa8" +
-	"\x8c\x88\xca\xd9\xd3c%\xb1pu\x86\x08yb\xc8\x13" +
-	"\xecP\x07\xf5\x16\xfa\xf6\xfe\xbc\x0e\xc6\xbf\x01\x00\x00\xff" +
-	"\xff\x99Y\x01+"
+const schema_87fc44aa3255d2ae = "x\xda|S\xcfk\x14I\x18\xfd^u\xcf\xee\x06&" +
+	"?\x9a\x9e\x85\x90K\xd7aY\xc8\x92]2\xbb\x87\xdd" +
+	",\x0b\xd9L\xb2\x87\x0dYH\xed$`\x82\x08\xe5t" +
+	"\x99i\x98\xe9\xeet\xcf\x98D\x8c\xb9\x08\x06\xf1\xa4\xe2" +
+	"A\x94\\<H \"\x1e\x14\x029x\x08\"\xe8E" +
+	"!\xf87x\x12r\x15Zj\xbag2\x87qn\xd5" +
+	"\xf5\xde\xf7\xf5{\xef\xfbjR\xe1oV\xcc\xbdbD" +
+	"\x82\xe7\xbeI\x8e\xae?_\xf8t\xee\xfd\x1eYCH" +
+	"\x9e\xbc[\xfeu\x7f\xee\xf3\x0d\xca\xb1o\x89\xec\x7f\xf1" +
+	"\xcc\x16\xd0\xa7\xff\xb0AH^\xac\x9f>\xac\xff\x88\x0f" +
+	"\xbd\xb8\x03\xec\xa3\xfd}\xebd1\xcd}{\xed\xde\xe8" +
+	"\xc9\x9b[\xa7$\x86\xd0M65\xe5%;\xb4_k" +
+	"\xf2o\xc7\xcc\x01\xfd\x91\xd4U\x1c\xcb5\xf5\x0b*2" +
+	"\xf4\xc3?g\\\xc7\x8dT\x1c/\x02\xe2;\xc3$2" +
+	"Ad\x8d\xffd\x8d;b\xc1\x80\xa82X@\x01\xfa" +
+	"V\x8dY\xca\x11\xbb\x06\xc4]\x86\xe1P6\xaa\xc2\x04" +
+	"K.\xdc\xd9\x13G'7\x8fI\x98\x0c3\x05 O" +
+	"da5\x91\x95F\x10\xf1P\x92\xd1\xa8\x12a\x88\xb0" +
+	"hh\x90\xe9\xa3\xe1\xb9}\x8a\xe7\xb3b\xcf%JK" +
+	"\xf2\x84\x8et\x96J\x9f\xadJ\xdfW\xb5\x19\xd7\x1d\xee" +
+	"\xe1\xa0\xa4\x1d,\x1a\x10\xe7\xbb\x1c\xac\x94\xac\x15G\\" +
+	"5 v\x19v*i\x83\x1e:F3\x1d\xfb\xed\x7f" +
+	"rdd>\xec\xcb\xba\"j\x8b\xda\x91n+\xbf>" +
+	"f\xa2\xcc\x8ct)\xcd\x9a\x08#g\xdb@\xc0H\x97" +
+	"\xb9l.\xff\xf8\xd3\x97U-\x08\x95\xb6U\xe8\xd8\xda" +
+	"\x1e\xb3\xb6\x1d\xf1\xc8\x80x\xca\xd0vuP\xb2\x0e\x9c" +
+	"\xffa\xa0\x9c\x07\x83\xc5P\x00\xd3{\x82\x92=\x00\xa7" +
+	"<\xa9\x91\xbf4b\xb0\x02\x0c\"{\x0a%{\x0aN" +
+	"\xb9\xa6\x91M\x8d\x98F\x01&\x91\xddD\xc9n\xc2)" +
+	"?\xd0\xc8c\xb0\xaf\xcc\xa9\x9d\xcf\xed\xa4\xe9{\xebM" +
+	"\xc5\xeb\xc8r\xf2\xe0v\x85S\x89\x94l\xa8^\x1d\xe6" +
+	"Z\x1d\x8a\x88\x8cN\xc4y\xe5\xa7\x96y\xab\xcc\x0b|" +
+	"\xde\xf0\xea*n\xc8z\xc8\x7f\xe62\xe6\x92/\xfb\xde" +
+	"f\xebv\x827\xaa\x8a\xfb\xcd\xfaE\x15\xf1\xe0\x12\x8f" +
+	"U%\xf0\xdd\x98\xab\x9a\x0cc\xe5\xf2\xd8\xf3+\x8a\xcf" +
+	"K\xbf)\xa3-^\x9c\xe0\xc5\xa9\xdf\x9dI\xbe\xbc4" +
+	"K\x84\x1c1\xe4\x08;\x91\x0ak[KA\x1f\x83\x87" +
+	"I\x10j%\xb2\x06\xdebs9\xed\x9e\x0d\xb1\xf3L" +
+	"\xd3!\xf6\xd9\xa8\x1f2\xbf\xabH\xb4pM4\xf5:" +
+	"\xe9\x8fv\x00^\xcce\x1c\x07\x15Og\xc67\xbc\xf4" +
+	"\xdd\xb4\xb3\xccX}\xc4\xdeOb\x15y\xb2\xe6]\x81" +
+	"r\xd3\xae\xc6\x9a\xde\xd5Ab\x18$|\x09\x00\x00\xff" +
+	"\xff\x81%7U"
 
 func init() {
 	schemas.Register(schema_87fc44aa3255d2ae,

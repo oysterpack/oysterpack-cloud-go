@@ -17,6 +17,7 @@ package actor
 import (
 	"errors"
 	"fmt"
+	"reflect"
 )
 
 // InvalidChannelError indicates the channel is unknown
@@ -30,6 +31,19 @@ func (a *InvalidChannelError) Error() string {
 
 func (a *InvalidChannelError) String() string {
 	return fmt.Sprintf("Invalid channel : %s", a.Channel)
+}
+
+type InvalidMessageTypeError struct {
+	Message      interface{}
+	ExpectedType reflect.Type
+}
+
+func (a *InvalidMessageTypeError) Error() string {
+	return a.String()
+}
+
+func (a *InvalidMessageTypeError) String() string {
+	return fmt.Sprintf("Invalid message type : %T. Expected message type : %v", a.Message, a.ExpectedType)
 }
 
 // InvalidChannelMessageTypeError indicates the channel does not support the specified message type
@@ -48,7 +62,6 @@ func (a *InvalidChannelMessageTypeError) String() string {
 
 // InvalidMessageError indicates the message invalid.
 type InvalidMessageError struct {
-	Channel string
 	Message interface{}
 	Err     error
 }
@@ -58,7 +71,7 @@ func (a *InvalidMessageError) Error() string {
 }
 
 func (a *InvalidMessageError) String() string {
-	return fmt.Sprintf("Message was invalid : %q[%T] : %v", a.Channel, a.Message, a.Err.Error())
+	return fmt.Sprintf("Message was invalid : %T : %v", a.Message, a.Err.Error())
 }
 
 // ActorNotAliveError indicates an invalid operation was performed on an actor that is not alive.

@@ -48,9 +48,14 @@ type Actor interface {
 	SelfRef() Ref
 
 	// Ref returns an actor reference with a path relative to this actor.
-	// If the actor does not exist locally, it checks if the actor exists remotely.
-	// If the no such actor exists locally or remotely, then nil is returned.
-	Ref(path []string, mode RefMode) Ref
+	//
+	// If the actor system that it belongs to is clustered, then the following lookup is performed :
+	// 	1. if the actor exists locally, then return a local actor ref
+	//  2. if the actor exists remotely, then return a remote actor ref
+	//  3. if the actor does not currently exist in the cluster, then return nil
+	//
+	// The returned ref will be bound to a specific actor instance.
+	Ref(path []string) Ref
 
 	// NewChild will create a new child actor and return it
 	//
@@ -58,23 +63,14 @@ type Actor interface {
 	// 	- ChildAlreadyExists
 	NewChild(settings Settings, name string) (Actor, error)
 
-	RestartStatistics() RestartStatistics
+	Failures() Failures
 
 	Management() Management
 
 	SetBehavior(receive Receive)
+
+	Metrics() Metrics
 }
-
-// RefMode represents an enum. It indicates what mode to use to create the actor ref.
-type RefMode int
-
-// RefMode values
-const (
-	// means the ref will connect to a specific actor instance in the cluster - local is preferred.
-	REFMODE_BY_ID = iota
-	// means the ref will send messages to any actor in the cluster - local is preferred.
-	REFMODE_BY_PATH
-)
 
 // System represents an actor system. Think of the system as the root actor.
 // The root actor's name is the actor system's name.
@@ -84,28 +80,12 @@ type System interface {
 	// Inbox returns a new Inbox with the specified channel buffer size
 	Inbox(chanBufSize int) Inbox
 
-	// RefAddresses returns the addresses that have been requested. The corresponding Ref(s) are cachked.
+	// RefAddresses returns the addresses that have been requested. The corresponding Ref(s) are cached.
 	// They are watched, and when they terminate, the cached Ref is removed.
 	RefAddresses() []Address
-
-	// Mode returns the actor system mode
-	Mode() SystemMode
 }
 
-// SystemMode is an enum for the various actor system modes
-type SystemMode int
-
-// SystemMode enum values
-const (
-	// the actor system is local only, i.e., it is not clustered over the network
-	SYSTEM_MODE_LOCAL = iota
-
-	// the actor system is part of a distributed actor system cluster over the network
-	SYSTEM_MODE_CLUSTER
-)
-
 // Management groups together actor management related operations.
-// TODO: Metrics
 type Management interface {
 	// Alive indicates if the actor is still alive.
 	Alive() bool
@@ -140,17 +120,20 @@ type Management interface {
 	// Paused returns true if actor is currently paused
 	Paused() bool
 
-	// Ping sends a Ping message to the actor, and will return the PingResponse on the channel
+	// Ping sends a Ping message to the actor, and will return the Pong on the channel
 	// Multiple actors may respond in a cluster. The channel will be closed upon timeout.
-	Ping(timeout time.Duration) <-chan PingResponse
+	Ping(timeout time.Duration) <-chan Pong
 
 	// Remote returns true if the referenced actor is remote
 	Remote() bool
 }
 
-// Ref is an actor reference. The actor reference can be used in 2 modes :
-//	1. Refer to a single actor instance by id
-//
+type Metrics interface {
+	// TODO
+}
+
+// Ref is an actor reference.
+// If the referenced actor dies, the ref will try to automatically reconnect in the background.
 type Ref interface {
 	Management() Management
 
@@ -217,9 +200,18 @@ type ChannelAddress interface {
 }
 
 type SupervisorStrategy interface {
+	HandleFailure(ctx MessageContext, err error) Directive
 }
 
 type Decider func(err error) Directive
+
+func RestartDecider(_ error) Directive {
+	return DIRECTIVE_RESTART
+}
+
+func ResumeDecider(_ error) Directive {
+	return DIRECTIVE_RESUME
+}
 
 // Directive represents an enum. The directive specifies how the actor failure should be handled.
 type Directive int
@@ -232,8 +224,29 @@ const (
 	DIRECTIVE_ESCALATE
 )
 
+type SupervisorStrategyFactory interface {
+	DefaultSupervisorStrategy() SupervisorStrategy
+
+	NewAllForOneStrategy(maxNrOfRetries int, withinDuration time.Duration, decider Decider) SupervisorStrategy
+
+	NewExponentialBackoffStrategy(backoffWindow time.Duration, initialBackoff time.Duration) SupervisorStrategy
+
+	NewOneForOneStrategy(maxNrOfRetries int, withinDuration time.Duration, decider Decider) SupervisorStrategy
+
+	RestartingStrategy() SupervisorStrategy
+}
+
+// Inbox is used to receive messages outside of the actor system.
+// An Inbox is an anonymous actor created by the actor system.
 type Inbox interface {
-	Address() ChannelAddress
+	// Address returns the inbox address
+	Address() Address
+
+	// Messages is used to deliver messages that are received by the internal actor
+	Messages() <-chan Message
+
+	// Close will kill inbox actor and close the messages channel.
+	Close()
 }
 
 type SystemMessage interface {
@@ -276,13 +289,34 @@ type Failure struct {
 
 func (a *Failure) SystemMessage() {}
 
-type PingResponse struct {
+type Pong struct {
 	Address
 }
 
-func (a *PingResponse) SystemMessage() {}
+func (a *Pong) SystemMessage() {}
 
-type RestartStatistics interface {
+type Failures interface {
+	// TotalCount returns the total number of errors that have occurred across all instances.
+	// For example, when an actor is restarted, a new instance is created. The count is reset, but the total count is not reset.
+	TotalCount() int
+
+	// LastFailureTime returns the last time a failure occurred for the actor
+	LastFailureTime() time.Time
+	// LastFailure is the last actor failure that occurred
+	LastFailure() error
+
+	// Count is the current failure count that is being tracked.
+	Count() int
+
+	// Reset count back to 0. The count is reset when a new instance is created.
+	// It may also be be reset by a supervisor strategy, e.g., exponential back off strategy
+	ResetCount()
+
+	// ResetTime is the last time failures were reset
+	ResetTime() time.Time
+
+	// LastFailureSinceReset returns the last failure since being reset
+	LastFailureSinceReset() error
 }
 
 type InstanceFactory func() Instance
@@ -296,8 +330,15 @@ type Message interface {
 	encoding.BinaryUnmarshaler
 }
 
-type MessageFactory func() Message
+type MessageFactory interface {
+	// NewMessage creates a new Message instance
+	NewMessage() Message
 
+	// Validate checks if the msg is compatible and valid for message types produced by this MessageFactory
+	Validate(msg Message) error
+}
+
+// Envelope is a message envelope. Envelope is itself a message.
 type Envelope interface {
 	Message
 
@@ -315,6 +356,25 @@ type Receive func(ctx MessageContext) error
 
 type Settings interface {
 	Factory() InstanceFactory
+	SupervisorStrategy() SupervisorStrategy
+
+	// Channels returns a map of ChannelSettings where the key is the channel name
+	Channels() map[string]ChannelSettings
 }
 
 type ChannelMiddleware func(next Receive) Receive
+
+type ChannelSettings interface {
+	// Channel returns the channel name
+	Channel() string
+
+	// BufSize returns the channel buffer size
+	BufSize() int
+
+	// Middleware returns middleware that is applied to the actor's current behavior
+	Middleware() []ChannelMiddleware
+
+	// MessageFactory creates messages that the channel supports.
+	// It is used to unmarshal incoming messages from remote actor refs.
+	MessageFactory() MessageFactory
+}
