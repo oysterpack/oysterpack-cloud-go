@@ -114,3 +114,17 @@ func (a *ProducerError) Error() string {
 func (a *ProducerError) String() string {
 	return fmt.Sprintf("Child already exists at path : %v", a.Err)
 }
+
+type MessageProcessingError struct {
+	Path    []string
+	Message Envelope
+	Err     error
+}
+
+func (a *MessageProcessingError) Error() string {
+	return a.String()
+}
+
+func (a *MessageProcessingError) String() string {
+	return fmt.Sprintf("MessageProcessingError : %v : %v", a.Path, a.Err)
+}

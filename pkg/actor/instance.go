@@ -14,35 +14,17 @@
 
 package actor
 
-type LifeCycleMessage interface {
-	SystemMessage
-	LifeCycleMessage()
+type InstanceFactory func() Instance
+
+type Instance interface {
+	Receive(ctx *MessageContext) error
 }
 
-type Started struct {
-	*Empty
+type MessageContext struct {
+	*Actor
+	Envelope *Envelope
 }
 
-func (a *Started) SystemMessage()    {}
-func (a *Started) LifeCycleMessage() {}
-
-type Stopping struct {
-	*Empty
+func (a *MessageContext) SetBehavior(behavior Receive) {
+	a.behavior = behavior
 }
-
-func (a *Stopping) SystemMessage()    {}
-func (a *Stopping) LifeCycleMessage() {}
-
-type Stopped struct {
-	*Empty
-}
-
-func (a *Stopped) SystemMessage()    {}
-func (a *Stopped) LifeCycleMessage() {}
-
-type Restarting struct {
-	*Empty
-}
-
-func (a *Restarting) SystemMessage()    {}
-func (a *Restarting) LifeCycleMessage() {}

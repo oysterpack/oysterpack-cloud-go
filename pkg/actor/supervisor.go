@@ -1,0 +1,127 @@
+// Copyright (c) 2017 OysterPack, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package actor
+
+import (
+	"errors"
+	"fmt"
+	"time"
+)
+
+type SupervisorStrategy interface {
+	HandleFailure(ctx MessageContext, err *MessageProcessingError)
+}
+
+type Decider func(err error) Directive
+
+func RestartDecider(_ error) Directive {
+	return DIRECTIVE_RESTART
+}
+
+func ResumeDecider(_ error) Directive {
+	return DIRECTIVE_RESUME
+}
+
+// Directive represents an enum. The directive specifies how the actor failure should be handled.
+type Directive int
+
+// Directive enum values
+const (
+	DIRECTIVE_RESUME = iota
+	DIRECTIVE_RESTART
+	DIRECTIVE_STOP
+	DIRECTIVE_ESCALATE
+)
+
+type SupervisorStrategyFactory interface {
+	DefaultSupervisorStrategy() SupervisorStrategy
+
+	NewExponentialBackoffStrategy(backoffWindow time.Duration, initialBackoff time.Duration) SupervisorStrategy
+
+	NewOneForOneStrategy(maxNrOfRetries int, withinDuration time.Duration, decider Decider) SupervisorStrategy
+
+	RestartingStrategy() SupervisorStrategy
+}
+
+// NewAllForOneStrategy returns a strategy that applies the fault handling Directive (Resume, Restart, Stop) specified
+// in the Decider to all children when one fails.
+//
+// A child actor is restarted a max number of times number of times within a time duration, negative value means no limit.
+// If the limit is exceeded the child actor is stopped.
+//
+//
+func NewAllForOneStrategy(maxRetries int, withinDuration time.Duration, decider Decider) (SupervisorStrategy, error) {
+	if maxRetries > 0 && withinDuration == 0 {
+		return nil, fmt.Errorf("If maxRetries > 0, then withinDuration must also be > 0")
+	}
+
+	if decider == nil {
+		return nil, errors.New("Descider is required")
+	}
+	return &allForOneStrategy{maxRetries: maxRetries, withinDuration: withinDuration, decider: decider}, nil
+}
+
+type allForOneStrategy struct {
+	maxRetries     int
+	withinDuration time.Duration
+	decider        Decider
+}
+
+func (a *allForOneStrategy) HandleFailure(ctx MessageContext, err *MessageProcessingError) {
+	ctx.failures.failure(err.Err)
+	directive := a.decider(err.Err)
+	switch directive {
+	case DIRECTIVE_RESUME:
+		//resume the failing child
+		// TODO: log
+	case DIRECTIVE_RESTART:
+		children := supervisor.Children()
+		//try restart the all the children
+		if strategy.requestRestartPermission(rs) {
+			logFailure(child, reason, RestartDirective)
+			supervisor.RestartChildren(children...)
+		} else {
+			logFailure(child, reason, StopDirective)
+			supervisor.StopChildren(children...)
+		}
+	case DIRECTIVE_STOP:
+		children := supervisor.Children()
+		//stop all the children, no need to involve the crs
+		logFailure(child, reason, directive)
+		supervisor.StopChildren(children...)
+	case DIRECTIVE_ESCALATE:
+		ctx.this.Kill(err)
+	}
+
+}
+
+// check if the actor can be restarted based on the strategy configuration
+func (a *allForOneStrategy) canRestart(ctx MessageContext) bool {
+	if a.maxRetries < 0 {
+		return true
+	}
+
+	if a.maxRetries == 0 {
+		return false
+	}
+
+	if time.Since(ctx.failures.lastFailureTime) < a.withinDuration {
+		return ctx.failures.count <= a.maxRetries
+	}
+	// we are past the time limit, we can safely reset the failure count and restart
+	ctx.failures.reset()
+	return true
+
+}
