@@ -41,11 +41,17 @@ type Address struct {
 }
 
 func (a *Address) Validate() error {
-	if len(a.Path) == 0 && strings.TrimSpace(a.Id) == "" {
+	if len(a.Path) == 0 && a.Id == "" {
 		return errors.New("Either Path or Id is required")
 	}
+	if a.Id != strings.TrimSpace(a.Id) {
+		return errors.New("Id must not have any whitespace padding")
+	}
 	for i := range a.Path {
-		if strings.TrimSpace(a.Path[i]) == "" {
+		if a.Path[i] != strings.TrimSpace(a.Path[i]) {
+			return errors.New("Path elements must not have any whitespace padding")
+		}
+		if a.Path[i] == "" {
 			return fmt.Errorf("Path element [%d] cannot be blank : %v", i, a.Path)
 		}
 	}

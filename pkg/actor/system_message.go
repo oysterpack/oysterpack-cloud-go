@@ -36,6 +36,12 @@ var (
 	PONG_FACTORY = &PongMessageFactory{}
 )
 
+const (
+	SYSTEM_MESSAGE_PING    MessageType = 0
+	SYSTEM_MESSAGE_PONG    MessageType = 1
+	SYSTEM_MESSAGE_FAILURE MessageType = 2
+)
+
 type PingMessageFactory struct{}
 
 func (a *PingMessageFactory) NewMessage() Message {
@@ -55,7 +61,7 @@ type Ping struct {
 
 func (a *Ping) SystemMessage() {}
 
-func (a *Ping) MessageType() MessageType { return MessageType(0) }
+func (a *Ping) MessageType() MessageType { return SYSTEM_MESSAGE_PING }
 
 type PongMessageFactory struct{}
 
@@ -80,7 +86,7 @@ type Pong struct {
 
 func (a *Pong) SystemMessage() {}
 
-func (a *Pong) MessageType() MessageType { return MessageType(1) }
+func (a *Pong) MessageType() MessageType { return SYSTEM_MESSAGE_PONG }
 
 func (a *Pong) UnmarshalBinary(data []byte) error {
 	decoder := capnp.NewPackedDecoder(bytes.NewBuffer(data))
@@ -107,8 +113,8 @@ func (a *Pong) MarshalBinary() (data []byte, err error) {
 
 	buf := new(bytes.Buffer)
 	encoder := capnp.NewPackedEncoder(buf)
-	if err := encoder.Encode(msg); err != nil {
-		return nil, err
+	if err = encoder.Encode(msg); err != nil {
+		return
 	}
 
 	return buf.Bytes(), nil

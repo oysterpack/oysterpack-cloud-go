@@ -113,26 +113,40 @@ func TestTimeUnix(t *testing.T) {
 
 func TestTomb(t *testing.T) {
 	a := tomb.Tomb{}
-	t.Logf("error : %v, still alive = %v", a.Err(), a.Err() == tomb.ErrStillAlive)
-	a.Kill(nil)
-	t.Logf("error : %v", a.Err())
 
-	c := make(chan interface{})
-	close(c)
-
-	select {
-	case msg := <-c:
-		t.Logf("Channel is closed !!! : %v", msg)
-	default:
-		t.Error("No message was sent because the channel is closed.")
+	for i := 0; i < 100; i++ {
+		ii := i
+		a.Go(func() error {
+			t.Log(ii)
+			<-a.Dying()
+			t.Log(ii, "DONE")
+			return nil
+		})
 	}
 
-	func() {
+	a.Kill(nil)
+	a.Wait()
+
+	a.Kill(nil)
+	a.Wait()
+}
+
+func TestReturnValue(t *testing.T) {
+	var failure error
+
+	func() (err error) {
 		defer func() {
-			p := recover()
-			t.Logf("%T : %v", p, p)
+			if err != nil {
+				failure = err
+			}
 		}()
-		c <- 1
+
+		return errors.New("BOOM!!!")
 	}()
 
+	t.Logf("failure : %v", failure)
+
+	if failure == nil {
+		t.Error("Should have failed")
+	}
 }

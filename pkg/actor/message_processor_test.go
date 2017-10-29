@@ -39,6 +39,8 @@ func (a *FooHandler) Handler(channel actor.Channel) actor.Receive {
 	return a.handlers[channel]
 }
 
+func (a *FooHandler) Stopped() {}
+
 func TestStartMessageProcessorEngine(t *testing.T) {
 	foo := &FooHandler{map[actor.Channel]actor.Receive{
 		actor.CHANNEL_SYSTEM: func(ctx *actor.MessageContext) error {

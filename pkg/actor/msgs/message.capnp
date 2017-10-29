@@ -23,3 +23,9 @@ struct ChannelAddress @0xd801266d9df371b7 {
     channel @0 :Text $Go.doc("message channel name");
     address @1 :Address $Go.doc("actor address");
 }
+
+struct MessageProcessingError @0xa70dd5f5d238faaa {
+    path    @0 :List(Text) $Go.doc("actor path");
+    message @1 :Data $Go.doc("Error occurred while processing this message envelope.");
+    err     @2 :Text $Go.doc("Error message");
+}

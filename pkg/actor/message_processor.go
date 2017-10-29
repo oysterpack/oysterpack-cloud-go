@@ -19,17 +19,26 @@ import (
 
 	"errors"
 
+	"sync"
+
+	"github.com/oysterpack/oysterpack.go/pkg/commons"
 	"github.com/rs/zerolog"
 	"gopkg.in/tomb.v2"
 )
 
+// MessageProcessorFactory is used to provide MessageProcessor instances
 type MessageProcessorFactory func() MessageProcessor
 
+// MessageProcessor is the backend actor message processor
 type MessageProcessor interface {
 	// ChannelNames returns the channels that are supported by this message processor
 	ChannelNames() []Channel
 
+	// Handler returns a Receive function that will be used to handle messages on the specified channel
 	Handler(channel Channel) Receive
+
+	// Stopped is invoked after the message processer is stopped. The message processor should perform any cleanup here.
+	Stopped()
 }
 
 func ValidateMessageProcessor(p MessageProcessor) error {
@@ -64,6 +73,21 @@ func StartMessageProcessorEngine(messageProcessor MessageProcessor, logger zerol
 	return engine, nil
 }
 
+// MessageProcessorEngine sets up a message channel pipeline :
+//
+//										 |   |   |   |
+//										 V   V   V   V
+//   MessageProcessorEngine channels  	[ ]	[ ]	[ ]	[ ]
+//										 |   |   |   |
+//										 V   V   V   V
+//										 |___|___|___|
+//											   |
+//											   V
+//   MessageProcessor channel				  [ ]
+//
+// For each MessageProcessor Channel, the MessageProcessorEngine will create a channel.
+// Messages arriving on the incoming MessageProcessorEngine channels are fanned into the core MessageProcessor channel.
+// Messages received on the core MessageProcessor channel are processed by the MessageProcessor.
 type MessageProcessorEngine struct {
 	tomb.Tomb
 
@@ -74,9 +98,30 @@ type MessageProcessorEngine struct {
 	c chan *MessageContext
 
 	logger zerolog.Logger
+
+	lock sync.Mutex
+}
+
+func (a *MessageProcessorEngine) closeChannels() {
+	a.lock.Lock()
+	defer a.lock.Unlock()
+
+	closeQuietly := func(c chan *MessageContext) {
+		defer commons.IgnorePanic()
+		close(c)
+	}
+
+	for _, c := range a.channels {
+		closeQuietly(c)
+	}
+
+	closeQuietly(a.c)
 }
 
 func (a *MessageProcessorEngine) start() {
+	a.lock.Lock()
+	defer a.lock.Unlock()
+
 	a.c = make(chan *MessageContext)
 	if len(a.ChannelNames()) == 1 {
 		channel := a.ChannelNames()[0]
@@ -92,8 +137,16 @@ func (a *MessageProcessorEngine) start() {
 					MESSAGE_PROCESSOR_DYING.Log(a.logger.Info()).Msg("")
 					return nil
 				case msg := <-a.c:
+					if msg == nil {
+						MESSAGE_PROCESSOR_CHANNEL_CLOSED.Log(a.logger.Info()).Msg("")
+						return nil
+					}
 					if err := receive(msg); err != nil {
-						return err
+						return &MessageProcessingError{
+							Path:    msg.Path(),
+							Message: msg.Envelope,
+							Err:     err,
+						}
 					}
 				}
 			}
@@ -110,8 +163,16 @@ func (a *MessageProcessorEngine) start() {
 					MESSAGE_PROCESSOR_DYING.Log(a.logger.Info()).Msg("")
 					return nil
 				case msg := <-a.c:
+					if msg == nil {
+						MESSAGE_PROCESSOR_CHANNEL_CLOSED.Log(a.logger.Info()).Msg("")
+						return nil
+					}
 					if err := a.Handler(msg.Envelope.channel)(msg); err != nil {
-						return err
+						return &MessageProcessingError{
+							Path:    msg.Path(),
+							Message: msg.Envelope,
+							Err:     err,
+						}
 					}
 				}
 			}
@@ -129,7 +190,17 @@ func (a *MessageProcessorEngine) start() {
 						MESSAGE_PROCESSOR_CHANNEL_DYING.Log(a.logger.Info()).Str(CHANNEL, channelName).Msg("")
 						return nil
 					case msg := <-c:
-						a.c <- msg
+						if msg == nil {
+							MESSAGE_PROCESSOR_CHANNEL_CLOSED.Log(a.logger.Info()).Str(CHANNEL, channelName).Msg("")
+							return nil
+						}
+						select {
+						case <-a.Dying():
+							MESSAGE_PROCESSOR_CHANNEL_DYING.Log(a.logger.Info()).Str(CHANNEL, channelName).Msg("")
+							return nil
+						case a.c <- msg:
+						}
+
 					}
 				}
 			})

@@ -14,9 +14,10 @@
 
 package actor
 
-import "time"
+type RestartMode int
 
-type Stats struct {
-	restarts        int
-	lastRestartTime time.Time
-}
+const (
+	RESTART_ACTOR RestartMode = iota
+	RESTART_ACTOR_HIERARCHY
+	RESTART_ACTOR_KILL_CHILDREN
+)

@@ -17,6 +17,12 @@ package actor
 import (
 	"time"
 
+	"errors"
+
+	"sync"
+
+	"fmt"
+
 	"github.com/nats-io/nuid"
 	"github.com/rs/zerolog"
 	"gopkg.in/tomb.v2"
@@ -31,8 +37,9 @@ type MessageContext struct {
 
 // system channels
 const (
-	CHANNEL_SYSTEM    = Channel("0")
-	CHANNEL_LIFECYCLE = Channel("1")
+	CHANNEL_SYSTEM     = Channel("0")
+	CHANNEL_LIFECYCLE  = Channel("1")
+	CHANNEL_SUPERVISOR = Channel("2")
 )
 
 // Actor represents an actor in the Actor Model. Actors are objects which encapsulate state and behavior, they communicate exclusively by exchanging messages.
@@ -45,65 +52,257 @@ const (
 // Actors are defined by an actor path. The actor path must be unique within a local process.
 type Actor struct {
 	// immutable
-	system  System
-	address *Address
-	name    string
-	created time.Time
-	parent  *Actor
+	system *System
 
+	path    []string
+	id      string
+	address *Address
+
+	created time.Time
+
+	parent   *Actor
 	children map[string]*Actor
 
-	// - used when starting the actor to create the initial MessageProcessor
-	// - used when restarting the actor to create a new MessageProcessor instance
 	messageProcessorFactory MessageProcessorFactory
-	msgProcessor            MessageProcessor
-	msgProcessorEngine      MessageProcessorEngine
+	msgProcessorEngine      *MessageProcessorEngine
+	channels                map[Channel]chan *Envelope
+	channelBufSizes         map[Channel]int
 
-	supervisorStrategy SupervisorStrategy
-	failures           *Failures
+	failures Failures
 
-	t      tomb.Tomb
+	tomb.Tomb
+	lock sync.RWMutex
+
 	uid    *nuid.NUID
 	logger zerolog.Logger
+
+	restarts        int
+	lastRestartTime time.Time
 }
 
-func (a *Actor) MessageEnvelope(channel Channel, msg Message) *Envelope {
+func (a *Actor) Message(channel Channel, msg Message) *Envelope {
 	return NewEnvelope(a.UID, channel, msg, nil)
 }
 
-func (a *Actor) RequestEnvelope(channel Channel, msg Message, replyToChannel Channel) *Envelope {
+func (a *Actor) Request(channel Channel, msg Message, replyToChannel Channel) *Envelope {
 	return NewEnvelope(a.UID, channel, msg, &ChannelAddress{Channel: replyToChannel, Address: a.address})
 }
 
-func (a *Actor) start() error {
-	a.msgProcessor = a.messageProcessorFactory()
+func (a *Actor) MessageContext(msg *Envelope) *MessageContext {
+	return &MessageContext{a, msg}
+}
+
+func (a *Actor) messageProcessorEngineChannel(channel Channel) chan<- *MessageContext {
+	a.lock.RLock()
+	defer a.lock.RUnlock()
+	return a.msgProcessorEngine.Channel(channel)
+}
+
+func (a *Actor) start() (err error) {
+	a.lock.Lock()
+	defer a.lock.Unlock()
+	defer func() {
+		if err != nil {
+			a.Kill(err)
+		}
+	}()
+
+	if err = a.init(); err != nil {
+		return
+	}
+	if err = a.startMessageProcessorEngine(); err != nil {
+		return
+	}
+
+	// when this actor is killed, tear down the actor hierarchy
+	a.Go(func() error {
+		<-a.Dying()
+		a.lock.RLock()
+		defer a.lock.RUnlock()
+		for _, child := range a.children {
+			child.Kill(nil)
+		}
+
+		for _, child := range a.children {
+			child.Wait()
+		}
+		a.msgProcessorEngine.Kill(nil)
+		a.msgProcessorEngine.Wait()
+		return nil
+	})
+	return
+}
+
+func (a *Actor) init() error {
+	a.uid = nuid.New()
+	a.created = time.Now()
+	a.id = a.uid.Next()
+
+	if err := a.validate(); err != nil {
+		return err
+	}
+
+	a.logger = a.logger.With().Strs(ACTOR_PATH, a.path).Logger()
+	return nil
+}
+
+func (a *Actor) startMessageProcessorEngine() (err error) {
+	if a.msgProcessorEngine, err = StartMessageProcessorEngine(a.messageProcessorFactory(), a.logger); err != nil {
+		return
+	}
+	msgProcessorEngine := a.msgProcessorEngine
+	a.channels = make(map[Channel]chan *Envelope)
+	for _, channel := range a.msgProcessorEngine.ChannelNames() {
+		c := make(chan *Envelope, a.channelBufSizes[channel])
+		a.channels[channel] = c
+		messageProcessorEngineChannel := a.messageProcessorEngineChannel(channel)
+
+		// these goroutines will die when either the actor or the message processor engine dies
+		a.Go(func() error {
+			for {
+				select {
+				case msg := <-c:
+					select {
+					case messageProcessorEngineChannel <- a.MessageContext(msg):
+					case <-a.Dying():
+						return nil
+					case <-msgProcessorEngine.Dead():
+						return nil
+					}
+				case <-a.Dying():
+					return nil
+				case <-msgProcessorEngine.Dead():
+					return nil
+				}
+			}
+		})
+	}
+	a.Tell(a.Message(CHANNEL_LIFECYCLE, STARTED))
+	ACTOR_STARTED.Log(a.logger.Info()).Msg("")
+
+	// invoke MessageProcessor.Stopped() after it is dead to enable it to release resources and cleanup.
+	a.Go(func() error {
+		defer msgProcessorEngine.Stopped()
+		select {
+		case <-a.Dying():
+		case <-msgProcessorEngine.Dead():
+		}
+		return nil
+	})
+
+	return
+}
+
+func (a *Actor) restart(mode RestartMode) (err error) {
+	a.lock.Lock()
+	defer a.lock.Unlock()
+	defer func() {
+		if err != nil {
+			a.Kill(err)
+		}
+	}()
+
+	a.msgProcessorEngine.Kill(nil)
+	a.msgProcessorEngine.Wait()
+	a.msgProcessorEngine.closeChannels()
+
+	switch mode {
+	case RESTART_ACTOR:
+	case RESTART_ACTOR_HIERARCHY:
+		for _, child := range a.children {
+			child.restart(mode)
+		}
+	case RESTART_ACTOR_KILL_CHILDREN:
+		for _, child := range a.children {
+			child.Kill(nil)
+		}
+		for _, child := range a.children {
+			child.Wait()
+		}
+	default:
+		return fmt.Errorf("Unknown RestartMode : %d", mode)
+	}
+
+	if err = a.restartMessageProcessorEngine(); err != nil {
+		return err
+	}
+	ACTOR_RESTARTED.Log(a.logger.Info()).Msg("")
+	return
+}
+
+func (a *Actor) restartMessageProcessorEngine() (err error) {
+	if a.msgProcessorEngine, err = StartMessageProcessorEngine(a.messageProcessorFactory(), a.logger); err != nil {
+		return
+	}
+	msgProcessorEngine := a.msgProcessorEngine
+	for channel, c := range a.channels {
+		messageProcessorEngineChannel := a.messageProcessorEngineChannel(channel)
+
+		// these goroutines will die when either the actor or the message processor engine dies
+		a.Go(func() error {
+			for {
+				select {
+				case msg := <-c:
+					select {
+					case messageProcessorEngineChannel <- a.MessageContext(msg):
+					case <-a.Dying():
+						return nil
+					case <-msgProcessorEngine.Dead():
+						return nil
+					}
+				case <-a.Dying():
+					return nil
+				case <-msgProcessorEngine.Dead():
+					return nil
+				}
+			}
+		})
+	}
+	a.Tell(a.Message(CHANNEL_LIFECYCLE, STARTED))
+	return
+}
+
+func (a *Actor) validate() error {
+	if len(a.path) == 0 {
+		return errors.New("Path is required")
+	}
+
+	a.address = &Address{a.path, a.id}
+	if err := a.address.Validate(); err != nil {
+		return err
+	}
+
+	if len(a.path) > 1 {
+		if a.system == nil {
+			return errors.New("An actor must belong to a system")
+		}
+
+		if a.parent == nil {
+			return errors.New("The actor must have a parent")
+		}
+	} // else this is the root actor of the system
+
+	if a.messageProcessorFactory == nil {
+		return errors.New("MessageProcessorFactory is required")
+	}
 
 	return nil
 }
 
-func (a *Actor) handlePing(msg *Envelope) {
-	if msg.replyTo != nil {
-		pong := PONG_FACTORY.NewMessage().(*Pong)
-		pong.Address = a.address
-		a.MessageEnvelope(msg.replyTo.Channel, pong)
-		// TODO: send message to replyTo address
-	}
-}
-
-func (a *Actor) System() System {
+func (a *Actor) System() *System {
 	return a.system
 }
 
 func (a *Actor) Name() string {
-	return a.name
+	return a.path[len(a.path)-1]
 }
 
 func (a *Actor) Path() []string {
-	return a.address.Path
+	return a.path
 }
 
 func (a *Actor) Id() string {
-	return a.address.Id
+	return a.id
 }
 
 // UID returns a new unique id.
@@ -112,60 +311,42 @@ func (a *Actor) UID() string {
 	return a.uid.Next()
 }
 
-// Alive indicates if the actor is still alive.
-func (a *Actor) Alive() bool {
-	return a.t.Alive()
-}
-
-// Dead returns the channel that can be used to wait until the actor is dead.
-// The cause of death is returned on the channel.
-func (a *Actor) Dead() <-chan struct{} {
-	return a.t.Dead()
-}
-
-// Dying returns the channel that can be used to wait until the actor is dying.
-func (a *Actor) Dying() <-chan struct{} {
-	return a.t.Dying()
-}
-
-// Kill puts the actor in a dying state for the given reason, closes the Dying channel, and sets Alive to false.
-//
-// Although Kill may be called multiple times, only the first non-nil error is recorded as the death reason.
-// If reason is ErrDying, the previous reason isn'this replaced even if nil. It's a runtime error to call Kill with
-// ErrDying if this is not in a dying state.
-func (a *Actor) Kill(reason error) {
-	a.t.Kill(reason)
-}
-
 // Err returns the death reason, or ErrStillAlive if the actor is not in a dying or dead state.
 func (a *Actor) Err() error {
-	err := a.t.Err()
+	err := a.Tomb.Err()
 	if err == tomb.ErrStillAlive {
 		return ErrStillAlive
 	}
 	return err
 }
 
-// Wait blocks until the actor has finished running, and then returns the reason for its death.
-func (a *Actor) Wait() error {
-	return a.t.Wait()
+// Tell sends a message with fire and forget semantics.
+func (a *Actor) Tell(msg *Envelope) error {
+	c := a.channels[msg.Channel()]
+	if c == nil {
+		return &InvalidChannelError{msg.Channel()}
+	}
+
+	select {
+	case c <- msg:
+	default:
+		a.Go(func() error {
+			select {
+			case <-a.Dying():
+			case c <- msg:
+			}
+			return nil
+		})
+	}
+	return nil
 }
 
-// A restart only swaps the Actor msgProcessor defined by the Props but the incarnation and hence the UID remains the same.
-// As long as the incarnation is the same, you can keep using the same ActorRef.
-func (a *Actor) Restart() {
-	//TODO
-}
-
-// Pause will pause message processing.
-// stash indicates the max number of messages that are received while paused to stash.
-// When the actor is resumed, the messages will be unstashed.
-// If stash <= 0, then messages will simply be dropped.
-func (a *Actor) Pause(stash int) {
-	//TODO
-}
-
-// Resume will resume message processing
-func (a *Actor) Resume() {
-	//TODO
+func (a *Actor) Channels() []Channel {
+	channels := make([]Channel, len(a.channels))
+	i := 0
+	for channel := range a.channels {
+		channels[i] = channel
+		i++
+	}
+	return channels
 }

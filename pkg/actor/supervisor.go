@@ -26,21 +26,14 @@ type SupervisorStrategy interface {
 
 type Decider func(err error) Directive
 
-func RestartDecider(_ error) Directive {
-	return DIRECTIVE_RESTART
-}
-
-func ResumeDecider(_ error) Directive {
-	return DIRECTIVE_RESUME
-}
-
 // Directive represents an enum. The directive specifies how the actor failure should be handled.
 type Directive int
 
 // Directive enum values
 const (
-	DIRECTIVE_RESUME = iota
-	DIRECTIVE_RESTART
+	DIRECTIVE_RESTART_ACTOR = iota
+	DIRECTIVE_RESTART_ACTOR_HIERARCHY
+	DIRECTIVE_RESTART_ACTOR_KILL_CHILDREN
 	DIRECTIVE_STOP
 	DIRECTIVE_ESCALATE
 )
@@ -85,18 +78,28 @@ func (a *allForOneStrategy) HandleFailure(child *Actor, err *MessageProcessingEr
 	// TODO: log the error
 	child.failures.failure(err.Err)
 	switch a.decider(err.Err) {
-	case DIRECTIVE_RESUME:
-		child.Resume()
-	case DIRECTIVE_RESTART:
+	case DIRECTIVE_RESTART_ACTOR:
 		if a.canRestart(child) {
-			child.Restart()
+			child.restart(RESTART_ACTOR)
+		} else {
+			child.Kill(nil)
+		}
+	case DIRECTIVE_RESTART_ACTOR_HIERARCHY:
+		if a.canRestart(child) {
+			child.restart(RESTART_ACTOR_HIERARCHY)
+		} else {
+			child.Kill(nil)
+		}
+	case DIRECTIVE_RESTART_ACTOR_KILL_CHILDREN:
+		if a.canRestart(child) {
+			child.restart(RESTART_ACTOR_KILL_CHILDREN)
 		} else {
 			child.Kill(nil)
 		}
 	case DIRECTIVE_STOP:
 		child.Kill(nil)
 	case DIRECTIVE_ESCALATE:
-		child.t.Kill(err)
+		child.Kill(err)
 	}
 
 }
