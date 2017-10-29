@@ -29,8 +29,8 @@ func uid() string { return nuid.Next() }
 
 func TestEnvelope_MarshalBinary(t *testing.T) {
 	now := time.Now()
-	msg := actor.PingMessageFactory().NewMessage()
-	if err := actor.PingMessageFactory().Validate(msg); err != nil {
+	msg := actor.PING_FACTORY.NewMessage()
+	if err := actor.PING_FACTORY.Validate(msg); err != nil {
 		t.Fatalf("ping message was invalid : %v", err)
 	}
 	channel := "ping"
@@ -41,7 +41,7 @@ func TestEnvelope_MarshalBinary(t *testing.T) {
 			Id:   nuid.Next(),
 		}}
 
-	envelope := actor.NewEnvelope(uid, channel, msg, replyTo)
+	envelope := actor.NewEnvelope(uid, channel, actor.MESSAGE_TYPE_PING, msg, replyTo)
 	t.Log(envelope)
 
 	if envelope.Id() == "" || envelope.Message() != msg ||
@@ -58,7 +58,7 @@ func TestEnvelope_MarshalBinary(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	envelope2 := actor.EmptyEnvelope(actor.PingMessageFactory())
+	envelope2 := actor.EmptyEnvelope(actor.PING_FACTORY)
 	if err := envelope2.UnmarshalBinary(envelopeBytes); err != nil {
 		t.Fatal(err)
 	}

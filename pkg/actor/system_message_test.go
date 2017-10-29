@@ -25,18 +25,22 @@ import (
 
 func TestPong_MarshalBinary(t *testing.T) {
 	now := time.Now()
-	msg := actor.PongMessageFactory().NewMessage().(*actor.Pong)
+	msg := actor.PONG_FACTORY.NewMessage().(*actor.Pong)
 	msg.Address = &actor.Address{
 		Path: []string{"oysterpack", "capnp"},
 		Id:   uid(),
 	}
 
-	if err := actor.PongMessageFactory().Validate(msg); err != nil {
+	if err := actor.PONG_FACTORY.Validate(msg); err != nil {
 		t.Fatalf("ping message was invalid : %v", err)
 	}
+	if err := actor.PING_FACTORY.Validate(msg); err == nil {
+		t.Error("a pong is not a ping")
+	}
+
 	channel := "pong"
 
-	envelope := actor.NewEnvelope(uid, channel, msg, nil)
+	envelope := actor.NewEnvelope(uid, channel, actor.MESSAGE_TYPE_PONG, msg, nil)
 	t.Log(envelope)
 
 	if envelope.Id() == "" || envelope.Message() != msg ||
@@ -51,7 +55,7 @@ func TestPong_MarshalBinary(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	envelope2 := actor.EmptyEnvelope(actor.PongMessageFactory())
+	envelope2 := actor.EmptyEnvelope(actor.PONG_FACTORY)
 	if err := envelope2.UnmarshalBinary(envelopeBytes); err != nil {
 		t.Fatal(err)
 	}

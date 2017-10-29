@@ -18,10 +18,17 @@ import (
 	"time"
 
 	"github.com/nats-io/nuid"
+	"github.com/rs/zerolog"
 	"gopkg.in/tomb.v2"
 )
 
 type Receive func(ctx *MessageContext) error
+
+// system channels
+const (
+	CHANNEL_SYSTEM    = "0"
+	CHANNEL_LIFECYCLE = "1"
+)
 
 // Actor represents an actor in the Actor Model. Actors are objects which encapsulate state and behavior, they communicate exclusively by exchanging messages.
 //
@@ -34,9 +41,9 @@ type Receive func(ctx *MessageContext) error
 type Actor struct {
 	// immutable
 	system  System
-	path    []string
+	address *Address
 	name    string
-	id      string
+
 	created time.Time
 	parent  *Actor
 
@@ -46,28 +53,66 @@ type Actor struct {
 
 	this        tomb.Tomb
 	instance    Instance
-	behavior    Receive
+	receive     Receive
 	receiveTomb tomb.Tomb
+
+	receiveChan chan *Envelope
+	sysChan     chan *Envelope
 
 	failures *Failures
 
 	deathChan chan error
+
+	logger zerolog.Logger
+
+	settings *Settings
 }
 
-func (a *Actor) run() error {
+func (a *Actor) MessageEnvelope(channel string, msgType MessageType, msg Message) *Envelope {
+	return NewEnvelope(a.UID, channel, msgType, msg, nil)
+}
+
+func (a *Actor) RequestEnvelope(channel string, msgType MessageType, msg Message, replyToChannel string) *Envelope {
+	return NewEnvelope(a.UID, channel, msgType, msg, &ChannelAddress{Channel: replyToChannel, Address: a.address})
+}
+
+func (a *Actor) start() error {
+	a.instance = a.settings.InstanceFactory()
+	a.receive = a.instance.Receive
+
 	go func() {
-		<-a.this.Dead()
-		a.deathChan <- a.this.Err()
+		err := a.this.Wait()
+		a.receive(&MessageContext{Actor: a, Envelope: a.MessageEnvelope(CHANNEL_LIFECYCLE, MESSAGE_TYPE_STOPPED, STOPPED)})
+		a.deathChan <- err
+		close(a.deathChan)
 	}()
 
-	for {
-		select {
-		case <-a.this.Dying():
-
+	a.this.Go(func() error {
+		for {
+			select {
+			case <-a.this.Dying():
+				return a.receive(&MessageContext{Actor: a, Envelope: a.MessageEnvelope(CHANNEL_LIFECYCLE, MESSAGE_TYPE_STOPPING, STOPPING)})
+			case msg := <-a.sysChan:
+				a.handleSystemMessage(msg)
+			}
 		}
-	}
+	})
 
 	return nil
+}
+
+func (a *Actor) handleSystemMessage(msg *Envelope) {
+	switch msg.msgType {
+	case MESSAGE_TYPE_PING:
+		if msg.replyTo != nil {
+			pong := PONG_FACTORY.NewMessage().(*Pong)
+			pong.Address = a.address
+			a.MessageEnvelope(msg.replyTo.Channel, MESSAGE_TYPE_PONG, pong)
+			// TODO: send message to replyTo address
+		}
+
+	}
+
 }
 
 func (a *Actor) System() System {
@@ -79,11 +124,11 @@ func (a *Actor) Name() string {
 }
 
 func (a *Actor) Path() []string {
-	return a.path
+	return a.address.Path
 }
 
 func (a *Actor) Id() string {
-	return a.id
+	return a.address.Id
 }
 
 // UID returns a new unique id.
@@ -115,4 +160,23 @@ func (a *Actor) Dying() <-chan struct{} {
 // ErrDying if this is not in a dying state.
 func (a *Actor) Kill(reason error) {
 	a.this.Kill(reason)
+}
+
+// A restart only swaps the Actor instance defined by the Props but the incarnation and hence the UID remains the same.
+// As long as the incarnation is the same, you can keep using the same ActorRef.
+func (a *Actor) Restart() {
+	//TODO
+}
+
+// Pause will pause message processing.
+// stash indicates the max number of messages that are received while paused to stash.
+// When the actor is resumed, the messages will be unstashed.
+// If stash <= 0, then messages will simply be dropped.
+func (a *Actor) Pause(stash int) {
+	//TODO
+}
+
+// Resume will resume message processing
+func (a *Actor) Resume() {
+	//TODO
 }

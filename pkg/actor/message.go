@@ -49,11 +49,12 @@ type UID func() string
 
 // NewEnvelope creates a new Envelope wrapping the specified message
 // 	- uid is used to generate the envelope message id
-func NewEnvelope(uid UID, channel string, msg Message, replyTo *ChannelAddress) *Envelope {
+func NewEnvelope(uid UID, channel string, msgType MessageType, msg Message, replyTo *ChannelAddress) *Envelope {
 	return &Envelope{
 		id:      uid(),
 		created: time.Now(),
 		channel: channel,
+		msgType: msgType,
 		message: msg,
 		replyTo: replyTo,
 	}
@@ -65,6 +66,10 @@ func EmptyEnvelope(messageFactory MessageFactory) *Envelope {
 	}
 }
 
+type MessageType uint8
+
+const MESSAGE_TYPE_DEFAULT MessageType = 0
+
 // Envelope is a message envelope. Envelope is itself a message.
 type Envelope struct {
 	id      string
@@ -72,6 +77,7 @@ type Envelope struct {
 
 	channel string
 	message Message
+	msgType MessageType
 
 	replyTo *ChannelAddress
 }
@@ -94,6 +100,10 @@ func (a *Envelope) Message() Message {
 
 func (a *Envelope) ReplyTo() *ChannelAddress {
 	return a.replyTo
+}
+
+func (a *Envelope) MessageType() MessageType {
+	return a.msgType
 }
 
 // UnmarshalBinary implements encoding.BinaryUnmarshaler
@@ -121,6 +131,7 @@ func (a *Envelope) UnmarshalBinary(data []byte) error {
 		return err
 	}
 	a.channel = channel
+	a.msgType = MessageType(envelope.MessageType())
 
 	message, err := envelope.Message()
 	if err != nil {
@@ -169,6 +180,7 @@ func (a *Envelope) MarshalBinary() ([]byte, error) {
 	if err = envelope.SetChannel(a.channel); err != nil {
 		return nil, err
 	}
+	envelope.SetMessageType(uint8(a.msgType))
 	if err = envelope.SetMessage(msgData); err != nil {
 		return nil, err
 	}
@@ -202,8 +214,9 @@ func (a *Envelope) String() string {
 		Id      string
 		Created time.Time
 
-		Channel string
-		Message Message
+		Channel     string
+		MessageType MessageType
+		Message     Message
 
 		ReplyTo *ChannelAddress
 	}
@@ -213,6 +226,7 @@ func (a *Envelope) String() string {
 			a.id,
 			a.created,
 			a.channel,
+			a.msgType,
 			a.message,
 			a.replyTo,
 		}

@@ -29,43 +29,44 @@ type SystemMessage interface {
 	SystemMessage()
 }
 
-func PingMessageFactory() MessageFactory { return ping_msg_factory }
-
-var (
-	ping_msg         = &ping{EMPTY}
-	ping_msg_factory = &pingMessageFactory{}
-
-	pong_msg_factory = &pongMessageFactory{}
+const (
+	MESSAGE_TYPE_PING MessageType = iota
+	MESSAGE_TYPE_PONG
 )
 
-type pingMessageFactory struct{}
+var (
+	PING         = &Ping{EMPTY}
+	PING_FACTORY = &PingMessageFactory{}
 
-func (a *pingMessageFactory) NewMessage() Message {
-	return ping_msg
+	PONG_FACTORY = &PongMessageFactory{}
+)
+
+type PingMessageFactory struct{}
+
+func (a *PingMessageFactory) NewMessage() Message {
+	return PING
 }
 
-func (a *pingMessageFactory) Validate(msg Message) error {
-	if _, ok := msg.(*ping); !ok {
-		return &InvalidMessageTypeError{Message: msg, ExpectedType: reflect.TypeOf(ping_msg)}
+func (a *PingMessageFactory) Validate(msg Message) error {
+	if _, ok := msg.(*Ping); !ok {
+		return &InvalidMessageTypeError{Message: msg, ExpectedType: reflect.TypeOf(PING)}
 	}
 	return nil
 }
 
-type ping struct {
+type Ping struct {
 	*Empty
 }
 
-func (a *ping) SystemMessage() {}
+func (a *Ping) SystemMessage() {}
 
-func PongMessageFactory() MessageFactory { return pong_msg_factory }
+type PongMessageFactory struct{}
 
-type pongMessageFactory struct{}
-
-func (a *pongMessageFactory) NewMessage() Message {
+func (a *PongMessageFactory) NewMessage() Message {
 	return &Pong{}
 }
 
-func (a *pongMessageFactory) Validate(msg Message) error {
+func (a *PongMessageFactory) Validate(msg Message) error {
 	if msg, ok := msg.(*Pong); !ok {
 		return &InvalidMessageTypeError{Message: msg, ExpectedType: reflect.TypeOf(&Pong{})}
 	} else {

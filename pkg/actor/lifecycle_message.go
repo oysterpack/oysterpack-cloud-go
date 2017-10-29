@@ -14,6 +14,20 @@
 
 package actor
 
+var (
+	STARTED    = &Started{EMPTY}
+	STOPPING   = &Stopping{EMPTY}
+	STOPPED    = &Stopped{EMPTY}
+	RESTARTING = &Restarting{EMPTY}
+)
+
+const (
+	MESSAGE_TYPE_STARTED MessageType = iota
+	MESSAGE_TYPE_STOPPING
+	MESSAGE_TYPE_STOPPED
+	MESSAGE_TYPE_RESTARTED
+)
+
 type LifeCycleMessage interface {
 	SystemMessage
 	LifeCycleMessage()

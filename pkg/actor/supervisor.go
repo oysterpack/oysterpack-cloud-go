@@ -21,7 +21,7 @@ import (
 )
 
 type SupervisorStrategy interface {
-	HandleFailure(ctx MessageContext, err *MessageProcessingError)
+	HandleFailure(child *Actor, err *MessageProcessingError)
 }
 
 type Decider func(err error) Directive
@@ -61,7 +61,9 @@ type SupervisorStrategyFactory interface {
 // A child actor is restarted a max number of times number of times within a time duration, negative value means no limit.
 // If the limit is exceeded the child actor is stopped.
 //
-//
+// An error occurs if :
+//	- if maxRetries > 0, then withinDuration must also be > 0
+//  - if decider is nil
 func NewAllForOneStrategy(maxRetries int, withinDuration time.Duration, decider Decider) (SupervisorStrategy, error) {
 	if maxRetries > 0 && withinDuration == 0 {
 		return nil, fmt.Errorf("If maxRetries > 0, then withinDuration must also be > 0")
@@ -79,36 +81,28 @@ type allForOneStrategy struct {
 	decider        Decider
 }
 
-func (a *allForOneStrategy) HandleFailure(ctx MessageContext, err *MessageProcessingError) {
-	ctx.failures.failure(err.Err)
-	directive := a.decider(err.Err)
-	switch directive {
+func (a *allForOneStrategy) HandleFailure(child *Actor, err *MessageProcessingError) {
+	// TODO: log the error
+	child.failures.failure(err.Err)
+	switch a.decider(err.Err) {
 	case DIRECTIVE_RESUME:
-		//resume the failing child
-		// TODO: log
+		child.Resume()
 	case DIRECTIVE_RESTART:
-		children := supervisor.Children()
-		//try restart the all the children
-		if strategy.requestRestartPermission(rs) {
-			logFailure(child, reason, RestartDirective)
-			supervisor.RestartChildren(children...)
+		if a.canRestart(child) {
+			child.Restart()
 		} else {
-			logFailure(child, reason, StopDirective)
-			supervisor.StopChildren(children...)
+			child.Kill(nil)
 		}
 	case DIRECTIVE_STOP:
-		children := supervisor.Children()
-		//stop all the children, no need to involve the crs
-		logFailure(child, reason, directive)
-		supervisor.StopChildren(children...)
+		child.Kill(nil)
 	case DIRECTIVE_ESCALATE:
-		ctx.this.Kill(err)
+		child.this.Kill(err)
 	}
 
 }
 
 // check if the actor can be restarted based on the strategy configuration
-func (a *allForOneStrategy) canRestart(ctx MessageContext) bool {
+func (a *allForOneStrategy) canRestart(actor *Actor) bool {
 	if a.maxRetries < 0 {
 		return true
 	}
@@ -117,11 +111,11 @@ func (a *allForOneStrategy) canRestart(ctx MessageContext) bool {
 		return false
 	}
 
-	if time.Since(ctx.failures.lastFailureTime) < a.withinDuration {
-		return ctx.failures.count <= a.maxRetries
+	if time.Since(actor.failures.lastFailureTime) < a.withinDuration {
+		return actor.failures.count <= a.maxRetries
 	}
 	// we are past the time limit, we can safely reset the failure count and restart
-	ctx.failures.reset()
+	actor.failures.reset()
 	return true
 
 }

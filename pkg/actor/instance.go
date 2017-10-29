@@ -25,6 +25,6 @@ type MessageContext struct {
 	Envelope *Envelope
 }
 
-func (a *MessageContext) SetBehavior(behavior Receive) {
-	a.behavior = behavior
+func (a *MessageContext) SetBehavior(receive Receive) {
+	a.receive = receive
 }

@@ -11,6 +11,7 @@ struct Envelope @0xf38cccd618967ecd {
 
     channel     @3 :Text $Go.doc("the channel the message is associated with");
     message     @4 :Data $Go.doc("serialized message");
+    messageType @5 :UInt8 = 0 $Go.doc("message type is used to when multiple types of messages can be sent on a channel");
 }
 
 struct Address @0x9fd358f04cb684bd {
