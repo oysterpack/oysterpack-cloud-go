@@ -21,13 +21,6 @@ var (
 	RESTARTING = &Restarting{EMPTY}
 )
 
-const (
-	MESSAGE_TYPE_STARTED MessageType = iota
-	MESSAGE_TYPE_STOPPING
-	MESSAGE_TYPE_STOPPED
-	MESSAGE_TYPE_RESTARTED
-)
-
 type LifeCycleMessage interface {
 	SystemMessage
 	LifeCycleMessage()
@@ -37,26 +30,30 @@ type Started struct {
 	*Empty
 }
 
-func (a *Started) SystemMessage()    {}
-func (a *Started) LifeCycleMessage() {}
+func (a *Started) SystemMessage()           {}
+func (a *Started) LifeCycleMessage()        {}
+func (a *Started) MessageType() MessageType { return MessageType(0) }
 
 type Stopping struct {
 	*Empty
 }
 
-func (a *Stopping) SystemMessage()    {}
-func (a *Stopping) LifeCycleMessage() {}
+func (a *Stopping) SystemMessage()           {}
+func (a *Stopping) LifeCycleMessage()        {}
+func (a *Stopping) MessageType() MessageType { return MessageType(1) }
 
 type Stopped struct {
 	*Empty
 }
 
-func (a *Stopped) SystemMessage()    {}
-func (a *Stopped) LifeCycleMessage() {}
+func (a *Stopped) SystemMessage()           {}
+func (a *Stopped) LifeCycleMessage()        {}
+func (a *Stopped) MessageType() MessageType { return MessageType(2) }
 
 type Restarting struct {
 	*Empty
 }
 
-func (a *Restarting) SystemMessage()    {}
-func (a *Restarting) LifeCycleMessage() {}
+func (a *Restarting) SystemMessage()           {}
+func (a *Restarting) LifeCycleMessage()        {}
+func (a *Restarting) MessageType() MessageType { return MessageType(3) }

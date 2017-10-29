@@ -29,11 +29,6 @@ type SystemMessage interface {
 	SystemMessage()
 }
 
-const (
-	MESSAGE_TYPE_PING MessageType = iota
-	MESSAGE_TYPE_PONG
-)
-
 var (
 	PING         = &Ping{EMPTY}
 	PING_FACTORY = &PingMessageFactory{}
@@ -60,6 +55,8 @@ type Ping struct {
 
 func (a *Ping) SystemMessage() {}
 
+func (a *Ping) MessageType() MessageType { return MessageType(0) }
+
 type PongMessageFactory struct{}
 
 func (a *PongMessageFactory) NewMessage() Message {
@@ -82,6 +79,8 @@ type Pong struct {
 }
 
 func (a *Pong) SystemMessage() {}
+
+func (a *Pong) MessageType() MessageType { return MessageType(1) }
 
 func (a *Pong) UnmarshalBinary(data []byte) error {
 	decoder := capnp.NewPackedDecoder(bytes.NewBuffer(data))

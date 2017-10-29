@@ -22,10 +22,24 @@ import (
 	"bytes"
 	"compress/zlib"
 
+	"strings"
+
+	"errors"
+
+	"fmt"
+
 	"github.com/json-iterator/go"
 	"github.com/oysterpack/oysterpack.go/pkg/actor/msgs"
 	"zombiezen.com/go/capnproto2"
 )
+
+type MessageType uint8
+
+func (a MessageType) UInt8() uint8 {
+	return uint8(a)
+}
+
+const MESSAGE_TYPE_DEFAULT MessageType = 0
 
 // Message that is sent between actors.
 // All messages must know how marshal themselves to a binary format.
@@ -34,10 +48,12 @@ import (
 type Message interface {
 	encoding.BinaryMarshaler
 	encoding.BinaryUnmarshaler
+
+	MessageType() MessageType
 }
 
 type MessageFactory interface {
-	// NewMessage creates a new Message instance
+	// NewMessage creates a new Message msgProcessor
 	NewMessage() Message
 
 	// Validate checks if the msg is compatible and valid for message types produced by this MessageFactory
@@ -49,12 +65,11 @@ type UID func() string
 
 // NewEnvelope creates a new Envelope wrapping the specified message
 // 	- uid is used to generate the envelope message id
-func NewEnvelope(uid UID, channel string, msgType MessageType, msg Message, replyTo *ChannelAddress) *Envelope {
+func NewEnvelope(uid UID, channel Channel, msg Message, replyTo *ChannelAddress) *Envelope {
 	return &Envelope{
 		id:      uid(),
 		created: time.Now(),
 		channel: channel,
-		msgType: msgType,
 		message: msg,
 		replyTo: replyTo,
 	}
@@ -66,20 +81,39 @@ func EmptyEnvelope(messageFactory MessageFactory) *Envelope {
 	}
 }
 
-type MessageType uint8
-
-const MESSAGE_TYPE_DEFAULT MessageType = 0
-
 // Envelope is a message envelope. Envelope is itself a message.
 type Envelope struct {
 	id      string
 	created time.Time
 
-	channel string
+	channel Channel
 	message Message
-	msgType MessageType
 
 	replyTo *ChannelAddress
+}
+
+func (a *Envelope) Validate() error {
+	if strings.TrimSpace(a.id) == "" {
+		return errors.New("Envelope.Id cannot be blank")
+	}
+
+	if a.created.IsZero() {
+		return errors.New("Envelope.Created is not set")
+	}
+
+	if err := a.channel.Validate(); err != nil {
+		return err
+	}
+
+	if a.message == nil {
+		return errors.New("Envelope.Message is required")
+	}
+
+	if err := a.replyTo.Validate(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (a *Envelope) Id() string {
@@ -90,8 +124,12 @@ func (a *Envelope) Created() time.Time {
 	return a.created
 }
 
-func (a *Envelope) Channel() string {
+func (a *Envelope) Channel() Channel {
 	return a.channel
+}
+
+func (a *Envelope) MessageType() MessageType {
+	return a.message.MessageType()
 }
 
 func (a *Envelope) Message() Message {
@@ -100,10 +138,6 @@ func (a *Envelope) Message() Message {
 
 func (a *Envelope) ReplyTo() *ChannelAddress {
 	return a.replyTo
-}
-
-func (a *Envelope) MessageType() MessageType {
-	return a.msgType
 }
 
 // UnmarshalBinary implements encoding.BinaryUnmarshaler
@@ -130,14 +164,17 @@ func (a *Envelope) UnmarshalBinary(data []byte) error {
 	if err != nil {
 		return err
 	}
-	a.channel = channel
-	a.msgType = MessageType(envelope.MessageType())
+	a.channel = Channel(channel)
 
 	message, err := envelope.Message()
 	if err != nil {
 		return err
 	}
 	a.message.UnmarshalBinary(message)
+
+	if a.MessageType().UInt8() != envelope.MessageType() {
+		return fmt.Errorf("The message type (%d) did not match what was specified on the envelope (%d).", a.MessageType(), envelope.MessageType())
+	}
 
 	if envelope.HasReplyTo() {
 		replyTo, err := envelope.ReplyTo()
@@ -173,14 +210,10 @@ func (a *Envelope) MarshalBinary() ([]byte, error) {
 		return nil, err
 	}
 	envelope.SetCreated(a.created.UnixNano())
-	if err = envelope.SetChannel(a.channel); err != nil {
+	if err = envelope.SetChannel(a.channel.String()); err != nil {
 		return nil, err
 	}
-
-	if err = envelope.SetChannel(a.channel); err != nil {
-		return nil, err
-	}
-	envelope.SetMessageType(uint8(a.msgType))
+	envelope.SetMessageType(a.MessageType().UInt8())
 	if err = envelope.SetMessage(msgData); err != nil {
 		return nil, err
 	}
@@ -214,7 +247,7 @@ func (a *Envelope) String() string {
 		Id      string
 		Created time.Time
 
-		Channel     string
+		Channel     Channel
 		MessageType MessageType
 		Message     Message
 
@@ -226,7 +259,7 @@ func (a *Envelope) String() string {
 			a.id,
 			a.created,
 			a.channel,
-			a.msgType,
+			a.MessageType(),
 			a.message,
 			a.replyTo,
 		}

@@ -38,9 +38,9 @@ func TestPong_MarshalBinary(t *testing.T) {
 		t.Error("a pong is not a ping")
 	}
 
-	channel := "pong"
+	channel := actor.Channel("pong")
 
-	envelope := actor.NewEnvelope(uid, channel, actor.MESSAGE_TYPE_PONG, msg, nil)
+	envelope := actor.NewEnvelope(uid, channel, msg, nil)
 	t.Log(envelope)
 
 	if envelope.Id() == "" || envelope.Message() != msg ||

@@ -24,10 +24,15 @@ import (
 
 type Receive func(ctx *MessageContext) error
 
+type MessageContext struct {
+	*Actor
+	Envelope *Envelope
+}
+
 // system channels
 const (
-	CHANNEL_SYSTEM    = "0"
-	CHANNEL_LIFECYCLE = "1"
+	CHANNEL_SYSTEM    = Channel("0")
+	CHANNEL_LIFECYCLE = Channel("1")
 )
 
 // Actor represents an actor in the Actor Model. Actors are objects which encapsulate state and behavior, they communicate exclusively by exchanging messages.
@@ -43,76 +48,46 @@ type Actor struct {
 	system  System
 	address *Address
 	name    string
-
 	created time.Time
 	parent  *Actor
 
 	children map[string]*Actor
 
-	uid *nuid.NUID
+	// - used when starting the actor to create the initial MessageProcessor
+	// - used when restarting the actor to create a new MessageProcessor instance
+	messageProcessorFactory MessageProcessorFactory
+	msgProcessor            MessageProcessor
+	msgProcessorEngine      MessageProcessorEngine
 
-	this        tomb.Tomb
-	instance    Instance
-	receive     Receive
-	receiveTomb tomb.Tomb
+	supervisorStrategy SupervisorStrategy
+	failures           *Failures
 
-	receiveChan chan *Envelope
-	sysChan     chan *Envelope
-
-	failures *Failures
-
-	deathChan chan error
-
+	t      tomb.Tomb
+	uid    *nuid.NUID
 	logger zerolog.Logger
-
-	settings *Settings
 }
 
-func (a *Actor) MessageEnvelope(channel string, msgType MessageType, msg Message) *Envelope {
-	return NewEnvelope(a.UID, channel, msgType, msg, nil)
+func (a *Actor) MessageEnvelope(channel Channel, msg Message) *Envelope {
+	return NewEnvelope(a.UID, channel, msg, nil)
 }
 
-func (a *Actor) RequestEnvelope(channel string, msgType MessageType, msg Message, replyToChannel string) *Envelope {
-	return NewEnvelope(a.UID, channel, msgType, msg, &ChannelAddress{Channel: replyToChannel, Address: a.address})
+func (a *Actor) RequestEnvelope(channel Channel, msg Message, replyToChannel Channel) *Envelope {
+	return NewEnvelope(a.UID, channel, msg, &ChannelAddress{Channel: replyToChannel, Address: a.address})
 }
 
 func (a *Actor) start() error {
-	a.instance = a.settings.InstanceFactory()
-	a.receive = a.instance.Receive
-
-	go func() {
-		err := a.this.Wait()
-		a.receive(&MessageContext{Actor: a, Envelope: a.MessageEnvelope(CHANNEL_LIFECYCLE, MESSAGE_TYPE_STOPPED, STOPPED)})
-		a.deathChan <- err
-		close(a.deathChan)
-	}()
-
-	a.this.Go(func() error {
-		for {
-			select {
-			case <-a.this.Dying():
-				return a.receive(&MessageContext{Actor: a, Envelope: a.MessageEnvelope(CHANNEL_LIFECYCLE, MESSAGE_TYPE_STOPPING, STOPPING)})
-			case msg := <-a.sysChan:
-				a.handleSystemMessage(msg)
-			}
-		}
-	})
+	a.msgProcessor = a.messageProcessorFactory()
 
 	return nil
 }
 
-func (a *Actor) handleSystemMessage(msg *Envelope) {
-	switch msg.msgType {
-	case MESSAGE_TYPE_PING:
-		if msg.replyTo != nil {
-			pong := PONG_FACTORY.NewMessage().(*Pong)
-			pong.Address = a.address
-			a.MessageEnvelope(msg.replyTo.Channel, MESSAGE_TYPE_PONG, pong)
-			// TODO: send message to replyTo address
-		}
-
+func (a *Actor) handlePing(msg *Envelope) {
+	if msg.replyTo != nil {
+		pong := PONG_FACTORY.NewMessage().(*Pong)
+		pong.Address = a.address
+		a.MessageEnvelope(msg.replyTo.Channel, pong)
+		// TODO: send message to replyTo address
 	}
-
 }
 
 func (a *Actor) System() System {
@@ -139,18 +114,18 @@ func (a *Actor) UID() string {
 
 // Alive indicates if the actor is still alive.
 func (a *Actor) Alive() bool {
-	return a.this.Alive()
+	return a.t.Alive()
 }
 
 // Dead returns the channel that can be used to wait until the actor is dead.
 // The cause of death is returned on the channel.
-func (a *Actor) Dead() <-chan error {
-	return a.deathChan
+func (a *Actor) Dead() <-chan struct{} {
+	return a.t.Dead()
 }
 
 // Dying returns the channel that can be used to wait until the actor is dying.
 func (a *Actor) Dying() <-chan struct{} {
-	return a.this.Dying()
+	return a.t.Dying()
 }
 
 // Kill puts the actor in a dying state for the given reason, closes the Dying channel, and sets Alive to false.
@@ -159,10 +134,24 @@ func (a *Actor) Dying() <-chan struct{} {
 // If reason is ErrDying, the previous reason isn'this replaced even if nil. It's a runtime error to call Kill with
 // ErrDying if this is not in a dying state.
 func (a *Actor) Kill(reason error) {
-	a.this.Kill(reason)
+	a.t.Kill(reason)
 }
 
-// A restart only swaps the Actor instance defined by the Props but the incarnation and hence the UID remains the same.
+// Err returns the death reason, or ErrStillAlive if the actor is not in a dying or dead state.
+func (a *Actor) Err() error {
+	err := a.t.Err()
+	if err == tomb.ErrStillAlive {
+		return ErrStillAlive
+	}
+	return err
+}
+
+// Wait blocks until the actor has finished running, and then returns the reason for its death.
+func (a *Actor) Wait() error {
+	return a.t.Wait()
+}
+
+// A restart only swaps the Actor msgProcessor defined by the Props but the incarnation and hence the UID remains the same.
 // As long as the incarnation is the same, you can keep using the same ActorRef.
 func (a *Actor) Restart() {
 	//TODO

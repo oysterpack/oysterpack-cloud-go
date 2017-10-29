@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"golang.org/x/net/context"
+	"gopkg.in/tomb.v2"
 )
 
 type Foo interface {
@@ -107,5 +108,31 @@ func TestTimeUnix(t *testing.T) {
 	t.Logf("time.Unix(0,now.UnixNano()) -> %v", time.Unix(0, now.UnixNano()))
 	t.Logf("time.Unix(now.Unix(),now.UnixNano()).Equal(now) -> %v", time.Unix(now.Unix(), now.UnixNano()).Equal(now))
 	t.Logf("time.Unix(0,now.UnixNano()).Equal(now) -> %v", time.Unix(0, now.UnixNano()).Equal(now))
+
+}
+
+func TestTomb(t *testing.T) {
+	a := tomb.Tomb{}
+	t.Logf("error : %v, still alive = %v", a.Err(), a.Err() == tomb.ErrStillAlive)
+	a.Kill(nil)
+	t.Logf("error : %v", a.Err())
+
+	c := make(chan interface{})
+	close(c)
+
+	select {
+	case msg := <-c:
+		t.Logf("Channel is closed !!! : %v", msg)
+	default:
+		t.Error("No message was sent because the channel is closed.")
+	}
+
+	func() {
+		defer func() {
+			p := recover()
+			t.Logf("%T : %v", p, p)
+		}()
+		c <- 1
+	}()
 
 }

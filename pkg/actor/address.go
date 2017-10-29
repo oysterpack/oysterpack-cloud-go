@@ -30,7 +30,7 @@ import (
 //
 // At least one of path or id must be set. Either can be set, depending on the use case.
 //  - If path is set, then the message is sent to any actor with a matching path.
-//    - Note: in a cluster, there may be more than 1 actor instance with the same address on different nodes
+//    - Note: in a cluster, there may be more than 1 actor msgProcessor with the same address on different nodes
 // 	- If id is set, then the message is sent to a specific actor with a matching id
 // 	- If both path and id are set, then the id is used and path is ignored
 type Address struct {
@@ -40,14 +40,12 @@ type Address struct {
 	Id string
 }
 
-func (a *Address) validate() error {
-	a.Id = strings.TrimSpace(a.Id)
-	if len(a.Path) == 0 && a.Id == "" {
+func (a *Address) Validate() error {
+	if len(a.Path) == 0 && strings.TrimSpace(a.Id) == "" {
 		return errors.New("Either Path or Id is required")
 	}
 	for i := range a.Path {
-		a.Path[i] = strings.TrimSpace(a.Path[i])
-		if a.Path[i] == "" {
+		if strings.TrimSpace(a.Path[i]) == "" {
 			return fmt.Errorf("Path element [%d] cannot be blank : %v", i, a.Path)
 		}
 	}
@@ -111,11 +109,45 @@ func NewAddress(addr msgs.Address) (*Address, error) {
 	return address, nil
 }
 
+type Channel string
+
+func (a Channel) String() string {
+	return string(a)
+}
+
+func (a Channel) Validate() error {
+	if strings.TrimSpace(a.String()) == "" {
+		return errors.New("Channel cannot be blank")
+	}
+	return nil
+}
+
 // ChannelAddress is where to deliver specific types of messages to an actor.
 // Each message channel supports a specific type of message
 type ChannelAddress struct {
-	Channel string
+	Channel Channel
 	*Address
+}
+
+// Validate the channel address. If channel address is nil, then skip validation.
+func (a *ChannelAddress) Validate() error {
+	if a == nil {
+		return nil
+	}
+
+	if err := a.Channel.Validate(); err != nil {
+		return err
+	}
+
+	if a.Address == nil {
+		return errors.New("ChannelAddress.Address is required")
+	}
+
+	if err := a.Address.Validate(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (a *ChannelAddress) String() string {
@@ -124,7 +156,7 @@ func (a *ChannelAddress) String() string {
 }
 
 func (a *ChannelAddress) Write(msg msgs.ChannelAddress) error {
-	if err := msg.SetChannel(a.Channel); err != nil {
+	if err := msg.SetChannel(a.Channel.String()); err != nil {
 		return err
 	}
 
@@ -146,7 +178,7 @@ func NewChannelAddress(addr msgs.ChannelAddress) (*ChannelAddress, error) {
 	if err != nil {
 		return nil, err
 	}
-	channelAddr.Channel = channel
+	channelAddr.Channel = Channel(channel)
 	replytoAddr, err := addr.Address()
 	if err != nil {
 		return nil, err

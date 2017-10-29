@@ -27,7 +27,7 @@ type Failures struct {
 	lastFailureSinceReset error
 }
 
-// Reset count back to 0. The count is reset when a new instance is created.
+// Reset count back to 0. The count is reset when a new msgProcessor is created.
 // It may also be be reset by a supervisor strategy, e.g., exponential back off strategy
 func (a *Failures) reset() {
 	a.count = 0
@@ -45,7 +45,7 @@ func (a *Failures) failure(cause error) {
 }
 
 // TotalCount returns the total number of errors that have occurred across all instances.
-// For example, when an actor is restarted, a new instance is created. The count is reset, but the total count is not reset.
+// For example, when an actor is restarted, a new msgProcessor is created. The count is reset, but the total count is not reset.
 func (a *Failures) TotalCount() int {
 	return a.totalCount
 }

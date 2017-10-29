@@ -96,7 +96,7 @@ func (a *allForOneStrategy) HandleFailure(child *Actor, err *MessageProcessingEr
 	case DIRECTIVE_STOP:
 		child.Kill(nil)
 	case DIRECTIVE_ESCALATE:
-		child.this.Kill(err)
+		child.t.Kill(err)
 	}
 
 }

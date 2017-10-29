@@ -20,6 +20,12 @@ import (
 	"reflect"
 )
 
+var (
+	ErrStillAlive = errors.New("Still alive")
+
+	ErrAlreadyStarted = errors.New("Already started")
+)
+
 // InvalidChannelError indicates the channel is unknown
 type InvalidChannelError struct {
 	Channel string
@@ -86,10 +92,6 @@ func (a *ActorNotAliveError) Error() string {
 func (a *ActorNotAliveError) String() string {
 	return fmt.Sprintf("Actor is not alive : %s", a.Address)
 }
-
-var (
-	ErrStillAlive = errors.New("Actor is still alive")
-)
 
 type ChildAlreadyExists struct {
 	Path []string
