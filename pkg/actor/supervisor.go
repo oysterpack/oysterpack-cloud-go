@@ -17,11 +17,57 @@ package actor
 import (
 	"errors"
 	"fmt"
+	"math/rand"
 	"time"
 )
 
-type SupervisorStrategy interface {
-	HandleFailure(child *Actor, err *MessageProcessingError)
+type SupervisorStrategy func(child *Actor, err *MessageProcessingError)
+
+func RestartingStrategy(restartMode RestartMode) SupervisorStrategy {
+	return func(child *Actor, err *MessageProcessingError) {
+		child.restart(restartMode)
+	}
+}
+
+func RestartingExponentialBackoffStrategy(restartMode RestartMode, backoffWindow time.Duration, initialBackoff time.Duration) SupervisorStrategy {
+	rs := &RestartStatistics{}
+
+	return func(child *Actor, err *MessageProcessingError) {
+		MESSAGE_PROCESSOR_FAILURE.Log(child.logger.Error()).Err(err).Msg("")
+
+		backoff := rs.FailureCount * int(initialBackoff.Nanoseconds())
+		noise := rand.Intn(500)
+		dur := time.Duration(backoff + noise)
+		time.AfterFunc(dur, func() {
+			child.restart(restartMode)
+		})
+	}
+}
+
+//RestartStatistics keeps track of how many times an actor have restarted and when
+type RestartStatistics struct {
+	FailureCount    int
+	LastFailureTime time.Time
+}
+
+//Fail increases the associated actors failure count
+func (rs *RestartStatistics) Fail() {
+	rs.FailureCount++
+}
+
+//Reset the associated actors failure count
+func (rs *RestartStatistics) Reset() {
+	rs.FailureCount = 0
+}
+
+//Restart sets the last failure timestamp for the associated actor
+func (rs *RestartStatistics) Restart() {
+	rs.LastFailureTime = time.Now()
+}
+
+//IsWithinDuration checks if a given duration is within the timespan from now to the last falure timestamp
+func (rs *RestartStatistics) IsWithinDuration(withinDuration time.Duration) bool {
+	return time.Since(rs.LastFailureTime) < withinDuration
 }
 
 type Decider func(err error) Directive
@@ -37,16 +83,6 @@ const (
 	DIRECTIVE_STOP
 	DIRECTIVE_ESCALATE
 )
-
-type SupervisorStrategyFactory interface {
-	DefaultSupervisorStrategy() SupervisorStrategy
-
-	NewExponentialBackoffStrategy(backoffWindow time.Duration, initialBackoff time.Duration) SupervisorStrategy
-
-	NewOneForOneStrategy(maxNrOfRetries int, withinDuration time.Duration, decider Decider) SupervisorStrategy
-
-	RestartingStrategy() SupervisorStrategy
-}
 
 // NewAllForOneStrategy returns a strategy that applies the fault handling Directive (Resume, Restart, Stop) specified
 // in the Decider to all children when one fails.
@@ -65,7 +101,9 @@ func NewAllForOneStrategy(maxRetries int, withinDuration time.Duration, decider 
 	if decider == nil {
 		return nil, errors.New("Descider is required")
 	}
-	return &allForOneStrategy{maxRetries: maxRetries, withinDuration: withinDuration, decider: decider}, nil
+
+	strategy := &allForOneStrategy{maxRetries: maxRetries, withinDuration: withinDuration, decider: decider}
+	return strategy.HandleFailure, nil
 }
 
 type allForOneStrategy struct {
@@ -75,7 +113,7 @@ type allForOneStrategy struct {
 }
 
 func (a *allForOneStrategy) HandleFailure(child *Actor, err *MessageProcessingError) {
-	// TODO: log the error
+	MESSAGE_PROCESSOR_FAILURE.Log(child.logger.Error()).Err(err).Msg("")
 	child.failures.failure(err.Err)
 	switch a.decider(err.Err) {
 	case DIRECTIVE_RESTART_ACTOR:

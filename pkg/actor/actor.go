@@ -23,7 +23,10 @@ import (
 
 	"fmt"
 
+	"strings"
+
 	"github.com/nats-io/nuid"
+	"github.com/oysterpack/oysterpack.go/pkg/logging"
 	"github.com/rs/zerolog"
 	"gopkg.in/tomb.v2"
 )
@@ -78,6 +81,87 @@ type Actor struct {
 
 	restarts        int
 	lastRestartTime time.Time
+}
+
+func (a *Actor) Spawn(name string, messageProcessorFactory MessageProcessorFactory, channelBufSizes map[Channel]int, logger zerolog.Logger, supervisor SupervisorStrategy) (*Actor, error) {
+	a.lock.Lock()
+	defer a.lock.Unlock()
+
+	if name != strings.TrimSpace(name) {
+		return nil, fmt.Errorf("name cannot have whitespace passing %q", name)
+	}
+
+	if len(name) == 0 {
+		return nil, errors.New("name cannot be blank")
+	}
+
+	if a.children[name] != nil {
+		return nil, fmt.Errorf("Child already exists with the same name : %s", name)
+	}
+
+	if messageProcessorFactory == nil {
+		return nil, errors.New("MessageProcessorFactory is required")
+	}
+
+	child := &Actor{
+		system: a.system,
+		path:   append(a.path, name),
+		parent: a,
+
+		messageProcessorFactory: messageProcessorFactory,
+		logger:                  logger,
+	}
+
+	if err := child.start(); err != nil {
+		return nil, err
+	}
+
+	a.children[name] = child
+
+	// watch the child
+	a.Go(func() error {
+		for {
+			msgProcessorEngine := child.messageProcessorEngine()
+			select {
+			case <-a.Dying():
+				return nil
+			case <-msgProcessorEngine.Dead():
+				if err := msgProcessorEngine.Err(); err != nil {
+					a.failures.failure(err)
+					if err, ok := err.(*MessageProcessingError); ok {
+						supervisor(child, err)
+					} else {
+						MESSAGE_PROCESSOR_FAILURE.Log(child.logger.Error()).Err(err).Str(logging.TYPE, fmt.Sprintf("%T", err)).Msg("")
+						if err := child.restart(RESTART_ACTOR); err != nil {
+
+						}
+					}
+				}
+			case <-child.Dead():
+				if err := child.Err(); err != nil {
+					a.failures.failure(err)
+					if err, ok := err.(*MessageProcessingError); ok {
+						supervisor(child, err)
+					} else {
+						MESSAGE_PROCESSOR_FAILURE.Log(child.logger.Error()).Err(err).Str(logging.TYPE, fmt.Sprintf("%T", err)).Msg("")
+						child.restart(RESTART_ACTOR)
+					}
+				} else {
+					delete(a.children, name)
+				}
+				return nil
+			}
+		}
+		return nil
+	})
+
+	return child, nil
+}
+
+func (a *Actor) messageProcessorEngine() *MessageProcessorEngine {
+	a.lock.RLock()
+	defer a.lock.RUnlock()
+	return a.msgProcessorEngine
 }
 
 func (a *Actor) Message(channel Channel, msg Message) *Envelope {
@@ -137,6 +221,7 @@ func (a *Actor) init() error {
 	a.uid = nuid.New()
 	a.created = time.Now()
 	a.id = a.uid.Next()
+	a.address = &Address{a.path, a.id}
 
 	if err := a.validate(); err != nil {
 		return err
@@ -152,7 +237,7 @@ func (a *Actor) startMessageProcessorEngine() (err error) {
 	}
 	msgProcessorEngine := a.msgProcessorEngine
 	a.channels = make(map[Channel]chan *Envelope)
-	for _, channel := range a.msgProcessorEngine.ChannelNames() {
+	for _, channel := range msgProcessorEngine.ChannelNames() {
 		c := make(chan *Envelope, a.channelBufSizes[channel])
 		a.channels[channel] = c
 		messageProcessorEngineChannel := a.messageProcessorEngineChannel(channel)
@@ -226,8 +311,13 @@ func (a *Actor) restart(mode RestartMode) (err error) {
 	if err = a.restartMessageProcessorEngine(); err != nil {
 		return err
 	}
+
 	ACTOR_RESTARTED.Log(a.logger.Info()).Msg("")
-	return
+
+	a.restarts++
+	a.lastRestartTime = time.Now()
+
+	return nil
 }
 
 func (a *Actor) restartMessageProcessorEngine() (err error) {
@@ -267,7 +357,6 @@ func (a *Actor) validate() error {
 		return errors.New("Path is required")
 	}
 
-	a.address = &Address{a.path, a.id}
 	if err := a.address.Validate(); err != nil {
 		return err
 	}

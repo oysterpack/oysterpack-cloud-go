@@ -132,7 +132,7 @@ func (a *MessageProcessingError) Error() string {
 }
 
 func (a *MessageProcessingError) String() string {
-	return fmt.Sprintf("MessageProcessingError : %v : %v", a.Path, a.Err)
+	return fmt.Sprintf("MessageProcessingError : %v : %v : %v", a.Path, a.Err, a.Message)
 }
 
 func (a *MessageProcessingError) MessageType() MessageType { return SYSTEM_MESSAGE_FAILURE }

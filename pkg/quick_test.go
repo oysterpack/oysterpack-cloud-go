@@ -150,3 +150,10 @@ func TestReturnValue(t *testing.T) {
 		t.Error("Should have failed")
 	}
 }
+
+func TestNilMap(t *testing.T) {
+	var m map[string]int
+
+	t.Log(len(m))
+	t.Log(m["a"])
+}
