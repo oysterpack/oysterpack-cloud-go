@@ -21,10 +21,10 @@ import (
 	"time"
 )
 
-type SupervisorStrategy func(child *Actor, err *MessageProcessingError)
+type SupervisorStrategy func(child *Actor, err error)
 
 func RestartingStrategy(restartMode RestartMode) SupervisorStrategy {
-	return func(child *Actor, err *MessageProcessingError) {
+	return func(child *Actor, err error) {
 		child.restart(restartMode)
 	}
 }
@@ -32,7 +32,7 @@ func RestartingStrategy(restartMode RestartMode) SupervisorStrategy {
 func RestartingExponentialBackoffStrategy(restartMode RestartMode, backoffWindow time.Duration, initialBackoff time.Duration) SupervisorStrategy {
 	rs := &RestartStatistics{}
 
-	return func(child *Actor, err *MessageProcessingError) {
+	return func(child *Actor, err error) {
 		MESSAGE_PROCESSOR_FAILURE.Log(child.logger.Error()).Err(err).Msg("")
 
 		backoff := rs.FailureCount * int(initialBackoff.Nanoseconds())
@@ -112,10 +112,10 @@ type allForOneStrategy struct {
 	decider        Decider
 }
 
-func (a *allForOneStrategy) HandleFailure(child *Actor, err *MessageProcessingError) {
+func (a *allForOneStrategy) HandleFailure(child *Actor, err error) {
 	MESSAGE_PROCESSOR_FAILURE.Log(child.logger.Error()).Err(err).Msg("")
-	child.failures.failure(err.Err)
-	switch a.decider(err.Err) {
+	child.failures.failure(err)
+	switch a.decider(err) {
 	case DIRECTIVE_RESTART_ACTOR:
 		if a.canRestart(child) {
 			child.restart(RESTART_ACTOR)

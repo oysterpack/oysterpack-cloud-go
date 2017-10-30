@@ -26,7 +26,6 @@ import (
 	"strings"
 
 	"github.com/nats-io/nuid"
-	"github.com/oysterpack/oysterpack.go/pkg/logging"
 	"github.com/rs/zerolog"
 	"gopkg.in/tomb.v2"
 )
@@ -64,7 +63,7 @@ type Actor struct {
 	created time.Time
 
 	parent   *Actor
-	children map[string]*Actor
+	children map[string]*Actor // keys are the actor names
 
 	messageProcessorFactory MessageProcessorFactory
 	msgProcessorEngine      *MessageProcessorEngine
@@ -117,6 +116,7 @@ func (a *Actor) Spawn(name string, messageProcessorFactory MessageProcessorFacto
 	}
 
 	a.children[name] = child
+	a.system.registerActor(child)
 
 	// watch the child
 	a.Go(func() error {
@@ -128,24 +128,12 @@ func (a *Actor) Spawn(name string, messageProcessorFactory MessageProcessorFacto
 			case <-msgProcessorEngine.Dead():
 				if err := msgProcessorEngine.Err(); err != nil {
 					a.failures.failure(err)
-					if err, ok := err.(*MessageProcessingError); ok {
-						supervisor(child, err)
-					} else {
-						MESSAGE_PROCESSOR_FAILURE.Log(child.logger.Error()).Err(err).Str(logging.TYPE, fmt.Sprintf("%T", err)).Msg("")
-						if err := child.restart(RESTART_ACTOR); err != nil {
-
-						}
-					}
+					supervisor(child, err)
 				}
 			case <-child.Dead():
 				if err := child.Err(); err != nil {
 					a.failures.failure(err)
-					if err, ok := err.(*MessageProcessingError); ok {
-						supervisor(child, err)
-					} else {
-						MESSAGE_PROCESSOR_FAILURE.Log(child.logger.Error()).Err(err).Str(logging.TYPE, fmt.Sprintf("%T", err)).Msg("")
-						child.restart(RESTART_ACTOR)
-					}
+					supervisor(child, err)
 				} else {
 					delete(a.children, name)
 				}
@@ -164,15 +152,17 @@ func (a *Actor) messageProcessorEngine() *MessageProcessorEngine {
 	return a.msgProcessorEngine
 }
 
-func (a *Actor) Message(channel Channel, msg Message) *Envelope {
+// MessageEnvelope wraps the message in an envelope
+func (a *Actor) MessageEnvelope(channel Channel, msg Message) *Envelope {
 	return NewEnvelope(a.UID, channel, msg, nil)
 }
 
-func (a *Actor) Request(channel Channel, msg Message, replyToChannel Channel) *Envelope {
+// RequestEnvelope wraps the message request in an envelope
+func (a *Actor) RequestEnvelope(channel Channel, msg Message, replyToChannel Channel) *Envelope {
 	return NewEnvelope(a.UID, channel, msg, &ChannelAddress{Channel: replyToChannel, Address: a.address})
 }
 
-func (a *Actor) MessageContext(msg *Envelope) *MessageContext {
+func (a *Actor) messageContext(msg *Envelope) *MessageContext {
 	return &MessageContext{a, msg}
 }
 
@@ -212,6 +202,7 @@ func (a *Actor) start() (err error) {
 		}
 		a.msgProcessorEngine.Kill(nil)
 		a.msgProcessorEngine.Wait()
+		a.msgProcessorEngine.Stopped()
 		return nil
 	})
 	return
@@ -242,13 +233,15 @@ func (a *Actor) startMessageProcessorEngine() (err error) {
 		a.channels[channel] = c
 		messageProcessorEngineChannel := a.messageProcessorEngineChannel(channel)
 
-		// these goroutines will die when either the actor or the message processor engine dies
+		// These goroutines will die when either the actor or the message processor engine dies.
+		// When the message processor engine is dead, the parent actor is notified (via the tomb). If the message processor
+		// engine died with an error, then based on the supervisor strategy for this actor, the actor may be restarted.
 		a.Go(func() error {
 			for {
 				select {
 				case msg := <-c:
 					select {
-					case messageProcessorEngineChannel <- a.MessageContext(msg):
+					case messageProcessorEngineChannel <- a.messageContext(msg):
 					case <-a.Dying():
 						return nil
 					case <-msgProcessorEngine.Dead():
@@ -262,15 +255,15 @@ func (a *Actor) startMessageProcessorEngine() (err error) {
 			}
 		})
 	}
-	a.Tell(a.Message(CHANNEL_LIFECYCLE, STARTED))
+	a.Tell(a.MessageEnvelope(CHANNEL_LIFECYCLE, STARTED))
 	ACTOR_STARTED.Log(a.logger.Info()).Msg("")
 
 	// invoke MessageProcessor.Stopped() after it is dead to enable it to release resources and cleanup.
 	a.Go(func() error {
-		defer msgProcessorEngine.Stopped()
 		select {
 		case <-a.Dying():
 		case <-msgProcessorEngine.Dead():
+			msgProcessorEngine.Stopped()
 		}
 		return nil
 	})
@@ -334,7 +327,7 @@ func (a *Actor) restartMessageProcessorEngine() (err error) {
 				select {
 				case msg := <-c:
 					select {
-					case messageProcessorEngineChannel <- a.MessageContext(msg):
+					case messageProcessorEngineChannel <- a.messageContext(msg):
 					case <-a.Dying():
 						return nil
 					case <-msgProcessorEngine.Dead():
@@ -348,7 +341,7 @@ func (a *Actor) restartMessageProcessorEngine() (err error) {
 			}
 		})
 	}
-	a.Tell(a.Message(CHANNEL_LIFECYCLE, STARTED))
+	a.Tell(a.MessageEnvelope(CHANNEL_LIFECYCLE, STARTED))
 	return
 }
 
@@ -428,6 +421,23 @@ func (a *Actor) Tell(msg *Envelope) error {
 		})
 	}
 	return nil
+}
+
+// Send a message to the specified address.
+//
+// If sending via the address path, the path is expected to be relative to this actor. The message will be sent to any
+// actor instance that lives at that address.
+//
+// If the actor id is specified in the address, then the message will only be delivered if the same actor instance is still
+// living with that id. In other words, if an actor is living at the specified address, but has a different id, then the message
+// will not be delivered to that actor because it was intended for another actor instance.
+func (a *Actor) Send(msg *Envelope, address *Address) error {
+	actor := a.system.FindActor(address)
+	if actor == nil {
+		return fmt.Errorf("No actor exists at address : %v", address)
+	}
+
+	return actor.Tell(msg)
 }
 
 func (a *Actor) Channels() []Channel {

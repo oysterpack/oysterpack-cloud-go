@@ -21,28 +21,8 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-type FooHandler struct {
-	handlers map[actor.Channel]actor.Receive
-}
-
-func (a *FooHandler) ChannelNames() []actor.Channel {
-	channels := make([]actor.Channel, len(a.handlers))
-	i := 0
-	for channel := range a.handlers {
-		channels[i] = channel
-		i++
-	}
-	return channels
-}
-
-func (a *FooHandler) Handler(channel actor.Channel) actor.Receive {
-	return a.handlers[channel]
-}
-
-func (a *FooHandler) Stopped() {}
-
 func TestStartMessageProcessorEngine(t *testing.T) {
-	foo := &FooHandler{map[actor.Channel]actor.Receive{
+	foo := actor.MessageChannelHandlers{
 		actor.CHANNEL_SYSTEM: func(ctx *actor.MessageContext) error {
 			t.Logf("Received message: %v", ctx.Envelope)
 			return nil
@@ -51,7 +31,7 @@ func TestStartMessageProcessorEngine(t *testing.T) {
 			t.Logf("Received message: %v", ctx.Envelope)
 			return nil
 		},
-	}}
+	}
 
 	processor, err := actor.StartMessageProcessorEngine(foo, log.Logger)
 	if err != nil {

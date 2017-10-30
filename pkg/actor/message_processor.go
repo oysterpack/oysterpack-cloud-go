@@ -41,6 +41,25 @@ type MessageProcessor interface {
 	Stopped()
 }
 
+// MessageChannelHandlers implements MessageProcessor. It is simply a mapping of Channel -> Receive
+// If state is required by the MessageProcessor, then simply embed this and populate the map with Receive functions that
+// point to MessageProcessor methods with the Receive function signature.
+type MessageChannelHandlers map[Channel]Receive
+
+func (a MessageChannelHandlers) ChannelNames() []Channel {
+	channels := make([]Channel, len(a))
+	i := 0
+	for channel := range a {
+		channels[i] = channel
+		i++
+	}
+	return channels
+}
+
+func (a MessageChannelHandlers) Handler(channel Channel) Receive { return a[channel] }
+
+func (a MessageChannelHandlers) Stopped() {}
+
 func ValidateMessageProcessor(p MessageProcessor) error {
 	if len(p.ChannelNames()) == 0 {
 		return errors.New("MessageProcessor must have at least 1 channel defined")

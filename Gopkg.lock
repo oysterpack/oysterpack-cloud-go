@@ -107,19 +107,25 @@
   branch = "master"
   name = "golang.org/x/crypto"
   packages = ["bcrypt","blowfish","ssh/terminal"]
-  revision = "edd5e9b0879d13ee6970a50153d85b8fec9f7686"
+  revision = "2509b142fb2b797aa7587dad548f113b2c0f20ce"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/net"
   packages = ["context"]
-  revision = "cd69bc3fc700721b709c3a59e16e24c67b58f6ff"
+  revision = "c73622c77280266305273cb545f54516ced95b93"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/sys"
   packages = ["unix","windows","windows/registry","windows/svc","windows/svc/debug","windows/svc/eventlog","windows/svc/mgr"]
-  revision = "8dbc5d05d6edcc104950cc299a1ce6641235bc86"
+  revision = "661970f62f5897bc0cd5fdca7e087ba8a98a8fa1"
+
+[[projects]]
+  branch = "v2"
+  name = "gopkg.in/tomb.v2"
+  packages = ["."]
+  revision = "d5d1b5820637886def9eef33e03a27a9f166942c"
 
 [[projects]]
   name = "zombiezen.com/go/capnproto2"
@@ -130,6 +136,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "1a44e2eedd4fc0c32ce3c8b119b438c81a4b603229618c4a018ef964b0441a54"
+  inputs-digest = "0e01f18355aa3637b2af35d5eb7c3dc2aab03cabc6afe77a1740866f9a6b9073"
   solver-name = "gps-cdcl"
   solver-version = 1
