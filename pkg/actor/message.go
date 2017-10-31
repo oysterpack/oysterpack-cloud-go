@@ -52,14 +52,6 @@ type Message interface {
 	MessageType() MessageType
 }
 
-type MessageFactory interface {
-	// NewMessage creates a new Message msgProcessor
-	NewMessage() Message
-
-	// Validate checks if the msg is compatible and valid for message types produced by this MessageFactory
-	Validate(msg Message) error
-}
-
 // UID is a function that returns a unique id.
 type UID func() string
 
@@ -75,10 +67,8 @@ func NewEnvelope(uid UID, channel Channel, msg Message, replyTo *ChannelAddress)
 	}
 }
 
-func EmptyEnvelope(messageFactory MessageFactory) *Envelope {
-	return &Envelope{
-		message: messageFactory.NewMessage(),
-	}
+func EmptyEnvelope(emptyMessage Message) *Envelope {
+	return &Envelope{message: emptyMessage}
 }
 
 // Envelope is a message envelope. Envelope is itself a message.

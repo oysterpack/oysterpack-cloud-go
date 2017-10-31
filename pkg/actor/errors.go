@@ -28,6 +28,8 @@ var (
 	ErrStillAlive = errors.New("Still alive")
 
 	ErrAlreadyStarted = errors.New("Already started")
+
+	ErrNotAlive = errors.New("Not alive")
 )
 
 // InvalidChannelError indicates the channel is unknown

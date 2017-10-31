@@ -26,6 +26,7 @@ import (
 	"strings"
 
 	"github.com/nats-io/nuid"
+	"github.com/oysterpack/oysterpack.go/pkg/commons"
 	"github.com/rs/zerolog"
 	"gopkg.in/tomb.v2"
 )
@@ -68,7 +69,7 @@ type Actor struct {
 	messageProcessorFactory MessageProcessorFactory
 	msgProcessorEngine      *MessageProcessorEngine
 	channels                map[Channel]chan *Envelope
-	channelBufSizes         map[Channel]int
+	channelSettings         map[Channel]*ChannelSettings
 
 	failures Failures
 
@@ -82,7 +83,16 @@ type Actor struct {
 	lastRestartTime time.Time
 }
 
-func (a *Actor) Spawn(name string, messageProcessorFactory MessageProcessorFactory, channelBufSizes map[Channel]int, logger zerolog.Logger, supervisor SupervisorStrategy) (*Actor, error) {
+// ChannelSettings is actor message channel related configurations
+type ChannelSettings struct {
+	Channel
+	BufSize int
+	// used to create new empty Envelope(s)
+	MessageFactory   func() Message
+	MessageValidator func(msg Message) error
+}
+
+func (a *Actor) Spawn(name string, messageProcessorFactory MessageProcessorFactory, channelSettings []*ChannelSettings, logger zerolog.Logger, supervise SupervisorStrategy) (*Actor, error) {
 	a.lock.Lock()
 	defer a.lock.Unlock()
 
@@ -102,12 +112,28 @@ func (a *Actor) Spawn(name string, messageProcessorFactory MessageProcessorFacto
 		return nil, errors.New("MessageProcessorFactory is required")
 	}
 
+	if len(channelSettings) == 0 {
+		return nil, errors.New("At least 1 channel is required")
+	}
+
+	chanSettingsMap := make(map[Channel]*ChannelSettings, len(channelSettings))
+	for _, settings := range channelSettings {
+		if _, exists := chanSettingsMap[settings.Channel]; exists {
+			return nil, fmt.Errorf("Duplcate channel name : %s", settings.Channel)
+		}
+		chanSettingsMap[settings.Channel] = settings
+		if err := settings.Channel.Validate(); err != nil {
+			return nil, err
+		}
+	}
+
 	child := &Actor{
 		system: a.system,
 		path:   append(a.path, name),
 		parent: a,
 
 		messageProcessorFactory: messageProcessorFactory,
+		channelSettings:         chanSettingsMap,
 		logger:                  logger,
 	}
 
@@ -119,31 +145,34 @@ func (a *Actor) Spawn(name string, messageProcessorFactory MessageProcessorFacto
 	a.system.registerActor(child)
 
 	// watch the child
-	a.Go(func() error {
+	go func() {
 		for {
+			// NOTE: the child may have been restarted. Thus, we always want to get the current MessageProcessorEngine.
+			// MessageProcessorEngine access is protected by a RWMutex to enable safe concurrent access.
 			msgProcessorEngine := child.messageProcessorEngine()
 			select {
-			case <-a.Dying():
-				return nil
+			case <-a.Dead():
+				ACTOR_DEAD.Log(child.logger.Info()).Msg("")
+				return
 			case <-msgProcessorEngine.Dead():
 				if err := msgProcessorEngine.Err(); err != nil {
 					a.failures.failure(err)
-					supervisor(child, err)
+					supervise(child, err)
 				}
 			case <-child.Dead():
-				if err := child.Err(); err != nil {
-					a.failures.failure(err)
-					supervisor(child, err)
-				} else {
-					delete(a.children, name)
-				}
-				return nil
+				a.deleteChild(name)
+				a.system.unregisterActor(child.path, child.id)
 			}
 		}
-		return nil
-	})
+	}()
 
 	return child, nil
+}
+
+func (a *Actor) deleteChild(name string) {
+	a.lock.Lock()
+	defer a.lock.Unlock()
+	delete(a.children, name)
 }
 
 func (a *Actor) messageProcessorEngine() *MessageProcessorEngine {
@@ -152,13 +181,32 @@ func (a *Actor) messageProcessorEngine() *MessageProcessorEngine {
 	return a.msgProcessorEngine
 }
 
-// MessageEnvelope wraps the message in an envelope
+func (a *Actor) UnmarshalEnvelope(channel Channel, msg []byte) (*Envelope, error) {
+	if settings := a.channelSettings[channel]; settings != nil {
+		envelope := &Envelope{message: settings.MessageFactory()}
+		if err := envelope.UnmarshalBinary(msg); err != nil {
+			return nil, err
+		}
+		return envelope, nil
+	}
+	return nil, &InvalidChannelError{channel}
+}
+
+// MessageEnvelope wraps the message in an envelope.
+// Panics if channel is unknown for this actor.
 func (a *Actor) MessageEnvelope(channel Channel, msg Message) *Envelope {
+	if _, exists := a.channelSettings[channel]; !exists {
+		UNKNOWN_CHANNEL.Log(a.logger.Panic()).Str(CHANNEL, channel.String()).Msg("")
+	}
 	return NewEnvelope(a.UID, channel, msg, nil)
 }
 
 // RequestEnvelope wraps the message request in an envelope
+// Panics if channel is unknown for this actor.
 func (a *Actor) RequestEnvelope(channel Channel, msg Message, replyToChannel Channel) *Envelope {
+	if _, exists := a.channelSettings[channel]; !exists {
+		UNKNOWN_CHANNEL.Log(a.logger.Panic()).Str(CHANNEL, channel.String()).Msg("")
+	}
 	return NewEnvelope(a.UID, channel, msg, &ChannelAddress{Channel: replyToChannel, Address: a.address})
 }
 
@@ -191,6 +239,7 @@ func (a *Actor) start() (err error) {
 	// when this actor is killed, tear down the actor hierarchy
 	a.Go(func() error {
 		<-a.Dying()
+		ACTOR_DYING.Log(a.logger.Info()).Msg("")
 		a.lock.RLock()
 		defer a.lock.RUnlock()
 		for _, child := range a.children {
@@ -202,7 +251,6 @@ func (a *Actor) start() (err error) {
 		}
 		a.msgProcessorEngine.Kill(nil)
 		a.msgProcessorEngine.Wait()
-		a.msgProcessorEngine.Stopped()
 		return nil
 	})
 	return
@@ -229,7 +277,7 @@ func (a *Actor) startMessageProcessorEngine() (err error) {
 	msgProcessorEngine := a.msgProcessorEngine
 	a.channels = make(map[Channel]chan *Envelope)
 	for _, channel := range msgProcessorEngine.ChannelNames() {
-		c := make(chan *Envelope, a.channelBufSizes[channel])
+		c := make(chan *Envelope, a.channelSettings[channel].BufSize)
 		a.channels[channel] = c
 		messageProcessorEngineChannel := a.messageProcessorEngineChannel(channel)
 
@@ -244,12 +292,12 @@ func (a *Actor) startMessageProcessorEngine() (err error) {
 					case messageProcessorEngineChannel <- a.messageContext(msg):
 					case <-a.Dying():
 						return nil
-					case <-msgProcessorEngine.Dead():
+					case <-msgProcessorEngine.Dying():
 						return nil
 					}
 				case <-a.Dying():
 					return nil
-				case <-msgProcessorEngine.Dead():
+				case <-msgProcessorEngine.Dying():
 					return nil
 				}
 			}
@@ -257,17 +305,6 @@ func (a *Actor) startMessageProcessorEngine() (err error) {
 	}
 	a.Tell(a.MessageEnvelope(CHANNEL_LIFECYCLE, STARTED))
 	ACTOR_STARTED.Log(a.logger.Info()).Msg("")
-
-	// invoke MessageProcessor.Stopped() after it is dead to enable it to release resources and cleanup.
-	a.Go(func() error {
-		select {
-		case <-a.Dying():
-		case <-msgProcessorEngine.Dead():
-			msgProcessorEngine.Stopped()
-		}
-		return nil
-	})
-
 	return
 }
 
@@ -282,7 +319,6 @@ func (a *Actor) restart(mode RestartMode) (err error) {
 
 	a.msgProcessorEngine.Kill(nil)
 	a.msgProcessorEngine.Wait()
-	a.msgProcessorEngine.closeChannels()
 
 	switch mode {
 	case RESTART_ACTOR:
@@ -321,7 +357,7 @@ func (a *Actor) restartMessageProcessorEngine() (err error) {
 	for channel, c := range a.channels {
 		messageProcessorEngineChannel := a.messageProcessorEngineChannel(channel)
 
-		// these goroutines will die when either the actor or the message processor engine dies
+		// these goroutines will die when either the actor or the message processor engine is dying
 		a.Go(func() error {
 			for {
 				select {
@@ -330,12 +366,12 @@ func (a *Actor) restartMessageProcessorEngine() (err error) {
 					case messageProcessorEngineChannel <- a.messageContext(msg):
 					case <-a.Dying():
 						return nil
-					case <-msgProcessorEngine.Dead():
+					case <-msgProcessorEngine.Dying():
 						return nil
 					}
 				case <-a.Dying():
 					return nil
-				case <-msgProcessorEngine.Dead():
+				case <-msgProcessorEngine.Dying():
 					return nil
 				}
 			}
@@ -379,12 +415,18 @@ func (a *Actor) Name() string {
 	return a.path[len(a.path)-1]
 }
 
+// Path is where the Actor lives
+// NOTE: the first element of the path corresponds to the actor system name
 func (a *Actor) Path() []string {
 	return a.path
 }
 
 func (a *Actor) Id() string {
 	return a.id
+}
+
+func (a *Actor) Address() *Address {
+	return a.address
 }
 
 // UID returns a new unique id.
@@ -403,16 +445,22 @@ func (a *Actor) Err() error {
 }
 
 // Tell sends a message with fire and forget semantics.
-func (a *Actor) Tell(msg *Envelope) error {
+//
+// Types of errors :
+//  - *InvalidChannelError
+func (a *Actor) Tell(msg *Envelope) (err error) {
 	c := a.channels[msg.Channel()]
 	if c == nil {
 		return &InvalidChannelError{msg.Channel()}
 	}
 
 	select {
+	case <-a.Dying():
+		return ErrNotAlive
 	case c <- msg:
 	default:
 		a.Go(func() error {
+			defer commons.IgnorePanic()
 			select {
 			case <-a.Dying():
 			case c <- msg:
@@ -432,7 +480,7 @@ func (a *Actor) Tell(msg *Envelope) error {
 // living with that id. In other words, if an actor is living at the specified address, but has a different id, then the message
 // will not be delivered to that actor because it was intended for another actor instance.
 func (a *Actor) Send(msg *Envelope, address *Address) error {
-	actor := a.system.FindActor(address)
+	actor := a.system.LookupActorRef(address)
 	if actor == nil {
 		return fmt.Errorf("No actor exists at address : %v", address)
 	}

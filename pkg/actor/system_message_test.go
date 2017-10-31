@@ -25,17 +25,10 @@ import (
 
 func TestPong_MarshalBinary(t *testing.T) {
 	now := time.Now()
-	msg := actor.PONG_FACTORY.NewMessage().(*actor.Pong)
+	msg := &actor.PingResponse{}
 	msg.Address = &actor.Address{
 		Path: []string{"oysterpack", "capnp"},
 		Id:   uid(),
-	}
-
-	if err := actor.PONG_FACTORY.Validate(msg); err != nil {
-		t.Fatalf("ping message was invalid : %v", err)
-	}
-	if err := actor.PING_FACTORY.Validate(msg); err == nil {
-		t.Error("a pong is not a ping")
 	}
 
 	channel := actor.Channel("pong")
@@ -55,7 +48,7 @@ func TestPong_MarshalBinary(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	envelope2 := actor.EmptyEnvelope(actor.PONG_FACTORY)
+	envelope2 := actor.EmptyEnvelope(&actor.PingResponse{})
 	if err := envelope2.UnmarshalBinary(envelopeBytes); err != nil {
 		t.Fatal(err)
 	}
@@ -67,8 +60,8 @@ func TestPong_MarshalBinary(t *testing.T) {
 
 	if envelope.Id() != envelope2.Id() || envelope.Channel() != envelope2.Channel() ||
 		!envelope.Created().Equal(envelope2.Created()) ||
-		envelope.Message().(*actor.Pong).Id != envelope2.Message().(*actor.Pong).Id ||
-		strings.Join(envelope.Message().(*actor.Pong).Path, "/") != strings.Join(envelope2.Message().(*actor.Pong).Path, "/") {
+		envelope.Message().(*actor.PingResponse).Id != envelope2.Message().(*actor.PingResponse).Id ||
+		strings.Join(envelope.Message().(*actor.PingResponse).Path, "/") != strings.Join(envelope2.Message().(*actor.PingResponse).Path, "/") {
 		t.Fatal("envelope fields are not matching after unmarshalling")
 	}
 }

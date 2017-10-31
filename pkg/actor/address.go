@@ -28,21 +28,20 @@ import (
 
 // Address refers to an actor address.
 //
-// At least one of path or id must be set. Either can be set, depending on the use case.
-//  - If path is set, then the message is sent to any actor with a matching path.
+//  - If id is not set, then the message is sent to any actor with a matching path.
 //    - Note: in a cluster, there may be more than 1 actor msgProcessor with the same address on different nodes
 // 	- If id is set, then the message is sent to a specific actor with a matching id
 // 	- If both path and id are set, then the id is used and path is ignored
 type Address struct {
-	// actor path
+	// actor path - required
 	Path []string
 	// actor id
 	Id string
 }
 
 func (a *Address) Validate() error {
-	if len(a.Path) == 0 && a.Id == "" {
-		return errors.New("Either Path or Id is required")
+	if len(a.Path) == 0 {
+		return errors.New("Path is required")
 	}
 	if a.Id != strings.TrimSpace(a.Id) {
 		return errors.New("Id must not have any whitespace padding")

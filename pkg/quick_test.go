@@ -129,6 +129,20 @@ func TestTomb(t *testing.T) {
 
 	a.Kill(nil)
 	a.Wait()
+
+	c := make(chan interface{})
+	close(c)
+
+	defer func() {
+		if p := recover(); p != nil {
+			t.Logf("%[1]T panic : %[1]v", p)
+		}
+	}()
+	select {
+	case <-a.Dying():
+	case c <- 1:
+	}
+
 }
 
 func TestReturnValue(t *testing.T) {
@@ -156,4 +170,10 @@ func TestNilMap(t *testing.T) {
 
 	t.Log(len(m))
 	t.Log(m["a"])
+}
+
+func TestDefer(t *testing.T) {
+	defer t.Log("A")
+	defer t.Log("B")
+	defer t.Log("C")
 }

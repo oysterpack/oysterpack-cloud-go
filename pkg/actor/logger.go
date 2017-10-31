@@ -23,15 +23,21 @@ var logger = logging.NewPackageLogger(pkgobject{})
 // used for logging
 const (
 	// fields
+	ACTOR      = "actor"
 	ACTOR_PATH = "path"
+	ACTOR_ID   = "id"
 	CHANNEL    = "channel"
 	MSG_TYPE   = "msg_type"
 
 	// events
-	ACTOR_STARTED   logging.Event = "ACTOR_STARTED"
-	ACTOR_RESTARTED logging.Event = "ACTOR_RESTARTED"
-	ACTOR_DYING     logging.Event = "ACTOR_DYING"
-	ACTOR_DEAD      logging.Event = "ACTOR_DEAD"
+	ACTOR_STARTED      logging.Event = "ACTOR_STARTED"
+	ACTOR_RESTARTED    logging.Event = "ACTOR_RESTARTED"
+	ACTOR_DYING        logging.Event = "ACTOR_DYING"
+	ACTOR_DEAD         logging.Event = "ACTOR_DEAD"
+	ACTOR_REGISTERED   logging.Event = "ACTOR_REGISTERED"
+	ACTOR_UNREGISTERED logging.Event = "ACTOR_UNREGISTERED"
+
+	UNKNOWN_CHANNEL logging.Event = "UNKNOWN_CHANNEL"
 
 	MESSAGE_PROCESSOR_FAILURE         logging.Event = "MESSAGE_PROCESSOR_FAILURE"
 	MESSAGE_PROCESSOR_CHANNEL_STARTED logging.Event = "MESSAGE_PROCESSOR_CHANNEL_STARTED"

@@ -46,7 +46,7 @@ func TestStartMessageProcessorEngine(t *testing.T) {
 		t.Error("processor should be alive")
 	}
 
-	msg := actor.PING_FACTORY.NewMessage()
+	msg := actor.PING_REQ
 	processor.Channel(actor.CHANNEL_SYSTEM) <- &actor.MessageContext{
 		Actor:    nil,
 		Envelope: actor.NewEnvelope(uid, actor.CHANNEL_SYSTEM, msg, nil),

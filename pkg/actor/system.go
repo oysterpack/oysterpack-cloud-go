@@ -17,13 +17,15 @@ package actor
 import (
 	"strings"
 	"sync"
+
+	"github.com/rs/zerolog"
 )
 
 // System is an actor hierarchy.
 type System struct {
 	*Actor
 
-	// all actors in the hierarchy stored by their id and by their path, i.e., the actor is stored twice in this map
+	// all actors in the hierarchy stored - actor path is used as the key
 	actors     map[string]*Actor
 	actorsLock sync.RWMutex
 }
@@ -33,6 +35,7 @@ func (a *System) registerActor(actor *Actor) {
 	defer a.actorsLock.Unlock()
 	a.actors[actor.id] = actor
 	a.actors[a.addressPathKey(actor.path)] = actor
+	ACTOR_REGISTERED.Log(a.logger.Info()).Dict(ACTOR, zerolog.Dict().Strs(ACTOR_PATH, actor.path).Str(ACTOR_ID, actor.id)).Msg("")
 }
 
 func (a *System) unregisterActor(path []string, id string) {
@@ -40,41 +43,36 @@ func (a *System) unregisterActor(path []string, id string) {
 	defer a.actorsLock.Unlock()
 	delete(a.actors, id)
 	delete(a.actors, a.addressPathKey(path))
+	ACTOR_UNREGISTERED.Log(a.logger.Info()).Dict(ACTOR, zerolog.Dict().Strs(ACTOR_PATH, path).Str(ACTOR_ID, id)).Msg("")
 }
 
 func (a *System) addressPathKey(path []string) string { return strings.Join(path, "") }
 
-func (a *System) FindActor(address *Address) *Actor {
+func (a *System) LookupActor(address *Address) *Actor {
 	a.actorsLock.RLock()
 	defer a.actorsLock.RUnlock()
-	if address.Id != "" {
-		actor := a.actors[address.Id]
-		if actor != nil {
-			return actor
-		}
-		return a.actors[a.addressPathKey(address.Path)]
+	actor := a.actors[a.addressPathKey(address.Path)]
+	if actor.id == address.Id || address.Id == "" {
+		return actor
 	}
-	return a.actors[a.addressPathKey(address.Path)]
+	return nil
+}
+
+// LookupActorRef returns an actor reference that can be used to send messages to the actor
+func (a *System) LookupActorRef(address *Address) Ref {
+	return a.LookupActor(address)
 }
 
 func SystemMessageProcessor() MessageProcessor {
-
-	return MessageChannelHandlers{}
+	return MessageChannelHandlers{
+		CHANNEL_SYSTEM: HandlePing,
+	}
 }
 
 func HandlePing(ctx *MessageContext) error {
 	replyTo := ctx.Envelope.replyTo
 	if replyTo == nil {
-		// TODO: log the ping
 		return nil
 	}
-
-	actor := ctx.system.FindActor(replyTo.Address)
-	if actor != nil {
-		actor.Tell(ctx.MessageEnvelope(replyTo.Channel, &Pong{ctx.address}))
-	} else {
-		// TODO: log that the reply to actor was not found
-	}
-
-	return nil
+	return ctx.Send(ctx.MessageEnvelope(replyTo.Channel, &PingResponse{ctx.address}), replyTo.Address)
 }

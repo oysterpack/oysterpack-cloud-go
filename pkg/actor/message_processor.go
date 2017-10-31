@@ -21,7 +21,6 @@ import (
 
 	"sync"
 
-	"github.com/oysterpack/oysterpack.go/pkg/commons"
 	"github.com/rs/zerolog"
 	"gopkg.in/tomb.v2"
 )
@@ -121,25 +120,14 @@ type MessageProcessorEngine struct {
 	lock sync.Mutex
 }
 
-func (a *MessageProcessorEngine) closeChannels() {
-	a.lock.Lock()
-	defer a.lock.Unlock()
-
-	closeQuietly := func(c chan *MessageContext) {
-		defer commons.IgnorePanic()
-		close(c)
-	}
-
-	for _, c := range a.channels {
-		closeQuietly(c)
-	}
-
-	closeQuietly(a.c)
-}
-
 func (a *MessageProcessorEngine) start() {
 	a.lock.Lock()
 	defer a.lock.Unlock()
+
+	go func() {
+		a.Wait()
+		a.Stopped()
+	}()
 
 	a.c = make(chan *MessageContext)
 	if len(a.ChannelNames()) == 1 {
@@ -224,7 +212,6 @@ func (a *MessageProcessorEngine) start() {
 				}
 			})
 		}
-
 	}
 }
 

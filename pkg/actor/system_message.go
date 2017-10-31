@@ -16,9 +16,6 @@ package actor
 
 import (
 	"bytes"
-	"reflect"
-
-	"errors"
 
 	"github.com/oysterpack/oysterpack.go/pkg/actor/msgs"
 	"zombiezen.com/go/capnproto2"
@@ -30,65 +27,44 @@ type SystemMessage interface {
 }
 
 var (
-	PING         = &Ping{EMPTY}
-	PING_FACTORY = &PingMessageFactory{}
-
-	PONG_FACTORY = &PongMessageFactory{}
+	PING_REQ  = &PingRequest{EMPTY}
+	HEARTBEAT = &Heartbeat{}
 )
 
 const (
-	SYSTEM_MESSAGE_PING    MessageType = 0
-	SYSTEM_MESSAGE_PONG    MessageType = 1
+	SYSTEM_MESSAGE_PING_REQ  MessageType = 0
+	SYSTEM_MESSAGE_PING_RESP MessageType = 1
+
 	SYSTEM_MESSAGE_FAILURE MessageType = 2
+
+	SYSTEM_MESSAGE_HEARTBEAT MessageType = 3
 )
 
-type PingMessageFactory struct{}
-
-func (a *PingMessageFactory) NewMessage() Message {
-	return PING
-}
-
-func (a *PingMessageFactory) Validate(msg Message) error {
-	if _, ok := msg.(*Ping); !ok {
-		return &InvalidMessageTypeError{Message: msg, ExpectedType: reflect.TypeOf(PING)}
-	}
-	return nil
-}
-
-type Ping struct {
+type Heartbeat struct {
 	*Empty
 }
 
-func (a *Ping) SystemMessage() {}
+func (a *Heartbeat) SystemMessage() {}
 
-func (a *Ping) MessageType() MessageType { return SYSTEM_MESSAGE_PING }
+func (a *Heartbeat) MessageType() MessageType { return SYSTEM_MESSAGE_HEARTBEAT }
 
-type PongMessageFactory struct{}
-
-func (a *PongMessageFactory) NewMessage() Message {
-	return &Pong{}
+type PingRequest struct {
+	*Empty
 }
 
-func (a *PongMessageFactory) Validate(msg Message) error {
-	if msg, ok := msg.(*Pong); !ok {
-		return &InvalidMessageTypeError{Message: msg, ExpectedType: reflect.TypeOf(&Pong{})}
-	} else {
-		if msg.Address == nil {
-			return &InvalidMessageError{Message: msg, Err: errors.New("Address is required")}
-		}
-	}
-	return nil
-}
+func (a *PingRequest) SystemMessage() {}
 
-type Pong struct {
+func (a *PingRequest) MessageType() MessageType { return SYSTEM_MESSAGE_PING_REQ }
+
+type PingResponse struct {
 	*Address
 }
 
-func (a *Pong) SystemMessage() {}
+func (a *PingResponse) SystemMessage() {}
 
-func (a *Pong) MessageType() MessageType { return SYSTEM_MESSAGE_PONG }
+func (a *PingResponse) MessageType() MessageType { return SYSTEM_MESSAGE_PING_RESP }
 
-func (a *Pong) UnmarshalBinary(data []byte) error {
+func (a *PingResponse) UnmarshalBinary(data []byte) error {
 	decoder := capnp.NewPackedDecoder(bytes.NewBuffer(data))
 	msg, err := decoder.Decode()
 	if err != nil {
@@ -102,7 +78,7 @@ func (a *Pong) UnmarshalBinary(data []byte) error {
 	return err
 }
 
-func (a *Pong) MarshalBinary() (data []byte, err error) {
+func (a *PingResponse) MarshalBinary() (data []byte, err error) {
 	msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
 
 	addr, err := msgs.NewRootAddress(seg)
