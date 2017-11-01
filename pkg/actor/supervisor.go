@@ -33,7 +33,7 @@ func RestartingExponentialBackoffStrategy(restartMode RestartMode, backoffWindow
 	rs := &RestartStatistics{}
 
 	return func(child *Actor, err error) {
-		MESSAGE_PROCESSOR_FAILURE.Log(child.logger.Error()).Err(err).Msg("")
+		child.logger.Error().Err(err).Msg("")
 
 		backoff := rs.FailureCount * int(initialBackoff.Nanoseconds())
 		noise := rand.Intn(500)
@@ -113,7 +113,7 @@ type allForOneStrategy struct {
 }
 
 func (a *allForOneStrategy) HandleFailure(child *Actor, err error) {
-	MESSAGE_PROCESSOR_FAILURE.Log(child.logger.Error()).Err(err).Msg("")
+	child.logger.Error().Err(err).Msg("")
 	child.failures.failure(err)
 	switch a.decider(err) {
 	case DIRECTIVE_RESTART_ACTOR:

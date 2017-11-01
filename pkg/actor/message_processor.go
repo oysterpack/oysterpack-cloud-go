@@ -21,6 +21,7 @@ import (
 
 	"sync"
 
+	"github.com/oysterpack/oysterpack.go/pkg/logging"
 	"github.com/rs/zerolog"
 	"gopkg.in/tomb.v2"
 )
@@ -33,8 +34,11 @@ type MessageProcessor interface {
 	// ChannelNames returns the channels that are supported by this message processor
 	ChannelNames() []Channel
 
+	// MessageTypes returns the message types that are supported for the specified channel
+	MessageTypes(channel Channel) []MessageType
+
 	// Handler returns a Receive function that will be used to handle messages on the specified channel
-	Handler(channel Channel) Receive
+	Handler(channel Channel, msgType MessageType) Receive
 
 	// Stopped is invoked after the message processer is stopped. The message processor should perform any cleanup here.
 	Stopped()
@@ -43,7 +47,9 @@ type MessageProcessor interface {
 // MessageChannelHandlers implements MessageProcessor. It is simply a mapping of Channel -> Receive
 // If state is required by the MessageProcessor, then simply embed this and populate the map with Receive functions that
 // point to MessageProcessor methods with the Receive function signature.
-type MessageChannelHandlers map[Channel]Receive
+type MessageChannelHandlers map[Channel]MessageTypeHandlers
+
+type MessageTypeHandlers map[MessageType]Receive
 
 func (a MessageChannelHandlers) ChannelNames() []Channel {
 	channels := make([]Channel, len(a))
@@ -55,7 +61,26 @@ func (a MessageChannelHandlers) ChannelNames() []Channel {
 	return channels
 }
 
-func (a MessageChannelHandlers) Handler(channel Channel) Receive { return a[channel] }
+func (a MessageChannelHandlers) Handler(channel Channel, msgType MessageType) Receive {
+	if handlers := a[channel]; handlers != nil {
+		return handlers[msgType]
+	}
+	return nil
+}
+
+func (a MessageChannelHandlers) MessageTypes(channel Channel) []MessageType {
+	handlers := a[channel]
+	if handlers == nil {
+		return nil
+	}
+	msgTypes := make([]MessageType, len(handlers))
+	i := 0
+	for k := range handlers {
+		msgTypes[i] = k
+		i++
+	}
+	return msgTypes
+}
 
 func (a MessageChannelHandlers) Stopped() {}
 
@@ -68,11 +93,16 @@ func ValidateMessageProcessor(p MessageProcessor) error {
 		if err := channel.Validate(); err != nil {
 			return err
 		}
-		//if p.Channel(channel) == nil {
-		//	fmt.Errorf("Channel is missing : %s", channel)
-		//}
-		if p.Handler(channel) == nil {
-			fmt.Errorf("Handler is missing for channel : %s", channel)
+
+		msgTypes := p.MessageTypes(channel)
+		if len(msgTypes) == 0 {
+			fmt.Errorf("Channel has no message types : %s", channel)
+		}
+
+		for _, msgType := range msgTypes {
+			if p.Handler(channel, msgType) == nil {
+				fmt.Errorf("Handler is missing for channel : %s", channel)
+			}
 		}
 	}
 
@@ -85,7 +115,7 @@ func StartMessageProcessorEngine(messageProcessor MessageProcessor, logger zerol
 	}
 	engine := &MessageProcessorEngine{
 		MessageProcessor: messageProcessor,
-		logger:           logger,
+		logger:           logger.With().Str(logging.TYPE, "MessageProcessorEngine").Logger(),
 	}
 	engine.start()
 	return engine, nil
@@ -132,21 +162,25 @@ func (a *MessageProcessorEngine) start() {
 	a.c = make(chan *MessageContext)
 	if len(a.ChannelNames()) == 1 {
 		channel := a.ChannelNames()[0]
-		receive := a.Handler(channel)
 		a.channels = map[Channel]chan *MessageContext{channel: a.c}
 		a.Go(func() error {
-			MESSAGE_PROCESSOR_CHANNEL_STARTED.Log(a.logger.Info()).Str(CHANNEL, channel.String()).Msg("")
-			MESSAGE_PROCESSOR_STARTED.Log(a.logger.Info()).Msg("")
+			LOG_EVENT_STARTED.Log(a.logger.Info()).Str(LOG_FIELD_CHANNEL, channel.String()).Msg("")
+			LOG_EVENT_STARTED.Log(a.logger.Info()).Msg("")
 			for {
 				select {
 				case <-a.Dying():
-					MESSAGE_PROCESSOR_CHANNEL_DYING.Log(a.logger.Info()).Str(CHANNEL, channel.String()).Msg("")
-					MESSAGE_PROCESSOR_DYING.Log(a.logger.Info()).Msg("")
+					LOG_EVENT_DYING.Log(a.logger.Info()).Str(LOG_FIELD_CHANNEL, channel.String()).Msg("")
+					LOG_EVENT_DYING.Log(a.logger.Info()).Msg("")
 					return nil
 				case msg := <-a.c:
 					if msg == nil {
-						MESSAGE_PROCESSOR_CHANNEL_CLOSED.Log(a.logger.Info()).Msg("")
+						LOG_EVENT_NIL_MSG.Log(a.logger.Info()).Msg("")
 						return nil
+					}
+					receive := a.Handler(channel, msg.Envelope.MessageType())
+					if receive == nil {
+						LOG_EVENT_UNKNOWN_MESSAGE_TYPE.Log(a.logger.Error()).Str(LOG_FIELD_CHANNEL, channel.String()).Msg("Message dropped")
+						continue
 					}
 					if err := receive(msg); err != nil {
 						return &MessageProcessingError{
@@ -163,18 +197,23 @@ func (a *MessageProcessorEngine) start() {
 
 		// fan in all messages received on channels into the MessageProcessorEngine channel
 		a.Go(func() error {
-			MESSAGE_PROCESSOR_STARTED.Log(a.logger.Info()).Msg("")
+			LOG_EVENT_STARTED.Log(a.logger.Info()).Msg("")
 			for {
 				select {
 				case <-a.Dying():
-					MESSAGE_PROCESSOR_DYING.Log(a.logger.Info()).Msg("")
+					LOG_EVENT_DYING.Log(a.logger.Info()).Msg("")
 					return nil
 				case msg := <-a.c:
 					if msg == nil {
-						MESSAGE_PROCESSOR_CHANNEL_CLOSED.Log(a.logger.Info()).Msg("")
+						LOG_EVENT_NIL_MSG.Log(a.logger.Info()).Msg("")
 						return nil
 					}
-					if err := a.Handler(msg.Envelope.channel)(msg); err != nil {
+					receive := a.Handler(msg.Envelope.channel, msg.Envelope.MessageType())
+					if receive == nil {
+						LOG_EVENT_UNKNOWN_MESSAGE_TYPE.Log(a.logger.Error()).Str(LOG_FIELD_CHANNEL, msg.Envelope.channel.String()).Msg("Message dropped")
+						continue
+					}
+					if err := receive(msg); err != nil {
 						return &MessageProcessingError{
 							Path:    msg.Path(),
 							Message: msg.Envelope,
@@ -190,20 +229,20 @@ func (a *MessageProcessorEngine) start() {
 			a.channels[channel] = c
 			channelName := channel.String()
 			a.Go(func() error {
-				MESSAGE_PROCESSOR_CHANNEL_STARTED.Log(a.logger.Info()).Str(CHANNEL, channelName).Msg("")
+				LOG_EVENT_STARTED.Log(a.logger.Info()).Str(LOG_FIELD_CHANNEL, channelName).Msg("")
 				for {
 					select {
 					case <-a.Dying():
-						MESSAGE_PROCESSOR_CHANNEL_DYING.Log(a.logger.Info()).Str(CHANNEL, channelName).Msg("")
+						LOG_EVENT_DYING.Log(a.logger.Info()).Str(LOG_FIELD_CHANNEL, channelName).Msg("")
 						return nil
 					case msg := <-c:
 						if msg == nil {
-							MESSAGE_PROCESSOR_CHANNEL_CLOSED.Log(a.logger.Info()).Str(CHANNEL, channelName).Msg("")
+							LOG_EVENT_NIL_MSG.Log(a.logger.Info()).Str(LOG_FIELD_CHANNEL, channelName).Msg("")
 							return nil
 						}
 						select {
 						case <-a.Dying():
-							MESSAGE_PROCESSOR_CHANNEL_DYING.Log(a.logger.Info()).Str(CHANNEL, channelName).Msg("")
+							LOG_EVENT_DYING.Log(a.logger.Info()).Str(LOG_FIELD_CHANNEL, channelName).Msg("")
 							return nil
 						case a.c <- msg:
 						}

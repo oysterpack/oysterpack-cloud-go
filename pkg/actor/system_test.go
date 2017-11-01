@@ -13,3 +13,9 @@
 // limitations under the License.
 
 package actor_test
+
+import "testing"
+
+func TestSystem_LookupActorRef(t *testing.T) {
+
+}

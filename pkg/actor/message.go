@@ -26,8 +26,6 @@ import (
 
 	"errors"
 
-	"fmt"
-
 	"github.com/json-iterator/go"
 	"github.com/oysterpack/oysterpack.go/pkg/actor/msgs"
 	"zombiezen.com/go/capnproto2"
@@ -48,9 +46,9 @@ const MESSAGE_TYPE_DEFAULT MessageType = 0
 type Message interface {
 	encoding.BinaryMarshaler
 	encoding.BinaryUnmarshaler
-
-	MessageType() MessageType
 }
+
+type ChannelMessageFactory map[MessageType]func() Message
 
 // UID is a function that returns a unique id.
 type UID func() string
@@ -77,6 +75,7 @@ type Envelope struct {
 	created time.Time
 
 	channel Channel
+	msgType MessageType
 	message Message
 
 	replyTo *ChannelAddress
@@ -119,7 +118,7 @@ func (a *Envelope) Channel() Channel {
 }
 
 func (a *Envelope) MessageType() MessageType {
-	return a.message.MessageType()
+	return a.msgType
 }
 
 func (a *Envelope) Message() Message {
@@ -156,15 +155,13 @@ func (a *Envelope) UnmarshalBinary(data []byte) error {
 	}
 	a.channel = Channel(channel)
 
+	a.msgType = MessageType(envelope.MessageType())
+
 	message, err := envelope.Message()
 	if err != nil {
 		return err
 	}
 	a.message.UnmarshalBinary(message)
-
-	if a.MessageType().UInt8() != envelope.MessageType() {
-		return fmt.Errorf("The message type (%d) did not match what was specified on the envelope (%d).", a.MessageType(), envelope.MessageType())
-	}
 
 	if envelope.HasReplyTo() {
 		replyTo, err := envelope.ReplyTo()

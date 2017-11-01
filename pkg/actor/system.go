@@ -35,7 +35,9 @@ func (a *System) registerActor(actor *Actor) {
 	defer a.actorsLock.Unlock()
 	a.actors[actor.id] = actor
 	a.actors[a.addressPathKey(actor.path)] = actor
-	ACTOR_REGISTERED.Log(a.logger.Info()).Dict(ACTOR, zerolog.Dict().Strs(ACTOR_PATH, actor.path).Str(ACTOR_ID, actor.id)).Msg("")
+	LOG_EVENT_REGISTERED.Log(a.logger.Info()).
+		Dict(LOG_FIELD_ACTOR, zerolog.Dict().Strs(LOG_FIELD_ACTOR_PATH, actor.path).Str(LOG_FIELD_ACTOR_ID, actor.id)).
+		Msg("")
 }
 
 func (a *System) unregisterActor(path []string, id string) {
@@ -43,7 +45,9 @@ func (a *System) unregisterActor(path []string, id string) {
 	defer a.actorsLock.Unlock()
 	delete(a.actors, id)
 	delete(a.actors, a.addressPathKey(path))
-	ACTOR_UNREGISTERED.Log(a.logger.Info()).Dict(ACTOR, zerolog.Dict().Strs(ACTOR_PATH, path).Str(ACTOR_ID, id)).Msg("")
+	LOG_EVENT_UNREGISTERED.Log(a.logger.Info()).
+		Dict(LOG_FIELD_ACTOR, zerolog.Dict().Strs(LOG_FIELD_ACTOR_PATH, path).Str(LOG_FIELD_ACTOR_ID, id)).
+		Msg("")
 }
 
 func (a *System) addressPathKey(path []string) string { return strings.Join(path, "") }
@@ -65,14 +69,34 @@ func (a *System) LookupActorRef(address *Address) Ref {
 
 func SystemMessageProcessor() MessageProcessor {
 	return MessageChannelHandlers{
-		CHANNEL_SYSTEM: HandlePing,
+		CHANNEL_SYSTEM: MessageTypeHandlers{
+			SYSTEM_MESSAGE_HEARTBEAT: HandleHearbeat,
+			SYSTEM_MESSAGE_ECHO:      HandleEcho,
+			SYSTEM_MESSAGE_PING_REQ:  HandlePingRequest,
+		},
 	}
 }
 
-func HandlePing(ctx *MessageContext) error {
+func HandlePingRequest(ctx *MessageContext) error {
 	replyTo := ctx.Envelope.replyTo
 	if replyTo == nil {
 		return nil
 	}
 	return ctx.Send(ctx.MessageEnvelope(replyTo.Channel, &PingResponse{ctx.address}), replyTo.Address)
+}
+
+func HandleHearbeat(ctx *MessageContext) error {
+	replyTo := ctx.Envelope.replyTo
+	if replyTo == nil {
+		return nil
+	}
+	return ctx.Send(ctx.MessageEnvelope(replyTo.Channel, HEARTBEAT), replyTo.Address)
+}
+
+func HandleEcho(ctx *MessageContext) error {
+	replyTo := ctx.Envelope.replyTo
+	if replyTo == nil {
+		return nil
+	}
+	return ctx.Send(ctx.MessageEnvelope(replyTo.Channel, HEARTBEAT), replyTo.Address)
 }

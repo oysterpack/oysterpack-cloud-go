@@ -23,13 +23,17 @@ import (
 
 func TestStartMessageProcessorEngine(t *testing.T) {
 	foo := actor.MessageChannelHandlers{
-		actor.CHANNEL_SYSTEM: func(ctx *actor.MessageContext) error {
-			t.Logf("Received message: %v", ctx.Envelope)
-			return nil
+		actor.CHANNEL_SYSTEM: actor.MessageTypeHandlers{
+			actor.MESSAGE_TYPE_DEFAULT: func(ctx *actor.MessageContext) error {
+				t.Logf("Received message: %v", ctx.Envelope)
+				return nil
+			},
 		},
-		actor.CHANNEL_LIFECYCLE: func(ctx *actor.MessageContext) error {
-			t.Logf("Received message: %v", ctx.Envelope)
-			return nil
+		actor.CHANNEL_LIFECYCLE: actor.MessageTypeHandlers{
+			actor.MESSAGE_TYPE_DEFAULT: func(ctx *actor.MessageContext) error {
+				t.Logf("Received message: %v", ctx.Envelope)
+				return nil
+			},
 		},
 	}
 

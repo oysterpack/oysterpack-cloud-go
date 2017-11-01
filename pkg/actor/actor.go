@@ -40,9 +40,7 @@ type MessageContext struct {
 
 // system channels
 const (
-	CHANNEL_SYSTEM     = Channel("0")
-	CHANNEL_LIFECYCLE  = Channel("1")
-	CHANNEL_SUPERVISOR = Channel("2")
+	CHANNEL_LIFECYCLE = Channel("1")
 )
 
 // Actor represents an actor in the Actor Model. Actors are objects which encapsulate state and behavior, they communicate exclusively by exchanging messages.
@@ -88,8 +86,8 @@ type ChannelSettings struct {
 	Channel
 	BufSize int
 	// used to create new empty Envelope(s)
-	MessageFactory   func() Message
-	MessageValidator func(msg Message) error
+	ChannelMessageFactory ChannelMessageFactory
+	MessageValidator      func(msg Message) error
 }
 
 func (a *Actor) Spawn(name string, messageProcessorFactory MessageProcessorFactory, channelSettings []*ChannelSettings, logger zerolog.Logger, supervise SupervisorStrategy) (*Actor, error) {
@@ -152,7 +150,7 @@ func (a *Actor) Spawn(name string, messageProcessorFactory MessageProcessorFacto
 			msgProcessorEngine := child.messageProcessorEngine()
 			select {
 			case <-a.Dead():
-				ACTOR_DEAD.Log(child.logger.Info()).Msg("")
+				LOG_EVENT_DEAD.Log(child.logger.Info()).Msg("")
 				return
 			case <-msgProcessorEngine.Dead():
 				if err := msgProcessorEngine.Err(); err != nil {
@@ -181,22 +179,26 @@ func (a *Actor) messageProcessorEngine() *MessageProcessorEngine {
 	return a.msgProcessorEngine
 }
 
-func (a *Actor) UnmarshalEnvelope(channel Channel, msg []byte) (*Envelope, error) {
+func (a *Actor) UnmarshalEnvelope(channel Channel, msgType MessageType, msg []byte) (*Envelope, error) {
 	if settings := a.channelSettings[channel]; settings != nil {
-		envelope := &Envelope{message: settings.MessageFactory()}
+		newMessage := settings.ChannelMessageFactory[msgType]
+		if newMessage == nil {
+			return nil, &ChannelMessageTypeNotSupportedError{channel, msgType}
+		}
+		envelope := &Envelope{message: newMessage()}
 		if err := envelope.UnmarshalBinary(msg); err != nil {
 			return nil, err
 		}
 		return envelope, nil
 	}
-	return nil, &InvalidChannelError{channel}
+	return nil, &ChannelNotSupportedError{channel}
 }
 
 // MessageEnvelope wraps the message in an envelope.
 // Panics if channel is unknown for this actor.
 func (a *Actor) MessageEnvelope(channel Channel, msg Message) *Envelope {
 	if _, exists := a.channelSettings[channel]; !exists {
-		UNKNOWN_CHANNEL.Log(a.logger.Panic()).Str(CHANNEL, channel.String()).Msg("")
+		LOG_EVENT_UNKNOWN_CHANNEL.Log(a.logger.Panic()).Str(LOG_FIELD_CHANNEL, channel.String()).Msg("")
 	}
 	return NewEnvelope(a.UID, channel, msg, nil)
 }
@@ -205,7 +207,7 @@ func (a *Actor) MessageEnvelope(channel Channel, msg Message) *Envelope {
 // Panics if channel is unknown for this actor.
 func (a *Actor) RequestEnvelope(channel Channel, msg Message, replyToChannel Channel) *Envelope {
 	if _, exists := a.channelSettings[channel]; !exists {
-		UNKNOWN_CHANNEL.Log(a.logger.Panic()).Str(CHANNEL, channel.String()).Msg("")
+		LOG_EVENT_UNKNOWN_CHANNEL.Log(a.logger.Panic()).Str(LOG_FIELD_CHANNEL, channel.String()).Msg("")
 	}
 	return NewEnvelope(a.UID, channel, msg, &ChannelAddress{Channel: replyToChannel, Address: a.address})
 }
@@ -239,7 +241,7 @@ func (a *Actor) start() (err error) {
 	// when this actor is killed, tear down the actor hierarchy
 	a.Go(func() error {
 		<-a.Dying()
-		ACTOR_DYING.Log(a.logger.Info()).Msg("")
+		LOG_EVENT_DYING.Log(a.logger.Info()).Msg("")
 		a.lock.RLock()
 		defer a.lock.RUnlock()
 		for _, child := range a.children {
@@ -266,7 +268,7 @@ func (a *Actor) init() error {
 		return err
 	}
 
-	a.logger = a.logger.With().Strs(ACTOR_PATH, a.path).Logger()
+	a.logger = a.logger.With().Strs(LOG_FIELD_ACTOR_PATH, a.path).Logger()
 	return nil
 }
 
@@ -304,7 +306,7 @@ func (a *Actor) startMessageProcessorEngine() (err error) {
 		})
 	}
 	a.Tell(a.MessageEnvelope(CHANNEL_LIFECYCLE, STARTED))
-	ACTOR_STARTED.Log(a.logger.Info()).Msg("")
+	LOG_EVENT_STARTED.Log(a.logger.Info()).Msg("")
 	return
 }
 
@@ -341,7 +343,7 @@ func (a *Actor) restart(mode RestartMode) (err error) {
 		return err
 	}
 
-	ACTOR_RESTARTED.Log(a.logger.Info()).Msg("")
+	LOG_EVENT_RESTARTED.Log(a.logger.Info()).Msg("")
 
 	a.restarts++
 	a.lastRestartTime = time.Now()
@@ -447,11 +449,11 @@ func (a *Actor) Err() error {
 // Tell sends a message with fire and forget semantics.
 //
 // Types of errors :
-//  - *InvalidChannelError
+//  - *ChannelNotSupportedError
 func (a *Actor) Tell(msg *Envelope) (err error) {
 	c := a.channels[msg.Channel()]
 	if c == nil {
-		return &InvalidChannelError{msg.Channel()}
+		return &ChannelNotSupportedError{msg.Channel()}
 	}
 
 	select {
@@ -482,7 +484,7 @@ func (a *Actor) Tell(msg *Envelope) (err error) {
 func (a *Actor) Send(msg *Envelope, address *Address) error {
 	actor := a.system.LookupActorRef(address)
 	if actor == nil {
-		return fmt.Errorf("No actor exists at address : %v", address)
+		return &ActorNotFoundError{address}
 	}
 
 	return actor.Tell(msg)

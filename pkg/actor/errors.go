@@ -32,17 +32,31 @@ var (
 	ErrNotAlive = errors.New("Not alive")
 )
 
-// InvalidChannelError indicates the channel is unknown
-type InvalidChannelError struct {
+// ChannelNotSupportedError indicates the channel is unknown
+type ChannelNotSupportedError struct {
 	Channel
 }
 
-func (a *InvalidChannelError) Error() string {
+func (a *ChannelNotSupportedError) Error() string {
 	return a.String()
 }
 
-func (a *InvalidChannelError) String() string {
+func (a *ChannelNotSupportedError) String() string {
 	return fmt.Sprintf("Invalid channel : %s", a.Channel)
+}
+
+// ChannelNotSupportedError indicates the channel is unknown
+type ChannelMessageTypeNotSupportedError struct {
+	Channel
+	MessageType
+}
+
+func (a *ChannelMessageTypeNotSupportedError) Error() string {
+	return a.String()
+}
+
+func (a *ChannelMessageTypeNotSupportedError) String() string {
+	return fmt.Sprintf("Channel (%s) does not support message type : %d", a.Channel, a.MessageType)
 }
 
 type InvalidMessageTypeError struct {
@@ -88,7 +102,7 @@ func (a *InvalidMessageError) String() string {
 
 // ActorNotAliveError indicates an invalid operation was performed on an actor that is not alive.
 type ActorNotAliveError struct {
-	Address
+	*Address
 }
 
 func (a *ActorNotAliveError) Error() string {
@@ -97,6 +111,19 @@ func (a *ActorNotAliveError) Error() string {
 
 func (a *ActorNotAliveError) String() string {
 	return fmt.Sprintf("Actor is not alive : %s", a.Address)
+}
+
+// ActorNotFoundError indicates that no actor lives at the specified address
+type ActorNotFoundError struct {
+	*Address
+}
+
+func (a *ActorNotFoundError) Error() string {
+	return a.String()
+}
+
+func (a *ActorNotFoundError) String() string {
+	return fmt.Sprintf("No actor lives at address : %s", a.Address)
 }
 
 type ChildAlreadyExists struct {
@@ -136,8 +163,6 @@ func (a *MessageProcessingError) Error() string {
 func (a *MessageProcessingError) String() string {
 	return fmt.Sprintf("MessageProcessingError : %v : %v : %v", a.Path, a.Err, a.Message)
 }
-
-func (a *MessageProcessingError) MessageType() MessageType { return SYSTEM_MESSAGE_FAILURE }
 
 func (a *MessageProcessingError) UnmarshalBinary(data []byte) error {
 	decoder := capnp.NewPackedDecoder(bytes.NewBuffer(data))

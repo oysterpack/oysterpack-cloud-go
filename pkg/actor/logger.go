@@ -23,26 +23,24 @@ var logger = logging.NewPackageLogger(pkgobject{})
 // used for logging
 const (
 	// fields
-	ACTOR      = "actor"
-	ACTOR_PATH = "path"
-	ACTOR_ID   = "id"
-	CHANNEL    = "channel"
-	MSG_TYPE   = "msg_type"
+	LOG_FIELD_ACTOR      = "actor"
+	LOG_FIELD_ACTOR_PATH = "path"
+	LOG_FIELD_ACTOR_ID   = "id"
+	LOG_FIELD_CHANNEL    = "channel"
+	LOG_FIELD_MSG_TYPE   = "msg_type"
 
 	// events
-	ACTOR_STARTED      logging.Event = "ACTOR_STARTED"
-	ACTOR_RESTARTED    logging.Event = "ACTOR_RESTARTED"
-	ACTOR_DYING        logging.Event = "ACTOR_DYING"
-	ACTOR_DEAD         logging.Event = "ACTOR_DEAD"
-	ACTOR_REGISTERED   logging.Event = "ACTOR_REGISTERED"
-	ACTOR_UNREGISTERED logging.Event = "ACTOR_UNREGISTERED"
+	LOG_EVENT_STARTED   logging.Event = "STARTED"
+	LOG_EVENT_RESTARTED logging.Event = "RESTARTED"
 
-	UNKNOWN_CHANNEL logging.Event = "UNKNOWN_CHANNEL"
+	LOG_EVENT_DYING logging.Event = "DYING"
+	LOG_EVENT_DEAD  logging.Event = "DEAD"
 
-	MESSAGE_PROCESSOR_FAILURE         logging.Event = "MESSAGE_PROCESSOR_FAILURE"
-	MESSAGE_PROCESSOR_CHANNEL_STARTED logging.Event = "MESSAGE_PROCESSOR_CHANNEL_STARTED"
-	MESSAGE_PROCESSOR_CHANNEL_DYING   logging.Event = "MESSAGE_PROCESSOR_CHANNEL_DYING"
-	MESSAGE_PROCESSOR_CHANNEL_CLOSED  logging.Event = "MESSAGE_PROCESSOR_CHANNEL_CLOSED"
-	MESSAGE_PROCESSOR_STARTED         logging.Event = "MESSAGE_PROCESSOR_STARTED"
-	MESSAGE_PROCESSOR_DYING           logging.Event = "MESSAGE_PROCESSOR_DYING"
+	LOG_EVENT_NIL_MSG logging.Event = "NIL_MSG"
+
+	LOG_EVENT_REGISTERED   logging.Event = "REGISTERED"
+	LOG_EVENT_UNREGISTERED logging.Event = "UNREGISTERED"
+
+	LOG_EVENT_UNKNOWN_CHANNEL      logging.Event = "UNKNOWN_CHANNEL"
+	LOG_EVENT_UNKNOWN_MESSAGE_TYPE logging.Event = "UNKNOWN_MESSAGE_TYPE"
 )
