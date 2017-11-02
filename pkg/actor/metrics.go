@@ -20,3 +20,8 @@ type Stats struct {
 	restarts        int
 	lastRestartTime time.Time
 }
+
+type ChannelMetrics struct {
+	Capacity int
+	Len      int
+}

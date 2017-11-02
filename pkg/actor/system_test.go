@@ -14,8 +14,37 @@
 
 package actor_test
 
-import "testing"
+import (
+	"testing"
 
-func TestSystem_LookupActorRef(t *testing.T) {
+	"github.com/oysterpack/oysterpack.go/pkg/actor"
+	"github.com/rs/zerolog/log"
+)
+
+func TestNewSystem(t *testing.T) {
+
+	system, err := actor.NewSystem("oysterpack", log.Logger)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		log.Logger.Info().Msg("Killing system ...")
+		system.Kill(nil)
+		log.Logger.Info().Msg("Kill signalled. Waiting for system to terminate ...")
+		if err := system.Wait(); err != nil {
+			t.Error(err)
+		}
+		log.Logger.Info().Msg("System terminated")
+	}()
+
+	log.Logger.Info().Msgf("address = %v, name = %s, path = %v, id = %s", system.Address(), system.Name(), system.Path(), system.Id())
+
+	if !system.Alive() {
+		t.Error("system is not alive")
+	}
+
+	if system.Name() != "oysterpack" {
+		t.Errorf("name did not match : %v", system.Name())
+	}
 
 }

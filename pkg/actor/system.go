@@ -18,8 +18,59 @@ import (
 	"strings"
 	"sync"
 
+	"errors"
+	"fmt"
+
 	"github.com/rs/zerolog"
 )
+
+func NewSystem(name string, logger zerolog.Logger) (*System, error) {
+	if name != strings.TrimSpace(name) {
+		return nil, fmt.Errorf("name cannot have whitespace passing %q", name)
+	}
+
+	if len(name) == 0 {
+		return nil, errors.New("name cannot be blank")
+	}
+
+	system := &System{
+		actors: make(map[string]*Actor),
+		Actor: &Actor{
+			path: []string{name},
+
+			messageProcessorFactory: systemMessageProcessor,
+			channelSettings:         systemChannelSettings,
+			logger:                  logger,
+		},
+	}
+	system.system = system
+
+	if err := system.start(); err != nil {
+		return nil, err
+	}
+
+	system.registerActor(system.Actor)
+
+	// watch the system
+	go func() {
+		for {
+			// NOTE: the child may have been restarted. Thus, we always want to get the current MessageProcessorEngine.
+			// MessageProcessorEngine access is protected by a RWMutex to enable safe concurrent access.
+			msgProcessorEngine := system.messageProcessorEngine()
+			select {
+			case <-system.Dying():
+				return
+			case <-msgProcessorEngine.Dead():
+				if err := msgProcessorEngine.Err(); err != nil {
+					system.failures.failure(err)
+					RESTART_ACTOR_STRATEGY(system.Actor, err)
+				}
+			}
+		}
+	}()
+
+	return system, nil
+}
 
 // System is an actor hierarchy.
 type System struct {
@@ -67,16 +118,29 @@ func (a *System) LookupActorRef(address *Address) Ref {
 	return a.LookupActor(address)
 }
 
-func SystemMessageProcessor() MessageProcessor {
+func systemMessageProcessor() MessageProcessor {
 	return MessageChannelHandlers{
 		CHANNEL_SYSTEM: MessageTypeHandlers{
-			SYSTEM_MESSAGE_HEARTBEAT: HandleHearbeat,
-			SYSTEM_MESSAGE_ECHO:      HandleEcho,
-			SYSTEM_MESSAGE_PING_REQ:  HandlePingRequest,
+			SYSTEM_MESSAGE_HEARTBEAT_REQ: HandleHearbeat,
+			SYSTEM_MESSAGE_PING_REQ:      HandlePingRequest,
 		},
 	}
 }
 
+var (
+	systemChannelSettings = map[Channel]*ChannelSettings{
+		CHANNEL_SYSTEM: &ChannelSettings{
+			Channel: CHANNEL_SYSTEM,
+			BufSize: 0,
+			ChannelMessageFactory: map[MessageType]func() Message{
+				SYSTEM_MESSAGE_HEARTBEAT_REQ: func() Message { return HEARTBEAT_REQ },
+				SYSTEM_MESSAGE_PING_REQ:      func() Message { return PING_REQ },
+			},
+		},
+	}
+)
+
+// HandlePingRequest returns a PingResponse if a replyTo address was specified on the request
 func HandlePingRequest(ctx *MessageContext) error {
 	replyTo := ctx.Envelope.replyTo
 	if replyTo == nil {
@@ -85,18 +149,11 @@ func HandlePingRequest(ctx *MessageContext) error {
 	return ctx.Send(ctx.MessageEnvelope(replyTo.Channel, &PingResponse{ctx.address}), replyTo.Address)
 }
 
+// HandleHearbeat will send back a HeartbeatResponse if a replyTo address was specified
 func HandleHearbeat(ctx *MessageContext) error {
 	replyTo := ctx.Envelope.replyTo
 	if replyTo == nil {
 		return nil
 	}
-	return ctx.Send(ctx.MessageEnvelope(replyTo.Channel, HEARTBEAT), replyTo.Address)
-}
-
-func HandleEcho(ctx *MessageContext) error {
-	replyTo := ctx.Envelope.replyTo
-	if replyTo == nil {
-		return nil
-	}
-	return ctx.Send(ctx.MessageEnvelope(replyTo.Channel, HEARTBEAT), replyTo.Address)
+	return ctx.Send(ctx.MessageEnvelope(replyTo.Channel, HEARTBEAT_RESP), replyTo.Address)
 }

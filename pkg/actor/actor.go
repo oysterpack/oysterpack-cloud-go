@@ -90,6 +90,18 @@ type ChannelSettings struct {
 	MessageValidator      func(msg Message) error
 }
 
+// ChannelMetrics returns channel metrics
+func (a *Actor) ChannelMetrics() map[Channel]*ChannelMetrics {
+	stats := map[Channel]*ChannelMetrics{}
+	for channel, c := range a.channels {
+		stats[channel] = &ChannelMetrics{
+			Capacity: cap(c),
+			Len:      len(c),
+		}
+	}
+	return stats
+}
+
 func (a *Actor) Spawn(name string, messageProcessorFactory MessageProcessorFactory, channelSettings []*ChannelSettings, logger zerolog.Logger, supervise SupervisorStrategy) (*Actor, error) {
 	a.lock.Lock()
 	defer a.lock.Unlock()
@@ -194,32 +206,20 @@ func (a *Actor) UnmarshalEnvelope(channel Channel, msgType MessageType, msg []by
 	return nil, &ChannelNotSupportedError{channel}
 }
 
-// MessageEnvelope wraps the message in an envelope.
-// Panics if channel is unknown for this actor.
 func (a *Actor) MessageEnvelope(channel Channel, msg Message) *Envelope {
-	if _, exists := a.channelSettings[channel]; !exists {
-		LOG_EVENT_UNKNOWN_CHANNEL.Log(a.logger.Panic()).Str(LOG_FIELD_CHANNEL, channel.String()).Msg("")
-	}
 	return NewEnvelope(a.UID, channel, msg, nil)
 }
 
-// RequestEnvelope wraps the message request in an envelope
-// Panics if channel is unknown for this actor.
 func (a *Actor) RequestEnvelope(channel Channel, msg Message, replyToChannel Channel) *Envelope {
-	if _, exists := a.channelSettings[channel]; !exists {
-		LOG_EVENT_UNKNOWN_CHANNEL.Log(a.logger.Panic()).Str(LOG_FIELD_CHANNEL, channel.String()).Msg("")
-	}
 	return NewEnvelope(a.UID, channel, msg, &ChannelAddress{Channel: replyToChannel, Address: a.address})
+}
+
+func (a *Actor) Envelope(channel Channel, msg Message, replyTo *ChannelAddress) *Envelope {
+	return NewEnvelope(a.UID, channel, msg, replyTo)
 }
 
 func (a *Actor) messageContext(msg *Envelope) *MessageContext {
 	return &MessageContext{a, msg}
-}
-
-func (a *Actor) messageProcessorEngineChannel(channel Channel) chan<- *MessageContext {
-	a.lock.RLock()
-	defer a.lock.RUnlock()
-	return a.msgProcessorEngine.Channel(channel)
 }
 
 func (a *Actor) start() (err error) {
@@ -281,7 +281,7 @@ func (a *Actor) startMessageProcessorEngine() (err error) {
 	for _, channel := range msgProcessorEngine.ChannelNames() {
 		c := make(chan *Envelope, a.channelSettings[channel].BufSize)
 		a.channels[channel] = c
-		messageProcessorEngineChannel := a.messageProcessorEngineChannel(channel)
+		messageProcessorEngineChannel := msgProcessorEngine.Channel(channel)
 
 		// These goroutines will die when either the actor or the message processor engine dies.
 		// When the message processor engine is dead, the parent actor is notified (via the tomb). If the message processor
@@ -305,9 +305,22 @@ func (a *Actor) startMessageProcessorEngine() (err error) {
 			}
 		})
 	}
+
 	a.Tell(a.MessageEnvelope(CHANNEL_LIFECYCLE, STARTED))
+
 	LOG_EVENT_STARTED.Log(a.logger.Info()).Msg("")
 	return
+}
+
+func (a *Actor) HasChannel(channel Channel) bool {
+	return a.channels[channel] != nil
+}
+
+func (a *Actor) ChannelAddress(channel Channel) (*ChannelAddress, bool) {
+	if a.HasChannel(channel) {
+		return &ChannelAddress{Channel: channel, Address: a.address}, true
+	}
+	return nil, false
 }
 
 func (a *Actor) restart(mode RestartMode) (err error) {
@@ -357,7 +370,7 @@ func (a *Actor) restartMessageProcessorEngine() (err error) {
 	}
 	msgProcessorEngine := a.msgProcessorEngine
 	for channel, c := range a.channels {
-		messageProcessorEngineChannel := a.messageProcessorEngineChannel(channel)
+		messageProcessorEngineChannel := msgProcessorEngine.Channel(channel)
 
 		// these goroutines will die when either the actor or the message processor engine is dying
 		a.Go(func() error {
@@ -392,11 +405,11 @@ func (a *Actor) validate() error {
 		return err
 	}
 
-	if len(a.path) > 1 {
-		if a.system == nil {
-			return errors.New("An actor must belong to a system")
-		}
+	if a.system == nil {
+		return errors.New("An actor must belong to a system")
+	}
 
+	if len(a.path) > 1 {
 		if a.parent == nil {
 			return errors.New("The actor must have a parent")
 		}
@@ -481,10 +494,10 @@ func (a *Actor) Tell(msg *Envelope) (err error) {
 // If the actor id is specified in the address, then the message will only be delivered if the same actor instance is still
 // living with that id. In other words, if an actor is living at the specified address, but has a different id, then the message
 // will not be delivered to that actor because it was intended for another actor instance.
-func (a *Actor) Send(msg *Envelope, address *Address) error {
-	actor := a.system.LookupActorRef(address)
+func (a *Actor) Send(msg *Envelope, to *Address) error {
+	actor := a.system.LookupActorRef(to)
 	if actor == nil {
-		return &ActorNotFoundError{address}
+		return &ActorNotFoundError{to}
 	}
 
 	return actor.Tell(msg)

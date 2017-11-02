@@ -27,13 +27,11 @@ const CHANNEL_SYSTEM = Channel("0")
 // iota is not used because the enum values must remain constant. If iota was used, then re-arranging them would change
 // the enum values and break clients until they upgrade, i.e., reordering an iota based enum is not a backwards compatible change.
 const (
-	SYSTEM_MESSAGE_HEARTBEAT MessageType = MESSAGE_TYPE_DEFAULT
-	SYSTEM_MESSAGE_ECHO      MessageType = 1
+	SYSTEM_MESSAGE_HEARTBEAT_REQ  MessageType = 0
+	SYSTEM_MESSAGE_HEARTBEAT_RESP MessageType = 1
 
 	SYSTEM_MESSAGE_PING_REQ  MessageType = 2
 	SYSTEM_MESSAGE_PING_RESP MessageType = 3
-
-	SYSTEM_MESSAGE_PROCESSING_ERROR MessageType = 4
 )
 
 type SystemMessage interface {
@@ -42,15 +40,22 @@ type SystemMessage interface {
 }
 
 var (
-	PING_REQ  = &PingRequest{EMPTY}
-	HEARTBEAT = &Heartbeat{}
+	PING_REQ       = &PingRequest{EMPTY}
+	HEARTBEAT_REQ  = &HeartbeatRequest{}
+	HEARTBEAT_RESP = &HeartbeatResponse{}
 )
 
-type Heartbeat struct {
+type HeartbeatRequest struct {
 	*Empty
 }
 
-func (a *Heartbeat) SystemMessage() {}
+func (a *HeartbeatRequest) SystemMessage() {}
+
+type HeartbeatResponse struct {
+	*Empty
+}
+
+func (a *HeartbeatResponse) SystemMessage() {}
 
 type PingRequest struct {
 	*Empty

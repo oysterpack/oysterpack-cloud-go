@@ -37,10 +37,11 @@ type MessageProcessor interface {
 	// MessageTypes returns the message types that are supported for the specified channel
 	MessageTypes(channel Channel) []MessageType
 
-	// Handler returns a Receive function that will be used to handle messages on the specified channel
+	// Handler returns a Receive function that will be used to handle messages on the specified channel for the
+	// specified message type
 	Handler(channel Channel, msgType MessageType) Receive
 
-	// Stopped is invoked after the message processer is stopped. The message processor should perform any cleanup here.
+	// Stopped is invoked after the message processor is stopped. The message processor should perform any cleanup here.
 	Stopped()
 }
 
@@ -49,6 +50,7 @@ type MessageProcessor interface {
 // point to MessageProcessor methods with the Receive function signature.
 type MessageChannelHandlers map[Channel]MessageTypeHandlers
 
+// MessageTypeHandlers is maps MessageType -> Receive handler function
 type MessageTypeHandlers map[MessageType]Receive
 
 func (a MessageChannelHandlers) ChannelNames() []Channel {
@@ -84,6 +86,11 @@ func (a MessageChannelHandlers) MessageTypes(channel Channel) []MessageType {
 
 func (a MessageChannelHandlers) Stopped() {}
 
+// ValidateMessageProcessor performs the following checks :
+//
+// 1. At least 1 channel must be defined
+// 2. For each channel, at least 1 MessageType must be defined
+// 3. For each MessageType, the handler function must not defined, i.e., not nil
 func ValidateMessageProcessor(p MessageProcessor) error {
 	if len(p.ChannelNames()) == 0 {
 		return errors.New("MessageProcessor must have at least 1 channel defined")
@@ -109,15 +116,15 @@ func ValidateMessageProcessor(p MessageProcessor) error {
 	return nil
 }
 
+// StartMessageProcessorEngine creates a new MessageProcessorEngine for the MessageProcessor and starts it
 func StartMessageProcessorEngine(messageProcessor MessageProcessor, logger zerolog.Logger) (*MessageProcessorEngine, error) {
-	if err := ValidateMessageProcessor(messageProcessor); err != nil {
-		return nil, err
-	}
 	engine := &MessageProcessorEngine{
 		MessageProcessor: messageProcessor,
 		logger:           logger.With().Str(logging.TYPE, "MessageProcessorEngine").Logger(),
 	}
-	engine.start()
+	if err := engine.start(); err != nil {
+		return nil, err
+	}
 	return engine, nil
 }
 
@@ -150,7 +157,11 @@ type MessageProcessorEngine struct {
 	lock sync.Mutex
 }
 
-func (a *MessageProcessorEngine) start() {
+func (a *MessageProcessorEngine) start() error {
+	if err := ValidateMessageProcessor(a); err != nil {
+		return err
+	}
+
 	a.lock.Lock()
 	defer a.lock.Unlock()
 
@@ -252,6 +263,7 @@ func (a *MessageProcessorEngine) start() {
 			})
 		}
 	}
+	return nil
 }
 
 // Channel returns the channel that is used for sending messages to this message processor

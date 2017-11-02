@@ -15,13 +15,9 @@
 package actor
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"reflect"
-
-	"github.com/oysterpack/oysterpack.go/pkg/actor/msgs"
-	"zombiezen.com/go/capnproto2"
 )
 
 var (
@@ -150,6 +146,7 @@ func (a *ProducerError) String() string {
 	return fmt.Sprintf("Child already exists at path : %v", a.Err)
 }
 
+// MessageProcessingError
 type MessageProcessingError struct {
 	Path    []string
 	Message *Envelope
@@ -162,89 +159,4 @@ func (a *MessageProcessingError) Error() string {
 
 func (a *MessageProcessingError) String() string {
 	return fmt.Sprintf("MessageProcessingError : %v : %v : %v", a.Path, a.Err, a.Message)
-}
-
-func (a *MessageProcessingError) UnmarshalBinary(data []byte) error {
-	decoder := capnp.NewPackedDecoder(bytes.NewBuffer(data))
-	msg, err := decoder.Decode()
-	if err != nil {
-		return err
-	}
-	failure, err := msgs.ReadRootMessageProcessingError(msg)
-	if err != nil {
-		return err
-	}
-
-	if failure.HasPath() {
-		pathList, err := failure.Path()
-		if err != nil {
-			return err
-		}
-		a.Path = make([]string, pathList.Len())
-		for i := 0; i < pathList.Len(); i++ {
-			a.Path[i], err = pathList.At(i)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	msgBytes, err := failure.Message()
-	if err != nil {
-		return err
-	}
-	if err := a.Message.UnmarshalBinary(msgBytes); err != nil {
-		return err
-	}
-
-	errMsg, err := failure.Err()
-	if err != nil {
-		return err
-	}
-	a.Err = errors.New(errMsg)
-	return err
-}
-
-func (a *MessageProcessingError) MarshalBinary() ([]byte, error) {
-	msg, seg, err := capnp.NewMessage(capnp.MultiSegment(nil))
-
-	failure, err := msgs.NewRootMessageProcessingError(seg)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(a.Path) > 0 {
-		path, err := capnp.NewTextList(seg, int32(len(a.Path)))
-		if err != nil {
-			return nil, err
-		}
-		for i, p := range a.Path {
-			if err := path.Set(i, p); err != nil {
-				return nil, err
-			}
-		}
-		if err = failure.SetPath(path); err != nil {
-			return nil, err
-		}
-	}
-
-	messageBytes, err := a.Message.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	if err = failure.SetMessage(messageBytes); err != nil {
-		return nil, err
-	}
-
-	if err := failure.SetErr(a.Err.Error()); err != nil {
-		return nil, err
-	}
-
-	buf := new(bytes.Buffer)
-	encoder := capnp.NewPackedEncoder(buf)
-	if err = encoder.Encode(msg); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
 }

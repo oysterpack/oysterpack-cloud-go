@@ -104,6 +104,14 @@ func (s Envelope) SetChannel(v string) error {
 	return s.Struct.SetText(2, v)
 }
 
+func (s Envelope) MessageType() uint8 {
+	return s.Struct.Uint8(8)
+}
+
+func (s Envelope) SetMessageType(v uint8) {
+	s.Struct.SetUint8(8, v)
+}
+
 func (s Envelope) Message() ([]byte, error) {
 	p, err := s.Struct.Ptr(3)
 	return []byte(p.Data()), err
@@ -116,14 +124,6 @@ func (s Envelope) HasMessage() bool {
 
 func (s Envelope) SetMessage(v []byte) error {
 	return s.Struct.SetData(3, v)
-}
-
-func (s Envelope) MessageType() uint8 {
-	return s.Struct.Uint8(8)
-}
-
-func (s Envelope) SetMessageType(v uint8) {
-	s.Struct.SetUint8(8, v)
 }
 
 // Envelope_List is a list of Envelope.
@@ -400,9 +400,9 @@ func (s MessageProcessingError) NewPath(n int32) (capnp.TextList, error) {
 	return l, err
 }
 
-func (s MessageProcessingError) Message() ([]byte, error) {
+func (s MessageProcessingError) Message() (MessageProcessingError_Message, error) {
 	p, err := s.Struct.Ptr(1)
-	return []byte(p.Data()), err
+	return MessageProcessingError_Message{Struct: p.Struct()}, err
 }
 
 func (s MessageProcessingError) HasMessage() bool {
@@ -410,8 +410,19 @@ func (s MessageProcessingError) HasMessage() bool {
 	return p.IsValid() || err != nil
 }
 
-func (s MessageProcessingError) SetMessage(v []byte) error {
-	return s.Struct.SetData(1, v)
+func (s MessageProcessingError) SetMessage(v MessageProcessingError_Message) error {
+	return s.Struct.SetPtr(1, v.Struct.ToPtr())
+}
+
+// NewMessage sets the message field to a newly
+// allocated MessageProcessingError_Message struct, preferring placement in s's segment.
+func (s MessageProcessingError) NewMessage() (MessageProcessingError_Message, error) {
+	ss, err := NewMessageProcessingError_Message(s.Struct.Segment())
+	if err != nil {
+		return MessageProcessingError_Message{}, err
+	}
+	err = s.Struct.SetPtr(1, ss.Struct.ToPtr())
+	return ss, err
 }
 
 func (s MessageProcessingError) Err() (string, error) {
@@ -463,69 +474,222 @@ func (p MessageProcessingError_Promise) Struct() (MessageProcessingError, error)
 	return MessageProcessingError{s}, err
 }
 
-const schema_87fc44aa3255d2ae = "x\xda\xa4T\xcf\x8b\x1cE\x14~\xaf\xaagw\x0f\xfb" +
-	"#M\xcfa\x09B?$\x91dIB\xc6\x18\x8c^" +
-	"\xd6\x9dd.a\x85-f\x07\x93 Bmw\x99i" +
-	"\x98\xe9\xeet\xf5d\x1d1.\x0b\x01\x17\xf1\x12\x0dB" +
-	"\x04\xc9Q\xd8\x83\x82\x07\x0d\x0b\x01\x17\x92C ^\"" +
-	"\x06\xff\x00O\x82\x10\x08^Dh\xa9\xee\x9e\xc9\xa0\x93" +
-	"\xb9\xe4V\xdd\xef\xbd\xaf\xbf\xef\xab\xef\xf5\xc9?\xf1-" +
-	"V\xab\xb8\x1c@\x1c\xaaLew\xaf\xff\xb0\xfa\xe4\xc2" +
-	"/\xb7\xc1\x9e\xc7\xec\xdbG\xadWw\xcf\xfd\xf3\x09T" +
-	"\xd84\x80\xd3\xc3\xef\x9dkhN}\xdc\x04\xccv\xff" +
-	">\xf3\xe8\xaf_\xe7\xbe\xf9O/\x9f\x068u\x9a-" +
-	"\xa1\xd3\xc8\xc7V\xd8w\x80\xd9\x8fW\x9e~\xdd}\x05" +
-	"\x7f\x1b\x0b\xcc\xffp\xb6\xcd\x98s\x8d\x1b\xe0\x9f?\xfe" +
-	"r\xf1\xf1\xc3\xcf\x9e\x82\x98G6\xd2l\x99\x96\xe3\xd6" +
-	"\x9es\xda\x9cN\xd5\xacw\x10\xced]\xa5\xb5\xbc\xac" +
-	"N\xa0'\xe30~s\xc5w\xfdDi\xbd\x86(f" +
-	"\xb8\x05`!\x80}t\xc9>\xea\x8aU\x8e\xa2\xcd\xd0" +
-	"F\xac\xa2y\xab\x0e\xda\xca\x15;\x1c\xc5M\x86\x0b\xb1" +
-	"L\xdb\xc2B\x96\xbd\xf7\xc5mq\xf7\xf1\xa7\xf7AX" +
-	"\x0cW\xaa\x88\xb3\x006^\xca\xa4\x97F\x09\xc5\x12x" +
-	"\xda\x06\xc0y\xc05n\x8a\xcc\x1cy\xe0O\x18>_" +
-	"\x0e\x07>@12\x0b8\xa4\xce\x0b\xeao\x17\x8fk" +
-	"I\xe4)\xad\x83\xf0rc!I\xa2\xc4(\x99\x1d*" +
-	"i,\xd9\x0dW\xb49\x8a\xeb#J\xb6\xeb\xf6\xb6+" +
-	"\xeep\x14\xf7\x18\xda\x8cU\x91\x01\xd8\xfb/\xdb\xfb\xae" +
-	"\xf8\x9d\xa3x\xf2\xc2\xfa\xb6J\xb2c\x10\x8e\xe4\x085" +
-	"\xdc\xc3\xaca\x08S\xe4U\xbc^\x92(\x9f6\xdbA" +
-	"GQ<TDi;\xd0TB\x91\x0a\xaf.\xabN" +
-	"\x14\xab\x13\x008\x07\x0c\xe7\x00\xa7U\x92L`\x99\x94" +
-	"\x9f\xe8*ps\x10\x80\xff\xd9\xc9\x0a;\xcf\xb6e\x18" +
-	"\xaa\xce\x8a\xef/\x8c\x09D\xdd\x04b\x8d\xa3xw\xc4" +
-	"\xc6\x8bu\xfb\xa2+>\xe2(v\x18ny\x05\xc0\x18" +
-	"6\x8b%\x9b\xdd\xc17\x09\xcbfZ\x08ew\x84\xd4" +
-	"\x96\xf4\xf38N\x94T\x18/}(\xa2\x0b\x80\x07\x9e" +
-	"m\" \x1e\x18\x11W\xc6\xbc\x11._\xcd\xad3\xb2" +
-	"\x16\x87\xb2n\x1d\xb4o\xb9\xe2'\x8e\xe2!\xc3\x81\xaa" +
-	"\x07u\xfb\x81\xdb|\x0996\x8f\xa0\x89\x07\xe6\xf1p" +
-	"\x0ec\xdd9\x8cns\xd5T.\x98\x0agU\xe4\x00" +
-	"N\x0b\xebN\x0b\xdd\xe6\x8e\xa9\xdc4\x15\x8bW\xd1\x02" +
-	"pn`\xdd\xb9\x81n\xf3\x8e\xa9\xdc3\x95\xcaL\x15" +
-	"+\x88\xce>n8\xf7\xd1m\xce0\x8e\xcd*c\xcf" +
-	"\xd9\x88\x81u\x9fg\xbd0\xb8\xd2S\xd4\xc5\xd2\xc2\x00" +
-	"\xfd\x11\xdf\xbcD\xc9T\x8dC8W\xc6-\xe1C\xf7" +
-	"gUX\xb8A\xf9X\x10\x85\x94\x06]\xa5S\xd9\x8d" +
-	"\xe98IM\x92Za\xf0A\xfe\xf6\x18\xa5mEa" +
-	"\xaf\xbb\xa1\x12\x8a\xde'\xad\xbc(\xf45\xa9\x8e\x8c\xb5" +
-	"\xf2I\x07\xa1\xa7\xe8\xbc\x0c{2\xe9S\xed\x18\xd5\xde" +
-	"x\xdd=I\xad\xf5\xb3\x00X\x01\x86\x15\xc0\xadD\xc5" +
-	"\x9d\xfez4A\xe0^\x16\xc5\x86\x89\xec \xe5\xdd$" +
-	"\x97\xfdg\xf7;\xfc!\x16\xf7;!l\x87J\xbd\x97" +
-	"03\xc4M\xa3e\x92f\x1e\x06\x06\x04\x9a\xa4\xd6\x91" +
-	"\x17\x18\xcfh3(6x\xe0\xe5\xf3Ww@\xf6\xab" +
-	"L\xab$\x90\x9d\xe0CT~\x81\xca\xf3\xdd*\xb7r" +
-	"\xe0\xf4:L\xf7\xe3q@\xaf\x0d.\x85\x0d/e&" +
-	"\xed\xc79\xb3\x9e\xce\xff\x04*\xa4n\xaf\x93\x06qG" +
-	"\x91)ic~\xd9\xac\xc9\x93!m(\xd2*L)" +
-	"\x0aI\x92\xd7vsG\x00p\x0a\x18N\x01\xfe\x1b\x00" +
-	"\x00\xff\xff\x0e\x01\xce\xf6"
+func (p MessageProcessingError_Promise) Message() MessageProcessingError_Message_Promise {
+	return MessageProcessingError_Message_Promise{Pipeline: p.Pipeline.GetPipeline(1)}
+}
+
+type MessageProcessingError_Message struct{ capnp.Struct }
+
+// MessageProcessingError_Message_TypeID is the unique identifier for the type MessageProcessingError_Message.
+const MessageProcessingError_Message_TypeID = 0xd187ae75f5896d22
+
+func NewMessageProcessingError_Message(s *capnp.Segment) (MessageProcessingError_Message, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 3})
+	return MessageProcessingError_Message{st}, err
+}
+
+func NewRootMessageProcessingError_Message(s *capnp.Segment) (MessageProcessingError_Message, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 3})
+	return MessageProcessingError_Message{st}, err
+}
+
+func ReadRootMessageProcessingError_Message(msg *capnp.Message) (MessageProcessingError_Message, error) {
+	root, err := msg.RootPtr()
+	return MessageProcessingError_Message{root.Struct()}, err
+}
+
+func (s MessageProcessingError_Message) String() string {
+	str, _ := text.Marshal(0xd187ae75f5896d22, s.Struct)
+	return str
+}
+
+func (s MessageProcessingError_Message) Id() (string, error) {
+	p, err := s.Struct.Ptr(0)
+	return p.Text(), err
+}
+
+func (s MessageProcessingError_Message) HasId() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s MessageProcessingError_Message) IdBytes() ([]byte, error) {
+	p, err := s.Struct.Ptr(0)
+	return p.TextBytes(), err
+}
+
+func (s MessageProcessingError_Message) SetId(v string) error {
+	return s.Struct.SetText(0, v)
+}
+
+func (s MessageProcessingError_Message) Created() int64 {
+	return int64(s.Struct.Uint64(0))
+}
+
+func (s MessageProcessingError_Message) SetCreated(v int64) {
+	s.Struct.SetUint64(0, uint64(v))
+}
+
+func (s MessageProcessingError_Message) ReplyTo() (ChannelAddress, error) {
+	p, err := s.Struct.Ptr(1)
+	return ChannelAddress{Struct: p.Struct()}, err
+}
+
+func (s MessageProcessingError_Message) HasReplyTo() bool {
+	p, err := s.Struct.Ptr(1)
+	return p.IsValid() || err != nil
+}
+
+func (s MessageProcessingError_Message) SetReplyTo(v ChannelAddress) error {
+	return s.Struct.SetPtr(1, v.Struct.ToPtr())
+}
+
+// NewReplyTo sets the replyTo field to a newly
+// allocated ChannelAddress struct, preferring placement in s's segment.
+func (s MessageProcessingError_Message) NewReplyTo() (ChannelAddress, error) {
+	ss, err := NewChannelAddress(s.Struct.Segment())
+	if err != nil {
+		return ChannelAddress{}, err
+	}
+	err = s.Struct.SetPtr(1, ss.Struct.ToPtr())
+	return ss, err
+}
+
+func (s MessageProcessingError_Message) Channel() (string, error) {
+	p, err := s.Struct.Ptr(2)
+	return p.Text(), err
+}
+
+func (s MessageProcessingError_Message) HasChannel() bool {
+	p, err := s.Struct.Ptr(2)
+	return p.IsValid() || err != nil
+}
+
+func (s MessageProcessingError_Message) ChannelBytes() ([]byte, error) {
+	p, err := s.Struct.Ptr(2)
+	return p.TextBytes(), err
+}
+
+func (s MessageProcessingError_Message) SetChannel(v string) error {
+	return s.Struct.SetText(2, v)
+}
+
+func (s MessageProcessingError_Message) MessageType() uint8 {
+	return s.Struct.Uint8(8)
+}
+
+func (s MessageProcessingError_Message) SetMessageType(v uint8) {
+	s.Struct.SetUint8(8, v)
+}
+
+// MessageProcessingError_Message_List is a list of MessageProcessingError_Message.
+type MessageProcessingError_Message_List struct{ capnp.List }
+
+// NewMessageProcessingError_Message creates a new list of MessageProcessingError_Message.
+func NewMessageProcessingError_Message_List(s *capnp.Segment, sz int32) (MessageProcessingError_Message_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 16, PointerCount: 3}, sz)
+	return MessageProcessingError_Message_List{l}, err
+}
+
+func (s MessageProcessingError_Message_List) At(i int) MessageProcessingError_Message {
+	return MessageProcessingError_Message{s.List.Struct(i)}
+}
+
+func (s MessageProcessingError_Message_List) Set(i int, v MessageProcessingError_Message) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s MessageProcessingError_Message_List) String() string {
+	str, _ := text.MarshalList(0xd187ae75f5896d22, s.List)
+	return str
+}
+
+// MessageProcessingError_Message_Promise is a wrapper for a MessageProcessingError_Message promised by a client call.
+type MessageProcessingError_Message_Promise struct{ *capnp.Pipeline }
+
+func (p MessageProcessingError_Message_Promise) Struct() (MessageProcessingError_Message, error) {
+	s, err := p.Pipeline.Struct()
+	return MessageProcessingError_Message{s}, err
+}
+
+func (p MessageProcessingError_Message_Promise) ReplyTo() ChannelAddress_Promise {
+	return ChannelAddress_Promise{Pipeline: p.Pipeline.GetPipeline(1)}
+}
+
+const schema_87fc44aa3255d2ae = "x\xda\xecU]h\x1cU\x14>\xe7\xde\xddM\x1e\x92" +
+	"\xa6\xc3,X\x8ap/\xc5H\x1b\xd2\xd2\xb4\x16\xa3/" +
+	"5\xdb\xe6\xa5\xa4\x90\xcb&\xd8\x06\x11nf\xae\xdd\x91" +
+	"\xdd\x99\xc9\xdcYc\xc4\xba/B\xa3X\xf0\xa7\x0a\x15" +
+	"\xa5\xfa \x92 \x15\x04\x7f(\x04\x14\xccC\xa0>X" +
+	"\xb1\xf4\xb5\xe0\x93\xf8 \x94\x82Ha\xe4\xce\xecN\x96" +
+	"t\xb3\xbe\x8bow\xe7\x9cs\xf7|\xdf\xf9\xbes\x8f" +
+	"~D\x9e!\x13\xc5e\x0a \x0e\x16K\xc9\xc6\xeb\xdf" +
+	"\xcc\xfcy\xee\x97k`\xed\xc1\xe4\xfa\xad\xf9c\xeb\xa7" +
+	"\x1f\\\x82\"\x19\x00\xb0?\xc5\xaf\xec54\xa7\xcfp" +
+	"\x190Y\xff{\xf2\xd6\xfd_\x87?\xdf\x91K\x07\x00" +
+	"\x8eK2\x86\xf6\x12y\x04\xc0^!_\x02&\x07\x1a" +
+	"o\xdco^\xbf\xf43\x88Q$\xdb\xa5Y\xf6\xd7\xf4" +
+	"E\xb4\xb7\xd2\xe3&e\x08\x98|\xbbt\xef\xe3\xc6\xe3" +
+	"x\xa7W\x1f\xc5\xd2\xef\xb6U2\xa7\xe1\x92\xe9\xe3\xa7" +
+	"\xd7>\xd8w\xfb\xe6[\xf7@\xecA\xd2\x95\\0)" +
+	"\x1b\xa5\x1b\xf6\xa6I>\xfeC\xe9Y\x84\xc9\xa4\xa1\xb4" +
+	"\x96\x17\xd4\x11td\xe8\x87OO\xb9\xcc\x8d\x94\xd6\xb3" +
+	"\x88b\x90\x16\x00\x0a\x08`\x1d\x1a\xb3\x0e11CQ" +
+	"\xd4\x08Z\x88e4_\xd5~K1\xb1JQ\\!" +
+	"8\x12\xca\xb8&\x0aH\x92\xe7\xdf\xbb&6n\xbf\xb9" +
+	"\x09\xa2@p\xaa\x8c8\x04`\xe1B\"\x9d8\x88x" +
+	"(\x81\xc65\x00\xdc\x038KM\x90\x98#\xf5\xdc>" +
+	"\xc5g\xda\xc5\x9e\x0b\x90\x95\x0c\x01\xe6\xad\xd3\xac\xf5\xb3" +
+	"\xd9\xcf\xd9(p\x94\xd6\x9e\x7faz$\x8a\x82H\x14" +
+	"\xb0\x8bn\x0b+\xadv\xa2\x18\xca\xf1M\x8fY\xd3L" +
+	"\xc4\x14\xc5\xdb]\xf8.W\xac\xcbL|OQ\xdc$" +
+	"h\x11RF\x02`m\x1d\xb0\xb6\x98\xf8\x83\xa2\xf8k" +
+	"w\xd4<m|\x02\x8fa\x0e\x9b\xc65~\x98/\xd7" +
+	"T\xa4x\\S\\\x99\xe6x\xe08\xac\x19E\xca}" +
+	"\x88\x91V\x1b^\x8f\xdb\x1fk\xdf\x1ea2\xdd\xbe\xa5" +
+	"\xe0\xa4\xb7\xf0\xe5\x9aWW<\xcc9\xe0q\xcd\xd3\xbc" +
+	"\xa14K\xa9\x02\xc0\xbd\xdbd\x00\xe2^\xc0\x01\x15E" +
+	"}\xb8\x8f\xda\xff\xd1P\xc0\xd2\x86\x00\x1e\x9a@a\xb7" +
+	"\x09\x98\xca#g\x95\x1eI\xbf#\x8ar\xce\xf9\xc5\xfd" +
+	"\xd6E&>\xa1(\xbe \xd8\xa1|\xadb\xad1\xf1" +
+	"\x80bu\x10\x0d\xe7\x98rn\x17\xb1b\x17\x91U\xc7" +
+	"\x91bu\xd2D()#\x05\xb0O`\xc5>\x81\xac" +
+	"Z3\x91\xd8D\x0a\x83e, \xdaK\xb8h7\x91" +
+	"U\xbf3\x91\x1f\x91\xfc\x8b\xc4\x16:`8\xd0Tf" +
+	"m\x8c-'R2V\xbdJOw\xc6@\xf3\xda!" +
+	"\xe5\xbf\xa4\xeaA\xa8xZ\xe6\x05>\x8f\xbd\x86\xd2\xb1" +
+	"l\x84\xfc0\x97\x9aK>\xef{/\xa7_\xc7S\x1d" +
+	"\xf8\xcd\xc6\xa2\x8ax\xf0\x02\xd7\xca\x09|WsU\x97" +
+	"\xa1V.\xd7\x9e\xef(~F\xfaM\x19\xad\xf0\x89q" +
+	">\xf1\xd4\x93\xec(\x9f\x9f;\x05\x80E X\x04l" +
+	"E*\xac\xaf\xcc\x05=\xda\xdb\xd7Fv#\x09B\xd3" +
+	"\x89\xac#O\xb3\xb9<\xe9\xa6&O\xd5\x90\xaf\x96L" +
+	"\x0d-\xa7&}_\xd5\xfb\xc8n\x01\x13\xd3\xb8I," +
+	"\xf8\xaa\x9e\xa2\xe8\x10\xe0i.\xb5\x0e\x1c\xcfp\xc6\x97" +
+	"\xbd\xcc\xeb;\xf42\x07\x03+a/a?\xd1a\x94" +
+	"\xe4\x8c\x0e\xc6+azmS\xa7\xf2V>o4\xeb" +
+	"\xb1\x17\xd6\x157!m\x98k'k\xeeH\x9f/*" +
+	"\xae\x95\x1f\xf3\xc0\xe7\x92;5\x96\xc2\x01\xc0\x12\x10," +
+	"u\x89\x96d\xa2=\x95\xe1\x9dr\xdd\x91\x1e\x8b\xafb" +
+	"\x16\xdf,E\xf1\\\xd7b8_\xb1\xce3\xf1*E" +
+	"\xb1J\xfa\x11\xd6\x99\xc0z\x8e\x06\xdb\xc9|\xc4\x97\x8d" +
+	".'\xb5d6\x91\xbe>\xcc6\x89t\x81mO/" +
+	"\x7f\xa0\xb2\xe9\xed\\\xe7\xd3\xfe\xc9L\x8f\x06\xd6\xbe\x1c" +
+	"\xd6\xd5\xfd\xd6\xd5|\xb3uPmU\xac-V}\xd4" +
+	"\xd8\xe5`\xb7\xf9F\xb1b\x8f\"\xab\xce\x98\xc8\xb9n" +
+	"\xf3\xcdc\xc5\x9eGV]5\x91+\xdd\xe6{\x07\x17" +
+	"\xed\xf7\x91U\xef\x98\xc8o&R\xa4e,\x02\xd8w" +
+	"\xb1b\xdfEV\x1d$\x14\xabe\xb2\x9b-;\xd4\xbd" +
+	"\x9b4}o\xa9\xa9x\x03;\x0a\xc3\xff\xdd\xf9\xdfu" +
+	"g\x9fW\xaf\xc3\xd8\x87\x89V\x91'\xeb\xde+\xa8\xdc" +
+	"\xecr\x9a\xbeJ\xc3@p\x18\xf0\x9f\x00\x00\x00\xff\xff" +
+	"@\x81\xb7\xe2"
 
 func init() {
 	schemas.Register(schema_87fc44aa3255d2ae,
 		0x9fd358f04cb684bd,
 		0xa70dd5f5d238faaa,
+		0xd187ae75f5896d22,
 		0xd801266d9df371b7,
 		0xf38cccd618967ecd)
 }
