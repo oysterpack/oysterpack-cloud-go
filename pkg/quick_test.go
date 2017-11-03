@@ -177,3 +177,20 @@ func TestDefer(t *testing.T) {
 	defer t.Log("B")
 	defer t.Log("C")
 }
+
+func TestDeleteMapEntry(t *testing.T) {
+	type Foo struct{}
+
+	type IFoo interface{}
+
+	m := map[string]*Foo{"foo": &Foo{}}
+
+	var foo IFoo = m["foo"]
+	if foo == nil {
+		t.Fatal("foo was nil")
+	}
+	delete(m, "foo")
+	if foo == nil {
+		t.Fatal("foo was nil")
+	}
+}

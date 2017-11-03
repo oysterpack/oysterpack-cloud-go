@@ -27,7 +27,7 @@ the -benchmem flag will include memory allocation statistics in the report
 
 # How to profile
 - it's usually better to profile specific benchmarks that have been constructed to be representative of workloads one cares about
-    - benchmarking test cases is almost never represtative, which is why they are disabled by using the filter **-run=NONE**
+    - benchmarking test cases is almost never representative, which is why they are disabled by using the filter **-run=NONE**
     
 ### collect profile data
     go test -run=NONE -bench=. -blockprofile block.out

@@ -84,7 +84,9 @@ func (a MessageChannelHandlers) MessageTypes(channel Channel) []MessageType {
 	return msgTypes
 }
 
-func (a MessageChannelHandlers) Stopped() {}
+func (a MessageChannelHandlers) Stopped() {
+	LOG_EVENT_STOPPED.Log(logger.Debug()).Str(logging.TYPE, "MessageChannelHandlers").Msg("")
+}
 
 // ValidateMessageProcessor performs the following checks :
 //
@@ -132,7 +134,7 @@ func StartMessageProcessorEngine(messageProcessor MessageProcessor, logger zerol
 //
 //										 |   |   |   |
 //										 V   V   V   V
-//   MessageProcessorEngine channels  	[ ]	[ ]	[ ]	[ ]
+//       Actor channels  	            [ ]	[ ]	[ ]	[ ]
 //										 |   |   |   |
 //										 V   V   V   V
 //										 |___|___|___|
@@ -147,8 +149,6 @@ type MessageProcessorEngine struct {
 	tomb.Tomb
 
 	MessageProcessor
-
-	channels map[Channel]chan *MessageContext
 
 	c chan *MessageContext
 
@@ -171,102 +171,40 @@ func (a *MessageProcessorEngine) start() error {
 	}()
 
 	a.c = make(chan *MessageContext)
-	if len(a.ChannelNames()) == 1 {
-		channel := a.ChannelNames()[0]
-		a.channels = map[Channel]chan *MessageContext{channel: a.c}
-		a.Go(func() error {
-			LOG_EVENT_STARTED.Log(a.logger.Info()).Str(LOG_FIELD_CHANNEL, channel.String()).Msg("")
-			LOG_EVENT_STARTED.Log(a.logger.Info()).Msg("")
-			for {
-				select {
-				case <-a.Dying():
-					LOG_EVENT_DYING.Log(a.logger.Info()).Str(LOG_FIELD_CHANNEL, channel.String()).Msg("")
-					LOG_EVENT_DYING.Log(a.logger.Info()).Msg("")
+	a.Go(func() error {
+		LOG_EVENT_STARTED.Log(a.logger.Debug()).Msg("")
+		for {
+			select {
+			case <-a.Dying():
+				LOG_EVENT_DYING.Log(a.logger.Debug()).Msg("")
+				return nil
+			case msg := <-a.c:
+				if msg == nil {
+					LOG_EVENT_NIL_MSG.Log(a.logger.Debug()).Msg("")
 					return nil
-				case msg := <-a.c:
-					if msg == nil {
-						LOG_EVENT_NIL_MSG.Log(a.logger.Info()).Msg("")
-						return nil
-					}
-					receive := a.Handler(channel, msg.Envelope.MessageType())
-					if receive == nil {
-						LOG_EVENT_UNKNOWN_MESSAGE_TYPE.Log(a.logger.Error()).Str(LOG_FIELD_CHANNEL, channel.String()).Msg("Message dropped")
-						continue
-					}
-					if err := receive(msg); err != nil {
-						return &MessageProcessingError{
-							Path:    msg.Path(),
-							Message: msg.Envelope,
-							Err:     err,
-						}
+				}
+				receive := a.Handler(msg.Envelope.channel, msg.Envelope.MessageType())
+				if receive == nil {
+					LOG_EVENT_UNKNOWN_MESSAGE_TYPE.Log(a.logger.Error()).
+						Str(LOG_FIELD_CHANNEL, msg.Envelope.channel.String()).
+						Uint8(LOG_FIELD_MSG_TYPE, msg.Envelope.msgType.UInt8()).
+						Msg("Message dropped")
+					continue
+				}
+				if err := receive(msg); err != nil {
+					return &MessageProcessingError{
+						Path:    msg.Path(),
+						Message: msg.Envelope,
+						Err:     err,
 					}
 				}
 			}
-		})
-	} else {
-		a.channels = make(map[Channel]chan *MessageContext, len(a.ChannelNames()))
-
-		// fan in all messages received on channels into the MessageProcessorEngine channel
-		a.Go(func() error {
-			LOG_EVENT_STARTED.Log(a.logger.Info()).Msg("")
-			for {
-				select {
-				case <-a.Dying():
-					LOG_EVENT_DYING.Log(a.logger.Info()).Msg("")
-					return nil
-				case msg := <-a.c:
-					if msg == nil {
-						LOG_EVENT_NIL_MSG.Log(a.logger.Info()).Msg("")
-						return nil
-					}
-					receive := a.Handler(msg.Envelope.channel, msg.Envelope.MessageType())
-					if receive == nil {
-						LOG_EVENT_UNKNOWN_MESSAGE_TYPE.Log(a.logger.Error()).Str(LOG_FIELD_CHANNEL, msg.Envelope.channel.String()).Msg("Message dropped")
-						continue
-					}
-					if err := receive(msg); err != nil {
-						return &MessageProcessingError{
-							Path:    msg.Path(),
-							Message: msg.Envelope,
-							Err:     err,
-						}
-					}
-				}
-			}
-		})
-
-		for _, channel := range a.ChannelNames() {
-			c := make(chan *MessageContext)
-			a.channels[channel] = c
-			channelName := channel.String()
-			a.Go(func() error {
-				LOG_EVENT_STARTED.Log(a.logger.Info()).Str(LOG_FIELD_CHANNEL, channelName).Msg("")
-				for {
-					select {
-					case <-a.Dying():
-						LOG_EVENT_DYING.Log(a.logger.Info()).Str(LOG_FIELD_CHANNEL, channelName).Msg("")
-						return nil
-					case msg := <-c:
-						if msg == nil {
-							LOG_EVENT_NIL_MSG.Log(a.logger.Info()).Str(LOG_FIELD_CHANNEL, channelName).Msg("")
-							return nil
-						}
-						select {
-						case <-a.Dying():
-							LOG_EVENT_DYING.Log(a.logger.Info()).Str(LOG_FIELD_CHANNEL, channelName).Msg("")
-							return nil
-						case a.c <- msg:
-						}
-
-					}
-				}
-			})
 		}
-	}
+	})
 	return nil
 }
 
 // Channel returns the channel that is used for sending messages to this message processor
-func (a *MessageProcessorEngine) Channel(channel Channel) chan<- *MessageContext {
-	return a.channels[channel]
+func (a *MessageProcessorEngine) Channel() chan<- *MessageContext {
+	return a.c
 }

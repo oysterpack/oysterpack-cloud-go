@@ -40,6 +40,7 @@ func (a MessageType) UInt8() uint8 {
 const MESSAGE_TYPE_DEFAULT MessageType = 0
 
 // Message that is sent between actors.
+//
 // All messages must know how marshal themselves to a binary format.
 // All messages are delivered within an Envelope. The envelope will compress the entire envelope, thus there is no need
 // to perform compression in this layer.
@@ -55,11 +56,12 @@ type UID func() string
 
 // NewEnvelope creates a new Envelope wrapping the specified message
 // 	- uid is used to generate the envelope message id
-func NewEnvelope(uid UID, channel Channel, msg Message, replyTo *ChannelAddress) *Envelope {
+func NewEnvelope(uid UID, channel Channel, msgType MessageType, msg Message, replyTo *ChannelAddress) *Envelope {
 	return &Envelope{
 		id:      uid(),
 		created: time.Now(),
 		channel: channel,
+		msgType: msgType,
 		message: msg,
 		replyTo: replyTo,
 	}

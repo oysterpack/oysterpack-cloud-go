@@ -51,9 +51,9 @@ func TestStartMessageProcessorEngine(t *testing.T) {
 	}
 
 	msg := actor.PING_REQ
-	processor.Channel(actor.CHANNEL_SYSTEM) <- &actor.MessageContext{
+	processor.Channel() <- &actor.MessageContext{
 		Actor:    nil,
-		Envelope: actor.NewEnvelope(uid, actor.CHANNEL_SYSTEM, msg, nil),
+		Envelope: actor.NewEnvelope(uid, actor.CHANNEL_SYSTEM, actor.SYS_MSG_PING_REQ, msg, nil),
 	}
 
 	processor.Kill(nil)

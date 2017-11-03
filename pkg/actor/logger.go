@@ -28,13 +28,17 @@ const (
 	LOG_FIELD_ACTOR_ID   = "id"
 	LOG_FIELD_CHANNEL    = "channel"
 	LOG_FIELD_MSG_TYPE   = "msg_type"
+	LOG_FIELD_CHILD      = "child"
 
 	// events
 	LOG_EVENT_STARTED   logging.Event = "STARTED"
 	LOG_EVENT_RESTARTED logging.Event = "RESTARTED"
+	LOG_EVENT_STOPPED   logging.Event = "STOPPED"
 
-	LOG_EVENT_DYING logging.Event = "DYING"
-	LOG_EVENT_DEAD  logging.Event = "DEAD"
+	LOG_EVENT_KILL      logging.Event = "KILL"
+	LOG_EVENT_DYING     logging.Event = "DYING"
+	LOG_EVENT_DEAD      logging.Event = "DEAD"
+	LOG_EVENT_DEATH_ERR logging.Event = "DEATH_ERR"
 
 	LOG_EVENT_NIL_MSG logging.Event = "NIL_MSG"
 

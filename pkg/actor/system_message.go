@@ -21,17 +21,15 @@ import (
 	"zombiezen.com/go/capnproto2"
 )
 
-const CHANNEL_SYSTEM = Channel("0")
-
 // System Message Types
 // iota is not used because the enum values must remain constant. If iota was used, then re-arranging them would change
 // the enum values and break clients until they upgrade, i.e., reordering an iota based enum is not a backwards compatible change.
 const (
-	SYSTEM_MESSAGE_HEARTBEAT_REQ  MessageType = 0
-	SYSTEM_MESSAGE_HEARTBEAT_RESP MessageType = 1
+	SYS_MSG_HEARTBEAT_REQ  MessageType = 0
+	SYS_MSG_HEARTBEAT_RESP MessageType = 1
 
-	SYSTEM_MESSAGE_PING_REQ  MessageType = 2
-	SYSTEM_MESSAGE_PING_RESP MessageType = 3
+	SYS_MSG_PING_REQ  MessageType = 2
+	SYS_MSG_PING_RESP MessageType = 3
 )
 
 type SystemMessage interface {
