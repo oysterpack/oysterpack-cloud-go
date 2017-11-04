@@ -102,6 +102,8 @@ type Actor struct {
 
 	restarts        int
 	lastRestartTime time.Time
+
+	supervisor SupervisorStrategy
 }
 
 func (a *Actor) putChild(actor *Actor) {
@@ -128,6 +130,17 @@ func (a *Actor) deleteChild(name string) {
 	if a.children != nil {
 		delete(a.children, name)
 	}
+}
+
+func (a *Actor) getChildren() []*Actor {
+	a.childrenLock.RLock()
+	defer a.childrenLock.RUnlock()
+	temp := make([]*Actor, len(a.children))
+	i := 0
+	for _, child := range a.children {
+		temp[i] = child
+	}
+	return temp
 }
 
 //func (a *actorMap) addressPathKey(path []string) string { return strings.Join(path, "") }
@@ -168,6 +181,7 @@ func (a *Actor) Spawn(name string, messageProcessorFactory MessageProcessorFacto
 		messageProcessorFactory: messageProcessorFactory,
 		channelSettings:         chanSettingsMap,
 		logger:                  logger,
+		supervisor:              supervisor,
 	}
 
 	if err := child.start(); err != nil {
@@ -175,34 +189,6 @@ func (a *Actor) Spawn(name string, messageProcessorFactory MessageProcessorFacto
 	}
 
 	a.putChild(child)
-
-	// watch the child
-	a.Go(func() error {
-		for {
-			// NOTE: the child may have been restarted. Thus, we always want to get the current MessageProcessorEngine.
-			// MessageProcessorEngine access is protected by a RWMutex to enable safe concurrent access.
-			childMsgProcessorEngine := child.messageProcessorEngine()
-			select {
-			case <-a.Dying():
-				a.deleteChild(name)
-				return nil
-			case <-child.Dying():
-				a.deleteChild(name)
-				return nil
-			case <-childMsgProcessorEngine.Dead():
-				select {
-				case <-a.Dying():
-					a.deleteChild(name)
-				default:
-					// if the MessageProcessorEngine died with an error, then delegate to the supervisor
-					if err := childMsgProcessorEngine.Err(); err != nil {
-						child.failures.failure(err)
-						supervisor(child, err)
-					}
-				}
-			}
-		}
-	})
 
 	return child, nil
 }
@@ -270,29 +256,65 @@ func (a *Actor) start() (err error) {
 		return
 	}
 
-	// when this actor is killed, tear down the actor hierarchy
-	a.Go(func() error {
-		<-a.Dying()
-		LOG_EVENT_DYING.Log(a.logger.Debug()).Msg("")
-		a.lock.RLock()
-		defer a.lock.RUnlock()
-		for _, child := range a.children {
-			LOG_EVENT_KILL.Log(a.logger.Debug()).Str(LOG_FIELD_CHILD, child.Name()).Msg("")
-			child.Kill(nil)
-		}
+	a.watch()
+	return
+}
 
-		for _, child := range a.children {
-			if err := child.Wait(); err != nil {
-				LOG_EVENT_DEATH_ERR.Log(a.logger.Debug()).Str(LOG_FIELD_CHILD, child.Name()).Err(err).Msg("")
-			} else {
-				LOG_EVENT_DEAD.Log(a.logger.Debug()).Str(LOG_FIELD_CHILD, child.Name()).Msg("")
+// when this actor is killed, tear down the actor hierarchy and kill the message processor engine
+func (a *Actor) watch() {
+	a.Go(func() error {
+
+		for {
+			// NOTE: the child may have been restarted. Thus, we always want to get the current MessageProcessorEngine.
+			// MessageProcessorEngine access is protected by a RWMutex to enable safe concurrent access.
+			messageProcessorEngine := a.messageProcessorEngine()
+
+			select {
+			case <-a.Dying():
+				a.stop()
+				return nil
+			case <-messageProcessorEngine.Dead():
+				select {
+				case <-a.Dying():
+					a.stop()
+					return nil
+				default:
+					// if the MessageProcessorEngine died with an error, then delegate to the supervisor
+					if err := messageProcessorEngine.Err(); err != nil {
+						LOG_EVENT_DEATH_ERR.Log(a.logger.Error()).Err(err).Msg("")
+						a.failures.failure(err)
+						a.supervisor(a, err)
+					}
+				}
 			}
 		}
-		a.msgProcessorEngine.Kill(nil)
-		a.msgProcessorEngine.Wait()
-		return nil
 	})
-	return
+}
+
+func (a *Actor) stop() {
+	LOG_EVENT_DYING.Log(a.logger.Debug()).Msg("")
+	a.lock.RLock()
+	defer a.lock.RUnlock()
+
+	if a.parent != nil {
+		a.parent.deleteChild(a.Name())
+	}
+
+	children := a.getChildren()
+
+	for _, child := range children {
+		LOG_EVENT_KILL.Log(a.logger.Debug()).Str(LOG_FIELD_CHILD, child.Name()).Msg("")
+		child.Kill(nil)
+	}
+
+	for _, child := range children {
+		if err := child.Wait(); err != nil {
+			LOG_EVENT_DEATH_ERR.Log(a.logger.Debug()).Str(LOG_FIELD_CHILD, child.Name()).Err(err).Msg("")
+		} else {
+			LOG_EVENT_DEAD.Log(a.logger.Debug()).Str(LOG_FIELD_CHILD, child.Name()).Msg("")
+		}
+	}
+	a.msgProcessorEngine.Kill(nil)
 }
 
 func (a *Actor) init() error {
@@ -393,6 +415,11 @@ func (a *Actor) ChannelAddress(channel Channel) (*ChannelAddress, bool) {
 func (a *Actor) restart(mode RestartMode) (err error) {
 	a.lock.Lock()
 	defer a.lock.Unlock()
+
+	if !a.Alive() {
+		a.Tomb = tomb.Tomb{}
+	}
+
 	defer func() {
 		if err != nil {
 			a.Kill(err)
@@ -405,14 +432,15 @@ func (a *Actor) restart(mode RestartMode) (err error) {
 	switch mode {
 	case RESTART_ACTOR:
 	case RESTART_ACTOR_HIERARCHY:
-		for _, child := range a.children {
+		for _, child := range a.getChildren() {
 			child.restart(mode)
 		}
 	case RESTART_ACTOR_KILL_CHILDREN:
-		for _, child := range a.children {
+		children := a.getChildren()
+		for _, child := range children {
 			child.Kill(nil)
 		}
-		for _, child := range a.children {
+		for _, child := range children {
 			child.Wait()
 		}
 	default:
@@ -423,7 +451,7 @@ func (a *Actor) restart(mode RestartMode) (err error) {
 		return err
 	}
 
-	LOG_EVENT_RESTARTED.Log(a.logger.Debug()).Msg("")
+	LOG_EVENT_RESTARTED.Log(a.logger.Info()).Str(LOG_FIELD_MODE, mode.String()).Msg("")
 
 	a.restarts++
 	a.lastRestartTime = time.Now()

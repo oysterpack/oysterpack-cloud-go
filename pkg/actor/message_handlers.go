@@ -29,12 +29,16 @@ type MessageChannelKey struct {
 }
 
 func (a MessageHandlers) ChannelNames() []Channel {
-	channels := make([]Channel, len(a))
-	i := 0
-	for channel := range a {
-		channels[i] = channel.Channel
-		i++
+	m := make(map[Channel]struct{}, len(a))
+	channels := []Channel{}
+	empty := struct{}{}
+	for key := range a {
+		if _, ok := m[key.Channel]; !ok {
+			m[key.Channel] = empty
+			channels = append(channels, key.Channel)
+		}
 	}
+
 	return channels
 }
 

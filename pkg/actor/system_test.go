@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/oysterpack/oysterpack.go/pkg/actor"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
 
@@ -77,17 +78,20 @@ func TestNewSystem(t *testing.T) {
 func fooMessageProcessor(count int, address *actor.Address) actor.MessageProcessor {
 	return actor.MessageHandlers{
 		actor.MessageChannelKey{actor.CHANNEL_INBOX, actor.SYS_MSG_HEARTBEAT_RESP}: actor.MessageHandler{func(ctx *actor.MessageContext) error {
-			// when a heartbeat response is received, send another heartbeat request
-			heartbeatReq := ctx.RequestEnvelope(ctx.Envelope.ReplyTo().Channel, actor.SYS_MSG_HEARTBEAT_REQ, actor.PING_REQ, actor.CHANNEL_INBOX)
-			if err := ctx.Send(heartbeatReq, ctx.Envelope.ReplyTo().Address); err != nil {
-				return err
-			}
 			count--
 			ctx.Logger().Debug().Int("count", count).Msg("")
 			if count == 0 {
 				ctx.Logger().Debug().Msg("foo is done")
 				ctx.Kill(nil)
+				return nil
 			}
+
+			// when a heartbeat response is received, send another heartbeat request
+			heartbeatReq := ctx.RequestEnvelope(ctx.Envelope.ReplyTo().Channel, actor.SYS_MSG_HEARTBEAT_REQ, actor.PING_REQ, actor.CHANNEL_INBOX)
+			if err := ctx.Send(heartbeatReq, ctx.Envelope.ReplyTo().Address); err != nil {
+				return err
+			}
+
 			return nil
 		},
 			actor.UnmarshalHeartbeatResponse,
@@ -159,6 +163,8 @@ func BenchmarkActorMessaging(b *testing.B) {
 		b.Fatalf("Failed to spawn the bar actor : %v", err)
 	}
 
+	log.Logger.Debug().Dict("bar", zerolog.Dict().Strs("path", bar.Address().Path).Str("id", bar.Id())).Msg("")
+
 	b.Run("Heartbeat Request/Response - MessageChannelHandlers based", func(b *testing.B) {
 		foo, err := system.Spawn("foo",
 			func() actor.MessageProcessor {
@@ -169,6 +175,7 @@ func BenchmarkActorMessaging(b *testing.B) {
 		if err != nil {
 			b.Fatalf("Failed to spawn the foo actor : %v", err)
 		}
+		log.Logger.Debug().Dict("foo", zerolog.Dict().Strs("path", foo.Address().Path).Str("id", foo.Id())).Msg("")
 		b.ResetTimer()
 		foo.Wait()
 	})
@@ -183,6 +190,7 @@ func BenchmarkActorMessaging(b *testing.B) {
 		if err != nil {
 			b.Fatalf("Failed to spawn the foo actor : %v", err)
 		}
+		log.Logger.Debug().Dict("foo", zerolog.Dict().Strs("path", foo.Address().Path).Str("id", foo.Id())).Msg("")
 		b.ResetTimer()
 		foo.Wait()
 	})
@@ -205,6 +213,7 @@ func BenchmarkActorMessaging(b *testing.B) {
 		if err != nil {
 			b.Fatalf("Failed to spawn the foo actor : %v", err)
 		}
+		log.Logger.Debug().Dict("bar", zerolog.Dict().Strs("path", bar.Address().Path).Str("id", bar.Id())).Msg("")
 
 		foo, err := system.Spawn("foo",
 			func() actor.MessageProcessor {
@@ -216,6 +225,7 @@ func BenchmarkActorMessaging(b *testing.B) {
 		if err != nil {
 			b.Fatalf("Failed to spawn the foo actor : %v", err)
 		}
+		log.Logger.Debug().Dict("foo", zerolog.Dict().Strs("path", foo.Address().Path).Str("id", foo.Id())).Msg("")
 
 		b.ResetTimer()
 		foo.Wait()
@@ -297,16 +307,19 @@ func (a *FooMessageProcessor) started(ctx *actor.MessageContext) error {
 }
 
 func (a *FooMessageProcessor) handleHeartbeatResponse(ctx *actor.MessageContext) error {
-	heartbeatReq := ctx.RequestEnvelope(ctx.Envelope.ReplyTo().Channel, actor.SYS_MSG_HEARTBEAT_REQ, actor.PING_REQ, actor.CHANNEL_INBOX)
-	if err := ctx.Send(heartbeatReq, ctx.Envelope.ReplyTo().Address); err != nil {
-		return err
-	}
 	a.count--
 	ctx.Logger().Debug().Int("count", a.count).Msg("")
 	if a.count == 0 {
 		ctx.Logger().Debug().Msg("foo is done")
 		ctx.Kill(nil)
+		return nil
 	}
+
+	heartbeatReq := ctx.RequestEnvelope(ctx.Envelope.ReplyTo().Channel, actor.SYS_MSG_HEARTBEAT_REQ, actor.PING_REQ, actor.CHANNEL_INBOX)
+	if err := ctx.Send(heartbeatReq, ctx.Envelope.ReplyTo().Address); err != nil {
+		return err
+	}
+
 	return nil
 }
 

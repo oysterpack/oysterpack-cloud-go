@@ -29,6 +29,7 @@ const (
 	LOG_FIELD_CHANNEL    = "channel"
 	LOG_FIELD_MSG_TYPE   = "msg_type"
 	LOG_FIELD_CHILD      = "child"
+	LOG_FIELD_MODE       = "mode"
 
 	// events
 	LOG_EVENT_STARTED   logging.Event = "STARTED"

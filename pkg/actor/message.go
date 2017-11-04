@@ -26,6 +26,8 @@ import (
 
 	"errors"
 
+	"reflect"
+
 	"github.com/json-iterator/go"
 	"github.com/oysterpack/oysterpack.go/pkg/actor/msgs"
 	"zombiezen.com/go/capnproto2"
@@ -49,9 +51,6 @@ type Message interface {
 	encoding.BinaryUnmarshaler
 }
 
-// UID is a function that returns a unique id.
-type UID func() string
-
 // NewEnvelope creates a new Envelope wrapping the specified message
 // 	- uid is used to generate the envelope message id
 func NewEnvelope(uid UID, channel Channel, msgType MessageType, msg Message, replyTo *ChannelAddress) *Envelope {
@@ -64,6 +63,9 @@ func NewEnvelope(uid UID, channel Channel, msgType MessageType, msg Message, rep
 		replyTo: replyTo,
 	}
 }
+
+// UID is a function that returns a unique id.
+type UID func() string
 
 func EmptyEnvelope(emptyMessage Message) *Envelope {
 	return &Envelope{message: emptyMessage}
@@ -236,7 +238,7 @@ func (a *Envelope) String() string {
 
 		Channel     Channel
 		MessageType MessageType
-		Message     Message
+		GoType      string
 
 		ReplyTo *ChannelAddress
 	}
@@ -247,7 +249,7 @@ func (a *Envelope) String() string {
 			a.created,
 			a.channel,
 			a.MessageType(),
-			a.message,
+			reflect.TypeOf(a.message).String(),
 			a.replyTo,
 		}
 	}

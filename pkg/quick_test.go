@@ -20,6 +20,8 @@ import (
 
 	"time"
 
+	"fmt"
+
 	"golang.org/x/net/context"
 	"gopkg.in/tomb.v2"
 )
@@ -178,19 +180,6 @@ func TestDefer(t *testing.T) {
 	defer t.Log("C")
 }
 
-func TestDeleteMapEntry(t *testing.T) {
-	type Foo struct{}
-
-	type IFoo interface{}
-
-	m := map[string]*Foo{"foo": &Foo{}}
-
-	var foo IFoo = m["foo"]
-	if foo == nil {
-		t.Fatal("foo was nil")
-	}
-	delete(m, "foo")
-	if foo == nil {
-		t.Fatal("foo was nil")
-	}
+func TestFmtSprint(t *testing.T) {
+	t.Log(fmt.Sprint("abc", 1))
 }

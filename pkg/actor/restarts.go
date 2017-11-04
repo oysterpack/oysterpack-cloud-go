@@ -14,7 +14,22 @@
 
 package actor
 
+import "fmt"
+
 type RestartMode int
+
+func (a RestartMode) String() string {
+	switch a {
+	case RESTART_ACTOR:
+		return "RESTART_ACTOR"
+	case RESTART_ACTOR_HIERARCHY:
+		return "RESTART_ACTOR_HIERARCHY"
+	case RESTART_ACTOR_KILL_CHILDREN:
+		return "RESTART_ACTOR_KILL_CHILDREN"
+	default:
+		return fmt.Sprintf("UNKNOWN : %d", a)
+	}
+}
 
 const (
 	RESTART_ACTOR RestartMode = iota

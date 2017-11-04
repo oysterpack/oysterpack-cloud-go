@@ -21,7 +21,6 @@ import (
 	"fmt"
 
 	"github.com/rs/zerolog"
-	"gopkg.in/tomb.v2"
 )
 
 func NewSystem(name string, logger zerolog.Logger) (*System, error) {
@@ -40,6 +39,7 @@ func NewSystem(name string, logger zerolog.Logger) (*System, error) {
 			messageProcessorFactory: func() MessageProcessor { return sysMsgProcessor },
 			channelSettings:         systemChannelSettings,
 			logger:                  logger,
+			supervisor:              RESTART_ACTOR_STRATEGY,
 		},
 	}
 	system.system = system
@@ -48,38 +48,12 @@ func NewSystem(name string, logger zerolog.Logger) (*System, error) {
 		return nil, err
 	}
 
-	// watch the system
-	system.gaurdian.Go(func() error {
-		for {
-			// NOTE: the child may have been restarted. Thus, we always want to get the current MessageProcessorEngine.
-			// MessageProcessorEngine access is protected by a RWMutex to enable safe concurrent access.
-			msgProcessorEngine := system.messageProcessorEngine()
-			select {
-			case <-system.Dying():
-				return nil
-			case <-msgProcessorEngine.Dead():
-				if err := msgProcessorEngine.Err(); err != nil {
-					system.failures.failure(err)
-					RESTART_ACTOR_STRATEGY(system.Actor, err)
-				} else {
-					return nil
-				}
-			}
-		}
-	})
-
 	return system, nil
 }
 
 // System is an actor hierarchy.
 type System struct {
 	*Actor
-
-	gaurdian tomb.Tomb
-}
-
-func (a *System) GaurdianAlive() bool {
-	return a.gaurdian.Alive()
 }
 
 func (a *System) LookupActor(address *Address) *Actor {
