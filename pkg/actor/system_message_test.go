@@ -33,7 +33,7 @@ func TestPong_MarshalBinary(t *testing.T) {
 
 	channel := actor.Channel("pong")
 
-	envelope := actor.NewEnvelope(uid, channel, actor.MessageType(10), msg, nil)
+	envelope := actor.NewEnvelope(uid, channel, actor.MessageType(10), msg, nil, "")
 	t.Log(envelope)
 
 	if envelope.Id() == "" || envelope.Message() != msg ||

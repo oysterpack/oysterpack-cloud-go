@@ -38,7 +38,7 @@ func TestEnvelope_MarshalBinary(t *testing.T) {
 			Id:   nuid.Next(),
 		}}
 
-	envelope := actor.NewEnvelope(uid, channel, actor.SYS_MSG_HEARTBEAT_REQ, msg, replyTo)
+	envelope := actor.NewEnvelope(uid, channel, actor.SYS_MSG_HEARTBEAT_REQ, msg, replyTo, "")
 	t.Log(envelope)
 
 	if envelope.Id() == "" || envelope.Message() != msg ||

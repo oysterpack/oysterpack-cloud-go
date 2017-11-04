@@ -35,18 +35,37 @@ type systemMessageProcessor struct {
 
 // HandlePingRequest returns a PingResponse if a replyTo address was specified on the request
 func HandlePingRequest(ctx *MessageContext) error {
-	replyTo := ctx.Envelope.replyTo
+	replyTo := ctx.Message.replyTo
 	if replyTo == nil {
 		return nil
 	}
-	return ctx.Send(ctx.MessageEnvelope(replyTo.Channel, SYS_MSG_PING_RESP, &PingResponse{ctx.address}), replyTo.Address)
+	response := ctx.NewEnvelope(replyTo.Channel, SYS_MSG_PING_RESP, &PingResponse{ctx.Address()}, nil, ctx.Message.Id())
+
+	if err := ctx.Send(response, replyTo.Address); err != nil {
+		IgnoreActorNotFoundError(err)
+	}
+	return nil
 }
 
 // HandleHearbeatRequest will send back a HeartbeatResponse if a replyTo address was specified
 func HandleHearbeatRequest(ctx *MessageContext) error {
-	replyTo := ctx.Envelope.replyTo
+	replyTo := ctx.Message.replyTo
 	if replyTo == nil {
 		return nil
 	}
-	return ctx.Send(ctx.RequestEnvelope(replyTo.Channel, SYS_MSG_HEARTBEAT_RESP, HEARTBEAT_RESP, CHANNEL_SYSTEM), replyTo.Address)
+	response := ctx.NewEnvelope(replyTo.Channel, SYS_MSG_HEARTBEAT_RESP, HEARTBEAT_RESP, nil, ctx.Message.Id())
+	if err := ctx.Send(response, replyTo.Address); err != nil {
+		IgnoreActorNotFoundError(err)
+	}
+
+	return nil
+}
+
+func IgnoreActorNotFoundError(err error) error {
+	switch err.(type) {
+	case *ActorNotFoundError:
+		return nil
+	default:
+		return err
+	}
 }

@@ -53,14 +53,15 @@ type Message interface {
 
 // NewEnvelope creates a new Envelope wrapping the specified message
 // 	- uid is used to generate the envelope message id
-func NewEnvelope(uid UID, channel Channel, msgType MessageType, msg Message, replyTo *ChannelAddress) *Envelope {
+func NewEnvelope(uid UID, channel Channel, msgType MessageType, msg Message, replyTo *ChannelAddress, correlationId string) *Envelope {
 	return &Envelope{
-		id:      uid(),
-		created: time.Now(),
-		channel: channel,
-		msgType: msgType,
-		message: msg,
-		replyTo: replyTo,
+		id:            uid(),
+		created:       time.Now(),
+		channel:       channel,
+		msgType:       msgType,
+		message:       msg,
+		replyTo:       replyTo,
+		correlationId: correlationId,
 	}
 }
 
@@ -81,6 +82,8 @@ type Envelope struct {
 	message Message
 
 	replyTo *ChannelAddress
+
+	correlationId string
 }
 
 func (a *Envelope) Validate() error {
@@ -105,6 +108,10 @@ func (a *Envelope) Validate() error {
 	}
 
 	return nil
+}
+
+func (a *Envelope) CorrelationId() string {
+	return a.id
 }
 
 func (a *Envelope) Id() string {
@@ -144,11 +151,10 @@ func (a *Envelope) UnmarshalBinary(data []byte) error {
 		return err
 	}
 
-	id, err := envelope.Id()
+	a.id, err = envelope.Id()
 	if err != nil {
 		return err
 	}
-	a.id = id
 	a.created = time.Unix(0, envelope.Created())
 
 	channel, err := envelope.Channel()
@@ -158,6 +164,11 @@ func (a *Envelope) UnmarshalBinary(data []byte) error {
 	a.channel = Channel(channel)
 
 	a.msgType = MessageType(envelope.MessageType())
+
+	a.correlationId, err = envelope.CorrelationId()
+	if err != nil {
+		return err
+	}
 
 	message, err := envelope.Message()
 	if err != nil {
@@ -220,6 +231,10 @@ func (a *Envelope) MarshalBinary() ([]byte, error) {
 		}
 	}
 
+	if a.correlationId != "" {
+		envelope.SetCorrelationId(a.correlationId)
+	}
+
 	buf := new(bytes.Buffer)
 	compressor := zlib.NewWriter(buf)
 	encoder := capnp.NewPackedEncoder(compressor)
@@ -240,7 +255,8 @@ func (a *Envelope) String() string {
 		MessageType MessageType
 		GoType      string
 
-		ReplyTo *ChannelAddress
+		ReplyTo       *ChannelAddress
+		CorrelationId string
 	}
 
 	f := func() *envelope {
@@ -251,6 +267,7 @@ func (a *Envelope) String() string {
 			a.MessageType(),
 			reflect.TypeOf(a.message).String(),
 			a.replyTo,
+			a.correlationId,
 		}
 	}
 

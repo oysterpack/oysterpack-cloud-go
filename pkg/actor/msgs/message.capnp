@@ -4,15 +4,17 @@ $Go.package("msgs");
 $Go.import("github.com/oysterpack/oysterpack.go/pkg/actor/msgs");
 
 struct Envelope @0xf38cccd618967ecd {
-    id          @0 :Text $Go.doc("unique message id");
-    created     @1 :Int64 $Go.doc("message envelope creation timestamp - as a Unix time, the number of seconds elapsed since January 1, 1970 UTC");
+    id              @0 :Text $Go.doc("unique message id");
+    created         @1 :Int64 $Go.doc("message envelope creation timestamp - as a Unix time, the number of seconds elapsed since January 1, 1970 UTC");
 
-    replyTo     @2 :ChannelAddress $Go.doc("optional reply address");
+    replyTo         @2 :ChannelAddress $Go.doc("optional reply address");
 
-    channel     @3 :Text $Go.doc("the channel the message is associated with");
-    messageType @4 :UInt8 = 0 $Go.doc("message type is used when multiple types of messages can be sent on a channel");
+    channel         @3 :Text $Go.doc("the channel the message is associated with");
+    messageType     @4 :UInt8 = 0 $Go.doc("message type is used when multiple types of messages can be sent on a channel");
 
-    message     @5 :Data $Go.doc("serialized message");
+    message         @5 :Data $Go.doc("serialized message");
+
+    correlationId   @6 :Text $Go.doc("used to correlate this message to another message - use case is pairing request and response messages");
 }
 
 struct Address @0x9fd358f04cb684bd {
@@ -27,13 +29,15 @@ struct ChannelAddress @0xd801266d9df371b7 {
 
 struct MessageProcessingError @0xa70dd5f5d238faaa {
     struct Message @0xd187ae75f5896d22 {
-        id          @0 :Text $Go.doc("message id");
-        created     @1 :Int64 $Go.doc("message envelope creation timestamp - as a Unix time, the number of seconds elapsed since January 1, 1970 UTC");
+        id              @0 :Text $Go.doc("message id");
+        created         @1 :Int64 $Go.doc("message envelope creation timestamp - as a Unix time, the number of seconds elapsed since January 1, 1970 UTC");
 
-        replyTo     @2 :ChannelAddress $Go.doc("optional reply address");
+        replyTo         @2 :ChannelAddress $Go.doc("optional reply address");
 
-        channel     @3 :Text $Go.doc("the channel the message is associated with");
-        messageType @4 :UInt8 = 0 $Go.doc("message type is used when multiple types of messages can be sent on a channel");
+        channel         @3 :Text $Go.doc("the channel the message is associated with");
+        messageType     @4 :UInt8 = 0 $Go.doc("message type is used when multiple types of messages can be sent on a channel");
+
+        correlationId   @5 :Text $Go.doc("used to correlate this message to another message - use case is pairing request and response messages");
     }
 
     path    @0 :List(Text) $Go.doc("actor path - where the error occurred");

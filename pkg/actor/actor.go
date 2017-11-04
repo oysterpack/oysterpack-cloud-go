@@ -26,7 +26,6 @@ import (
 	"strings"
 
 	"github.com/nats-io/nuid"
-	"github.com/oysterpack/oysterpack.go/pkg/commons"
 	"github.com/rs/zerolog"
 	"gopkg.in/tomb.v2"
 )
@@ -42,7 +41,7 @@ type Receive func(ctx *MessageContext) error
 
 type MessageContext struct {
 	*Actor
-	Envelope *Envelope
+	Message *Envelope
 }
 
 // Actor represents an actor in the Actor Model. Actors are objects which encapsulate state and behavior, they communicate exclusively by exchanging messages.
@@ -58,10 +57,10 @@ type MessageContext struct {
 //
 //										 |   |   |   |
 //										 V   V   V   V
-//       Actor channels  	            [ ]	[ ]	[ ]	[ ]
+//       Actor channels  	            [ ]	[ ]	[ ]	[ ]		- may be buffered
 //										 |   |   |   |
 //										 V   V   V   V
-//   Actor channel goroutines			 o   o   o   o		die when the actor or message processor dies
+//   Actor channel goroutines			 o   o   o   o		- fan in messages from the Actor channels into the MessageProcessorEngine channel
 //										 |___|___|___|
 //											   |
 //											   V
@@ -70,8 +69,35 @@ type MessageContext struct {
 //											   V
 //	 MessageProcessor goroutine				   o
 //
+//   MessageProcessor watcher				   o			- invokes MessageProcessor.Stopped() after MessageProcessor is dead
+//
+//   Actor watcher							   o			- if Actor MessageProcessor engine dies with an error, then executes supervision strategy
+//															- when Actor is killed, it deletes itself from its parent and shuts down the actor hierarchy
+// 	where
+//		[ ] = go channel
+//		 o  = goroutine
+//
 // For each MessageProcessor Channel, the actor will create a channel. Each of the actor channels can be buffered.
 // Messages arriving on the incoming actor channels are fanned into the core MessageProcessorEngine channel.
+//
+// An actor will have 3 core goroutines, plus 1 for each message channel:
+//
+// 	A		 B	   1	 2     N      3
+//  |-start->|
+//  |		 |-go->|
+//	|  		 |-----|-go->|
+//	|		 |     |     |
+//  |--------|-----|-----|-go->|
+//  |--------|-----|-----|-----|--go->|
+//
+//	where
+// 		A = Actor
+//		B = MessageProcessorEngine
+//		1 = MessageProcessorEngine watcher
+//		2 = MessageProcessor
+//		N = N message channels, i.e., 1 goroutine per message channel supported by the actor
+//		3 = Actor watcher
+
 type Actor struct {
 	// immutable
 	system *System
@@ -224,16 +250,10 @@ func (a *Actor) UnmarshalEnvelope(channel Channel, msgType MessageType, msg []by
 	return a.msgProcessorEngine.UnmarshalMessage(channel, msgType, msg)
 }
 
-func (a *Actor) MessageEnvelope(channel Channel, msgType MessageType, msg Message) *Envelope {
-	return NewEnvelope(a.UID, channel, msgType, msg, nil)
-}
-
-func (a *Actor) RequestEnvelope(channel Channel, msgType MessageType, msg Message, replyToChannel Channel) *Envelope {
-	return NewEnvelope(a.UID, channel, msgType, msg, &ChannelAddress{Channel: replyToChannel, Address: a.address})
-}
-
-func (a *Actor) Envelope(channel Channel, msgType MessageType, msg Message, replyTo *ChannelAddress) *Envelope {
-	return NewEnvelope(a.UID, channel, msgType, msg, replyTo)
+// Envelope returns a new Envelope with the specified settings.
+// The envelope will be assigned a uid and the message creation timestamp will be set to now.
+func (a *Actor) NewEnvelope(channel Channel, msgType MessageType, msg Message, replyTo *ChannelAddress, correlationId string) *Envelope {
+	return NewEnvelope(a.UID, channel, msgType, msg, replyTo, correlationId)
 }
 
 func (a *Actor) messageContext(msg *Envelope) *MessageContext {
@@ -376,7 +396,7 @@ func (a *Actor) startMessageProcessorEngine() (err error) {
 		})
 	}
 
-	a.Tell(a.MessageEnvelope(CHANNEL_LIFECYCLE, LIFECYCLE_MSG_STARTED, STARTED))
+	a.Tell(a.NewEnvelope(CHANNEL_LIFECYCLE, LIFECYCLE_MSG_STARTED, STARTED, nil, ""))
 
 	LOG_EVENT_STARTED.Log(a.logger.Debug()).Msg("")
 	return
@@ -487,7 +507,7 @@ func (a *Actor) restartMessageProcessorEngine() (err error) {
 			}
 		})
 	}
-	a.Tell(a.MessageEnvelope(CHANNEL_LIFECYCLE, LIFECYCLE_MSG_STARTED, STARTED))
+	a.Tell(a.NewEnvelope(CHANNEL_LIFECYCLE, LIFECYCLE_MSG_STARTED, STARTED, nil, ""))
 	return
 }
 
@@ -532,7 +552,7 @@ func (a *Actor) Err() error {
 //
 // Types of errors :
 //  - *ChannelNotSupportedError
-func (a *Actor) Tell(msg *Envelope) (err error) {
+func (a *Actor) Tell(msg *Envelope) error {
 	c := a.channels[msg.Channel()]
 	if c == nil {
 		return &ChannelNotSupportedError{msg.Channel()}
@@ -542,17 +562,24 @@ func (a *Actor) Tell(msg *Envelope) (err error) {
 	case <-a.Dying():
 		return ErrNotAlive
 	case c <- msg:
-	default:
-		a.Go(func() error {
-			defer commons.IgnorePanic()
-			select {
-			case <-a.Dying():
-			case c <- msg:
-			}
-			return nil
-		})
 	}
 	return nil
+}
+
+func (a *Actor) MessageChannel(channel Channel) func(msg *Envelope) error {
+	c := a.channels[channel]
+	if c == nil {
+		return nil
+	}
+
+	return func(msg *Envelope) error {
+		select {
+		case <-a.Dying():
+			return ErrNotAlive
+		case c <- msg:
+			return nil
+		}
+	}
 }
 
 // Send a message to the specified address.

@@ -134,18 +134,18 @@ func (a *MessageProcessorEngine) start() error {
 					LOG_EVENT_NIL_MSG.Log(a.logger.Debug()).Msg("")
 					return nil
 				}
-				receive := a.Handler(msg.Envelope.channel, msg.Envelope.MessageType())
+				receive := a.Handler(msg.Message.channel, msg.Message.MessageType())
 				if receive == nil {
 					LOG_EVENT_UNSUPPORTED_MESSAGE.Log(a.logger.Error()).
-						Str(LOG_FIELD_CHANNEL, msg.Envelope.channel.String()).
-						Uint8(LOG_FIELD_MSG_TYPE, msg.Envelope.msgType.UInt8()).
+						Str(LOG_FIELD_CHANNEL, msg.Message.channel.String()).
+						Uint8(LOG_FIELD_MSG_TYPE, msg.Message.msgType.UInt8()).
 						Msg("Message dropped")
 					continue
 				}
 				if err := receive(msg); err != nil {
 					return &MessageProcessingError{
 						Path:    msg.Path(),
-						Message: msg.Envelope,
+						Message: msg.Message,
 						Err:     err,
 					}
 				}

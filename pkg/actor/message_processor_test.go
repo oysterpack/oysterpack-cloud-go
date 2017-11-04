@@ -27,14 +27,14 @@ func TestStartMessageProcessorEngine(t *testing.T) {
 	foo := actor.MessageHandlers{
 		actor.MessageChannelKey{actor.CHANNEL_SYSTEM, actor.MESSAGE_TYPE_DEFAULT}: actor.MessageHandler{
 			Receive: func(ctx *actor.MessageContext) error {
-				t.Logf("Received message: %v", ctx.Envelope)
+				t.Logf("Received message: %v", ctx.Message)
 				return nil
 			},
 			Unmarshal: func(msg []byte) (*actor.Envelope, error) { return nil, errors.New("NOT SUPPORTED") },
 		},
 		actor.MessageChannelKey{actor.CHANNEL_LIFECYCLE, actor.MESSAGE_TYPE_DEFAULT}: actor.MessageHandler{
 			Receive: func(ctx *actor.MessageContext) error {
-				t.Logf("Received message: %v", ctx.Envelope)
+				t.Logf("Received message: %v", ctx.Message)
 				return nil
 			},
 			Unmarshal: func(msg []byte) (*actor.Envelope, error) { return nil, errors.New("NOT SUPPORTED") },
@@ -56,8 +56,8 @@ func TestStartMessageProcessorEngine(t *testing.T) {
 
 	msg := actor.PING_REQ
 	processor.Channel() <- &actor.MessageContext{
-		Actor:    nil,
-		Envelope: actor.NewEnvelope(uid, actor.CHANNEL_SYSTEM, actor.SYS_MSG_PING_REQ, msg, nil),
+		Actor:   nil,
+		Message: actor.NewEnvelope(uid, actor.CHANNEL_SYSTEM, actor.SYS_MSG_PING_REQ, msg, nil, ""),
 	}
 
 	processor.Kill(nil)
