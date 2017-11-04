@@ -17,23 +17,27 @@ package actor_test
 import (
 	"testing"
 
+	"errors"
+
 	"github.com/oysterpack/oysterpack.go/pkg/actor"
 	"github.com/rs/zerolog/log"
 )
 
 func TestStartMessageProcessorEngine(t *testing.T) {
-	foo := actor.MessageChannelHandlers{
-		actor.CHANNEL_SYSTEM: actor.MessageTypeHandlers{
-			actor.MESSAGE_TYPE_DEFAULT: func(ctx *actor.MessageContext) error {
+	foo := actor.MessageHandlers{
+		actor.MessageChannelKey{actor.CHANNEL_SYSTEM, actor.MESSAGE_TYPE_DEFAULT}: actor.MessageHandler{
+			Receive: func(ctx *actor.MessageContext) error {
 				t.Logf("Received message: %v", ctx.Envelope)
 				return nil
 			},
+			Unmarshal: func(msg []byte) (*actor.Envelope, error) { return nil, errors.New("NOT SUPPORTED") },
 		},
-		actor.CHANNEL_LIFECYCLE: actor.MessageTypeHandlers{
-			actor.MESSAGE_TYPE_DEFAULT: func(ctx *actor.MessageContext) error {
+		actor.MessageChannelKey{actor.CHANNEL_LIFECYCLE, actor.MESSAGE_TYPE_DEFAULT}: actor.MessageHandler{
+			Receive: func(ctx *actor.MessageContext) error {
 				t.Logf("Received message: %v", ctx.Envelope)
 				return nil
 			},
+			Unmarshal: func(msg []byte) (*actor.Envelope, error) { return nil, errors.New("NOT SUPPORTED") },
 		},
 	}
 

@@ -43,17 +43,41 @@ var (
 	HEARTBEAT_RESP = &HeartbeatResponse{}
 )
 
+func UnmarshalHeartbeatRequest(msg []byte) (*Envelope, error) {
+	envelope := EmptyEnvelope(HEARTBEAT_REQ)
+	if err := envelope.UnmarshalBinary(msg); err != nil {
+		return nil, err
+	}
+	return envelope, nil
+}
+
 type HeartbeatRequest struct {
 	*Empty
 }
 
 func (a *HeartbeatRequest) SystemMessage() {}
 
+func UnmarshalHeartbeatResponse(msg []byte) (*Envelope, error) {
+	envelope := EmptyEnvelope(HEARTBEAT_RESP)
+	if err := envelope.UnmarshalBinary(msg); err != nil {
+		return nil, err
+	}
+	return envelope, nil
+}
+
 type HeartbeatResponse struct {
 	*Empty
 }
 
 func (a *HeartbeatResponse) SystemMessage() {}
+
+func UnmarshalPingRequest(msg []byte) (*Envelope, error) {
+	envelope := EmptyEnvelope(PING_REQ)
+	if err := envelope.UnmarshalBinary(msg); err != nil {
+		return nil, err
+	}
+	return envelope, nil
+}
 
 type PingRequest struct {
 	*Empty
@@ -63,6 +87,14 @@ func (a *PingRequest) SystemMessage() {}
 
 type PingResponse struct {
 	*Address
+}
+
+func UnmarshalPingResponse(msg []byte) (*Envelope, error) {
+	envelope := EmptyEnvelope(&PingResponse{})
+	if err := envelope.UnmarshalBinary(msg); err != nil {
+		return nil, err
+	}
+	return envelope, nil
 }
 
 func (a *PingResponse) SystemMessage() {}

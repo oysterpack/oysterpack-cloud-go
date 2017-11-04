@@ -48,18 +48,8 @@ func TestNewSystem(t *testing.T) {
 		t.Errorf("name did not match : %v", system.Name())
 	}
 
-	_, err = system.Spawn("bar",
+	bar, err := system.Spawn("bar",
 		barMessageProcessor,
-		[]*actor.ChannelSettings{
-			{
-				Channel: actor.CHANNEL_SYSTEM,
-				ChannelMessageFactory: actor.ChannelMessageFactory{
-					actor.SYS_MSG_HEARTBEAT_REQ: func() actor.Message {
-						return actor.HEARTBEAT_REQ
-					},
-				},
-			},
-		},
 		actor.RESTART_ACTOR_STRATEGY,
 		log.Logger)
 
@@ -69,25 +59,7 @@ func TestNewSystem(t *testing.T) {
 
 	foo, err := system.Spawn("foo",
 		func() actor.MessageProcessor {
-			return fooMessageProcessor(10)
-		},
-		[]*actor.ChannelSettings{
-			{
-				Channel: actor.CHANNEL_INBOX,
-				ChannelMessageFactory: actor.ChannelMessageFactory{
-					actor.SYS_MSG_HEARTBEAT_RESP: func() actor.Message {
-						return actor.HEARTBEAT_RESP
-					},
-				},
-			},
-			{
-				Channel: actor.CHANNEL_LIFECYCLE,
-				ChannelMessageFactory: actor.ChannelMessageFactory{
-					actor.LIFECYCLE_MSG_STARTED: func() actor.Message {
-						return actor.STARTED
-					},
-				},
-			},
+			return fooMessageProcessor(10, bar.Address())
 		},
 		actor.RESTART_ACTOR_STRATEGY,
 		log.Logger)
@@ -102,48 +74,68 @@ func TestNewSystem(t *testing.T) {
 
 }
 
-func fooMessageProcessor(count int) actor.MessageProcessor {
-	return actor.MessageChannelHandlers{
-		actor.CHANNEL_INBOX: actor.MessageTypeHandlers{
+func fooMessageProcessor(count int, address *actor.Address) actor.MessageProcessor {
+	return actor.MessageHandlers{
+		actor.MessageChannelKey{actor.CHANNEL_INBOX, actor.SYS_MSG_HEARTBEAT_RESP}: actor.MessageHandler{func(ctx *actor.MessageContext) error {
 			// when a heartbeat response is received, send another heartbeat request
-			actor.SYS_MSG_HEARTBEAT_RESP: func(ctx *actor.MessageContext) error {
-				heartbeatReq := ctx.RequestEnvelope(ctx.Envelope.ReplyTo().Channel, actor.SYS_MSG_HEARTBEAT_REQ, actor.PING_REQ, actor.CHANNEL_INBOX)
-				if err := ctx.Send(heartbeatReq, ctx.Envelope.ReplyTo().Address); err != nil {
-					return err
-				}
-				count--
-				ctx.Logger().Debug().Int("count", count).Msg("")
-				if count == 0 {
-					ctx.Logger().Debug().Msg("foo is done")
-					ctx.Kill(nil)
-				}
-				return nil
-			},
+			heartbeatReq := ctx.RequestEnvelope(ctx.Envelope.ReplyTo().Channel, actor.SYS_MSG_HEARTBEAT_REQ, actor.PING_REQ, actor.CHANNEL_INBOX)
+			if err := ctx.Send(heartbeatReq, ctx.Envelope.ReplyTo().Address); err != nil {
+				return err
+			}
+			count--
+			ctx.Logger().Debug().Int("count", count).Msg("")
+			if count == 0 {
+				ctx.Logger().Debug().Msg("foo is done")
+				ctx.Kill(nil)
+			}
+			return nil
 		},
-		actor.CHANNEL_LIFECYCLE: actor.MessageTypeHandlers{
-			actor.LIFECYCLE_MSG_STARTED: func(ctx *actor.MessageContext) error {
+			actor.UnmarshalHeartbeatResponse,
+		},
+		actor.MessageChannelKey{actor.CHANNEL_LIFECYCLE, actor.LIFECYCLE_MSG_STARTED}: actor.MessageHandler{
+			func(ctx *actor.MessageContext) error {
 				// when the actor is started, send the bar actor a heartbeat request to initiate the communication
 				var ref *actor.Actor
-				for ; ref == nil; ref = ctx.System().LookupActor(&actor.Address{Path: append(ctx.System().Path(), "bar")}) {
+				for ; ref == nil; ref = ctx.System().LookupActor(address) {
 					time.Sleep(100 * time.Millisecond)
 				}
 				heartbeatReq := ctx.RequestEnvelope(actor.CHANNEL_SYSTEM, actor.SYS_MSG_HEARTBEAT_REQ, actor.PING_REQ, actor.CHANNEL_INBOX)
 				ref.Tell(heartbeatReq)
 				return nil
 			},
+			actor.UnmarshalStartedMessage,
 		},
 	}
 }
 
 func barMessageProcessor() actor.MessageProcessor {
-	return actor.MessageChannelHandlers{
-		actor.CHANNEL_SYSTEM: actor.MessageTypeHandlers{
-			actor.SYS_MSG_HEARTBEAT_REQ: actor.HandleHearbeat,
+	return actor.MessageHandlers{
+		actor.MessageChannelKey{actor.CHANNEL_SYSTEM, actor.SYS_MSG_HEARTBEAT_REQ}: actor.MessageHandler{
+			actor.HandleHearbeatRequest,
+			actor.UnmarshalHeartbeatRequest,
 		},
 	}
 }
 
-func BenchmarkActors(b *testing.B) {
+// Benchmark results
+// =================
+//
+//	BenchmarkActorMessaging/Heartbeat_Request/Response_-_MessageChannelHandlers_based-8               300000              4496 ns/op             352 B/op          8 allocs/op
+//	BenchmarkActorMessaging/Heartbeat_Request/Response_-_switch_based-8                               300000              3999 ns/op             368 B/op          9 allocs/op
+//	BenchmarkActorMessaging/Heartbeat_Messaging_-_fire_and_forget-8                                   200000              7497 ns/op             662 B/op          6 allocs/op
+//
+//	BenchmarkActors/Heartbeat_Messaging_-_MessageChannelHandlers_based-8              300000              4290 ns/op             352 B/op          8 allocs/op
+//
+//		oysterpack/foo --HeartbeatRequest--> oysterpack/bar
+//		oysterpack/foo <--HeartbeatResponse-- oysterpack/bar
+//
+//	BenchmarkActors/Heartbeat_Messaging_-_switch_based-8                              300000              4165 ns/op             368 B/op          9 allocs/op
+//
+//		oysterpack/foo --HeartbeatRequest--> oysterpack
+//		oysterpack/foo <--HeartbeatResponse-- oysterpack
+//
+// The map based MessageChannelHandlers performs just as well as using native.
+func BenchmarkActorMessaging(b *testing.B) {
 	system, err := actor.NewSystem("oysterpack", log.Logger)
 	if err != nil {
 		b.Fatal(err)
@@ -158,18 +150,8 @@ func BenchmarkActors(b *testing.B) {
 		log.Logger.Info().Msg("System terminated")
 	}()
 
-	_, err = system.Spawn("bar",
+	bar, err := system.Spawn("bar",
 		barMessageProcessor,
-		[]*actor.ChannelSettings{
-			{
-				Channel: actor.CHANNEL_SYSTEM,
-				ChannelMessageFactory: actor.ChannelMessageFactory{
-					actor.SYS_MSG_HEARTBEAT_REQ: func() actor.Message {
-						return actor.HEARTBEAT_REQ
-					},
-				},
-			},
-		},
 		actor.RESTART_ACTOR_STRATEGY,
 		log.Logger)
 
@@ -177,28 +159,10 @@ func BenchmarkActors(b *testing.B) {
 		b.Fatalf("Failed to spawn the bar actor : %v", err)
 	}
 
-	b.Run("Heartbeat Messaging", func(b *testing.B) {
+	b.Run("Heartbeat Request/Response - MessageChannelHandlers based", func(b *testing.B) {
 		foo, err := system.Spawn("foo",
 			func() actor.MessageProcessor {
-				return fooMessageProcessor(b.N)
-			},
-			[]*actor.ChannelSettings{
-				{
-					Channel: actor.CHANNEL_INBOX,
-					ChannelMessageFactory: actor.ChannelMessageFactory{
-						actor.SYS_MSG_HEARTBEAT_RESP: func() actor.Message {
-							return actor.HEARTBEAT_RESP
-						},
-					},
-				},
-				{
-					Channel: actor.CHANNEL_LIFECYCLE,
-					ChannelMessageFactory: actor.ChannelMessageFactory{
-						actor.LIFECYCLE_MSG_STARTED: func() actor.Message {
-							return actor.STARTED
-						},
-					},
-				},
+				return fooMessageProcessor(b.N, bar.Address())
 			},
 			actor.RESTART_ACTOR_STRATEGY,
 			log.Logger)
@@ -208,4 +172,157 @@ func BenchmarkActors(b *testing.B) {
 		b.ResetTimer()
 		foo.Wait()
 	})
+
+	b.Run("Heartbeat Request/Response - switch based", func(b *testing.B) {
+		foo, err := system.Spawn("foo",
+			func() actor.MessageProcessor {
+				return &FooMessageProcessor{b.N, system.Address()}
+			},
+			actor.RESTART_ACTOR_STRATEGY,
+			log.Logger)
+		if err != nil {
+			b.Fatalf("Failed to spawn the foo actor : %v", err)
+		}
+		b.ResetTimer()
+		foo.Wait()
+	})
+
+	b.Run("Heartbeat Messaging - fire and forget", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			system.Tell(system.MessageEnvelope(actor.CHANNEL_SYSTEM, actor.SYS_MSG_HEARTBEAT_REQ, actor.HEARTBEAT_REQ))
+		}
+	})
+
+	b.Run("Heartbeat Request/Response - MessageChannelHandlers based - buffered chan", func(b *testing.B) {
+		bar.Kill(nil)
+		bar.Wait()
+
+		bar, err = system.Spawn("bar",
+			barMessageProcessor,
+			actor.RESTART_ACTOR_STRATEGY,
+			log.Logger,
+			&actor.ChannelSettings{Channel: actor.CHANNEL_SYSTEM, BufSize: 1})
+		if err != nil {
+			b.Fatalf("Failed to spawn the foo actor : %v", err)
+		}
+
+		foo, err := system.Spawn("foo",
+			func() actor.MessageProcessor {
+				return fooMessageProcessor(b.N, bar.Address())
+			},
+			actor.RESTART_ACTOR_STRATEGY,
+			log.Logger,
+			&actor.ChannelSettings{Channel: actor.CHANNEL_INBOX, BufSize: 1})
+		if err != nil {
+			b.Fatalf("Failed to spawn the foo actor : %v", err)
+		}
+
+		b.ResetTimer()
+		foo.Wait()
+	})
+
+	b.Run("Heartbeat Messaging - fire and forget - buffered chan", func(b *testing.B) {
+		bar.Kill(nil)
+		bar.Wait()
+
+		bar, err = system.Spawn("bar",
+			barMessageProcessor,
+			actor.RESTART_ACTOR_STRATEGY,
+			log.Logger)
+		if err != nil {
+			b.Fatalf("Failed to spawn the foo actor : %v", err)
+		}
+
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			bar.Tell(bar.MessageEnvelope(actor.CHANNEL_SYSTEM, actor.SYS_MSG_HEARTBEAT_REQ, actor.HEARTBEAT_REQ))
+		}
+	})
 }
+
+type FooMessageProcessor struct {
+	count   int
+	address *actor.Address
+}
+
+// ChannelNames returns the channels that are supported by this message processor
+func (a *FooMessageProcessor) ChannelNames() []actor.Channel {
+	return []actor.Channel{actor.CHANNEL_INBOX, actor.CHANNEL_LIFECYCLE}
+}
+
+// MessageTypes returns the message types that are supported for the specified channel
+func (a *FooMessageProcessor) MessageTypes(channel actor.Channel) []actor.MessageType {
+	switch channel {
+	case actor.CHANNEL_INBOX:
+		return []actor.MessageType{actor.SYS_MSG_HEARTBEAT_RESP}
+	case actor.CHANNEL_LIFECYCLE:
+		return []actor.MessageType{actor.LIFECYCLE_MSG_STARTED}
+	default:
+		return nil
+	}
+}
+
+// Handler returns a Receive function that will be used to handle messages on the specified channel for the
+// specified message type
+func (a *FooMessageProcessor) Handler(channel actor.Channel, msgType actor.MessageType) actor.Receive {
+	switch channel {
+	case actor.CHANNEL_INBOX:
+		switch msgType {
+		case actor.SYS_MSG_HEARTBEAT_RESP:
+			return a.handleHeartbeatResponse
+		default:
+			return nil
+		}
+	case actor.CHANNEL_LIFECYCLE:
+		switch msgType {
+		case actor.LIFECYCLE_MSG_STARTED:
+			return a.started
+		default:
+			return nil
+		}
+	default:
+		return nil
+	}
+}
+
+func (a *FooMessageProcessor) started(ctx *actor.MessageContext) error {
+	// when the actor is started, send the bar actor a heartbeat request to initiate the communication
+	var ref *actor.Actor
+	for ; ref == nil; ref = ctx.System().LookupActor(a.address) {
+		time.Sleep(100 * time.Millisecond)
+	}
+	heartbeatReq := ctx.RequestEnvelope(actor.CHANNEL_SYSTEM, actor.SYS_MSG_HEARTBEAT_REQ, actor.PING_REQ, actor.CHANNEL_INBOX)
+	ref.Tell(heartbeatReq)
+	return nil
+}
+
+func (a *FooMessageProcessor) handleHeartbeatResponse(ctx *actor.MessageContext) error {
+	heartbeatReq := ctx.RequestEnvelope(ctx.Envelope.ReplyTo().Channel, actor.SYS_MSG_HEARTBEAT_REQ, actor.PING_REQ, actor.CHANNEL_INBOX)
+	if err := ctx.Send(heartbeatReq, ctx.Envelope.ReplyTo().Address); err != nil {
+		return err
+	}
+	a.count--
+	ctx.Logger().Debug().Int("count", a.count).Msg("")
+	if a.count == 0 {
+		ctx.Logger().Debug().Msg("foo is done")
+		ctx.Kill(nil)
+	}
+	return nil
+}
+
+func (a *FooMessageProcessor) UnmarshalMessage(channel actor.Channel, msgType actor.MessageType, msg []byte) (*actor.Envelope, error) {
+	switch channel {
+	case actor.CHANNEL_INBOX:
+		switch msgType {
+		case actor.SYS_MSG_HEARTBEAT_RESP:
+			return actor.UnmarshalHeartbeatResponse(msg)
+		default:
+			return nil, &actor.ChannelMessageTypeNotSupportedError{channel, msgType}
+		}
+	default:
+		return nil, &actor.ChannelNotSupportedError{channel}
+	}
+}
+
+// Stopped is invoked after the message processor is stopped. The message processor should perform any cleanup here.
+func (a *FooMessageProcessor) Stopped() {}

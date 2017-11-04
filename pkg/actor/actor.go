@@ -82,8 +82,10 @@ type Actor struct {
 
 	created time.Time
 
-	parent   *Actor
-	children map[string]*Actor // keys are the actor names
+	parent *Actor
+
+	childrenLock sync.RWMutex
+	children     map[string]*Actor
 
 	messageProcessorFactory MessageProcessorFactory
 	msgProcessorEngine      *MessageProcessorEngine
@@ -102,18 +104,44 @@ type Actor struct {
 	lastRestartTime time.Time
 }
 
+func (a *Actor) putChild(actor *Actor) {
+	if actor == nil {
+		return
+	}
+	a.childrenLock.Lock()
+	defer a.childrenLock.Unlock()
+	if a.children == nil {
+		a.children = make(map[string]*Actor)
+	}
+	a.children[actor.Name()] = actor
+}
+
+func (a *Actor) getChild(name string) *Actor {
+	a.childrenLock.RLock()
+	defer a.childrenLock.RUnlock()
+	return a.children[name]
+}
+
+func (a *Actor) deleteChild(name string) {
+	a.childrenLock.Lock()
+	defer a.childrenLock.Unlock()
+	if a.children != nil {
+		delete(a.children, name)
+	}
+}
+
+//func (a *actorMap) addressPathKey(path []string) string { return strings.Join(path, "") }
+
 // ChannelSettings is actor message channel related configurations
 type ChannelSettings struct {
 	Channel
 	BufSize int
-	// used to create new empty Envelope(s)
-	ChannelMessageFactory ChannelMessageFactory
 }
 
 // Spawn creates a new child actor
 //
 // logger is augmented
-func (a *Actor) Spawn(name string, messageProcessorFactory MessageProcessorFactory, channelSettings []*ChannelSettings, supervisor SupervisorStrategy, logger zerolog.Logger) (*Actor, error) {
+func (a *Actor) Spawn(name string, messageProcessorFactory MessageProcessorFactory, supervisor SupervisorStrategy, logger zerolog.Logger, channelSettings ...*ChannelSettings) (*Actor, error) {
 	if err := a.validateSpawnParams(name, messageProcessorFactory, channelSettings, supervisor, logger); err != nil {
 		return nil, err
 	}
@@ -146,12 +174,7 @@ func (a *Actor) Spawn(name string, messageProcessorFactory MessageProcessorFacto
 		return nil, err
 	}
 
-	if a.children == nil {
-		a.children = map[string]*Actor{}
-	}
-	a.children[name] = child
-
-	a.system.registerActor(child)
+	a.putChild(child)
 
 	// watch the child
 	a.Go(func() error {
@@ -163,7 +186,7 @@ func (a *Actor) Spawn(name string, messageProcessorFactory MessageProcessorFacto
 			case <-a.Dying():
 				a.deleteChild(name)
 				return nil
-			case <-child.Dead():
+			case <-child.Dying():
 				a.deleteChild(name)
 				return nil
 			case <-childMsgProcessorEngine.Dead():
@@ -171,6 +194,7 @@ func (a *Actor) Spawn(name string, messageProcessorFactory MessageProcessorFacto
 				case <-a.Dying():
 					a.deleteChild(name)
 				default:
+					// if the MessageProcessorEngine died with an error, then delegate to the supervisor
 					if err := childMsgProcessorEngine.Err(); err != nil {
 						child.failures.failure(err)
 						supervisor(child, err)
@@ -192,7 +216,8 @@ func (a *Actor) validateSpawnParams(name string, messageProcessorFactory Message
 		return errors.New("name cannot be blank")
 	}
 
-	if a.children[name] != nil {
+	// when an actor is dying, it is removed as a child in an async fashion - thus, check that the child is actually alive
+	if child := a.getChild(name); child != nil && child.Alive() {
 		return fmt.Errorf("Child already exists with the same name : %s", name)
 	}
 
@@ -200,23 +225,7 @@ func (a *Actor) validateSpawnParams(name string, messageProcessorFactory Message
 		return errors.New("MessageProcessorFactory is required")
 	}
 
-	if len(channelSettings) == 0 {
-		return errors.New("At least 1 channel is required")
-	}
-
 	return nil
-}
-
-func (a *Actor) deleteChild(name string) {
-	a.lock.Lock()
-	defer a.lock.Unlock()
-	child := a.children[name]
-	if child == nil {
-		return
-	}
-	LOG_EVENT_DEAD.Log(child.logger.Debug()).Msg("")
-	delete(a.children, name)
-	a.system.unregisterActor(child.path, child.id)
 }
 
 func (a *Actor) messageProcessorEngine() *MessageProcessorEngine {
@@ -226,18 +235,7 @@ func (a *Actor) messageProcessorEngine() *MessageProcessorEngine {
 }
 
 func (a *Actor) UnmarshalEnvelope(channel Channel, msgType MessageType, msg []byte) (*Envelope, error) {
-	if settings := a.channelSettings[channel]; settings != nil {
-		newMessage := settings.ChannelMessageFactory[msgType]
-		if newMessage == nil {
-			return nil, &ChannelMessageTypeNotSupportedError{channel, msgType}
-		}
-		envelope := &Envelope{message: newMessage()}
-		if err := envelope.UnmarshalBinary(msg); err != nil {
-			return nil, err
-		}
-		return envelope, nil
-	}
-	return nil, &ChannelNotSupportedError{channel}
+	return a.msgProcessorEngine.UnmarshalMessage(channel, msgType, msg)
 }
 
 func (a *Actor) MessageEnvelope(channel Channel, msgType MessageType, msg Message) *Envelope {
@@ -303,7 +301,11 @@ func (a *Actor) init() error {
 	a.id = a.uid.Next()
 	a.address = &Address{a.path, a.id}
 
-	a.logger = a.logger.With().Strs(LOG_FIELD_ACTOR_PATH, a.path).Logger()
+	a.logger = a.logger.With().
+		Dict(LOG_FIELD_ACTOR, zerolog.Dict().
+			Strs(LOG_FIELD_ACTOR_PATH, a.path).
+			Str(LOG_FIELD_ACTOR_ID, a.id)).
+		Logger()
 	return nil
 }
 
@@ -321,10 +323,11 @@ func (a *Actor) startMessageProcessorEngine() (err error) {
 	a.channels = make(map[Channel]chan *Envelope)
 	for _, channel := range msgProcessorEngine.ChannelNames() {
 		channelSettings := a.channelSettings[channel]
-		if channelSettings == nil {
-			return fmt.Errorf("ChannelSettings not defined for : %s", channel)
+		bufSize := 0
+		if channelSettings != nil {
+			bufSize = channelSettings.BufSize
 		}
-		c := make(chan *Envelope, channelSettings.BufSize)
+		c := make(chan *Envelope, bufSize)
 		a.channels[channel] = c
 		messageProcessorEngineChannel := msgProcessorEngine.Channel()
 
@@ -358,23 +361,18 @@ func (a *Actor) startMessageProcessorEngine() (err error) {
 }
 
 func (a *Actor) checkChannelSettingsAlignWithMessageProcessorChannels() error {
-	channelNames := a.msgProcessorEngine.ChannelNames()
-
-	if len(a.channelSettings) != len(channelNames) {
-		a.msgProcessorEngine.Kill(nil)
-
-		chans := make([]Channel, len(a.channelSettings))
-		i := 0
-		for channel := range a.channelSettings {
-			chans[i] = channel
-		}
-
-		return fmt.Errorf("Channels don't match between MessageProcessor and the Actor ChannelSettings : %v != %v", chans, channelNames)
+	if len(a.channelSettings) == 0 {
+		return nil
 	}
 
-	for _, channel := range channelNames {
-		if a.channelSettings[channel] == nil {
-			return fmt.Errorf("ChannelSetting is missing : %s", channel)
+	channels := make(map[Channel]bool, len(a.msgProcessorEngine.ChannelNames()))
+	for _, channel := range a.msgProcessorEngine.ChannelNames() {
+		channels[channel] = true
+	}
+
+	for channel := range a.channelSettings {
+		if !channels[channel] {
+			return fmt.Errorf("Extra ChannelSetting was found that is not supported by the MessageProcessor : %s", channel)
 		}
 	}
 
@@ -570,4 +568,25 @@ func (a *Actor) ChannelMetrics() map[Channel]*ChannelMetrics {
 
 func (a *Actor) Logger() zerolog.Logger {
 	return a.logger
+}
+
+// path should be relative to the actor
+func (a *Actor) lookupActor(path []string, id string) *Actor {
+	switch len(path) {
+	case 0:
+		return a
+	case 1:
+		child := a.getChild(path[0])
+		if child != nil && (child.id == id || id == "") {
+			return child
+		}
+		return nil
+		return child
+	default:
+		child := a.getChild(path[0])
+		if child == nil {
+			return nil
+		}
+		return child.lookupActor(path[1:], id)
+	}
 }

@@ -33,6 +33,14 @@ type LifeCycleMessage interface {
 	LifeCycleMessage()
 }
 
+func UnmarshalStartedMessage(msg []byte) (*Envelope, error) {
+	envelope := EmptyEnvelope(STARTED)
+	if err := envelope.UnmarshalBinary(msg); err != nil {
+		return nil, err
+	}
+	return envelope, nil
+}
+
 type Started struct {
 	*Empty
 }

@@ -49,8 +49,6 @@ type Message interface {
 	encoding.BinaryUnmarshaler
 }
 
-type ChannelMessageFactory map[MessageType]func() Message
-
 // UID is a function that returns a unique id.
 type UID func() string
 

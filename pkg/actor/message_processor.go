@@ -41,51 +41,15 @@ type MessageProcessor interface {
 	// specified message type
 	Handler(channel Channel, msgType MessageType) Receive
 
+	// UnmarshalMessage is used to unmarshal incoming messages - in support of distributed messaging.
+	//
+	// errors :
+	// 	- ChannelMessageTypeNotSupportedError
+	//  - unmarshalling errors
+	UnmarshalMessage(channel Channel, msgType MessageType, msg []byte) (*Envelope, error)
+
 	// Stopped is invoked after the message processor is stopped. The message processor should perform any cleanup here.
 	Stopped()
-}
-
-// MessageChannelHandlers implements MessageProcessor. It is simply a mapping of Channel -> Receive
-// If state is required by the MessageProcessor, then simply embed this and populate the map with Receive functions that
-// point to MessageProcessor methods with the Receive function signature.
-type MessageChannelHandlers map[Channel]MessageTypeHandlers
-
-// MessageTypeHandlers is maps MessageType -> Receive handler function
-type MessageTypeHandlers map[MessageType]Receive
-
-func (a MessageChannelHandlers) ChannelNames() []Channel {
-	channels := make([]Channel, len(a))
-	i := 0
-	for channel := range a {
-		channels[i] = channel
-		i++
-	}
-	return channels
-}
-
-func (a MessageChannelHandlers) Handler(channel Channel, msgType MessageType) Receive {
-	if handlers := a[channel]; handlers != nil {
-		return handlers[msgType]
-	}
-	return nil
-}
-
-func (a MessageChannelHandlers) MessageTypes(channel Channel) []MessageType {
-	handlers := a[channel]
-	if handlers == nil {
-		return nil
-	}
-	msgTypes := make([]MessageType, len(handlers))
-	i := 0
-	for k := range handlers {
-		msgTypes[i] = k
-		i++
-	}
-	return msgTypes
-}
-
-func (a MessageChannelHandlers) Stopped() {
-	LOG_EVENT_STOPPED.Log(logger.Debug()).Str(logging.TYPE, "MessageChannelHandlers").Msg("")
 }
 
 // ValidateMessageProcessor performs the following checks :
@@ -130,21 +94,8 @@ func StartMessageProcessorEngine(messageProcessor MessageProcessor, logger zerol
 	return engine, nil
 }
 
-// MessageProcessorEngine sets up a message channel pipeline :
-//
-//										 |   |   |   |
-//										 V   V   V   V
-//       Actor channels  	            [ ]	[ ]	[ ]	[ ]
-//										 |   |   |   |
-//										 V   V   V   V
-//										 |___|___|___|
-//											   |
-//											   V
-//   MessageProcessor channel				  [ ]
-//
-// For each MessageProcessor Channel, the MessageProcessorEngine will create a channel.
-// Messages arriving on the incoming MessageProcessorEngine channels are fanned into the core MessageProcessor channel.
-// Messages received on the core MessageProcessor channel are processed by the MessageProcessor.
+// MessageProcessorEngine sets up a channel to receive incoming messages and routes them to message handlers based on
+// channel and message type.
 type MessageProcessorEngine struct {
 	tomb.Tomb
 
@@ -185,7 +136,7 @@ func (a *MessageProcessorEngine) start() error {
 				}
 				receive := a.Handler(msg.Envelope.channel, msg.Envelope.MessageType())
 				if receive == nil {
-					LOG_EVENT_UNKNOWN_MESSAGE_TYPE.Log(a.logger.Error()).
+					LOG_EVENT_UNSUPPORTED_MESSAGE.Log(a.logger.Error()).
 						Str(LOG_FIELD_CHANNEL, msg.Envelope.channel.String()).
 						Uint8(LOG_FIELD_MSG_TYPE, msg.Envelope.msgType.UInt8()).
 						Msg("Message dropped")

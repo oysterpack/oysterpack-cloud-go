@@ -16,7 +16,6 @@ package actor
 
 import (
 	"strings"
-	"sync"
 
 	"errors"
 	"fmt"
@@ -35,11 +34,10 @@ func NewSystem(name string, logger zerolog.Logger) (*System, error) {
 	}
 
 	system := &System{
-		actors: make(map[string]*Actor),
 		Actor: &Actor{
 			path: []string{name},
 
-			messageProcessorFactory: systemMessageProcessor,
+			messageProcessorFactory: func() MessageProcessor { return sysMsgProcessor },
 			channelSettings:         systemChannelSettings,
 			logger:                  logger,
 		},
@@ -49,8 +47,6 @@ func NewSystem(name string, logger zerolog.Logger) (*System, error) {
 	if err := system.start(); err != nil {
 		return nil, err
 	}
-
-	system.registerActor(system.Actor)
 
 	// watch the system
 	system.gaurdian.Go(func() error {
@@ -79,10 +75,6 @@ func NewSystem(name string, logger zerolog.Logger) (*System, error) {
 type System struct {
 	*Actor
 
-	// all actors in the hierarchy stored - actor path is used as the key
-	actors     map[string]*Actor
-	actorsLock sync.RWMutex
-
 	gaurdian tomb.Tomb
 }
 
@@ -90,48 +82,11 @@ func (a *System) GaurdianAlive() bool {
 	return a.gaurdian.Alive()
 }
 
-func (a *System) registerActor(actor *Actor) {
-	a.actorsLock.Lock()
-	defer a.actorsLock.Unlock()
-	a.actors[actor.id] = actor
-	a.actors[a.addressPathKey(actor.path)] = actor
-	LOG_EVENT_REGISTERED.Log(a.logger.Debug()).
-		Dict(LOG_FIELD_ACTOR, zerolog.Dict().Strs(LOG_FIELD_ACTOR_PATH, actor.path).Str(LOG_FIELD_ACTOR_ID, actor.id)).
-		Msg("")
-}
-
-func (a *System) unregisterActor(path []string, id string) {
-	a.actorsLock.Lock()
-	defer a.actorsLock.Unlock()
-	delete(a.actors, id)
-	delete(a.actors, a.addressPathKey(path))
-	LOG_EVENT_UNREGISTERED.Log(a.logger.Debug()).
-		Dict(LOG_FIELD_ACTOR, zerolog.Dict().Strs(LOG_FIELD_ACTOR_PATH, path).Str(LOG_FIELD_ACTOR_ID, id)).
-		Msg("")
-}
-
-func (a *System) addressPathKey(path []string) string { return strings.Join(path, "") }
-
 func (a *System) LookupActor(address *Address) *Actor {
-	a.actorsLock.RLock()
-	defer a.actorsLock.RUnlock()
-	actor := a.actors[a.addressPathKey(address.Path)]
-	if actor == nil {
+	if address.Path[0] != a.Name() {
 		return nil
 	}
-	if actor.id == address.Id || address.Id == "" {
-		return actor
-	}
-	return nil
-}
-
-func systemMessageProcessor() MessageProcessor {
-	return MessageChannelHandlers{
-		CHANNEL_SYSTEM: MessageTypeHandlers{
-			SYS_MSG_HEARTBEAT_REQ: HandleHearbeat,
-			SYS_MSG_PING_REQ:      HandlePingRequest,
-		},
-	}
+	return a.lookupActor(address.Path[1:], address.Id)
 }
 
 var (
@@ -139,28 +94,6 @@ var (
 		CHANNEL_SYSTEM: &ChannelSettings{
 			Channel: CHANNEL_SYSTEM,
 			BufSize: 0,
-			ChannelMessageFactory: map[MessageType]func() Message{
-				SYS_MSG_HEARTBEAT_REQ: func() Message { return HEARTBEAT_REQ },
-				SYS_MSG_PING_REQ:      func() Message { return PING_REQ },
-			},
 		},
 	}
 )
-
-// HandlePingRequest returns a PingResponse if a replyTo address was specified on the request
-func HandlePingRequest(ctx *MessageContext) error {
-	replyTo := ctx.Envelope.replyTo
-	if replyTo == nil {
-		return nil
-	}
-	return ctx.Send(ctx.MessageEnvelope(replyTo.Channel, SYS_MSG_PING_RESP, &PingResponse{ctx.address}), replyTo.Address)
-}
-
-// HandleHearbeat will send back a HeartbeatResponse if a replyTo address was specified
-func HandleHearbeat(ctx *MessageContext) error {
-	replyTo := ctx.Envelope.replyTo
-	if replyTo == nil {
-		return nil
-	}
-	return ctx.Send(ctx.RequestEnvelope(replyTo.Channel, SYS_MSG_HEARTBEAT_RESP, HEARTBEAT_RESP, CHANNEL_SYSTEM), replyTo.Address)
-}
