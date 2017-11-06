@@ -32,7 +32,7 @@ func (a ActorRegistry) registerActor(actor *Actor) bool {
 		return false
 	}
 	a.Lock()
-	key := actor.address.path.PathKey()
+	key := actor.path
 	if _, ok := a.registry[key]; ok {
 		return false
 	}
@@ -46,17 +46,17 @@ func (a ActorRegistry) unregisterActor(actor *Actor) {
 		return
 	}
 	a.Lock()
-	key := actor.address.path.PathKey()
+	key := actor.path
 	delete(a.registry, key)
 	a.Unlock()
 }
 
-func (a ActorRegistry) Actor(address *Address) (actor *Actor, exists bool) {
-	if address == nil {
+func (a ActorRegistry) Actor(address Address) (*Actor, bool) {
+	a.RLock()
+	actor, exists := a.registry[address.Path()]
+	a.RUnlock()
+	if exists && address.id != nil && actor.id != *address.id {
 		return nil, false
 	}
-	a.RLock()
-	actor, exists = a.registry[address.Path().PathKey()]
-	a.RUnlock()
-	return
+	return actor, exists
 }

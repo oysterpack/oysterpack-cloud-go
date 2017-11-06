@@ -23,7 +23,7 @@ struct Envelope @0xf38cccd618967ecd {
 }
 
 struct Address @0x9fd358f04cb684bd {
-    path    @0 :List(Text) $Go.doc("actor path");
+    path    @0 :Text $Go.doc("actor path");
     id      @1 :Text $Go.doc("actor id");
 }
 

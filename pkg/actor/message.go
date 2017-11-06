@@ -58,7 +58,7 @@ type Message interface {
 // 	- uid is used to generate the envelope message id
 //
 // the method panics if the envelope is invalid
-func NewEnvelope(uid UID, address *Address, msg Message, replyTo *ReplyTo, correlationId *string) *Envelope {
+func NewEnvelope(uid UID, address Address, msg Message, replyTo *ReplyTo, correlationId *string) *Envelope {
 	envelope := &Envelope{
 		id:            uid(),
 		created:       time.Now(),
@@ -80,7 +80,7 @@ type Envelope struct {
 	id      string
 	created time.Time
 
-	address *Address
+	address Address
 	msgType MessageType
 	message Message
 
@@ -90,15 +90,15 @@ type Envelope struct {
 }
 
 type ReplyTo struct {
-	address *Address
+	address Address
 	msgType MessageType
 }
 
-func (a *ReplyTo) Address() *Address {
+func (a ReplyTo) Address() Address {
 	return a.address
 }
 
-func (a *ReplyTo) MessageType() MessageType {
+func (a ReplyTo) MessageType() MessageType {
 	return a.msgType
 }
 
@@ -124,9 +124,6 @@ func (a *Envelope) Validate() error {
 		return errors.New("Envelope.Created is not set")
 	}
 
-	if a.address == nil {
-		return errors.New("Envelope.Address is required")
-	}
 	if err := a.address.Validate(); err != nil {
 		return err
 	}
@@ -155,7 +152,7 @@ func (a *Envelope) Created() time.Time {
 	return a.created
 }
 
-func (a *Envelope) Address() *Address {
+func (a *Envelope) Address() Address {
 	return a.address
 }
 
@@ -201,10 +198,11 @@ func (a *Envelope) UnmarshalBinary(data []byte) error {
 	if err != nil {
 		return err
 	}
-	a.address, err = unmarshalCapnAddress(capnAddr)
+	addr, err := unmarshalCapnAddress(capnAddr)
 	if err != nil {
 		return err
 	}
+	a.address = *addr
 	a.msgType = MessageType(envelope.MessageType())
 	if err := a.msgType.Validate(); err != nil {
 		return err
@@ -220,10 +218,11 @@ func (a *Envelope) UnmarshalBinary(data []byte) error {
 			return err
 		}
 		a.replyTo = &ReplyTo{}
-		a.replyTo.address, err = unmarshalCapnAddress(capnAddr)
+		addr, err = unmarshalCapnAddress(capnAddr)
 		if err != nil {
 			return err
 		}
+		a.replyTo.address = *addr
 		a.replyTo.msgType = MessageType(envelope.MessageType())
 		if err := a.replyTo.Validate(); err != nil {
 			return err
@@ -248,17 +247,11 @@ func (a *Envelope) UnmarshalBinary(data []byte) error {
 func unmarshalCapnAddress(addr msgs.Address) (*Address, error) {
 	address := &Address{}
 	if addr.HasPath() {
-		pathList, err := addr.Path()
+		path, err := addr.Path()
 		if err != nil {
 			return nil, err
 		}
-		address.path = make([]string, pathList.Len())
-		for i := 0; i < pathList.Len(); i++ {
-			address.path[i], err = pathList.At(i)
-			if err != nil {
-				return nil, err
-			}
-		}
+		address.path = path
 	}
 
 	if addr.HasId() {
@@ -343,22 +336,19 @@ func (a *Envelope) MarshalBinary() ([]byte, error) {
 
 func (a *Envelope) String() string {
 	type addr struct {
-		Path []string
+		Path string
 		Id   *string
 	}
 
-	newAddr := func(a *Address) *addr {
-		if a == nil {
-			return nil
-		}
-		return &addr{
+	newAddr := func(a Address) addr {
+		return addr{
 			a.path,
 			a.id,
 		}
 	}
 
 	type replyTo struct {
-		Address *addr
+		Address addr
 		MessageType
 	}
 
@@ -376,7 +366,7 @@ func (a *Envelope) String() string {
 		Id      string
 		Created time.Time
 
-		Address *addr
+		Address addr
 
 		MessageGoType string
 

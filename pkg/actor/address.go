@@ -23,14 +23,8 @@ import (
 	"zombiezen.com/go/capnproto2"
 )
 
-type Path []string
-
-func (a Path) PathKey() string {
-	return strings.Join(a, "/")
-}
-
 func NewAddress(path []string, id *string) (*Address, error) {
-	address := &Address{path, id}
+	address := &Address{strings.Join(path, "/"), id}
 	if err := address.Validate(); err != nil {
 		return nil, err
 	}
@@ -43,14 +37,14 @@ func NewAddress(path []string, id *string) (*Address, error) {
 //    - Note: in a cluster, there may be more than 1 actor with the same address on different nodes
 // 	- If id is set, then the message is sent to a specific actor with a matching id
 type Address struct {
-	path Path
+	path string
 	id   *string
 }
 
 // Path is the actor path in the actor system hierarchy.
 // The first element is the name of the actor system.
 // The last element is the actor name
-func (a *Address) Path() Path {
+func (a *Address) Path() string {
 	return a.path
 }
 
@@ -61,7 +55,7 @@ func (a *Address) Id() *string {
 }
 
 func (a *Address) Validate() error {
-	if len(a.path) == 0 {
+	if a.path == "" {
 		return errors.New("Address.Path is required")
 	}
 
@@ -77,17 +71,7 @@ func (a *Address) ToCapnpMessage(seg *capnp.Segment) (msgs.Address, error) {
 	if err != nil {
 		return addr, err
 	}
-	txtList, err := capnp.NewTextList(seg, int32(len(a.path)))
-	if err != nil {
-		return addr, err
-	}
-	i := 0
-	for _, elem := range a.path {
-		if err := txtList.Set(i, elem); err != nil {
-			return addr, err
-		}
-	}
-	if err := addr.SetPath(txtList); err != nil {
+	if err := addr.SetPath(a.path); err != nil {
 		return addr, err
 	}
 	if a.id != nil {

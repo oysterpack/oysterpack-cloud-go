@@ -25,7 +25,10 @@ import (
 type Actor struct {
 	created time.Time
 
-	address  *Address
+	name string
+	path string
+	id   string
+
 	parent   *Actor
 	children map[string]*Actor
 
@@ -38,4 +41,9 @@ type Actor struct {
 
 	*nuid.NUID
 	logger zerolog.Logger
+}
+
+// Name returns the actor name. The name must be unique with all other siblings.
+func (a *Actor) Name() string {
+	return a.name
 }
