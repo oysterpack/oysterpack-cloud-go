@@ -20,48 +20,80 @@ import (
 	"errors"
 
 	"github.com/oysterpack/oysterpack.go/pkg/actor"
-	"github.com/rs/zerolog/log"
 )
 
-func TestStartMessageProcessorEngine(t *testing.T) {
-	foo := actor.MessageHandlers{
-		actor.MessageChannelKey{actor.CHANNEL_SYSTEM, actor.MESSAGE_TYPE_DEFAULT}: actor.MessageHandler{
-			Receive: func(ctx *actor.MessageContext) error {
-				t.Logf("Received message: %v", ctx.Message)
-				return nil
-			},
-			Unmarshal: func(msg []byte) (*actor.Envelope, error) { return nil, errors.New("NOT SUPPORTED") },
+func TestMessageHandler_Validate(t *testing.T) {
+
+	handler := actor.MessageHandler{}
+	if err := handler.Validate(); err == nil {
+		t.Error("should not be valid")
+	}
+
+	handler.Receive = func(ctx *actor.MessageContext) error {
+		return nil
+	}
+
+	if err := handler.Validate(); err == nil {
+		t.Error("should not be valid")
+	}
+
+	handler.Unmarshal = func(msg []byte) (*actor.Envelope, error) {
+		return nil, errors.New("ERROR")
+	}
+
+	if err := handler.Validate(); err != nil {
+		t.Error("should be valid")
+	}
+
+	handler.Receive = nil
+	if err := handler.Validate(); err == nil {
+		t.Error("should not be valid")
+	}
+}
+
+func TestMessageHandlers(t *testing.T) {
+
+	handlers := actor.MessageHandlers{}
+	if err := handlers.Validate(); err == nil {
+		t.Error("at least 1 handler must be defined")
+	}
+
+	handlers[actor.MessageType(1)] = actor.MessageHandler{
+		Receive: func(ctx *actor.MessageContext) error {
+			return nil
 		},
-		actor.MessageChannelKey{actor.CHANNEL_LIFECYCLE, actor.MESSAGE_TYPE_DEFAULT}: actor.MessageHandler{
-			Receive: func(ctx *actor.MessageContext) error {
-				t.Logf("Received message: %v", ctx.Message)
-				return nil
-			},
-			Unmarshal: func(msg []byte) (*actor.Envelope, error) { return nil, errors.New("NOT SUPPORTED") },
+		Unmarshal: func(msg []byte) (*actor.Envelope, error) {
+			return nil, errors.New("ERROR")
 		},
 	}
-
-	processor, err := actor.StartMessageProcessorEngine(foo, log.Logger)
-	if err != nil {
-		t.Fatal(err)
+	if err := handlers.Validate(); err != nil {
+		t.Error(err)
 	}
 
-	if len(processor.ChannelNames()) != 2 {
-		t.Errorf("Channel count is wrong : %v", processor.ChannelNames())
+	var messageProcessor actor.MessageProcessor = handlers
+	if messageProcessor.Handler(actor.MessageType(1)) == nil {
+		t.Error("handler should not be nil")
 	}
 
-	if !processor.Alive() {
-		t.Error("processor should be alive")
+	handlers[actor.MessageType(0)] = actor.MessageHandler{
+		Receive: func(ctx *actor.MessageContext) error {
+			return nil
+		},
+		Unmarshal: func(msg []byte) (*actor.Envelope, error) {
+			return nil, errors.New("ERROR")
+		},
+	}
+	if err := handlers.Validate(); err == nil {
+		t.Error("MessageType(0) is not valid")
+	}
+	delete(handlers, actor.MessageType(0))
+	if err := handlers.Validate(); err != nil {
+		t.Error(err)
 	}
 
-	msg := actor.PING_REQ
-	processor.Channel() <- &actor.MessageContext{
-		Actor:   nil,
-		Message: actor.NewEnvelope(uid, actor.CHANNEL_SYSTEM, actor.SYS_MSG_PING_REQ, msg, nil, ""),
+	handler := handlers[actor.MessageType(1)]
+	handler.Receive = nil
+	if messageProcessor.Handler(actor.MessageType(1)) == nil {
+		t.Error("handler should not be nil")
 	}
-
-	processor.Kill(nil)
-	deathReason := processor.Wait()
-	t.Logf("death reason : %v", deathReason)
-
 }

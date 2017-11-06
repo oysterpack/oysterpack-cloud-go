@@ -14,14 +14,14 @@
 
 package actor
 
-import "time"
+// EmptyMessage implements the Message interface
+// It used to for sending messages that act as signals and require no message body.
+type EmptyMessage struct{}
 
-type Stats struct {
-	restarts        int
-	lastRestartTime time.Time
+func (a EmptyMessage) UnmarshalBinary(data []byte) error {
+	return nil
 }
 
-type ChannelMetrics struct {
-	Capacity int
-	Len      int
+func (a EmptyMessage) MarshalBinary() (data []byte, err error) {
+	return []byte{}, nil
 }

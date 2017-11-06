@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package actor
+package actor2
 
 import (
 	"time"
@@ -22,27 +22,24 @@ import (
 	"bytes"
 	"compress/zlib"
 
+	"strings"
+
 	"errors"
 
 	"reflect"
 
 	"github.com/json-iterator/go"
-	"github.com/oysterpack/oysterpack.go/pkg/actor/msgs"
+	"github.com/oysterpack/oysterpack.go/pkg/actor2/msgs"
 	"zombiezen.com/go/capnproto2"
 )
 
 type MessageType uint8
 
-func (a MessageType) UInt32() uint32 {
-	return uint32(a)
+func (a MessageType) UInt8() uint8 {
+	return uint8(a)
 }
 
-func (a MessageType) Validate() error {
-	if a == 0 {
-		return errors.New("MessageType must be > 0")
-	}
-	return nil
-}
+const MESSAGE_TYPE_DEFAULT MessageType = 0
 
 // Message that is sent between actors.
 //
@@ -56,21 +53,21 @@ type Message interface {
 
 // NewEnvelope creates a new Envelope wrapping the specified message
 // 	- uid is used to generate the envelope message id
-//
-// the method panics if the envelope is invalid
-func NewEnvelope(uid UID, address *Address, msg Message, replyTo *ReplyTo, correlationId *string) *Envelope {
-	envelope := &Envelope{
+func NewEnvelope(uid UID, channel Channel, msgType MessageType, msg Message, replyTo *ChannelAddress, correlationId string) *Envelope {
+	return &Envelope{
 		id:            uid(),
 		created:       time.Now(),
-		address:       address,
+		channel:       channel,
+		msgType:       msgType,
 		message:       msg,
 		replyTo:       replyTo,
 		correlationId: correlationId,
 	}
-	return envelope
 }
 
-// EmptyEnvelope creates a new empty Envelope that can be used to unmarshal binary message envelopes
+// UID is a function that returns a unique id.
+type UID func() string
+
 func EmptyEnvelope(emptyMessage Message) *Envelope {
 	return &Envelope{message: emptyMessage}
 }
@@ -80,43 +77,17 @@ type Envelope struct {
 	id      string
 	created time.Time
 
-	address *Address
+	channel Channel
 	msgType MessageType
 	message Message
 
-	replyTo *ReplyTo
+	replyTo *ChannelAddress
 
-	correlationId *string
-}
-
-type ReplyTo struct {
-	address *Address
-	msgType MessageType
-}
-
-func (a *ReplyTo) Address() *Address {
-	return a.address
-}
-
-func (a *ReplyTo) MessageType() MessageType {
-	return a.msgType
-}
-
-func (a *ReplyTo) Validate() error {
-	if a == nil {
-		return nil
-	}
-	if err := a.address.Validate(); err != nil {
-		return err
-	}
-	if err := a.msgType.Validate(); err != nil {
-		return err
-	}
-	return nil
+	correlationId string
 }
 
 func (a *Envelope) Validate() error {
-	if a.id == "" {
+	if strings.TrimSpace(a.id) == "" {
 		return errors.New("Envelope.Id cannot be blank")
 	}
 
@@ -124,10 +95,7 @@ func (a *Envelope) Validate() error {
 		return errors.New("Envelope.Created is not set")
 	}
 
-	if a.address == nil {
-		return errors.New("Envelope.Address is required")
-	}
-	if err := a.address.Validate(); err != nil {
+	if err := a.channel.Validate(); err != nil {
 		return err
 	}
 
@@ -135,16 +103,15 @@ func (a *Envelope) Validate() error {
 		return errors.New("Envelope.Message is required")
 	}
 
-	if a.replyTo != nil {
-		if err := a.replyTo.Validate(); err != nil {
-			return err
-		}
-	}
-	if a.correlationId != nil && *a.correlationId == "" {
-		return errors.New("Envelope.CorrelationId cannot be blank")
+	if err := a.replyTo.Validate(); err != nil {
+		return err
 	}
 
 	return nil
+}
+
+func (a *Envelope) CorrelationId() string {
+	return a.id
 }
 
 func (a *Envelope) Id() string {
@@ -155,20 +122,20 @@ func (a *Envelope) Created() time.Time {
 	return a.created
 }
 
-func (a *Envelope) Address() *Address {
-	return a.address
+func (a *Envelope) Channel() Channel {
+	return a.channel
+}
+
+func (a *Envelope) MessageType() MessageType {
+	return a.msgType
 }
 
 func (a *Envelope) Message() Message {
 	return a.message
 }
 
-func (a *Envelope) ReplyTo() *ReplyTo {
+func (a *Envelope) ReplyTo() *ChannelAddress {
 	return a.replyTo
-}
-
-func (a *Envelope) CorrelationId() *string {
-	return a.correlationId
 }
 
 // UnmarshalBinary implements encoding.BinaryUnmarshaler
@@ -188,53 +155,20 @@ func (a *Envelope) UnmarshalBinary(data []byte) error {
 	if err != nil {
 		return err
 	}
-
 	a.created = time.Unix(0, envelope.Created())
-	if a.created.IsZero() {
-		return errors.New("Envelope.created is required")
-	}
 
-	if !envelope.HasAddress() {
-		return errors.New("Envelope.Address is required")
-	}
-	capnAddr, err := envelope.Address()
+	channel, err := envelope.Channel()
 	if err != nil {
 		return err
 	}
-	a.address, err = unmarshalCapnAddress(capnAddr)
-	if err != nil {
-		return err
-	}
+	a.channel = Channel(channel)
+
 	a.msgType = MessageType(envelope.MessageType())
-	if err := a.msgType.Validate(); err != nil {
-		return err
-	}
 
-	if envelope.HasReplyTo() {
-		capnReplyTo, err := envelope.ReplyTo()
-		if err != nil {
-			return err
-		}
-		capnAddr, err := capnReplyTo.Address()
-		if err != nil {
-			return err
-		}
-		a.replyTo = &ReplyTo{}
-		a.replyTo.address, err = unmarshalCapnAddress(capnAddr)
-		if err != nil {
-			return err
-		}
-		a.replyTo.msgType = MessageType(envelope.MessageType())
-		if err := a.replyTo.Validate(); err != nil {
-			return err
-		}
-	}
-
-	correlationId, err := envelope.CorrelationId()
+	a.correlationId, err = envelope.CorrelationId()
 	if err != nil {
 		return err
 	}
-	a.correlationId = &correlationId
 
 	message, err := envelope.Message()
 	if err != nil {
@@ -242,36 +176,19 @@ func (a *Envelope) UnmarshalBinary(data []byte) error {
 	}
 	a.message.UnmarshalBinary(message)
 
+	if envelope.HasReplyTo() {
+		replyTo, err := envelope.ReplyTo()
+		if err != nil {
+			return err
+		}
+		channelAddr, err := NewChannelAddress(replyTo)
+		if err != nil {
+			return err
+		}
+		a.replyTo = channelAddr
+	}
+
 	return nil
-}
-
-func unmarshalCapnAddress(addr msgs.Address) (*Address, error) {
-	address := &Address{}
-	if addr.HasPath() {
-		pathList, err := addr.Path()
-		if err != nil {
-			return nil, err
-		}
-		address.path = make([]string, pathList.Len())
-		for i := 0; i < pathList.Len(); i++ {
-			address.path[i], err = pathList.At(i)
-			if err != nil {
-				return nil, err
-			}
-		}
-	}
-
-	if addr.HasId() {
-		id, err := addr.Id()
-		if err != nil {
-			return nil, err
-		}
-		address.id = &id
-	}
-	if err := address.Validate(); err != nil {
-		return nil, err
-	}
-	return address, nil
 }
 
 // MarshalBinary implements encoding.BinaryMarshaler
@@ -293,41 +210,29 @@ func (a *Envelope) MarshalBinary() ([]byte, error) {
 		return nil, err
 	}
 	envelope.SetCreated(a.created.UnixNano())
-	addr, err := a.address.ToCapnpMessage(seg)
-	if err != nil {
+	if err = envelope.SetChannel(a.channel.String()); err != nil {
 		return nil, err
 	}
-	if err := envelope.SetAddress(addr); err != nil {
-		return nil, err
-	}
-
+	envelope.SetMessageType(a.MessageType().UInt8())
 	if err = envelope.SetMessage(msgData); err != nil {
 		return nil, err
 	}
 
 	if a.replyTo != nil {
-		replyTo, err := msgs.NewEnvelope_ReplyTo(seg)
+		channelAddress, err := msgs.NewChannelAddress(seg)
 		if err != nil {
 			return nil, err
 		}
-		addr, err := a.replyTo.address.ToCapnpMessage(seg)
-		if err != nil {
+		if err := a.replyTo.Write(channelAddress); err != nil {
 			return nil, err
 		}
-		if err := replyTo.SetAddress(addr); err != nil {
-			return nil, err
-		}
-		replyTo.SetMessageType(a.replyTo.msgType.UInt32())
-
-		if err = envelope.SetReplyTo(replyTo); err != nil {
+		if err = envelope.SetReplyTo(channelAddress); err != nil {
 			return nil, err
 		}
 	}
 
-	if a.correlationId != nil {
-		if err := envelope.SetCorrelationId(*a.correlationId); err != nil {
-			return nil, err
-		}
+	if a.correlationId != "" {
+		envelope.SetCorrelationId(a.correlationId)
 	}
 
 	buf := new(bytes.Buffer)
@@ -342,59 +247,44 @@ func (a *Envelope) MarshalBinary() ([]byte, error) {
 }
 
 func (a *Envelope) String() string {
-	type addr struct {
-		Path []string
-		Id   *string
-	}
-
-	newAddr := func(a *Address) *addr {
-		if a == nil {
-			return nil
-		}
-		return &addr{
-			a.path,
-			a.id,
-		}
-	}
-
-	type replyTo struct {
-		Address *addr
-		MessageType
-	}
-
-	newReplyTo := func(r *ReplyTo) *replyTo {
-		if r == nil {
-			return nil
-		}
-		return &replyTo{
-			newAddr(r.address),
-			r.msgType,
-		}
-	}
-
 	type envelope struct {
 		Id      string
 		Created time.Time
 
-		Address *addr
+		Channel     Channel
+		MessageType MessageType
+		GoType      string
 
-		MessageGoType string
-
-		ReplyTo       *replyTo
-		CorrelationId *string
+		ReplyTo       *ChannelAddress
+		CorrelationId string
 	}
 
 	f := func() *envelope {
 		return &envelope{
 			a.id,
 			a.created,
-			newAddr(a.address),
+			a.channel,
+			a.MessageType(),
 			reflect.TypeOf(a.message).String(),
-			newReplyTo(a.replyTo),
+			a.replyTo,
 			a.correlationId,
 		}
 	}
 
 	json, _ := jsoniter.Marshal(f())
 	return string(json)
+}
+
+var (
+	EMPTY = &Empty{}
+)
+
+type Empty struct{}
+
+func (a *Empty) UnmarshalBinary(data []byte) error {
+	return nil
+}
+
+func (a *Empty) MarshalBinary() (data []byte, err error) {
+	return []byte{}, nil
 }

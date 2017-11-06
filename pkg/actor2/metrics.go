@@ -12,30 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package actor
+package actor2
 
-import (
-	"time"
+import "time"
 
-	"github.com/nats-io/nuid"
-	"github.com/rs/zerolog"
-	"gopkg.in/tomb.v2"
-)
+type Stats struct {
+	restarts        int
+	lastRestartTime time.Time
+}
 
-type Actor struct {
-	created time.Time
-
-	address  *Address
-	parent   *Actor
-	children map[string]*Actor
-
-	system *System
-
-	messageProcessorFactory MessageProcessorFactory
-	messageChannel          chan *Envelope
-
-	tomb.Tomb
-
-	*nuid.NUID
-	logger zerolog.Logger
+type ChannelMetrics struct {
+	Capacity int
+	Len      int
 }

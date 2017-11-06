@@ -14,28 +14,5 @@
 
 package actor
 
-import (
-	"time"
-
-	"github.com/nats-io/nuid"
-	"github.com/rs/zerolog"
-	"gopkg.in/tomb.v2"
-)
-
-type Actor struct {
-	created time.Time
-
-	address  *Address
-	parent   *Actor
-	children map[string]*Actor
-
-	system *System
-
-	messageProcessorFactory MessageProcessorFactory
-	messageChannel          chan *Envelope
-
-	tomb.Tomb
-
-	*nuid.NUID
-	logger zerolog.Logger
-}
+// UID is a function that returns a unique id.
+type UID func() string

@@ -1,7 +1,7 @@
 using Go = import "/go.capnp";
 @0x87fc44aa3255d2ae;
 $Go.package("msgs");
-$Go.import("github.com/oysterpack/oysterpack.go/pkg/actor/msgs");
+$Go.import("github.com/oysterpack/oysterpack.go/pkg/actor2/msgs");
 
 struct Envelope @0xf38cccd618967ecd {
     id              @0 :Text $Go.doc("unique message id");

@@ -14,60 +14,49 @@
 
 package actor
 
-import (
-	"strings"
+import "sync"
 
-	"errors"
-	"fmt"
-
-	"github.com/rs/zerolog"
-)
-
-func NewSystem(name string, logger zerolog.Logger) (*System, error) {
-	if name != strings.TrimSpace(name) {
-		return nil, fmt.Errorf("name cannot have whitespace passing %q", name)
-	}
-
-	if len(name) == 0 {
-		return nil, errors.New("name cannot be blank")
-	}
-
-	system := &System{
-		Actor: &Actor{
-			path: []string{name},
-
-			messageProcessorFactory: func() MessageProcessor { return sysMsgProcessor },
-			channelSettings:         systemChannelSettings,
-			logger:                  logger,
-			supervisor:              RESTART_ACTOR_STRATEGY,
-		},
-	}
-	system.system = system
-
-	if err := system.start(); err != nil {
-		return nil, err
-	}
-
-	return system, nil
-}
-
-// System is an actor hierarchy.
 type System struct {
 	*Actor
+
+	ActorRegistry
 }
 
-func (a *System) LookupActor(address *Address) *Actor {
-	if address.Path[0] != a.Name() {
-		return nil
-	}
-	return a.lookupActor(address.Path[1:], address.Id)
+type ActorRegistry struct {
+	sync.RWMutex
+	registry map[string]*Actor
 }
 
-var (
-	systemChannelSettings = map[Channel]*ChannelSettings{
-		CHANNEL_SYSTEM: &ChannelSettings{
-			Channel: CHANNEL_SYSTEM,
-			BufSize: 0,
-		},
+func (a ActorRegistry) registerActor(actor *Actor) bool {
+	if actor == nil {
+		return false
 	}
-)
+	a.Lock()
+	key := actor.address.path.PathKey()
+	if _, ok := a.registry[key]; ok {
+		return false
+	}
+	a.registry[key] = actor
+	a.Unlock()
+	return true
+}
+
+func (a ActorRegistry) unregisterActor(actor *Actor) {
+	if actor == nil {
+		return
+	}
+	a.Lock()
+	key := actor.address.path.PathKey()
+	delete(a.registry, key)
+	a.Unlock()
+}
+
+func (a ActorRegistry) Actor(address *Address) (actor *Actor, exists bool) {
+	if address == nil {
+		return nil, false
+	}
+	a.RLock()
+	actor, exists = a.registry[address.Path().PathKey()]
+	a.RUnlock()
+	return
+}

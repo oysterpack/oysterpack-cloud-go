@@ -10,7 +10,7 @@ import (
 
 type Envelope struct{ capnp.Struct }
 
-// Envelope_TypeID is the unique identifier for the type NewEnvelope.
+// Envelope_TypeID is the unique identifier for the type Envelope.
 const Envelope_TypeID = 0xf38cccd618967ecd
 
 func NewEnvelope(s *capnp.Segment) (Envelope, error) {
@@ -145,10 +145,10 @@ func (s Envelope) SetCorrelationId(v string) error {
 	return s.Struct.SetText(4, v)
 }
 
-// Envelope_List is a list of NewEnvelope.
+// Envelope_List is a list of Envelope.
 type Envelope_List struct{ capnp.List }
 
-// NewEnvelope creates a new list of NewEnvelope.
+// NewEnvelope creates a new list of Envelope.
 func NewEnvelope_List(s *capnp.Segment, sz int32) (Envelope_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 16, PointerCount: 5}, sz)
 	return Envelope_List{l}, err
@@ -163,7 +163,7 @@ func (s Envelope_List) String() string {
 	return str
 }
 
-// Envelope_Promise is a wrapper for a NewEnvelope promised by a client call.
+// Envelope_Promise is a wrapper for a Envelope promised by a client call.
 type Envelope_Promise struct{ *capnp.Pipeline }
 
 func (p Envelope_Promise) Struct() (Envelope, error) {

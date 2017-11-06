@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package actor
+package actor2
 
 var sysMsgProcessor = func() MessageProcessor {
 	msgProcessor := &systemMessageProcessor{}
@@ -49,6 +49,7 @@ func HandlePingRequest(ctx *MessageContext) error {
 
 // HandleHearbeatRequest will send back a HeartbeatResponse if a replyTo address was specified
 func HandleHearbeatRequest(ctx *MessageContext) error {
+	ctx.logger.Debug().Msg("HEARTBEAT")
 	replyTo := ctx.Message.replyTo
 	if replyTo == nil {
 		return nil

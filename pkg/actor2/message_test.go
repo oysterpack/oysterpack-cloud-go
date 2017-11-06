@@ -12,34 +12,41 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package actor_test
+package actor2_test
 
 import (
 	"testing"
-	"time"
 
 	"strings"
 
-	"github.com/oysterpack/oysterpack.go/pkg/actor"
+	"time"
+
+	"github.com/nats-io/nuid"
+	"github.com/oysterpack/oysterpack.go/pkg/actor2"
 )
 
-func TestPong_MarshalBinary(t *testing.T) {
+func uid() string { return nuid.Next() }
+
+func TestEnvelope_MarshalBinary(t *testing.T) {
 	now := time.Now()
-	msg := &actor.PingResponse{}
-	msg.Address = &actor.Address{
-		Path: []string{"oysterpack", "capnp"},
-		Id:   uid(),
-	}
+	msg := actor2.PING_REQ
+	channel := actor2.Channel("ping")
+	replyTo := &actor2.ChannelAddress{
+		Channel: "pong",
+		Address: &actor2.Address{
+			Path: []string{"oysterpack", "config"},
+			Id:   nuid.Next(),
+		}}
 
-	channel := actor.Channel("pong")
-
-	envelope := actor.NewEnvelope(uid, channel, actor.MessageType(10), msg, nil, "")
+	envelope := actor2.NewEnvelope(uid, channel, actor2.SYS_MSG_HEARTBEAT_REQ, msg, replyTo, "")
 	t.Log(envelope)
 
 	if envelope.Id() == "" || envelope.Message() != msg ||
 		envelope.Channel() != channel ||
 		!envelope.Created().After(now) ||
-		envelope.ReplyTo() != nil {
+		envelope.ReplyTo().Channel != replyTo.Channel ||
+		envelope.ReplyTo().Id != replyTo.Id ||
+		strings.Join(envelope.ReplyTo().Path, "/") != strings.Join(replyTo.Path, "/") {
 		t.Fatal("envelope fields are not matching")
 	}
 
@@ -48,7 +55,7 @@ func TestPong_MarshalBinary(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	envelope2 := actor.EmptyEnvelope(&actor.PingResponse{})
+	envelope2 := actor2.EmptyEnvelope(actor2.PING_REQ)
 	if err := envelope2.UnmarshalBinary(envelopeBytes); err != nil {
 		t.Fatal(err)
 	}
@@ -58,10 +65,11 @@ func TestPong_MarshalBinary(t *testing.T) {
 		t.Errorf("id did not match : %s != %s", envelope.Id(), envelope.Id())
 	}
 
-	if envelope.Id() != envelope2.Id() || envelope.Channel() != envelope2.Channel() ||
+	if envelope.Id() != envelope2.Id() || envelope.Message() != envelope2.Message() || envelope.Channel() != envelope2.Channel() ||
 		!envelope.Created().Equal(envelope2.Created()) ||
-		envelope.Message().(*actor.PingResponse).Id != envelope2.Message().(*actor.PingResponse).Id ||
-		strings.Join(envelope.Message().(*actor.PingResponse).Path, "/") != strings.Join(envelope2.Message().(*actor.PingResponse).Path, "/") {
+		envelope.ReplyTo().Channel != envelope2.ReplyTo().Channel ||
+		envelope.ReplyTo().Id != envelope2.ReplyTo().Id ||
+		strings.Join(envelope.ReplyTo().Path, "/") != strings.Join(envelope2.ReplyTo().Path, "/") {
 		t.Fatal("envelope fields are not matching after unmarshalling")
 	}
 }
