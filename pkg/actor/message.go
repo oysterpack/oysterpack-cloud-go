@@ -22,8 +22,6 @@ import (
 	"bytes"
 	"compress/zlib"
 
-	"errors"
-
 	"reflect"
 
 	"github.com/json-iterator/go"
@@ -31,15 +29,28 @@ import (
 	"zombiezen.com/go/capnproto2"
 )
 
-type MessageType uint8
+// MessageType is the unique identifier for a message type.
+// MessageType provides a relatively short yet unambiguous way to refer to a type from another context.
+//
+// Most systems prefer instead to define a symbolic global namespace , but this would have some important disadvantages:
+//	1. Programmers often feel the need to change symbolic names and organization in order to make their code cleaner,
+//     but the renamed code should still work with existing encoded data.
+//	2. It’s easy for symbolic names to collide, and these collisions could be hard to detect in a large distributed
+//     system with many different binaries.
+//	3. Fully-qualified type names may be large and waste space when transmitted on the wire.
+type MessageType uint64
 
-func (a MessageType) UInt32() uint32 {
-	return uint32(a)
+// Int64 provides a conversion back to int64
+func (a MessageType) UInt64() uint64 {
+	return uint64(a)
 }
 
+// ValidateMessageProcessor checks that the zero value is not set.
+// The zero value is not allowed because the MessageType is always required, and we want to make sure it is set.
+// By not allowing the zero value, then we are able to verify that it has been specified.
 func (a MessageType) Validate() error {
 	if a == 0 {
-		return errors.New("MessageType must be > 0")
+		return ErrInvalidMessageType
 	}
 	return nil
 }
@@ -50,6 +61,8 @@ func (a MessageType) Validate() error {
 // All messages are delivered within an Envelope. The envelope will compress the entire envelope, thus there is no need
 // to perform compression in this layer.
 type Message interface {
+	MessageType() MessageType
+
 	encoding.BinaryMarshaler
 	encoding.BinaryUnmarshaler
 }
@@ -64,6 +77,7 @@ func NewEnvelope(uid UID, address Address, msg Message, replyTo *ReplyTo, correl
 		created:       time.Now(),
 		address:       address,
 		message:       msg,
+		msgType:       msg.MessageType(),
 		replyTo:       replyTo,
 		correlationId: correlationId,
 	}
@@ -72,7 +86,7 @@ func NewEnvelope(uid UID, address Address, msg Message, replyTo *ReplyTo, correl
 
 // EmptyEnvelope creates a new empty Envelope that can be used to unmarshal binary message envelopes
 func EmptyEnvelope(emptyMessage Message) *Envelope {
-	return &Envelope{message: emptyMessage}
+	return &Envelope{message: emptyMessage, msgType: emptyMessage.MessageType()}
 }
 
 // Envelope is a message envelope. Envelope is itself a message.
@@ -84,32 +98,24 @@ type Envelope struct {
 	msgType MessageType
 	message Message
 
-	replyTo *ReplyTo
-
+	// optional
+	replyTo       *ReplyTo
 	correlationId *string
 }
 
 type ReplyTo struct {
-	address Address
-	msgType MessageType
-}
-
-func (a ReplyTo) Address() Address {
-	return a.address
-}
-
-func (a ReplyTo) MessageType() MessageType {
-	return a.msgType
+	Address
+	MessageType
 }
 
 func (a *ReplyTo) Validate() error {
 	if a == nil {
 		return nil
 	}
-	if err := a.address.Validate(); err != nil {
+	if err := a.Address.Validate(); err != nil {
 		return err
 	}
-	if err := a.msgType.Validate(); err != nil {
+	if err := a.MessageType.Validate(); err != nil {
 		return err
 	}
 	return nil
@@ -117,11 +123,11 @@ func (a *ReplyTo) Validate() error {
 
 func (a *Envelope) Validate() error {
 	if a.id == "" {
-		return errors.New("Envelope.Id cannot be blank")
+		return ErrEnvelopeIdBlank
 	}
 
 	if a.created.IsZero() {
-		return errors.New("Envelope.Created is not set")
+		return ErrEnvelopeCreatedRquired
 	}
 
 	if err := a.address.Validate(); err != nil {
@@ -129,7 +135,15 @@ func (a *Envelope) Validate() error {
 	}
 
 	if a.message == nil {
-		return errors.New("Envelope.Message is required")
+		return ErrEnvelopeMessageRequired
+	}
+
+	if err := a.msgType.Validate(); err != nil {
+		return err
+	}
+
+	if a.message.MessageType() != a.msgType {
+		return envelopeMessageTypeDoesNotMatch(a)
 	}
 
 	if a.replyTo != nil {
@@ -138,7 +152,7 @@ func (a *Envelope) Validate() error {
 		}
 	}
 	if a.correlationId != nil && *a.correlationId == "" {
-		return errors.New("Envelope.CorrelationId cannot be blank")
+		return ErrEnvelopeCorrelationIdBlank
 	}
 
 	return nil
@@ -154,6 +168,10 @@ func (a *Envelope) Created() time.Time {
 
 func (a *Envelope) Address() Address {
 	return a.address
+}
+
+func (a *Envelope) MessageType() MessageType {
+	return a.msgType
 }
 
 func (a *Envelope) Message() Message {
@@ -188,11 +206,11 @@ func (a *Envelope) UnmarshalBinary(data []byte) error {
 
 	a.created = time.Unix(0, envelope.Created())
 	if a.created.IsZero() {
-		return errors.New("Envelope.created is required")
+		return ErrEnvelopeCreatedRquired
 	}
 
 	if !envelope.HasAddress() {
-		return errors.New("Envelope.Address is required")
+		return ErrEnvelopeAddressRequired
 	}
 	capnAddr, err := envelope.Address()
 	if err != nil {
@@ -222,8 +240,8 @@ func (a *Envelope) UnmarshalBinary(data []byte) error {
 		if err != nil {
 			return err
 		}
-		a.replyTo.address = *addr
-		a.replyTo.msgType = MessageType(envelope.MessageType())
+		a.replyTo.Address = *addr
+		a.replyTo.MessageType = MessageType(envelope.MessageType())
 		if err := a.replyTo.Validate(); err != nil {
 			return err
 		}
@@ -240,6 +258,10 @@ func (a *Envelope) UnmarshalBinary(data []byte) error {
 		return err
 	}
 	a.message.UnmarshalBinary(message)
+
+	if a.msgType != a.message.MessageType() {
+		return envelopeMessageTypeDoesNotMatch(a)
+	}
 
 	return nil
 }
@@ -294,6 +316,8 @@ func (a *Envelope) MarshalBinary() ([]byte, error) {
 		return nil, err
 	}
 
+	envelope.SetMessageType(a.Message().MessageType().UInt64())
+
 	if err = envelope.SetMessage(msgData); err != nil {
 		return nil, err
 	}
@@ -303,14 +327,14 @@ func (a *Envelope) MarshalBinary() ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		addr, err := a.replyTo.address.ToCapnpMessage(seg)
+		addr, err := a.replyTo.Address.ToCapnpMessage(seg)
 		if err != nil {
 			return nil, err
 		}
 		if err := replyTo.SetAddress(addr); err != nil {
 			return nil, err
 		}
-		replyTo.SetMessageType(a.replyTo.msgType.UInt32())
+		replyTo.SetMessageType(a.replyTo.MessageType.UInt64())
 
 		if err = envelope.SetReplyTo(replyTo); err != nil {
 			return nil, err
@@ -357,8 +381,8 @@ func (a *Envelope) String() string {
 			return nil
 		}
 		return &replyTo{
-			newAddr(r.address),
-			r.msgType,
+			newAddr(r.Address),
+			r.MessageType,
 		}
 	}
 

@@ -89,7 +89,7 @@
   branch = "master"
   name = "github.com/prometheus/common"
   packages = ["expfmt","internal/bitbucket.org/ww/goautoneg","model"]
-  revision = "1bab55dd05dbff384524a6a1c99006d9eb5f139b"
+  revision = "e3fb1a1acd7605367a2b378bc2e2f893c05174b7"
 
 [[projects]]
   branch = "master"
@@ -107,19 +107,19 @@
   branch = "master"
   name = "golang.org/x/crypto"
   packages = ["bcrypt","blowfish","ssh/terminal"]
-  revision = "2509b142fb2b797aa7587dad548f113b2c0f20ce"
+  revision = "687d4b818545e443c8ba223cbef20b1721afd4db"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/net"
   packages = ["context"]
-  revision = "c73622c77280266305273cb545f54516ced95b93"
+  revision = "01c190206fbdffa42f334f4b2bf2220f50e64920"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/sys"
   packages = ["unix","windows","windows/registry","windows/svc","windows/svc/debug","windows/svc/eventlog","windows/svc/mgr"]
-  revision = "661970f62f5897bc0cd5fdca7e087ba8a98a8fa1"
+  revision = "d4266bc12aae0b4128952c889b769442fce5d2f1"
 
 [[projects]]
   branch = "v2"
@@ -136,6 +136,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "0e01f18355aa3637b2af35d5eb7c3dc2aab03cabc6afe77a1740866f9a6b9073"
+  inputs-digest = "8f08a3f83cd73a92f5dbdbeae7fba01d1332b2cd46807fba941bd3e87a73722d"
   solver-name = "gps-cdcl"
   solver-version = 1

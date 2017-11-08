@@ -14,30 +14,28 @@
 
 package actor
 
-import "errors"
-
 type MessageProcessorFactory func() MessageProcessor
 
 // MessageProcessor maps message receive handlers to MessageChannel/MessageType
 // It also knows how to unmarshal supported message types.
 type MessageProcessor interface {
 
-	// MessageTypes returns the message types that are supported for the specified channel
+	// MessageTypes returns the message types that are supported
 	MessageTypes() []MessageType
 
-	// Handler returns a Handler function that will be used to handle messages on the specified channel for the
-	// specified message type
-	Handler(msgType MessageType) Receive
+	// Handler returns a Handler function that will be used to handle messages for the specified message type.
+	// If the MessageType is not supported, then false is returned.
+	Handler(msgType MessageType) (Receive, bool)
 
 	// UnmarshalMessage is used to unmarshal incoming messages - in support of distributed messaging.
-	//
-	// errors :
-	// 	- ChannelMessageTypeNotSupportedError
-	//  - unmarshalling errors
-	Unmarshaler(msgType MessageType) Unmarshal
+	// If the MessageType is not supported, then false is returned.
+	Unmarshaller(msgType MessageType) (Unmarshal, bool)
 }
 
-type Receive func(ctx *MessageContext) error
+// MessageProcessorErrorHandler handles message processing errors
+type MessageProcessorErrorHandler func(ctx MessageContext, err error)
+
+type Receive func(ctx MessageContext) error
 
 type Unmarshal func(msg []byte) (*Envelope, error)
 
@@ -57,20 +55,22 @@ type MessageHandler struct {
 
 func (a MessageHandler) Validate() error {
 	if a.Receive == nil {
-		return errors.New("MessageHandler.Handler is required")
+		return ErrMessageHandlerReceiveRequired
 	}
 	if a.Unmarshal == nil {
-		return errors.New("MessageHandler.Unmarshal is required")
+		return ErrMessageHandlerUnmarshalRequired
 	}
 	return nil
 }
 
-func (a MessageHandlers) Handler(msgType MessageType) Receive {
-	return a[msgType].Receive
+func (a MessageHandlers) Handler(msgType MessageType) (Receive, bool) {
+	handler, exists := a[msgType]
+	return handler.Receive, exists
 }
 
-func (a MessageHandlers) Unmarshaler(msgType MessageType) Unmarshal {
-	return a[msgType].Unmarshal
+func (a MessageHandlers) Unmarshaller(msgType MessageType) (Unmarshal, bool) {
+	handler, exists := a[msgType]
+	return handler.Unmarshal, exists
 }
 
 func (a MessageHandlers) MessageTypes() []MessageType {
@@ -83,17 +83,31 @@ func (a MessageHandlers) MessageTypes() []MessageType {
 	return msgTypes
 }
 
-func (a MessageHandlers) Validate() error {
-	if len(a) == 0 {
-		return errors.New("No handlers are defined")
+func ValidateMessageProcessor(a MessageProcessor) error {
+	if len(a.MessageTypes()) == 0 {
+		return ErrMessageProcessorNoMessageTypes
 	}
-	for k, v := range a {
-		if err := k.Validate(); err != nil {
-			return err
+	if _, ok := a.Handler(MessageType(0)); ok {
+		return ErrInvalidMessageType
+	}
+	for _, messageType := range a.MessageTypes() {
+		if receive, ok := a.Handler(messageType); !ok || receive == nil {
+			return messageProcessorMissingHandler(messageType)
 		}
-		if err := v.Validate(); err != nil {
-			return err
+
+		if unmarshaller, ok := a.Unmarshaller(messageType); !ok || unmarshaller == nil {
+			return messageProcessorMissingUnmarshaller(messageType)
 		}
 	}
 	return nil
+}
+
+type MessageProcessingError struct {
+	actorAddress Address
+
+	messageId   string
+	messageType MessageType
+
+	errCode    int64
+	errMessage string
 }

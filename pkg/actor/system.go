@@ -14,49 +14,152 @@
 
 package actor
 
-import "sync"
+import (
+	"sync"
 
-type System struct {
-	*Actor
+	"time"
 
-	ActorRegistry
+	"github.com/nats-io/nuid"
+	"github.com/rs/zerolog"
+	"gopkg.in/tomb.v2"
+)
+
+func NewSystem() *System {
+	return &System{registry: make(map[string]*Actor)}
 }
 
-type ActorRegistry struct {
-	sync.RWMutex
+type System struct {
+	lock     sync.RWMutex
 	registry map[string]*Actor
 }
 
-func (a ActorRegistry) registerActor(actor *Actor) bool {
+func (a *System) KillRootActors(t tomb.Tomb) {
+	for actor := range a.RootActors(t) {
+		actor.Kill(nil)
+
+		select {
+		case <-actor.Dead():
+		case <-t.Dying():
+			return
+		}
+	}
+}
+
+func (a *System) registerActor(actor *Actor) bool {
 	if actor == nil {
 		return false
 	}
-	a.Lock()
+	a.lock.Lock()
 	key := actor.path
 	if _, ok := a.registry[key]; ok {
 		return false
 	}
 	a.registry[key] = actor
-	a.Unlock()
+	a.lock.Unlock()
+	LOG_EVENT_REGISTERED.Log(actor.logger.Debug()).Msg("")
 	return true
 }
 
-func (a ActorRegistry) unregisterActor(actor *Actor) {
+func (a *System) unregisterActor(actor *Actor) {
 	if actor == nil {
 		return
 	}
-	a.Lock()
+	a.lock.Lock()
 	key := actor.path
 	delete(a.registry, key)
-	a.Unlock()
+	a.lock.Unlock()
 }
 
-func (a ActorRegistry) Actor(address Address) (*Actor, bool) {
-	a.RLock()
+func (a *System) Actor(address Address) (*Actor, bool) {
+	a.lock.RLock()
 	actor, exists := a.registry[address.Path()]
-	a.RUnlock()
+	a.lock.RUnlock()
 	if exists && address.id != nil && actor.id != *address.id {
 		return nil, false
 	}
 	return actor, exists
+}
+
+func (a *System) ActorCount() (count int) {
+	a.lock.RLock()
+	count = len(a.registry)
+	a.lock.RUnlock()
+	return
+}
+
+func (a *System) RootActors(t tomb.Tomb) <-chan *Actor {
+	c := make(chan *Actor)
+
+	t.Go(func() error {
+		defer close(c)
+		a.lock.RLock()
+		rootActors := []*Actor{}
+		for _, actor := range a.registry {
+			if actor.parent == nil {
+				rootActors = append(rootActors, actor)
+			}
+		}
+		a.lock.RUnlock()
+
+		for _, actor := range rootActors {
+			select {
+			case <-t.Dying():
+				return nil
+			case c <- actor:
+			}
+		}
+		return nil
+	})
+
+	return c
+}
+
+// NewRootActor creates a new Actor, registers it as top level root actor, and starts the Actor.
+//
+// - name cannot contain a '/'
+func (a *System) NewRootActor(name string, messageProcessorFactory MessageProcessorFactory, errorHandler MessageProcessorErrorHandler, logger zerolog.Logger) (*Actor, error) {
+	if name == "" {
+		return nil, ErrActorNameBlank
+	}
+	if messageProcessorFactory == nil {
+		return nil, ErrMessageProcessorFactoryRequired
+	}
+	if errorHandler == nil {
+		return nil, ErrMessageProcessorErrorHandlerRequired
+	}
+	processor := messageProcessorFactory()
+	if err := ValidateMessageProcessor(processor); err != nil {
+		return nil, err
+	}
+
+	actorId := nuid.Next()
+	actor := &Actor{
+		system: a,
+
+		name: name,
+		path: name,
+		id:   actorId,
+
+		created: time.Now(),
+
+		children: make(map[string]*Actor),
+
+		messageProcessorFactory: messageProcessorFactory,
+		messageProcessor:        processor,
+		errorHandler:            errorHandler,
+		messageProcessorChan:    make(chan *Envelope),
+
+		actorChan: make(chan interface{}),
+
+		logger:       logger.With().Dict("actor", zerolog.Dict().Str("path", name).Str("id", actorId)).Logger(),
+		uidGenerator: nuid.New(),
+	}
+
+	if !a.registerActor(actor) {
+		return nil, ActorAlreadyRegisteredError{name}
+	}
+
+	actor.start()
+
+	return actor, nil
 }

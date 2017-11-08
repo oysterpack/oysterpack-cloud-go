@@ -36,3 +36,7 @@
 [[constraint]]
   name = "github.com/nats-io/gnatsd"
   version = "1.0.4"
+
+[[constraint]]
+  name = "zombiezen.com/go/capnproto2"
+  version = "2.16.0"

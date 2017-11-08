@@ -85,14 +85,6 @@ func (s Envelope) NewAddress() (Address, error) {
 	return ss, err
 }
 
-func (s Envelope) MessageType() uint32 {
-	return s.Struct.Uint32(8)
-}
-
-func (s Envelope) SetMessageType(v uint32) {
-	s.Struct.SetUint32(8, v)
-}
-
 func (s Envelope) ReplyTo() (Envelope_ReplyTo, error) {
 	p, err := s.Struct.Ptr(2)
 	return Envelope_ReplyTo{Struct: p.Struct()}, err
@@ -135,6 +127,14 @@ func (s Envelope) CorrelationIdBytes() ([]byte, error) {
 
 func (s Envelope) SetCorrelationId(v string) error {
 	return s.Struct.SetText(3, v)
+}
+
+func (s Envelope) MessageType() uint64 {
+	return s.Struct.Uint64(8)
+}
+
+func (s Envelope) SetMessageType(v uint64) {
+	s.Struct.SetUint64(8, v)
 }
 
 func (s Envelope) Message() ([]byte, error) {
@@ -235,12 +235,12 @@ func (s Envelope_ReplyTo) NewAddress() (Address, error) {
 	return ss, err
 }
 
-func (s Envelope_ReplyTo) MessageType() uint32 {
-	return s.Struct.Uint32(0)
+func (s Envelope_ReplyTo) MessageType() uint64 {
+	return s.Struct.Uint64(0)
 }
 
-func (s Envelope_ReplyTo) SetMessageType(v uint32) {
-	s.Struct.SetUint32(0, v)
+func (s Envelope_ReplyTo) SetMessageType(v uint64) {
+	s.Struct.SetUint64(0, v)
 }
 
 // Envelope_ReplyTo_List is a list of Envelope_ReplyTo.
@@ -364,63 +364,487 @@ func (p Address_Promise) Struct() (Address, error) {
 	return Address{s}, err
 }
 
-const schema_87fc44aa3255d2ae = "x\xda\xbcSK\x88\x1cU\x14\xbd\xe7V\xf7d\xd0\x09" +
-	"\x93\xa2Z\x1cB\xa0\xdeB\x84\xc8\xcc0\x9d,\x8c\"" +
-	"\x98i\xc7EB\x04\x9f=\x0dADxS\xf52\xfd" +
-	"\xa0\xbb\xaaR\xaf\xda\x99\x11q6\x11?\x08\xc1\x0f\x82" +
-	"n\xa2\xe0B\x14\\\x19\x17\xc2\x80\x08\x92\x8dn\"d" +
-	"\xe5J\x08\x88\x1b\x05W\x82P\xf2\xba\xab?\x8cc\x96" +
-	"\xee\x8aw\xee\xb9\xf7\x9c{O\xad}\x86\xf3\xdc\xac\xdf" +
-	"b\")\xeas\xe5\xc1\xb5\xaf/\xfdq\xf9\xa7\x1b\xe4" +
-	"/\xa2\xfc\xf2v\xe7\xcc\xe7\x1b\x7f\xbfNu>F\x14" +
-	"\\\xc07\x81\x84\xfbz\x06;\x84\xf2\xd6\xa7\xbf\xff\xf2" +
-	"\xf0\xf5\xe2\x0b\x92K@\xf9\xe3\xab\x1f,\xdd\xf9\xe1\xed" +
-	"?\xa9\xeeJ\xce\xfe\x05F0\xe2\x81]\xf5\x04\x97\x8b" +
-	"\xe0\x99\xd6uW\xf2\x0e\x7f\x17|\xc8\x0f\x12\x9d\xfd\x84" +
-	"\xaf\x83\xce\x95}m\xad\xda\xd6\x16\xab\x91\xca\x92\xec\xf1" +
-	"\xf5'\xe38\xd7\xd6>\x0b\xc8y\xafFT\x03\x91\x7f" +
-	"\xfa\x11\xfft(/y\x90\x97\x19>\xd0\x80{\xed\x9c" +
-	"\xf4;\xa1\xdc\xf5 \xaf1\x163Ute\x0d\\\xbe" +
-	"\xf8\xde\x0dyp\xe7\xad\xefI\xd6\x18\xeb\x0d`\x81\xc8" +
-	"\xc7\xf3\xa5\x8a\x8a4\x17\x99\"\xaf\xe8\x12a\x81\x18\x0b" +
-	"\x04\xcf\xc4\xf7`]\xacX&&\xc2\x982\x11\xedU" +
-	"\xa2\x9fN^\xd2\xbd4\xd3\xab\xcf\xe9\xac\xb7\xb7\x99\xd2" +
-	"!\xf5-\"\xf9\x90\x07\xb9\xc6\x18k_\xd9\xf2\x9b\xa1" +
-	"|\xc1\x83\xec2\xf6\xd5\xc84NL\xefB\xc0\x89\xe9" +
-	"\xa8M:\xb6\x97\xe9#\x84\x9e\x1a\x0am\x82Q\x16]" +
-	"-\xf4n\xa6\xbd\xa8\xd0\xb1\xc8\x9d\x14Q\xd1E\xb1\x97" +
-	"i\"\xc2<1\xe6g\x1c\xf0!\x07$k\x989\xb8" +
-	"\x8f\xd6~\xe5I\x9e\x9a\xf8\xb9y\xd2\xbf\x19\xca\x9f=" +
-	"\xc8_\xa7\x86\xee\xb6\xfc\xbba\xfb\x1c<\xb47\xc0\xf0" +
-	"\x19\x0d0Q\xb0\x8eV\xb0\x8e\xb0\xfd\x8aC\xdep\x88" +
-	"\xc7\x0dxD\xc1k\xd8\x0a\xdeD\xd8\xfe\xca!\xdf:" +
-	"\xa4\xc6\x0d\xd4\x88\x82\x03\xb4\x82\x03\x84\xedy\xf6\xd0n" +
-	"0\xc3\xaf{\x0d\xd4\x89\x02\x9f\xf3\xe0\x01\x0e\xdb\xb1C" +
-	"2\x87\xcc\xd5\x1a\x98#\x0a\xfa\xdc\x0a\xfa\x1c\xb6\xdfw" +
-	"\xc8\xc7\xcc\xffq\xd8\xa5\xea\xb0\xef\x96\x83\xc4\\\x1dh" +
-	"\xd1G\xb5\"\x83x\x9a\x8a\xfd(\xd7\xaa\xd0Gu\xd8" +
-	"\xa86\x9e{\xe3-\x8a\x05]\xadO\x0ci&MD" +
-	"a\xfa\xda\x16\xaa\x9f\x89\x15\xa1\xacP\xa2\x93\x98\xdd\xe1" +
-	"\xeb\xb2p\x87J\x06\xfd-\x9d\x8b\xf4\x8a\xb0:J\x93" +
-	"\xd8\x0a\xddS\x99\xd5\xb1\xb0&\x89\xb4\xb8\xa8\x92\x81\xca" +
-	"\xf7DsY4\x1f{4\\\x13\x9d\xcd\xa7\x88P'" +
-	"F\x9d&\x819B\xder%\xef6\xca\x9dn:\x9c" +
-	"57\x91g\xac\xa8\x98:\x16E\xba,\xcc\xaa^\x1d" +
-	"\x09\x1a\xe5|\x84\xc2\x12\xfdoY\xdc\xcf\xab\x80\xfd\xbb" +
-	"\xe1\x13U\xc3\xdf\xb84Il\"U\xe8\xfb\xdc.G" +
-	"\xfd\x8c\x1d\x8e\x18NP\xc5\xd0\x84\xcdtd\xae\x18\xf7" +
-	"0c\xc7\x8a\x1dSt\x0f\x15\x8c\xd5,\x8e\xe4\xe0\xc4" +
-	"4\xf5\x95\xdd(\xcds\xddS\x05\x85&M.\x1c\x15" +
-	"\x85\xf3\x95\xbe3^9\x18mT\xdc?fiQt" +
-	"\x8d\x9d\x9aN\x85J\xd2\xa2\xab\xf3\xc9\xd3\x8a\x18X-" +
-	"\"e\x87w\xc9\x94\xc9M\xb2-r}u\xa0m!" +
-	"T\xe2\xf6f\xb34\xb1\xdaQ\xc2\xe1\xff:\x93\xd0\xaa" +
-	"\xcd=2\xfeQiunT\xcf\xbc\x8c\xb1ao\xdb" +
-	"y=N\x8c\xe3\x84\x7f\x02\x00\x00\xff\xff\xee\x13\xb9A"
+type MessageProcessingError struct{ capnp.Struct }
+
+// MessageProcessingError_TypeID is the unique identifier for the type MessageProcessingError.
+const MessageProcessingError_TypeID = 0xa70dd5f5d238faaa
+
+func NewMessageProcessingError(s *capnp.Segment) (MessageProcessingError, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 3})
+	return MessageProcessingError{st}, err
+}
+
+func NewRootMessageProcessingError(s *capnp.Segment) (MessageProcessingError, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 3})
+	return MessageProcessingError{st}, err
+}
+
+func ReadRootMessageProcessingError(msg *capnp.Message) (MessageProcessingError, error) {
+	root, err := msg.RootPtr()
+	return MessageProcessingError{root.Struct()}, err
+}
+
+func (s MessageProcessingError) String() string {
+	str, _ := text.Marshal(0xa70dd5f5d238faaa, s.Struct)
+	return str
+}
+
+func (s MessageProcessingError) ActorAddress() (Address, error) {
+	p, err := s.Struct.Ptr(0)
+	return Address{Struct: p.Struct()}, err
+}
+
+func (s MessageProcessingError) HasActorAddress() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s MessageProcessingError) SetActorAddress(v Address) error {
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+}
+
+// NewActorAddress sets the actorAddress field to a newly
+// allocated Address struct, preferring placement in s's segment.
+func (s MessageProcessingError) NewActorAddress() (Address, error) {
+	ss, err := NewAddress(s.Struct.Segment())
+	if err != nil {
+		return Address{}, err
+	}
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	return ss, err
+}
+
+func (s MessageProcessingError) MessageId() (string, error) {
+	p, err := s.Struct.Ptr(1)
+	return p.Text(), err
+}
+
+func (s MessageProcessingError) HasMessageId() bool {
+	p, err := s.Struct.Ptr(1)
+	return p.IsValid() || err != nil
+}
+
+func (s MessageProcessingError) MessageIdBytes() ([]byte, error) {
+	p, err := s.Struct.Ptr(1)
+	return p.TextBytes(), err
+}
+
+func (s MessageProcessingError) SetMessageId(v string) error {
+	return s.Struct.SetText(1, v)
+}
+
+func (s MessageProcessingError) MessageType() uint64 {
+	return s.Struct.Uint64(0)
+}
+
+func (s MessageProcessingError) SetMessageType(v uint64) {
+	s.Struct.SetUint64(0, v)
+}
+
+func (s MessageProcessingError) ErrCode() int64 {
+	return int64(s.Struct.Uint64(8))
+}
+
+func (s MessageProcessingError) SetErrCode(v int64) {
+	s.Struct.SetUint64(8, uint64(v))
+}
+
+func (s MessageProcessingError) ErrMessage() (string, error) {
+	p, err := s.Struct.Ptr(2)
+	return p.Text(), err
+}
+
+func (s MessageProcessingError) HasErrMessage() bool {
+	p, err := s.Struct.Ptr(2)
+	return p.IsValid() || err != nil
+}
+
+func (s MessageProcessingError) ErrMessageBytes() ([]byte, error) {
+	p, err := s.Struct.Ptr(2)
+	return p.TextBytes(), err
+}
+
+func (s MessageProcessingError) SetErrMessage(v string) error {
+	return s.Struct.SetText(2, v)
+}
+
+// MessageProcessingError_List is a list of MessageProcessingError.
+type MessageProcessingError_List struct{ capnp.List }
+
+// NewMessageProcessingError creates a new list of MessageProcessingError.
+func NewMessageProcessingError_List(s *capnp.Segment, sz int32) (MessageProcessingError_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 16, PointerCount: 3}, sz)
+	return MessageProcessingError_List{l}, err
+}
+
+func (s MessageProcessingError_List) At(i int) MessageProcessingError {
+	return MessageProcessingError{s.List.Struct(i)}
+}
+
+func (s MessageProcessingError_List) Set(i int, v MessageProcessingError) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s MessageProcessingError_List) String() string {
+	str, _ := text.MarshalList(0xa70dd5f5d238faaa, s.List)
+	return str
+}
+
+// MessageProcessingError_Promise is a wrapper for a MessageProcessingError promised by a client call.
+type MessageProcessingError_Promise struct{ *capnp.Pipeline }
+
+func (p MessageProcessingError_Promise) Struct() (MessageProcessingError, error) {
+	s, err := p.Pipeline.Struct()
+	return MessageProcessingError{s}, err
+}
+
+func (p MessageProcessingError_Promise) ActorAddress() Address_Promise {
+	return Address_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+}
+
+type Started struct{ capnp.Struct }
+
+// Started_TypeID is the unique identifier for the type Started.
+const Started_TypeID = 0xf87ced6eabceba45
+
+func NewStarted(s *capnp.Segment) (Started, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return Started{st}, err
+}
+
+func NewRootStarted(s *capnp.Segment) (Started, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return Started{st}, err
+}
+
+func ReadRootStarted(msg *capnp.Message) (Started, error) {
+	root, err := msg.RootPtr()
+	return Started{root.Struct()}, err
+}
+
+func (s Started) String() string {
+	str, _ := text.Marshal(0xf87ced6eabceba45, s.Struct)
+	return str
+}
+
+// Started_List is a list of Started.
+type Started_List struct{ capnp.List }
+
+// NewStarted creates a new list of Started.
+func NewStarted_List(s *capnp.Segment, sz int32) (Started_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
+	return Started_List{l}, err
+}
+
+func (s Started_List) At(i int) Started { return Started{s.List.Struct(i)} }
+
+func (s Started_List) Set(i int, v Started) error { return s.List.SetStruct(i, v.Struct) }
+
+func (s Started_List) String() string {
+	str, _ := text.MarshalList(0xf87ced6eabceba45, s.List)
+	return str
+}
+
+// Started_Promise is a wrapper for a Started promised by a client call.
+type Started_Promise struct{ *capnp.Pipeline }
+
+func (p Started_Promise) Struct() (Started, error) {
+	s, err := p.Pipeline.Struct()
+	return Started{s}, err
+}
+
+type Stopping struct{ capnp.Struct }
+
+// Stopping_TypeID is the unique identifier for the type Stopping.
+const Stopping_TypeID = 0xd064305fa8416cb7
+
+func NewStopping(s *capnp.Segment) (Stopping, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return Stopping{st}, err
+}
+
+func NewRootStopping(s *capnp.Segment) (Stopping, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return Stopping{st}, err
+}
+
+func ReadRootStopping(msg *capnp.Message) (Stopping, error) {
+	root, err := msg.RootPtr()
+	return Stopping{root.Struct()}, err
+}
+
+func (s Stopping) String() string {
+	str, _ := text.Marshal(0xd064305fa8416cb7, s.Struct)
+	return str
+}
+
+// Stopping_List is a list of Stopping.
+type Stopping_List struct{ capnp.List }
+
+// NewStopping creates a new list of Stopping.
+func NewStopping_List(s *capnp.Segment, sz int32) (Stopping_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
+	return Stopping_List{l}, err
+}
+
+func (s Stopping_List) At(i int) Stopping { return Stopping{s.List.Struct(i)} }
+
+func (s Stopping_List) Set(i int, v Stopping) error { return s.List.SetStruct(i, v.Struct) }
+
+func (s Stopping_List) String() string {
+	str, _ := text.MarshalList(0xd064305fa8416cb7, s.List)
+	return str
+}
+
+// Stopping_Promise is a wrapper for a Stopping promised by a client call.
+type Stopping_Promise struct{ *capnp.Pipeline }
+
+func (p Stopping_Promise) Struct() (Stopping, error) {
+	s, err := p.Pipeline.Struct()
+	return Stopping{s}, err
+}
+
+type Stopped struct{ capnp.Struct }
+
+// Stopped_TypeID is the unique identifier for the type Stopped.
+const Stopped_TypeID = 0x874f20540dfe792f
+
+func NewStopped(s *capnp.Segment) (Stopped, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return Stopped{st}, err
+}
+
+func NewRootStopped(s *capnp.Segment) (Stopped, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return Stopped{st}, err
+}
+
+func ReadRootStopped(msg *capnp.Message) (Stopped, error) {
+	root, err := msg.RootPtr()
+	return Stopped{root.Struct()}, err
+}
+
+func (s Stopped) String() string {
+	str, _ := text.Marshal(0x874f20540dfe792f, s.Struct)
+	return str
+}
+
+// Stopped_List is a list of Stopped.
+type Stopped_List struct{ capnp.List }
+
+// NewStopped creates a new list of Stopped.
+func NewStopped_List(s *capnp.Segment, sz int32) (Stopped_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
+	return Stopped_List{l}, err
+}
+
+func (s Stopped_List) At(i int) Stopped { return Stopped{s.List.Struct(i)} }
+
+func (s Stopped_List) Set(i int, v Stopped) error { return s.List.SetStruct(i, v.Struct) }
+
+func (s Stopped_List) String() string {
+	str, _ := text.MarshalList(0x874f20540dfe792f, s.List)
+	return str
+}
+
+// Stopped_Promise is a wrapper for a Stopped promised by a client call.
+type Stopped_Promise struct{ *capnp.Pipeline }
+
+func (p Stopped_Promise) Struct() (Stopped, error) {
+	s, err := p.Pipeline.Struct()
+	return Stopped{s}, err
+}
+
+type PingRequest struct{ capnp.Struct }
+
+// PingRequest_TypeID is the unique identifier for the type PingRequest.
+const PingRequest_TypeID = 0xa8084ffe960780bb
+
+func NewPingRequest(s *capnp.Segment) (PingRequest, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return PingRequest{st}, err
+}
+
+func NewRootPingRequest(s *capnp.Segment) (PingRequest, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return PingRequest{st}, err
+}
+
+func ReadRootPingRequest(msg *capnp.Message) (PingRequest, error) {
+	root, err := msg.RootPtr()
+	return PingRequest{root.Struct()}, err
+}
+
+func (s PingRequest) String() string {
+	str, _ := text.Marshal(0xa8084ffe960780bb, s.Struct)
+	return str
+}
+
+// PingRequest_List is a list of PingRequest.
+type PingRequest_List struct{ capnp.List }
+
+// NewPingRequest creates a new list of PingRequest.
+func NewPingRequest_List(s *capnp.Segment, sz int32) (PingRequest_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
+	return PingRequest_List{l}, err
+}
+
+func (s PingRequest_List) At(i int) PingRequest { return PingRequest{s.List.Struct(i)} }
+
+func (s PingRequest_List) Set(i int, v PingRequest) error { return s.List.SetStruct(i, v.Struct) }
+
+func (s PingRequest_List) String() string {
+	str, _ := text.MarshalList(0xa8084ffe960780bb, s.List)
+	return str
+}
+
+// PingRequest_Promise is a wrapper for a PingRequest promised by a client call.
+type PingRequest_Promise struct{ *capnp.Pipeline }
+
+func (p PingRequest_Promise) Struct() (PingRequest, error) {
+	s, err := p.Pipeline.Struct()
+	return PingRequest{s}, err
+}
+
+type PingResponse struct{ capnp.Struct }
+
+// PingResponse_TypeID is the unique identifier for the type PingResponse.
+const PingResponse_TypeID = 0xc8ea6e5ec7f91c46
+
+func NewPingResponse(s *capnp.Segment) (PingResponse, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return PingResponse{st}, err
+}
+
+func NewRootPingResponse(s *capnp.Segment) (PingResponse, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return PingResponse{st}, err
+}
+
+func ReadRootPingResponse(msg *capnp.Message) (PingResponse, error) {
+	root, err := msg.RootPtr()
+	return PingResponse{root.Struct()}, err
+}
+
+func (s PingResponse) String() string {
+	str, _ := text.Marshal(0xc8ea6e5ec7f91c46, s.Struct)
+	return str
+}
+
+// PingResponse_List is a list of PingResponse.
+type PingResponse_List struct{ capnp.List }
+
+// NewPingResponse creates a new list of PingResponse.
+func NewPingResponse_List(s *capnp.Segment, sz int32) (PingResponse_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
+	return PingResponse_List{l}, err
+}
+
+func (s PingResponse_List) At(i int) PingResponse { return PingResponse{s.List.Struct(i)} }
+
+func (s PingResponse_List) Set(i int, v PingResponse) error { return s.List.SetStruct(i, v.Struct) }
+
+func (s PingResponse_List) String() string {
+	str, _ := text.MarshalList(0xc8ea6e5ec7f91c46, s.List)
+	return str
+}
+
+// PingResponse_Promise is a wrapper for a PingResponse promised by a client call.
+type PingResponse_Promise struct{ *capnp.Pipeline }
+
+func (p PingResponse_Promise) Struct() (PingResponse, error) {
+	s, err := p.Pipeline.Struct()
+	return PingResponse{s}, err
+}
+
+const schema_87fc44aa3255d2ae = "x\xda\x94U_h\x1cU\x17?\xe7\xcel6\xfd\xbe" +
+	"\x84t\x98\x85/\x94|\xcc\x15\xa2XIb\xd2\"\xa6" +
+	"Ei\xb3m\x85\x96J3\xdd\x04j\xd1\xcad\xe6&" +
+	"{\xcb\xee\xcc\xf4\xdeY\x93h5\x0a-\x15Q\x8a\x0a" +
+	"}\x10\xa5 \x82\xb5\x05\xf1\xa5\x8a\xd1\xbe\x14\xa4>\xa8" +
+	"\x94\x8a\x15\xa5\xbe\x14\x0bZ(\xb6H\xc1\x8at\xe4\xce" +
+	"\x9f\xdd\xd8l\x0a\xbe\xed\xde\xf3\xf7\xf7;\xbfsf\xf8" +
+	"9\xb2\x99\x8c\x14\xbe\xd7\x01\xec\xd1BG\xfc\xe0\xfc\xed" +
+	"\xee\x09\xba\xeb\x08\x18=\x18\x7fxar\xdd\xc9\xad\x7f" +
+	"\x1d\x01\xbd\x08`\xdad\xd1|\x82\x14A\x8b\xcf\x1c\xfa" +
+	"x\xe7\xf5=\xdf\x1e\xff\xa7S\x81(\xaf\x87\xc8\xa2\xf9" +
+	"h\xf2k\x03\x99\x05\x8cO\xfe9z\xe1\xe6w\xdd\xef" +
+	"\x83\xdd\x83d\x89\xb3V\x04X\x7f\x85\xacC\xf3\xa6\xf2" +
+	"^\x7f\x83X\x08\x18\x7f\xf6b\xf1\xd8\xed]\x9d'\xda" +
+	"\xd4\x7fG\xff\xd1\xfc@W\xf5\xcf\xbd\xf7\xdb\xe5\xfb\x8e" +
+	"F\xa7\xc0\xeeE\x8c\xbf~\xe1X\xef\xc5\xaf^\xfd\x1d" +
+	"\x0a\xa8\x12\x1d\xd6\x09\x9a\xaf'\x11\xaf\xe9\xaa\x83\xc7\xfa" +
+	"n\x9d\xdb\xe7_\xfd\xb2M\xca\xff\x17.\x9bk\x0b*" +
+	"\xe5'\xb5\xb1\x13O\x0f{\xe7\xdb8\x15\x0ag\xcd\xee" +
+	"\xc4\xa9Y\xe9\x0e,\x05\xe5\xf6\xab~\xd6\xbc\xa1\xff\x0f" +
+	"`\xfd-\xfd\xa8\x82\xb2m\xf1\x9bS\xfe\xb5\x83\x7f\xb4" +
+	"I9\xd9\xb9h>\xd5Y\x84\x8dq\x9dI\xe9\xcc0" +
+	"\x89C\xae\x13\xfa\xe1\xc6\xca\xa6(\x08C\xe6\x8d#." +
+	"\xb3\x8dm\xf2<\xc1\xa4\x1cG\xb4;5\x1d@G\x00" +
+	"c\xed\x03\xc6Z\xcb\xde\xa9\xa1\xbd\x87\xa0\x81XB\xf5" +
+	":\xb9\xc6\x98\xb4\xec9\x0d\xedC\x04{B'\xaa\xda" +
+	":\x92x\xdf\x9b\xc7\xed3\x17_\xf9\x02l\x9d\xe0X" +
+	"\x09\xb1\x0b\xc0\xc0\xbd\xb1\xe3F\x81\xa0\xa1\x03ZT\x05" +
+	"\xc0. \xd8\x05\xa8q\xef.Q;\xb2(\xee\x01`" +
+	"\x1e\xd2lZ\xcb\x9a~<\xfd?.\x02\x97I\xc9\xfd" +
+	"\x19k\x9b\x10\x81P\x18JM\x0c\xcf\xef7^\xb2\xec" +
+	"\x8f4\xb4?_\x82\xe1\xd3\xdd\xc6\x19\xcb\xfeYC\xfb" +
+	":A$%$\x88\xc6\xb5)\xe3\x86U\xe9E\x0d+" +
+	"\xfdH\xd0\xd0\xb0\x84\x1a\x80y\x0f\x96\x01*}\xea\xfd" +
+	"~\xf5\xae\x93\x12\xea\x00\xe6\xbd\xb8\x17\xa0\xd2\xaf\xde\x87" +
+	"\x91`\xda\xf3\x98\xe7A\x8f\xa2\xb2\x0d<\x9a\xc0\x1b\xc1" +
+	"u\xd8dE\x8b\xaat\x90\xceV\x99`4\xaa2\xca" +
+	"\x14\x02\x1a\xb8\xae\xd5\x10\x82)\xf8\xab[;\x01\x88\xab" +
+	"[<l\x07l\xc7ao\xc6\xe1\x1b\xf1\xb4\xc3k\xcc" +
+	"\xa3uL\xfd)G\xaf5\x80<\xcb\x04\x14\xe7Cv" +
+	"\x97<\xef.\xcb\x13\xa9\x08\x00\\\x05\x04W\x01.0" +
+	"!\xb6\x04\x1e\xc3\x02\x10,\x00\xc6L\x88d4\xa0\xcd" +
+	"\xb0e\xc3#\xd9\xf0\xc6\xb9?\xb3\x9b\x1dh0MF" +
+	"K\x15\x99\x0fw\x9b\xff\x0c\xab\x05!\x1b\xda\xcd\xc2\xda" +
+	"\xfcD\x00wH\xb3\x0c`\xf7kh\x0f\x13\xcc\x87:" +
+	"8e\x8cX\xf6\x93\x1a\xdaU\x82\x0bN\xaa\xe8\x95\xf9" +
+	"[\x11y_6&\x82q2\x92\xb9\x90in\xc4<" +
+	"*T+\xb4\x9e\xd3\x90\xb0\xd0\xa4a\x05\x842\x0c\x8a" +
+	"\xbedK!\xe6\x0e\x15\xb5\x8f\xdc\x9f\x81v\xc6\x1c?" +
+	"\xd8:b\xeb,\x19X^\xc8\x18\xb1\xfb\x9al\x9c^" +
+	"c\x9c\xb6\xecK\x1a\xda\xbf\xb4\xe8\xb8R6\xaeX\x95" +
+	"Q%\xcf\xadJ\xb6\x04KH\x00\xcc1,\x9bch" +
+	"U\x0e*\xcb\xcb\x89\xd0I*\xf4\xc3X6\x0f\xa3U" +
+	"9\xaf,\x97\x12\xa9k\xa9\xd4\x7f@a\xfe\x84Ve" +
+	"\x80hX\x19%\x04\x8d\x02\x96\xb0\x90\x1c\xe5)s\x03" +
+	"\xb1*5e\x99S\x96\x0e\xbd\x84\x1d\x00f\x83\x94\xcd" +
+	"\x06\xb1*o+\xcb\x09BV\xd8\xf9\x96^\x1b>?" +
+	"\xd0`+\xe8u\xc1\x15\xcc\x89X\xbb\x0c[\xb3y\x09" +
+	"-g\x91v\xb1\x8c>\x9a\x84\xf1\xc0\xa7\x11\xaf3\x19" +
+	"9\xf5\x90\x0eRGR\x87N\xfa|.y\x1dH6" +
+	"\xcfo\xd4\xa7\x98\xa0\xc14\x95\xcc\x0d|ORVs" +
+	"B\xc9<*\xb9\xef2\xba\xc3\xf1\x1b\x8e\x98\xa7#\x03" +
+	"td\xc3\xc3\xd60\x9d\x9c\xd8\x02\x90\x8b>\x97[\x9b" +
+	"\xf6\x06\xb2\xf6.`<[\x0d\x92Z\x1d\xcd\xf6\xb8\xa4" +
+	"Y$\xf3h\x14\x0cP>\xc4\x86\xd2\x86\xd2\x13\x91Z" +
+	"Q\xb6\xbb\x04\x0b\"S\xc2\xf2\xa2\x8fdE\xaf\x92\x98" +
+	"\xfb\x1ew\x9d\x88\xfdG\x81N%\xcce\xa2\xeaD\xd4" +
+	"N\x94T\x93!s\xf94W\x0fK\xeaJ:\xcb\xa3" +
+	"\xea\x1d\x0e9\xc9=\xe9\x06\xe0\xea\x96<\xb3\x0ds\x03" +
+	"!X\xcd\x89\xc0\xe2\x81\xbf\xbd\xdd\xcc6\xe7\xa7P\x8b" +
+	"\x1b)t\xfa\xdf<J]B.[{\x16P\xc7\x0f" +
+	"\xa2*\x13\xcd\xa7A\xda\x90\x8c\xba\x8eL\x08\x0c\x1d." +
+	"\xb8?C\x85:'2\xa2\x8e\xafVU\x86\x81/\x99" +
+	"\x0a\xb1\x92\xc5\xfa\x17\xa7\xaf?kn\x7f\xd3\x95\xea\x0a" +
+	"+\x9d\x0eDz\xa5\xebS\xcc\xf3\x98G\xa7\xb8\xaf4" +
+	"Qg\xb2G\xb9-9\x8aY\xe0]\x04\xffV,\x99" +
+	"\xe0N\x8d?\x8b9\xa9Z\x92\xa2\x1b\x08v\x03\xb6\xfb" +
+	"\x80;\"J>\xe0\x7f\x07\x00\x00\xff\xffN\x03\xb8\xb1"
 
 func init() {
 	schemas.Register(schema_87fc44aa3255d2ae,
+		0x874f20540dfe792f,
 		0x9fd358f04cb684bd,
+		0xa70dd5f5d238faaa,
+		0xa8084ffe960780bb,
 		0xab748f26e2efa4c7,
-		0xf38cccd618967ecd)
+		0xc8ea6e5ec7f91c46,
+		0xd064305fa8416cb7,
+		0xf38cccd618967ecd,
+		0xf87ced6eabceba45)
 }
