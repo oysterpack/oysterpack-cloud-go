@@ -52,6 +52,7 @@ func (a *System) registerActor(actor *Actor) bool {
 	a.lock.Lock()
 	key := actor.path
 	if _, ok := a.registry[key]; ok {
+		a.lock.Unlock()
 		return false
 	}
 	a.registry[key] = actor
@@ -72,9 +73,9 @@ func (a *System) unregisterActor(actor *Actor) {
 
 func (a *System) Actor(address Address) (*Actor, bool) {
 	a.lock.RLock()
-	actor, exists := a.registry[address.Path()]
+	actor, exists := a.registry[address.Path]
 	a.lock.RUnlock()
-	if exists && address.id != nil && actor.id != *address.id {
+	if exists && address.Id != nil && actor.id != *address.Id {
 		return nil, false
 	}
 	return actor, exists
@@ -117,18 +118,15 @@ func (a *System) RootActors(t tomb.Tomb) <-chan *Actor {
 // NewRootActor creates a new Actor, registers it as top level root actor, and starts the Actor.
 //
 // - name cannot contain a '/'
-func (a *System) NewRootActor(name string, messageProcessorFactory MessageProcessorFactory, errorHandler MessageProcessorErrorHandler, logger zerolog.Logger) (*Actor, error) {
-	if name == "" {
-		return nil, ErrActorNameBlank
+func (a *System) NewRootActor(props Props) (*Actor, error) {
+	if _, ok := a.Actor(Address{Path: props.Name}); ok {
+		return nil, ActorAlreadyRegisteredError{props.Name}
 	}
-	if messageProcessorFactory == nil {
-		return nil, ErrMessageProcessorFactoryRequired
+	if err := props.Validate(); err != nil {
+		return nil, err
 	}
-	if errorHandler == nil {
-		return nil, ErrMessageProcessorErrorHandlerRequired
-	}
-	processor := messageProcessorFactory()
-	if err := ValidateMessageProcessor(processor); err != nil {
+	processor, err := props.MessageProcessor.New()
+	if err != nil {
 		return nil, err
 	}
 
@@ -136,27 +134,27 @@ func (a *System) NewRootActor(name string, messageProcessorFactory MessageProces
 	actor := &Actor{
 		system: a,
 
-		name: name,
-		path: name,
+		name: props.Name,
+		path: props.Name,
 		id:   actorId,
 
 		created: time.Now(),
 
 		children: make(map[string]*Actor),
 
-		messageProcessorFactory: messageProcessorFactory,
+		messageProcessorFactory: props.MessageProcessor.Factory,
+		errorHandler:            props.MessageProcessor.ErrorHandler,
 		messageProcessor:        processor,
-		errorHandler:            errorHandler,
-		messageProcessorChan:    make(chan *Envelope),
+		messageProcessorChan:    props.MessageProcessor.Channel(),
 
-		actorChan: make(chan interface{}),
+		actorChan: make(chan interface{}, 1),
 
-		logger:       logger.With().Dict("actor", zerolog.Dict().Str("path", name).Str("id", actorId)).Logger(),
+		logger:       logger.With().Dict("actor", zerolog.Dict().Str("path", props.Name).Str("id", actorId)).Logger(),
 		uidGenerator: nuid.New(),
 	}
 
 	if !a.registerActor(actor) {
-		return nil, ActorAlreadyRegisteredError{name}
+		return nil, ActorAlreadyRegisteredError{actor.path}
 	}
 
 	actor.start()

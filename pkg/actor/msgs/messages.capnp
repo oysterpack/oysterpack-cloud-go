@@ -43,6 +43,7 @@ struct Stopping @0xd064305fa8416cb7 {}
 
 struct Stopped @0x874f20540dfe792f {}
 
+# Actor system messages
 struct PingRequest @0xa8084ffe960780bb {}
 
 struct PingResponse @0xc8ea6e5ec7f91c46 {}

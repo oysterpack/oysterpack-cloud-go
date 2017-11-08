@@ -39,9 +39,14 @@ type Receive func(ctx MessageContext) error
 
 type Unmarshal func(msg []byte) (*Envelope, error)
 
-type MessageContext struct {
-	*Actor
-	Message *Envelope
+func Unmarshaller(prototype Message) Unmarshal {
+	return func(msg []byte) (*Envelope, error) {
+		envelope := EmptyEnvelope(prototype)
+		if err := envelope.UnmarshalBinary(msg); err != nil {
+			return nil, err
+		}
+		return envelope, nil
+	}
 }
 
 // MessageHandlers implements MessageProcessor.

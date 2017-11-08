@@ -22,7 +22,7 @@ import (
 var (
 	PING_REQUEST         = PingRequest{}
 	PING_RESPONSE        = PingResponse{}
-	PING_REQUEST_HANDLER = MessageHandler{HandlePingRequest, UnmarshallPingRequest}
+	PING_REQUEST_HANDLER = MessageHandler{HandlePingRequest, Unmarshaller(PING_REQUEST)}
 )
 
 type PingRequest struct {
@@ -43,7 +43,7 @@ func (a PingResponse) MessageType() MessageType {
 
 func HandlePingRequest(ctx MessageContext) error {
 	if replyTo := ctx.Message.ReplyTo(); replyTo != nil {
-		ctx.Logger().Info().Dict("from", zerolog.Dict().Str("path", replyTo.Address.path).Str("id", *replyTo.Address.id)).Msg("PingRequest")
+		ctx.Logger().Info().Dict("from", zerolog.Dict().Str("path", replyTo.Address.Path).Str("id", *replyTo.Address.Id)).Msg("PingRequest")
 		if actor, ok := ctx.System().Actor(replyTo.Address); ok {
 			response := ctx.NewEnvelope(PING_RESPONSE, replyTo.Address, nil, &ctx.Message.id)
 			if err := actor.Tell(response); err != nil {
@@ -56,20 +56,4 @@ func HandlePingRequest(ctx MessageContext) error {
 		ctx.Logger().Info().Msg("PingRequest")
 	}
 	return nil
-}
-
-func UnmarshallPingRequest(msg []byte) (*Envelope, error) {
-	envelope := EmptyEnvelope(PING_REQUEST)
-	if err := envelope.UnmarshalBinary(msg); err != nil {
-		return nil, err
-	}
-	return envelope, nil
-}
-
-func UnmarshallPingResponse(msg []byte) (*Envelope, error) {
-	envelope := EmptyEnvelope(PING_RESPONSE)
-	if err := envelope.UnmarshalBinary(msg); err != nil {
-		return nil, err
-	}
-	return envelope, nil
 }

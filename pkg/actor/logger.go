@@ -25,9 +25,14 @@ const (
 	LOG_FIELD_MESSAGE_ID   = "msg_id"
 	LOG_FIELD_MESSAGE_TYPE = "msg_type"
 
-	LOG_EVENT_STARTED logging.Event = "STARTED"
-	LOG_EVENT_DYING   logging.Event = "DYING"
-	LOG_EVENT_DEAD    logging.Event = "DEAD"
+	LOG_EVENT_STARTED      logging.Event = "STARTED"
+	LOG_EVENT_START_FAILED logging.Event = "START_FAILED"
+
+	LOG_EVENT_RESTARTING logging.Event = "RESTARTING"
+	LOG_EVENT_RESTARTED  logging.Event = "RESTARTED"
+
+	LOG_EVENT_DYING logging.Event = "DYING"
+	LOG_EVENT_DEAD  logging.Event = "DEAD"
 
 	LOG_EVENT_REGISTERED   logging.Event = "REGISTERED"
 	LOG_EVENT_UNREGISTERED logging.Event = "UNREGISTERED"

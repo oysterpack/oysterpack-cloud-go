@@ -41,9 +41,10 @@ type Actor struct {
 	children     map[string]*Actor
 
 	messageProcessorFactory MessageProcessorFactory
-	messageProcessor        MessageProcessor
 	errorHandler            MessageProcessorErrorHandler
-	messageProcessorChan    chan *Envelope
+
+	messageProcessor     MessageProcessor
+	messageProcessorChan chan *Envelope
 
 	tomb.Tomb
 
@@ -78,7 +79,7 @@ func (a *Actor) ID() string {
 }
 
 func (a *Actor) Address() Address {
-	return Address{path: a.path, id: &a.id}
+	return Address{a.path, &a.id}
 }
 
 func (a *Actor) Parent() *Actor {
@@ -94,6 +95,13 @@ func (a *Actor) Child(name string) (child *Actor, ok bool) {
 	child, ok = a.children[name]
 	a.childrenLock.RUnlock()
 	return
+}
+
+func (a *Actor) ChildrenCount() int {
+	a.childrenLock.RLock()
+	count := len(a.children)
+	a.childrenLock.RUnlock()
+	return count
 }
 
 func (a *Actor) ChildrenNames() []string {
@@ -124,6 +132,7 @@ func (a *Actor) putChild(child *Actor) bool {
 	a.childrenLock.Lock()
 	_, ok := a.children[child.name]
 	if ok {
+		a.childrenLock.Unlock()
 		return false
 	}
 	a.children[child.name] = child
@@ -152,22 +161,61 @@ func (a *Actor) Err() error {
 	return err
 }
 
-func (a *Actor) Spawn(name string, messageProcessorFactory MessageProcessorFactory, errorHandler MessageProcessorErrorHandler, logger zerolog.Logger) (*Actor, error) {
-	if name == "" {
-		return nil, ErrActorNameBlank
+type Props struct {
+	Name string
+
+	MessageProcessor MessageProcessorProps
+
+	zerolog.Logger
+}
+
+func (a Props) Validate() error {
+	if a.Name == "" {
+		return ErrActorNameBlank
 	}
-	if strings.Contains(name, "/") {
-		return nil, ErrActorNameMustNotContainPathSep
+	if strings.Contains(a.Name, "/") {
+		return ErrActorNameMustNotContainPathSep
 	}
 
-	if messageProcessorFactory == nil {
-		return nil, ErrMessageProcessorFactoryRequired
+	if a.MessageProcessor.Factory == nil {
+		return ErrMessageProcessorFactoryRequired
 	}
-	if errorHandler == nil {
-		return nil, ErrMessageProcessorErrorHandlerRequired
+	if a.MessageProcessor.ErrorHandler == nil {
+		return ErrMessageProcessorErrorHandlerRequired
 	}
-	processor := messageProcessorFactory()
+	return nil
+}
+
+func (a MessageProcessorProps) New() (MessageProcessor, error) {
+	processor := a.Factory()
 	if err := ValidateMessageProcessor(processor); err != nil {
+		return nil, err
+	}
+	return processor, nil
+}
+
+func (a MessageProcessorProps) Channel() chan *Envelope {
+	if a.ChannelSize > 1 {
+		return make(chan *Envelope, a.ChannelSize)
+	}
+	return make(chan *Envelope, 1)
+}
+
+type MessageProcessorProps struct {
+	Factory      MessageProcessorFactory
+	ErrorHandler MessageProcessorErrorHandler
+	ChannelSize  uint
+}
+
+func (a *Actor) spawn(props Props) (*Actor, error) {
+	if _, ok := a.Child(props.Name); ok {
+		return nil, ActorAlreadyRegisteredError{strings.Join([]string{a.path, props.Name}, "/")}
+	}
+	if err := props.Validate(); err != nil {
+		return nil, err
+	}
+	processor, err := props.MessageProcessor.New()
+	if err != nil {
 		return nil, err
 	}
 
@@ -176,22 +224,22 @@ func (a *Actor) Spawn(name string, messageProcessorFactory MessageProcessorFacto
 		system: a.system,
 		parent: a,
 
-		name: name,
-		path: strings.Join([]string{a.path, name}, "/"),
+		name: props.Name,
+		path: strings.Join([]string{a.path, props.Name}, "/"),
 		id:   actorId,
 
 		created: time.Now(),
 
 		children: make(map[string]*Actor),
 
-		messageProcessorFactory: messageProcessorFactory,
+		messageProcessorFactory: props.MessageProcessor.Factory,
+		errorHandler:            props.MessageProcessor.ErrorHandler,
 		messageProcessor:        processor,
-		errorHandler:            errorHandler,
-		messageProcessorChan:    make(chan *Envelope),
+		messageProcessorChan:    props.MessageProcessor.Channel(),
 
-		actorChan: make(chan interface{}),
+		actorChan: make(chan interface{}, 1),
 
-		logger:       logger.With().Dict("actor", zerolog.Dict().Str("path", name).Str("id", actorId)).Logger(),
+		logger:       logger.With().Dict("actor", zerolog.Dict().Str("path", props.Name).Str("id", actorId)).Logger(),
 		uidGenerator: nuid.New(),
 	}
 
@@ -211,13 +259,11 @@ func (a *Actor) Spawn(name string, messageProcessorFactory MessageProcessorFacto
 
 func (a *Actor) start() {
 	a.Go(func() error {
-		LOG_EVENT_STARTED.Log(a.logger.Debug()).Msg("")
-
-		if receive, ok := a.messageProcessor.Handler(STARTED.MessageType()); ok {
-			if err := receive(MessageContext{a, a.NewEnvelope(STARTED, a.Address(), nil, nil)}); err != nil {
-				return err
-			}
+		if err := a.startedMessageProcessor(); err != nil {
+			return err
 		}
+
+		LOG_EVENT_STARTED.Log(a.logger.Debug()).Msg("")
 
 	LOOP:
 		for {
@@ -239,17 +285,9 @@ func (a *Actor) start() {
 				}
 			case <-a.Dying():
 				LOG_EVENT_DYING.Log(a.logger.Debug()).Msg("")
-				if receive, ok := a.messageProcessor.Handler(STOPPING.MessageType()); ok {
-					if err := receive(MessageContext{a, a.NewEnvelope(STOPPING, a.Address(), nil, nil)}); err != nil {
-						LOG_EVENT_MESSAGE_PROCESSING_ERR.Log(a.logger.Error()).Err(err).Uint64(LOG_FIELD_MESSAGE_TYPE, STOPPING.MessageType().UInt64()).Msg("")
-					}
-				}
+				a.stoppingMessageProcessor()
 				a.stop()
-				if receive, ok := a.messageProcessor.Handler(STOPPED.MessageType()); ok {
-					if err := receive(MessageContext{a, a.NewEnvelope(STOPPED, a.Address(), nil, nil)}); err != nil {
-						LOG_EVENT_MESSAGE_PROCESSING_ERR.Log(a.logger.Error()).Err(err).Uint64(LOG_FIELD_MESSAGE_TYPE, STOPPED.MessageType().UInt64()).Msg("")
-					}
-				}
+				a.stoppedMessageProcessor()
 				LOG_EVENT_DEAD.Log(a.logger.Debug()).Msg("")
 				return nil
 			case msg := <-a.actorChan:
@@ -258,7 +296,32 @@ func (a *Actor) start() {
 		}
 		return nil
 	})
+}
 
+func (a *Actor) startedMessageProcessor() error {
+	if receive, ok := a.messageProcessor.Handler(STARTED.MessageType()); ok {
+		if err := receive(MessageContext{a, a.NewEnvelope(STARTED, a.Address(), nil, nil)}); err != nil {
+			LOG_EVENT_START_FAILED.Log(a.logger.Error()).Err(err).Msg("")
+			return err
+		}
+	}
+	return nil
+}
+
+func (a *Actor) stoppingMessageProcessor() {
+	if receive, ok := a.messageProcessor.Handler(STOPPING.MessageType()); ok {
+		if err := receive(MessageContext{a, a.NewEnvelope(STOPPING, a.Address(), nil, nil)}); err != nil {
+			LOG_EVENT_MESSAGE_PROCESSING_ERR.Log(a.logger.Error()).Err(err).Uint64(LOG_FIELD_MESSAGE_TYPE, STOPPING.MessageType().UInt64()).Msg("")
+		}
+	}
+}
+
+func (a *Actor) stoppedMessageProcessor() {
+	if receive, ok := a.messageProcessor.Handler(STOPPED.MessageType()); ok {
+		if err := receive(MessageContext{a, a.NewEnvelope(STOPPED, a.Address(), nil, nil)}); err != nil {
+			LOG_EVENT_MESSAGE_PROCESSING_ERR.Log(a.logger.Error()).Err(err).Uint64(LOG_FIELD_MESSAGE_TYPE, STOPPED.MessageType().UInt64()).Msg("")
+		}
+	}
 }
 
 func (a *Actor) stop() {
@@ -279,12 +342,42 @@ func (a *Actor) stop() {
 	a.clearChildren()
 }
 
+// Envelope returns a new Envelope for the specified message that is addressed to this actor
+func (a *Actor) Envelope(msg Message, replyTo *ReplyTo, correlationId *string) *Envelope {
+	return NewEnvelope(a.uidGenerator.Next, a.Address(), msg, replyTo, correlationId)
+}
+
 func (a *Actor) NewEnvelope(msg Message, to Address, replyTo *ReplyTo, correlationId *string) *Envelope {
 	return NewEnvelope(a.uidGenerator.Next, to, msg, replyTo, correlationId)
 }
 
-// Tell blocks until the Actor MessageProcessor receives the message.
+// Tell delivers the message to the Actor's MessageProcessor. The operation is non-blocking and back-pressured.
+// The MessageProcessor channel naturally applies back pressure. If the channel buffer is full, then ErrChannelBlocked
+// is returned.
+//
+// errors:
+// 	ErrNotAlive - messages cannot be sent to an actor that is not alive
+//	ErrChannelBlocked - means the MessageProcessor channel is full, which is how back-pressure is applied
 func (a *Actor) Tell(msg *Envelope) error {
+	if msg == nil {
+		return ErrEnvelopeNil
+	}
+	if _, ok := a.messageProcessor.Handler(msg.MessageType()); !ok {
+		return MessageTypeNotSupportedError{msg.MessageType()}
+	}
+	select {
+	case a.messageProcessorChan <- msg:
+		return nil
+	case <-a.Dying():
+		return ErrNotAlive
+	default:
+		return ErrChannelBlocked
+	}
+}
+
+// TellBlocking will block until either the message is delivered or the actor is no longer alive.
+// When the actor is not alive, ErrNotAlive is returned.
+func (a *Actor) TellBlocking(msg *Envelope) error {
 	if msg == nil {
 		return ErrEnvelopeNil
 	}

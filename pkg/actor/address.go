@@ -17,49 +17,36 @@ package actor
 import (
 	"errors"
 
-	"strings"
-
 	"github.com/oysterpack/oysterpack.go/pkg/actor/msgs"
 	"zombiezen.com/go/capnproto2"
 )
 
-func NewAddress(path []string, id *string) (*Address, error) {
-	address := &Address{strings.Join(path, "/"), id}
-	if err := address.Validate(); err != nil {
-		return nil, err
-	}
-	return address, nil
+func NewAddress(path string, id string) Address {
+	return Address{path, &id}
 }
 
 // Address refers to an actor address.
 //
-//  - If id is not set, then the message is sent to any actor with a matching path.
-//    - Note: in a cluster, there may be more than 1 actor with the same address on different nodes
-// 	- If id is set, then the message is sent to a specific actor with a matching id
-type Address struct {
-	path string
-	id   *string
-}
-
-// Path is the actor path in the actor system hierarchy.
-// The first element is the name of the actor system.
+// Path is the actor path in the actor system hierarchy. The first element is the name of the actor system.
 // The last element is the actor name
-func (a *Address) Path() string {
-	return a.path
-}
-
-// Id is the unique actor id.
-// The Id is optional. When it is not set it refers to any actor at the specified path.
-func (a *Address) Id() *string {
-	return a.id
+//
+// Id is the unique actor id. The Id is optional. When it is not set it refers to any actor at the specified path.
+//
+// If id is not set, then the message is sent to any actor with a matching path.
+// If id is set, then the message is sent to a specific actor with a matching id
+//
+// Note: in a cluster, there may be more than 1 actor with the same address on different nodes
+type Address struct {
+	Path string
+	Id   *string
 }
 
 func (a *Address) Validate() error {
-	if a.path == "" {
+	if a.Path == "" {
 		return errors.New("Address.Path is required")
 	}
 
-	if a.id != nil && *a.id == "" {
+	if a.Id != nil && *a.Id == "" {
 		return errors.New("Address.Id cannot be blank")
 	}
 
@@ -71,11 +58,11 @@ func (a *Address) ToCapnpMessage(seg *capnp.Segment) (msgs.Address, error) {
 	if err != nil {
 		return addr, err
 	}
-	if err := addr.SetPath(a.path); err != nil {
+	if err := addr.SetPath(a.Path); err != nil {
 		return addr, err
 	}
-	if a.id != nil {
-		if err := addr.SetId(*a.id); err != nil {
+	if a.Id != nil {
+		if err := addr.SetId(*a.Id); err != nil {
 			return addr, err
 		}
 	}

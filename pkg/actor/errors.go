@@ -41,6 +41,10 @@ var (
 	ErrNotAlive   = errors.New("Not alive")
 
 	ErrMessageProcessorNoMessageTypes = errors.New("At least 1 MessageType must be defined")
+
+	ErrChannelBlocked = errors.New("Channel blocked")
+
+	ErrMessageNil = errors.New("Message is nil")
 )
 
 func envelopeMessageTypeDoesNotMatch(envelope *Envelope) error {

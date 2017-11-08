@@ -273,7 +273,7 @@ func unmarshalCapnAddress(addr msgs.Address) (*Address, error) {
 		if err != nil {
 			return nil, err
 		}
-		address.path = path
+		address.Path = path
 	}
 
 	if addr.HasId() {
@@ -281,7 +281,7 @@ func unmarshalCapnAddress(addr msgs.Address) (*Address, error) {
 		if err != nil {
 			return nil, err
 		}
-		address.id = &id
+		address.Id = &id
 	}
 	if err := address.Validate(); err != nil {
 		return nil, err
@@ -366,8 +366,8 @@ func (a *Envelope) String() string {
 
 	newAddr := func(a Address) addr {
 		return addr{
-			a.path,
-			a.id,
+			a.Path,
+			a.Id,
 		}
 	}
 
