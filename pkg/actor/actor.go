@@ -19,19 +19,18 @@ import (
 
 	"sync"
 
-	"strings"
-
 	"github.com/nats-io/nuid"
+	"github.com/oysterpack/oysterpack.go/pkg/commons"
 	"github.com/rs/zerolog"
-	"gopkg.in/tomb.v2"
 )
 
 type Actor struct {
 	system *System
 
-	name string
-	path string
-	id   string
+	name    string
+	path    string
+	id      string
+	address *Address
 
 	created time.Time
 
@@ -45,16 +44,50 @@ type Actor struct {
 
 	messageProcessor     MessageProcessor
 	messageProcessorChan chan *Envelope
-
-	tomb.Tomb
+	err                  error
 
 	actorChan chan interface{}
+
+	dying chan struct{}
+	dead  chan struct{}
 
 	// used to :
 	// 	- generate unique ids for children
 	//	- generate unique message envelope ids
 	uidGenerator *nuid.NUID
-	logger       zerolog.Logger
+	uidLock      sync.Mutex
+
+	logger zerolog.Logger
+}
+
+func (a *Actor) Alive() bool {
+	select {
+	case <-a.dead:
+		return false
+	case <-a.dying:
+		return false
+	default:
+		return true
+	}
+}
+
+func (a *Actor) Dying() <-chan struct{} {
+	return a.dying
+}
+
+func (a *Actor) Dead() <-chan struct{} {
+	return a.dead
+}
+
+func (a *Actor) Kill() {
+	if a.Alive() {
+		commons.CloseQuietly(a.dying)
+	}
+}
+
+// Err returns the death reason, or ErrStillAlive if the actor is not in a dying or dead state.
+func (a *Actor) Err() error {
+	return a.err
 }
 
 func (a *Actor) System() *System {
@@ -78,8 +111,8 @@ func (a *Actor) ID() string {
 	return a.id
 }
 
-func (a *Actor) Address() Address {
-	return Address{a.path, &a.id}
+func (a *Actor) Address() *Address {
+	return a.address
 }
 
 func (a *Actor) Parent() *Actor {
@@ -130,6 +163,11 @@ func (a *Actor) Children() []*Actor {
 
 func (a *Actor) putChild(child *Actor) bool {
 	a.childrenLock.Lock()
+	if a.children == nil {
+		a.children = map[string]*Actor{child.name: child}
+		a.childrenLock.Unlock()
+		return true
+	}
 	_, ok := a.children[child.name]
 	if ok {
 		a.childrenLock.Unlock()
@@ -142,7 +180,9 @@ func (a *Actor) putChild(child *Actor) bool {
 
 func (a *Actor) deleteChild(name string) {
 	a.childrenLock.Lock()
-	delete(a.children, name)
+	if a.children != nil {
+		delete(a.children, name)
+	}
 	a.childrenLock.Unlock()
 }
 
@@ -152,118 +192,18 @@ func (a *Actor) clearChildren() {
 	a.childrenLock.Unlock()
 }
 
-// Err returns the death reason, or ErrStillAlive if the actor is not in a dying or dead state.
-func (a *Actor) Err() error {
-	err := a.Tomb.Err()
-	if err == tomb.ErrStillAlive {
-		return ErrStillAlive
-	}
-	return err
-}
-
-type Props struct {
-	Name string
-
-	MessageProcessor MessageProcessorProps
-
-	zerolog.Logger
-}
-
-func (a Props) Validate() error {
-	if a.Name == "" {
-		return ErrActorNameBlank
-	}
-	if strings.Contains(a.Name, "/") {
-		return ErrActorNameMustNotContainPathSep
-	}
-
-	if a.MessageProcessor.Factory == nil {
-		return ErrMessageProcessorFactoryRequired
-	}
-	if a.MessageProcessor.ErrorHandler == nil {
-		return ErrMessageProcessorErrorHandlerRequired
-	}
-	return nil
-}
-
-func (a MessageProcessorProps) New() (MessageProcessor, error) {
-	processor := a.Factory()
-	if err := ValidateMessageProcessor(processor); err != nil {
-		return nil, err
-	}
-	return processor, nil
-}
-
-func (a MessageProcessorProps) Channel() chan *Envelope {
-	if a.ChannelSize > 1 {
-		return make(chan *Envelope, a.ChannelSize)
-	}
-	return make(chan *Envelope, 1)
-}
-
-type MessageProcessorProps struct {
-	Factory      MessageProcessorFactory
-	ErrorHandler MessageProcessorErrorHandler
-	ChannelSize  uint
-}
-
-func (a *Actor) spawn(props Props) (*Actor, error) {
-	if _, ok := a.Child(props.Name); ok {
-		return nil, ActorAlreadyRegisteredError{strings.Join([]string{a.path, props.Name}, "/")}
-	}
-	if err := props.Validate(); err != nil {
-		return nil, err
-	}
-	processor, err := props.MessageProcessor.New()
-	if err != nil {
-		return nil, err
-	}
-
-	actorId := nuid.Next()
-	actor := &Actor{
-		system: a.system,
-		parent: a,
-
-		name: props.Name,
-		path: strings.Join([]string{a.path, props.Name}, "/"),
-		id:   actorId,
-
-		created: time.Now(),
-
-		children: make(map[string]*Actor),
-
-		messageProcessorFactory: props.MessageProcessor.Factory,
-		errorHandler:            props.MessageProcessor.ErrorHandler,
-		messageProcessor:        processor,
-		messageProcessorChan:    props.MessageProcessor.Channel(),
-
-		actorChan: make(chan interface{}, 1),
-
-		logger:       logger.With().Dict("actor", zerolog.Dict().Str("path", props.Name).Str("id", actorId)).Logger(),
-		uidGenerator: nuid.New(),
-	}
-
-	if !a.putChild(actor) {
-		return nil, ActorAlreadyRegisteredError{a.path}
-	}
-
-	if !a.system.registerActor(actor) {
-		a.deleteChild(actor.name)
-		return nil, ActorAlreadyRegisteredError{a.path}
-	}
-
-	actor.start()
-
-	return actor, nil
-}
-
 func (a *Actor) start() {
-	a.Go(func() error {
+	gofuncs <- func() {
+		defer close(a.dead)
+
 		if err := a.startedMessageProcessor(); err != nil {
-			return err
+			a.err = err
+			return
 		}
 
 		LOG_EVENT_STARTED.Log(a.logger.Debug()).Msg("")
+
+		ctx := &MessageContext{Actor: a}
 
 	LOOP:
 		for {
@@ -275,7 +215,7 @@ func (a *Actor) start() {
 					// TODO: if the envelope has a replyTo address, then reply with a MessageProcessingError
 					continue LOOP
 				}
-				ctx := MessageContext{a, msg}
+				ctx.Message = msg
 				if err := receive(ctx); err != nil {
 					LOG_EVENT_MESSAGE_PROCESSING_ERR.Log(a.logger.Error()).Err(err).
 						Str(LOG_FIELD_MESSAGE_ID, msg.id).
@@ -283,24 +223,23 @@ func (a *Actor) start() {
 						Msg("")
 					a.errorHandler(ctx, err)
 				}
-			case <-a.Dying():
+			case <-a.dying:
 				LOG_EVENT_DYING.Log(a.logger.Debug()).Msg("")
 				a.stoppingMessageProcessor()
 				a.stop()
 				a.stoppedMessageProcessor()
 				LOG_EVENT_DEAD.Log(a.logger.Debug()).Msg("")
-				return nil
+				return
 			case msg := <-a.actorChan:
 				a.handleActorMessage(msg)
 			}
 		}
-		return nil
-	})
+	}
 }
 
 func (a *Actor) startedMessageProcessor() error {
 	if receive, ok := a.messageProcessor.Handler(STARTED.MessageType()); ok {
-		if err := receive(MessageContext{a, a.NewEnvelope(STARTED, a.Address(), nil, nil)}); err != nil {
+		if err := receive(&MessageContext{a, a.NewEnvelope(STARTED, a.Address(), nil, nil)}); err != nil {
 			LOG_EVENT_START_FAILED.Log(a.logger.Error()).Err(err).Msg("")
 			return err
 		}
@@ -310,7 +249,7 @@ func (a *Actor) startedMessageProcessor() error {
 
 func (a *Actor) stoppingMessageProcessor() {
 	if receive, ok := a.messageProcessor.Handler(STOPPING.MessageType()); ok {
-		if err := receive(MessageContext{a, a.NewEnvelope(STOPPING, a.Address(), nil, nil)}); err != nil {
+		if err := receive(&MessageContext{a, a.NewEnvelope(STOPPING, a.Address(), nil, nil)}); err != nil {
 			LOG_EVENT_MESSAGE_PROCESSING_ERR.Log(a.logger.Error()).Err(err).Uint64(LOG_FIELD_MESSAGE_TYPE, STOPPING.MessageType().UInt64()).Msg("")
 		}
 	}
@@ -318,7 +257,7 @@ func (a *Actor) stoppingMessageProcessor() {
 
 func (a *Actor) stoppedMessageProcessor() {
 	if receive, ok := a.messageProcessor.Handler(STOPPED.MessageType()); ok {
-		if err := receive(MessageContext{a, a.NewEnvelope(STOPPED, a.Address(), nil, nil)}); err != nil {
+		if err := receive(&MessageContext{a, a.NewEnvelope(STOPPED, a.Address(), nil, nil)}); err != nil {
 			LOG_EVENT_MESSAGE_PROCESSING_ERR.Log(a.logger.Error()).Err(err).Uint64(LOG_FIELD_MESSAGE_TYPE, STOPPED.MessageType().UInt64()).Msg("")
 		}
 	}
@@ -334,7 +273,7 @@ func (a *Actor) stop() {
 	// kill all children
 	children := a.Children()
 	for _, child := range children {
-		child.Kill(nil)
+		child.Kill()
 	}
 	for _, child := range children {
 		<-child.Dead()
@@ -344,11 +283,18 @@ func (a *Actor) stop() {
 
 // Envelope returns a new Envelope for the specified message that is addressed to this actor
 func (a *Actor) Envelope(msg Message, replyTo *ReplyTo, correlationId *string) *Envelope {
-	return NewEnvelope(a.uidGenerator.Next, a.Address(), msg, replyTo, correlationId)
+	return NewEnvelope(a.NextUID, a.Address(), msg, replyTo, correlationId)
 }
 
-func (a *Actor) NewEnvelope(msg Message, to Address, replyTo *ReplyTo, correlationId *string) *Envelope {
-	return NewEnvelope(a.uidGenerator.Next, to, msg, replyTo, correlationId)
+func (a *Actor) NewEnvelope(msg Message, to *Address, replyTo *ReplyTo, correlationId *string) *Envelope {
+	return NewEnvelope(a.NextUID, to, msg, replyTo, correlationId)
+}
+
+func (a *Actor) NextUID() string {
+	a.uidLock.Lock()
+	uid := a.uidGenerator.Next()
+	a.uidLock.Unlock()
+	return uid
 }
 
 // Tell delivers the message to the Actor's MessageProcessor. The operation is non-blocking and back-pressured.
@@ -368,7 +314,9 @@ func (a *Actor) Tell(msg *Envelope) error {
 	select {
 	case a.messageProcessorChan <- msg:
 		return nil
-	case <-a.Dying():
+	case <-a.dying:
+		return ErrNotAlive
+	case <-a.dead:
 		return ErrNotAlive
 	default:
 		return ErrChannelBlocked
@@ -387,7 +335,9 @@ func (a *Actor) TellBlocking(msg *Envelope) error {
 	select {
 	case a.messageProcessorChan <- msg:
 		return nil
-	case <-a.Dying():
+	case <-a.dying:
+		return ErrNotAlive
+	case <-a.dead:
 		return ErrNotAlive
 	}
 }

@@ -22,7 +22,7 @@ import (
 var (
 	PING_REQUEST         = PingRequest{}
 	PING_RESPONSE        = PingResponse{}
-	PING_REQUEST_HANDLER = MessageHandler{HandlePingRequest, Unmarshaller(PING_REQUEST)}
+	PING_REQUEST_HANDLER = &MessageHandler{HandlePingRequest, Unmarshaller(PING_REQUEST)}
 )
 
 type PingRequest struct {
@@ -41,7 +41,7 @@ func (a PingResponse) MessageType() MessageType {
 	return MessageType(msgs.PingResponse_TypeID)
 }
 
-func HandlePingRequest(ctx MessageContext) error {
+func HandlePingRequest(ctx *MessageContext) error {
 	if replyTo := ctx.Message.ReplyTo(); replyTo != nil {
 		ctx.Logger().Info().Dict("from", zerolog.Dict().Str("path", replyTo.Address.Path).Str("id", *replyTo.Address.Id)).Msg("PingRequest")
 		if actor, ok := ctx.System().Actor(replyTo.Address); ok {

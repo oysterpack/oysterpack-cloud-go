@@ -17,12 +17,22 @@ package actor
 import (
 	"sync"
 
-	"time"
-
-	"github.com/nats-io/nuid"
-	"github.com/rs/zerolog"
 	"gopkg.in/tomb.v2"
 )
+
+var gofuncs chan func()
+
+func init() {
+	gofuncs = make(chan func(), 1024)
+	go func() {
+		for {
+			select {
+			case f := <-gofuncs:
+				go f()
+			}
+		}
+	}()
+}
 
 func NewSystem() *System {
 	return &System{registry: make(map[string]*Actor)}
@@ -35,7 +45,7 @@ type System struct {
 
 func (a *System) KillRootActors(t tomb.Tomb) {
 	for actor := range a.RootActors(t) {
-		actor.Kill(nil)
+		actor.Kill()
 
 		select {
 		case <-actor.Dead():
@@ -71,7 +81,7 @@ func (a *System) unregisterActor(actor *Actor) {
 	a.lock.Unlock()
 }
 
-func (a *System) Actor(address Address) (*Actor, bool) {
+func (a *System) Actor(address *Address) (*Actor, bool) {
 	a.lock.RLock()
 	actor, exists := a.registry[address.Path]
 	a.lock.RUnlock()
@@ -113,51 +123,4 @@ func (a *System) RootActors(t tomb.Tomb) <-chan *Actor {
 	})
 
 	return c
-}
-
-// NewRootActor creates a new Actor, registers it as top level root actor, and starts the Actor.
-//
-// - name cannot contain a '/'
-func (a *System) NewRootActor(props Props) (*Actor, error) {
-	if _, ok := a.Actor(Address{Path: props.Name}); ok {
-		return nil, ActorAlreadyRegisteredError{props.Name}
-	}
-	if err := props.Validate(); err != nil {
-		return nil, err
-	}
-	processor, err := props.MessageProcessor.New()
-	if err != nil {
-		return nil, err
-	}
-
-	actorId := nuid.Next()
-	actor := &Actor{
-		system: a,
-
-		name: props.Name,
-		path: props.Name,
-		id:   actorId,
-
-		created: time.Now(),
-
-		children: make(map[string]*Actor),
-
-		messageProcessorFactory: props.MessageProcessor.Factory,
-		errorHandler:            props.MessageProcessor.ErrorHandler,
-		messageProcessor:        processor,
-		messageProcessorChan:    props.MessageProcessor.Channel(),
-
-		actorChan: make(chan interface{}, 1),
-
-		logger:       logger.With().Dict("actor", zerolog.Dict().Str("path", props.Name).Str("id", actorId)).Logger(),
-		uidGenerator: nuid.New(),
-	}
-
-	if !a.registerActor(actor) {
-		return nil, ActorAlreadyRegisteredError{actor.path}
-	}
-
-	actor.start()
-
-	return actor, nil
 }

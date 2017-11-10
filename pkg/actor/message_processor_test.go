@@ -29,7 +29,7 @@ func TestMessageHandler_Validate(t *testing.T) {
 		t.Error("should not be valid")
 	}
 
-	handler.Receive = func(ctx actor.MessageContext) error {
+	handler.Receive = func(ctx *actor.MessageContext) error {
 		return nil
 	}
 
@@ -61,8 +61,8 @@ func TestMessageHandlers(t *testing.T) {
 
 	// When a Handler is defined
 	const MSG_TYPE_1 = actor.MessageType(1)
-	handlers[MSG_TYPE_1] = actor.MessageHandler{
-		Receive: func(ctx actor.MessageContext) error {
+	handlers[MSG_TYPE_1] = &actor.MessageHandler{
+		Receive: func(ctx *actor.MessageContext) error {
 			return nil
 		},
 		Unmarshal: func(msg []byte) (*actor.Envelope, error) {
@@ -79,7 +79,7 @@ func TestMessageHandlers(t *testing.T) {
 	if receive, ok := messageProcessor.Handler(MSG_TYPE_1); !ok {
 		t.Error("handler should not be nil")
 	} else {
-		receive(actor.MessageContext{})
+		receive(&actor.MessageContext{})
 	}
 
 	// When the handler is looked up for a supported MessageType
@@ -89,8 +89,8 @@ func TestMessageHandlers(t *testing.T) {
 	}
 
 	// Given a MessageHandler mapped to a MessageType(0)
-	handlers[actor.MessageType(0)] = actor.MessageHandler{
-		Receive: func(ctx actor.MessageContext) error {
+	handlers[actor.MessageType(0)] = &actor.MessageHandler{
+		Receive: func(ctx *actor.MessageContext) error {
 			return nil
 		},
 		Unmarshal: func(msg []byte) (*actor.Envelope, error) {

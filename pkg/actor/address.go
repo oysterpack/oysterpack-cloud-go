@@ -21,8 +21,8 @@ import (
 	"zombiezen.com/go/capnproto2"
 )
 
-func NewAddress(path string, id string) Address {
-	return Address{path, &id}
+func NewAddress(path string, id string) *Address {
+	return &Address{path, &id}
 }
 
 // Address refers to an actor address.

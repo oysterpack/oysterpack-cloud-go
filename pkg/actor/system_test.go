@@ -29,6 +29,63 @@ import (
 	"gopkg.in/tomb.v2"
 )
 
+func props(channelSize uint) *actor.Props {
+	return &actor.Props{
+		MessageProcessor: &actor.MessageProcessorProps{
+			Factory: func() actor.MessageProcessor {
+				return actor.MessageHandlers{
+					actor.PING_REQUEST.MessageType(): actor.PING_REQUEST_HANDLER,
+					Spawn_MessageType: &actor.MessageHandler{
+						Receive: func(ctx *actor.MessageContext) error {
+							spawn, ok := ctx.Message.Message().(*Spawn)
+							if !ok {
+								return fmt.Errorf("Unsupported message Go type : %T", ctx.Message.Message())
+							}
+							if spawn.Name == "" {
+								for i := 0; i < spawn.N; i++ {
+									if _, err := spawn.Props.NewChild(ctx.Actor, ctx.NextUID()); err != nil {
+										return err
+									}
+								}
+								if ctx.Message.ReplyTo() != nil {
+									replyToActor, ok := ctx.System().Actor(ctx.Message.ReplyTo().Address)
+									if ok {
+										replyToActor.Tell(replyToActor.Envelope(actor.PING_REQUEST, nil, nil))
+									}
+								}
+							} else {
+								if _, err := spawn.Props.NewChild(ctx.Actor, spawn.Name); err != nil {
+									return err
+								}
+							}
+							return nil
+						},
+						Unmarshal: actor.Unmarshaller(&Spawn{}),
+					},
+				}
+			},
+			ErrorHandler: func(ctx *actor.MessageContext, err error) {
+				ctx.Logger().Error().Err(err).Msg("RESUME")
+			},
+			ChannelSize: channelSize,
+		},
+		Logger: log.Logger,
+	}
+}
+
+const Spawn_MessageType = actor.MessageType(0xe7fae189cec540ff)
+
+type Spawn struct {
+	actor.EmptyMessage
+	*actor.Props
+	Name string
+	N    int
+}
+
+func (a *Spawn) MessageType() actor.MessageType {
+	return Spawn_MessageType
+}
+
 func TestSystem(t *testing.T) {
 
 	t.Run("Empty System", func(t *testing.T) {
@@ -48,13 +105,13 @@ func TestSystem(t *testing.T) {
 
 		// When no actor lives at the specified address
 		// Then no actor is returned
-		if actor, ok := system.Actor(actor.Address{Path: "foo"}); ok || actor != nil {
+		if actor, ok := system.Actor(&actor.Address{Path: "foo"}); ok || actor != nil {
 			t.Error("No actor should have been returned")
 		}
 
 		// When invalid addresses are used
 		// Then no actor is returned
-		if actor, ok := system.Actor(actor.Address{}); ok || actor != nil {
+		if actor, ok := system.Actor(&actor.Address{}); ok || actor != nil {
 			t.Error("No actor should have been returned")
 		}
 		if actor, ok := system.Actor(actor.NewAddress("foo", "id")); ok || actor != nil {
@@ -75,14 +132,14 @@ func TestSystem(t *testing.T) {
 		// 			a
 		//    b-1      b-2
 		//    c-1      c-2
-		root, err := system.NewRootActor(props("a", 1))
+		root, err := props(1).NewRootActor(system, "a")
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		// When trying to create a new root actor using a path that already exists
 		// Then creating the new root actor should fail
-		_, err = system.NewRootActor(props("a", 1))
+		_, err = props(1).NewRootActor(system, "a")
 		switch err := err.(type) {
 		case nil:
 			t.Fatal("Creating a new root actor with a path that is already in use should fail")
@@ -91,10 +148,10 @@ func TestSystem(t *testing.T) {
 			t.Fatal("failed with a different error type : %T : %v", err, err)
 		}
 
-		if err = root.TellBlocking(root.NewEnvelope(Spawn{Props: props("b-1", 1)}, root.Address(), nil, nil)); err != nil {
+		if err = root.TellBlocking(root.NewEnvelope(&Spawn{Name: "b-1", Props: props(1)}, root.Address(), nil, nil)); err != nil {
 			t.Fatal(err)
 		}
-		if err = root.TellBlocking(root.NewEnvelope(Spawn{Props: props("b-2", 1)}, root.Address(), nil, nil)); err != nil {
+		if err = root.TellBlocking(root.NewEnvelope(&Spawn{Name: "b-2", Props: props(1)}, root.Address(), nil, nil)); err != nil {
 			t.Fatal(err)
 		}
 
@@ -108,12 +165,12 @@ func TestSystem(t *testing.T) {
 		}
 
 		actor_b1, _ := root.Child("b-1")
-		if err = actor_b1.Tell(actor_b1.NewEnvelope(Spawn{Props: props("c-1", 1)}, root.Address(), nil, nil)); err != nil {
+		if err = actor_b1.Tell(actor_b1.NewEnvelope(&Spawn{Name: "c-1", Props: props(1)}, root.Address(), nil, nil)); err != nil {
 			t.Fatal(err)
 		}
 
 		actor_b2, _ := root.Child("b-2")
-		if err = actor_b2.Tell(actor_b2.NewEnvelope(Spawn{Props: props("c-2", 1)}, root.Address(), nil, nil)); err != nil {
+		if err = actor_b2.Tell(actor_b2.NewEnvelope(&Spawn{Name: "c-2", Props: props(1)}, root.Address(), nil, nil)); err != nil {
 			t.Fatal(err)
 		}
 
@@ -141,7 +198,7 @@ func TestSystem(t *testing.T) {
 				t.Error("wrong actor was returned")
 			}
 
-			b, ok = system.Actor(actor.Address{Path: a.Address().Path})
+			b, ok = system.Actor(&actor.Address{Path: a.Address().Path})
 			if !ok {
 				t.Errorf("Actor was not found: %v", a.Address())
 			}
@@ -181,45 +238,6 @@ func TestSystem(t *testing.T) {
 
 	})
 
-}
-
-func props(name string, channelSize uint) actor.Props {
-	return actor.Props{
-		Name: name,
-		MessageProcessor: actor.MessageProcessorProps{
-			Factory: func() actor.MessageProcessor {
-				return actor.MessageHandlers{
-					actor.PING_REQUEST.MessageType(): actor.PING_REQUEST_HANDLER,
-					Spawn_MessageType: actor.MessageHandler{
-						Receive: func(ctx actor.MessageContext) error {
-							spawn := ctx.Message.Message().(Spawn)
-							if _, err := ctx.Spawn(spawn.Props); err != nil {
-								return err
-							}
-							return nil
-						},
-						Unmarshal: actor.Unmarshaller(Spawn{}),
-					},
-				}
-			},
-			ErrorHandler: func(ctx actor.MessageContext, err error) {
-				ctx.Logger().Error().Err(err).Msg("RESUME")
-			},
-			ChannelSize: channelSize,
-		},
-		Logger: log.Logger,
-	}
-}
-
-const Spawn_MessageType = actor.MessageType(0xe7fae189cec540ff)
-
-type Spawn struct {
-	actor.EmptyMessage
-	actor.Props
-}
-
-func (a Spawn) MessageType() actor.MessageType {
-	return Spawn_MessageType
 }
 
 // go test -run=NONE -bench=. -benchmem -v -args -loglevel ERROR
@@ -264,44 +282,57 @@ func BenchmarkActor(b *testing.B) {
 		b.Logf("channelSize = %d : channelBlockedCount/runCount = %d/%d = %v", channelSize, channelBlockedCount, runCount, float64(channelBlockedCount)/float64(runCount)*100)
 	}
 
-	inboxes, err := system.NewRootActor(props("inboxes", 512))
-	if err != nil {
-		b.Fatal(err)
+	channelBlockedCount = 1
+	channelSize = 1
+	for channelBlockedCount > 0 {
+		runCount = 0
+		channelBlockedCount = 0
+		channelSize = channelSize * 2
+		b.Run(fmt.Sprint("Tell Blocking channelSize", channelSize), ActorTellBlockingBenchmark(system, 1, &runCount, &channelBlockedCount))
+		b.Logf("channelSize = %d : channelBlockedCount/runCount = %d/%d = %v", channelSize, channelBlockedCount, runCount, float64(channelBlockedCount)/float64(runCount)*100)
 	}
 
-	b.Run("Spawn", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			if err := inboxes.TellBlocking(inboxes.Envelope(Spawn{Props: props(nuid.Next(), 512)}, nil, nil)); err != nil {
-				b.Fatal(err)
-			}
-		}
-	})
-	b.Logf("child count : %d", inboxes.ChildrenCount())
+	// #1 starting Actor MessageProcessor goroutine directly via go
+	// BenchmarkActor/Spawn-8            200000             10219 ns/op            6789 B/op         24 allocs/op
+	//
+	// #2 handing off the Actor MessageProcessor goroutine to the gofuncs channel to be started by a single goroutine
+	// BenchmarkActor/Spawn-8            200000              8824 ns/op            6804 B/op         25 allocs/op
+	//
+	// #2 showed a significant ~15% improvement
+	b.Run("Props.NewChild", PropsNewChildBenchmark(system))
+
+	time.Sleep(time.Millisecond * 500)
+	if inboxes, ok := system.Actor(&actor.Address{Path: "inboxes"}); ok {
+		b.Logf("inbox count : %d", inboxes.ChildrenCount())
+		inboxes.Kill()
+		<-inboxes.Dead()
+		b.Logf("after dead : inbox count : %d", inboxes.ChildrenCount())
+	}
+
 }
 
 func ActorTellBenchmark(system *actor.System, channelSize uint, runCount *int, channelBlockedCount *int) func(b *testing.B) {
 	return func(b *testing.B) {
-		if foo, ok := system.Actor(actor.Address{Path: "foo"}); ok {
-			foo.Kill(nil)
-			foo.Wait()
+		if foo, ok := system.Actor(&actor.Address{Path: "foo"}); ok {
+			foo.Kill()
+			<-foo.Dead()
 		}
 
-		fooProps := actor.Props{
-			Name: "foo",
-			MessageProcessor: actor.MessageProcessorProps{
+		fooProps := &actor.Props{
+			MessageProcessor: &actor.MessageProcessorProps{
 				Factory: func() actor.MessageProcessor {
 					return actor.MessageHandlers{
 						actor.PING_REQUEST.MessageType(): actor.PING_REQUEST_HANDLER,
 					}
 				},
-				ErrorHandler: func(ctx actor.MessageContext, err error) {
+				ErrorHandler: func(ctx *actor.MessageContext, err error) {
 					ctx.Logger().Error().Err(err).Msg("RESUME")
 				},
 				ChannelSize: channelSize,
 			},
 			Logger: log.Logger,
 		}
-		foo, err := system.NewRootActor(fooProps)
+		foo, err := fooProps.NewRootActor(system, "foo")
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -320,3 +351,111 @@ func ActorTellBenchmark(system *actor.System, channelSize uint, runCount *int, c
 		}
 	}
 }
+
+func ActorTellBlockingBenchmark(system *actor.System, channelSize uint, runCount *int, channelBlockedCount *int) func(b *testing.B) {
+	return func(b *testing.B) {
+		if foo, ok := system.Actor(&actor.Address{Path: "foo"}); ok {
+			foo.Kill()
+			<-foo.Dead()
+		}
+
+		fooProps := &actor.Props{
+			MessageProcessor: &actor.MessageProcessorProps{
+				Factory: func() actor.MessageProcessor {
+					return actor.MessageHandlers{
+						actor.PING_REQUEST.MessageType(): actor.PING_REQUEST_HANDLER,
+					}
+				},
+				ErrorHandler: func(ctx *actor.MessageContext, err error) {
+					ctx.Logger().Error().Err(err).Msg("RESUME")
+				},
+				ChannelSize: channelSize,
+			},
+			Logger: log.Logger,
+		}
+		foo, err := fooProps.NewRootActor(system, "foo")
+		if err != nil {
+			b.Fatal(err)
+		}
+		if !foo.Alive() {
+			b.Fatal("foo is not alive")
+		}
+
+		*runCount += b.N
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			if err := foo.TellBlocking(foo.NewEnvelope(actor.PING_REQUEST, foo.Address(), nil, nil)); err != nil {
+				if err == actor.ErrChannelBlocked {
+					*channelBlockedCount++
+				}
+			}
+		}
+	}
+}
+
+func PropsNewChildBenchmark(system *actor.System) func(b *testing.B) {
+	return func(b *testing.B) {
+		if inboxes, ok := system.Actor(&actor.Address{Path: "inboxes"}); ok {
+			b.Logf("inbox count : %d", inboxes.ChildrenCount())
+			inboxes.Kill()
+			<-inboxes.Dead()
+			b.Logf("after dead : inbox count : %d", inboxes.ChildrenCount())
+		}
+		inboxes, err := props(1).NewRootActor(system, "inboxes")
+		if err != nil {
+			b.Fatal(err)
+		}
+		msgs := make([]*actor.Envelope, b.N)
+		childProps := props(1)
+		for i := 0; i < b.N; i++ {
+			msgs[i] = inboxes.Envelope(&Spawn{Name: nuid.Next(), Props: childProps}, nil, nil)
+		}
+		b.Logf("b.N = %d", b.N)
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			//if err := inboxes.TellBlocking(inboxes.Envelope(&Spawn{Name: nuid.Next(), Props: childProps}, nil, nil)); err != nil {
+			if err := inboxes.TellBlocking(msgs[i]); err != nil {
+				b.Fatal(err)
+			}
+		}
+	}
+}
+
+//func PropsNewChildBenchmark(system *actor.System) func(b *testing.B) {
+//	inbox := make(chan *actor.Envelope)
+//	inboxProps := &actor.Props{
+//		MessageProcessor: actor.MessageProcessorProps{
+//			Factory: func() actor.MessageProcessor {
+//				return actor.MessageHandlers{
+//					actor.PING_REQUEST.MessageType(): actor.MessageHandler{actor.InboxMessageHandler(inbox), actor.Unmarshaller(actor.PING_REQUEST)},
+//				}
+//			},
+//			ErrorHandler: func(ctx *actor.MessageContext, err error) {
+//				ctx.Logger().Error().Err(err).Msg("RESUME")
+//			},
+//			ChannelSize: 512,
+//		},
+//		Logger: log.Logger,
+//	}
+//
+//	inboxActor, _ := inboxProps.NewRootActor(system, nuid.Next())
+//
+//	return func(b *testing.B) {
+//		if inboxes, ok := system.Actor(actor.Address{Path: "inboxes"}); ok {
+//			b.Logf("inbox count : %d", inboxes.ChildrenCount())
+//			inboxes.Kill()
+//			<-inboxes.Dead()
+//			b.Logf("after dead : inbox count : %d", inboxes.ChildrenCount())
+//		}
+//		inboxes, err := props(1).NewRootActor(system, "inboxes")
+//		if err != nil {
+//			b.Fatal(err)
+//		}
+//		b.Logf("b.N = %d", b.N)
+//		b.ResetTimer()
+//		if err := inboxes.TellBlocking(inboxes.Envelope(&Spawn{N: b.N, Props: props(1)}, &actor.ReplyTo{Address: inboxActor.Address(), MessageType: actor.PING_REQUEST.MessageType()}, nil)); err != nil {
+//			b.Fatal(err)
+//		}
+//		<-inbox
+//	}
+//}

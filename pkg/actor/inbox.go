@@ -17,7 +17,7 @@ package actor
 // InboxMessageHandler returns a Receive function that forwards any messages received to the specified channel.
 // When the actor is dying, then the inbox is closed.
 func InboxMessageHandler(inbox chan *Envelope) Receive {
-	return func(ctx MessageContext) error {
+	return func(ctx *MessageContext) error {
 		for {
 			select {
 			case inbox <- ctx.Message:

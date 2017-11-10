@@ -71,7 +71,7 @@ type Message interface {
 // 	- uid is used to generate the envelope message id
 //
 // the method panics if the envelope is invalid
-func NewEnvelope(uid UID, address Address, msg Message, replyTo *ReplyTo, correlationId *string) *Envelope {
+func NewEnvelope(uid UID, address *Address, msg Message, replyTo *ReplyTo, correlationId *string) *Envelope {
 	envelope := &Envelope{
 		id:            uid(),
 		created:       time.Now(),
@@ -94,7 +94,7 @@ type Envelope struct {
 	id      string
 	created time.Time
 
-	address Address
+	address *Address
 	msgType MessageType
 	message Message
 
@@ -104,7 +104,7 @@ type Envelope struct {
 }
 
 type ReplyTo struct {
-	Address
+	*Address
 	MessageType
 }
 
@@ -166,7 +166,7 @@ func (a *Envelope) Created() time.Time {
 	return a.created
 }
 
-func (a *Envelope) Address() Address {
+func (a *Envelope) Address() *Address {
 	return a.address
 }
 
@@ -220,7 +220,7 @@ func (a *Envelope) UnmarshalBinary(data []byte) error {
 	if err != nil {
 		return err
 	}
-	a.address = *addr
+	a.address = addr
 	a.msgType = MessageType(envelope.MessageType())
 	if err := a.msgType.Validate(); err != nil {
 		return err
@@ -240,7 +240,7 @@ func (a *Envelope) UnmarshalBinary(data []byte) error {
 		if err != nil {
 			return err
 		}
-		a.replyTo.Address = *addr
+		a.replyTo.Address = addr
 		a.replyTo.MessageType = MessageType(envelope.MessageType())
 		if err := a.replyTo.Validate(); err != nil {
 			return err
@@ -364,7 +364,7 @@ func (a *Envelope) String() string {
 		Id   *string
 	}
 
-	newAddr := func(a Address) addr {
+	newAddr := func(a *Address) addr {
 		return addr{
 			a.Path,
 			a.Id,

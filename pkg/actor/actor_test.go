@@ -27,22 +27,21 @@ func TestActor(t *testing.T) {
 	systemTomb := tomb.Tomb{}
 	defer system.KillRootActors(systemTomb)
 
-	fooProps := actor.Props{
-		Name: "foo",
-		MessageProcessor: actor.MessageProcessorProps{
+	fooProps := &actor.Props{
+		MessageProcessor: &actor.MessageProcessorProps{
 			Factory: func() actor.MessageProcessor {
 				return actor.MessageHandlers{
 					actor.PING_REQUEST.MessageType(): actor.PING_REQUEST_HANDLER,
 				}
 			},
-			ErrorHandler: func(ctx actor.MessageContext, err error) {
+			ErrorHandler: func(ctx *actor.MessageContext, err error) {
 				ctx.Logger().Error().Err(err).Msg("RESUME")
 			},
 			ChannelSize: 1,
 		},
 		Logger: log.Logger,
 	}
-	foo, err := system.NewRootActor(fooProps)
+	foo, err := fooProps.NewRootActor(system, "foo")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -51,22 +50,21 @@ func TestActor(t *testing.T) {
 	}
 
 	inbox := make(chan *actor.Envelope)
-	barProps := actor.Props{
-		Name: "bar",
-		MessageProcessor: actor.MessageProcessorProps{
+	barProps := &actor.Props{
+		MessageProcessor: &actor.MessageProcessorProps{
 			Factory: func() actor.MessageProcessor {
 				return actor.MessageHandlers{
-					actor.PING_RESPONSE.MessageType(): actor.MessageHandler{actor.InboxMessageHandler(inbox), actor.Unmarshaller(actor.PING_RESPONSE)},
+					actor.PING_RESPONSE.MessageType(): &actor.MessageHandler{actor.InboxMessageHandler(inbox), actor.Unmarshaller(actor.PING_RESPONSE)},
 				}
 			},
-			ErrorHandler: func(ctx actor.MessageContext, err error) {
+			ErrorHandler: func(ctx *actor.MessageContext, err error) {
 				ctx.Logger().Error().Err(err).Msg("RESUME")
 			},
 			ChannelSize: 512,
 		},
 		Logger: log.Logger,
 	}
-	bar, err := system.NewRootActor(barProps)
+	bar, err := barProps.NewRootActor(system, "bar")
 	if err != nil {
 		t.Fatal(err)
 	}

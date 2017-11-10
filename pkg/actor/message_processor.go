@@ -33,9 +33,9 @@ type MessageProcessor interface {
 }
 
 // MessageProcessorErrorHandler handles message processing errors
-type MessageProcessorErrorHandler func(ctx MessageContext, err error)
+type MessageProcessorErrorHandler func(ctx *MessageContext, err error)
 
-type Receive func(ctx MessageContext) error
+type Receive func(ctx *MessageContext) error
 
 type Unmarshal func(msg []byte) (*Envelope, error)
 
@@ -51,7 +51,7 @@ func Unmarshaller(prototype Message) Unmarshal {
 
 // MessageHandlers implements MessageProcessor.
 // For statefule message handlers, embed this within a struct.
-type MessageHandlers map[MessageType]MessageHandler
+type MessageHandlers map[MessageType]*MessageHandler
 
 type MessageHandler struct {
 	Receive
@@ -69,13 +69,18 @@ func (a MessageHandler) Validate() error {
 }
 
 func (a MessageHandlers) Handler(msgType MessageType) (Receive, bool) {
-	handler, exists := a[msgType]
-	return handler.Receive, exists
+	if handler := a[msgType]; handler != nil {
+		return handler.Receive, true
+	}
+
+	return nil, false
 }
 
 func (a MessageHandlers) Unmarshaller(msgType MessageType) (Unmarshal, bool) {
-	handler, exists := a[msgType]
-	return handler.Unmarshal, exists
+	if handler := a[msgType]; handler != nil {
+		return handler.Unmarshal, true
+	}
+	return nil, false
 }
 
 func (a MessageHandlers) MessageTypes() []MessageType {

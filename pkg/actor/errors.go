@@ -45,6 +45,7 @@ var (
 	ErrChannelBlocked = errors.New("Channel blocked")
 
 	ErrMessageNil = errors.New("Message is nil")
+	ErrSystemNil  = errors.New("System is nil")
 )
 
 func envelopeMessageTypeDoesNotMatch(envelope *Envelope) error {
@@ -81,7 +82,7 @@ func (a MessageTypeNotSupportedError) String() string {
 }
 
 type ActorNotFoundError struct {
-	Address
+	*Address
 }
 
 func (a ActorNotFoundError) Error() string {

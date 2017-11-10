@@ -19,7 +19,7 @@ type MessageContext struct {
 	Message *Envelope
 }
 
-func (a MessageContext) RestartMessageProcessor() error {
+func (a *MessageContext) RestartMessageProcessor() error {
 	LOG_EVENT_RESTARTING.Log(a.Actor.logger.Info()).Msg("")
 	a.Actor.stoppingMessageProcessor()
 	a.Actor.stoppedMessageProcessor()
@@ -32,6 +32,6 @@ func (a MessageContext) RestartMessageProcessor() error {
 	return nil
 }
 
-func (a MessageContext) Spawn(props Props) (*Actor, error) {
-	return a.spawn(props)
-}
+//func (a *MessageContext) Spawn(props *Props) (*Actor, error) {
+//	return a.spawn(props)
+//}
