@@ -15,26 +15,10 @@
 package app
 
 import (
-	"os"
 	"strings"
 
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 )
-
-// NewPackageLogger returns a new logger with pkg={pkg}
-// where {pkg} is o's package path
-// o must be for a named type because the package path can only be obtained for named types
-func NewPackageLogger(o interface{}) zerolog.Logger {
-	if ObjectPackage(o) == NoPackage {
-		panic("only objects for named types are supported")
-	}
-	return log.With().
-		Str("pkg", string(ObjectPackage(o))).
-		Logger().
-		Output(os.Stderr).
-		Level(LoggingLevel())
-}
 
 // LoggingLevel returns the application log level.
 // If the command line is parsed, then the -loglevel flag will be inspected. Valid values for -loglevel are : [DEBUG,INFO,WARN,ERROR]

@@ -34,4 +34,5 @@ var (
 
 	ErrServiceAlreadyRegistered = &Error{ErrorID(0xcfd879a478f9c733), errors.New("Service already registered")}
 	ErrServiceNil               = &Error{ErrorID(0x9d95c5fac078b82c), errors.New("Service is nil")}
+	ErrServiceIDZero            = &Error{ErrorID(0xd33c54b382368d97), errors.New("ServiceID(0) is not allowed")}
 )

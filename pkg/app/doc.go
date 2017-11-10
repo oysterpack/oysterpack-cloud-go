@@ -37,4 +37,8 @@
 //		2. It’s easy for symbolic names to collide, and these collisions could be hard to detect in a large distributed
 //         system with many different binaries.
 //		3. Fully-qualified type names may be large and waste space when transmitted on the wire.
+//
+//
+// HANDLED OS SIGNALS
+// 	- SIGTERM - kills the application, i.e., triggers normal shutdown
 package app

@@ -20,14 +20,17 @@ import (
 )
 
 func NewService(id ServiceID, log zerolog.Logger) *Service {
-	return &Service{id: id, log: log.With().Uint64("svc", uint64(id)).Logger()}
+	if id == 0 {
+		logger.Fatal().Err(ErrServiceIDZero).Msg("")
+	}
+	return &Service{id: id, logger: log.With().Uint64("svc", uint64(id)).Logger()}
 }
 
 type Service struct {
 	tomb.Tomb
 
-	id  ServiceID
-	log zerolog.Logger
+	id     ServiceID
+	logger zerolog.Logger
 }
 
 func (a *Service) ID() ServiceID {
@@ -35,5 +38,5 @@ func (a *Service) ID() ServiceID {
 }
 
 func (a *Service) Logger() zerolog.Logger {
-	return a.Logger()
+	return a.logger
 }

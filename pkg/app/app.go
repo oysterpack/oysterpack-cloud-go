@@ -21,6 +21,10 @@ import (
 
 	stdlog "log"
 
+	"os"
+	"os/signal"
+	"syscall"
+
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"gopkg.in/tomb.v2"
@@ -40,7 +44,7 @@ var (
 	getServiceChan           chan getServiceRequest
 )
 
-func Log() zerolog.Logger {
+func Logger() zerolog.Logger {
 	return logger
 }
 
@@ -86,6 +90,7 @@ func registerService(req registerServiceRequest) {
 		case <-app.Dying():
 			return nil
 		case <-req.Service.Dying():
+			SERVICE_STOPPING.Log(req.Service.Logger().Info()).Msg("stopping")
 			select {
 			case <-app.Dying():
 				return nil
@@ -217,13 +222,17 @@ func initZerolog() {
 	stdlog.SetOutput(log.Logger)
 
 	logger = log.Logger.With().Uint64("app", *appId).Logger().Level(zerolog.InfoLevel)
-	APP_STARTED.Log(logger.Info()).Msg("app started")
+	APP_STARTED.Log(logger.Info()).Msg("started")
 }
 
 func runAppServer() {
 	app.Go(func() error {
+		sigs := make(chan os.Signal, 1)
+		signal.Notify(sigs, syscall.SIGTERM)
 		for {
 			select {
+			case <-sigs:
+				app.Kill(nil)
 			case <-app.Dying():
 				shutdown()
 				return nil
@@ -244,8 +253,8 @@ func runAppServer() {
 }
 
 func shutdown() {
-	APP_STOPPING.Log(logger.Info()).Msg("app stopping")
-	defer APP_STOPPED.Log(logger.Info()).Msg("app stopped")
+	APP_STOPPING.Log(logger.Info()).Msg("stopping")
+	defer APP_STOPPED.Log(logger.Info()).Msg("stopped")
 
 	for _, service := range services {
 		service.Kill(nil)
