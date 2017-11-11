@@ -25,6 +25,8 @@ import (
 	"os/signal"
 	"syscall"
 
+	"strings"
+
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"gopkg.in/tomb.v2"
@@ -32,6 +34,9 @@ import (
 
 // app vars
 var (
+	logLevel = flag.String("log-level", "WARN", "valid log levels [DEBUG,INFO,WARN,ERROR] default = WARN")
+	appID    = flag.Uint64("app-id", 0, "AppID")
+
 	app tomb.Tomb
 
 	logger zerolog.Logger
@@ -44,8 +49,37 @@ var (
 	getServiceChan           chan getServiceRequest
 )
 
+// ID returns the AppID which is specified via a command line argument
+func ID() AppID {
+	return AppID(*appID)
+}
+
+// Logger returns the app logger
 func Logger() zerolog.Logger {
 	return logger
+}
+
+// LogLevel returns the application log level.
+// If the command line is parsed, then the -loglevel flag will be inspected. Valid values for -loglevel are : [DEBUG,INFO,WARN,ERROR]
+// If not specified on the command line, then the defauly value is INFO.
+// The log level is used to configure the log level for loggers returned via NewTypeLogger() and NewPackageLogger().
+// It is also used to initialize zerolog's global logger level.
+func LogLevel() zerolog.Level {
+	if logLevel == nil {
+		return zerolog.WarnLevel
+	}
+	switch strings.ToUpper(*logLevel) {
+	case "DEBUG":
+		return zerolog.DebugLevel
+	case "INFO":
+		return zerolog.InfoLevel
+	case "WARN":
+		return zerolog.WarnLevel
+	case "ERROR":
+		return zerolog.ErrorLevel
+	default:
+		return zerolog.WarnLevel
+	}
 }
 
 // RegisterService will register the service with the app.
@@ -84,7 +118,14 @@ func registerService(req registerServiceRequest) {
 		req.response <- ErrServiceAlreadyRegistered
 	}
 	services[req.Service.id] = req.Service
+
+	// signal that the service registration was completed successfully
 	close(req.response)
+
+	SERVICE_REGISTERED.Log(req.Service.Logger().Info()).Msg("registered")
+
+	// watch the service
+	// when it dies, then unregister it
 	req.Service.Go(func() error {
 		select {
 		case <-app.Dying():
@@ -95,10 +136,27 @@ func registerService(req registerServiceRequest) {
 			case <-app.Dying():
 				return nil
 			case unregisterServiceChan <- req.Service.id:
+				app.Go(func() error {
+					select {
+					case <-app.Dying():
+						return nil
+					case <-req.Service.Dead():
+						logServiceDeath(req.Service)
+						return nil
+					}
+				})
 				return nil
 			}
 		}
 	})
+}
+
+func logServiceDeath(service *Service) {
+	logEvent := SERVICE_STOPPED.Log(service.Logger().Info())
+	if err := service.Err(); err != nil {
+		logEvent.Err(err)
+	}
+	logEvent.Msg("stopped")
 }
 
 // RegisteredServiceIds returns the ServiceID(s) for the currently registered services
@@ -175,12 +233,6 @@ type getServiceRequest struct {
 	response chan *Service
 }
 
-// command line flags
-var (
-	logLevel = flag.String("log-level", "WARN", "valid log levels [DEBUG,INFO,WARN,ERROR] default = INFO")
-	appId    = flag.Uint64("app-id", 0, "valid log levels [DEBUG,INFO,WARN,ERROR] default = INFO")
-)
-
 // Reset is exposed only for testing purposes.
 // Reset will kill the app, and then restart the app server.
 func Reset() {
@@ -215,13 +267,13 @@ func initZerolog() {
 	zerolog.TimeFieldFormat = time.RFC3339Nano
 
 	// set the global log level
-	log.Logger = log.Logger.Level(LoggingLevel())
+	log.Logger = log.Logger.Level(LogLevel())
 
 	// redirects go's std log to zerolog
 	stdlog.SetFlags(0)
 	stdlog.SetOutput(log.Logger)
 
-	logger = log.Logger.With().Uint64("app", *appId).Logger().Level(zerolog.InfoLevel)
+	logger = log.Logger.With().Uint64("app", *appID).Logger().Level(zerolog.InfoLevel)
 	APP_STARTED.Log(logger.Info()).Msg("started")
 }
 
@@ -241,6 +293,9 @@ func runAppServer() {
 			case req := <-registeredServiceIdsChan:
 				registeredServiceIds(req)
 			case id := <-unregisterServiceChan:
+				if service, ok := services[id]; ok {
+					SERVICE_UNREGISTERED.Log(service.Logger().Info()).Msg("unregistered")
+				}
 				delete(services, id)
 			case req := <-getServiceChan:
 				select {
@@ -258,11 +313,21 @@ func shutdown() {
 
 	for _, service := range services {
 		service.Kill(nil)
+		SERVICE_KILLED.Log(service.Logger().Info()).Msg("killed")
 	}
 
+	ticker := time.NewTicker(time.Second * 10)
+	defer ticker.Stop()
+SERVICE_LOOP:
 	for _, service := range services {
-		if err := service.Wait(); err != nil {
-			SERVICE_FAILURE.Log(logger.Error()).Err(err).Msg("service failure during app shutdown")
+		for {
+			select {
+			case <-service.Dead():
+				logServiceDeath(service)
+				continue SERVICE_LOOP
+			case <-ticker.C:
+				SERVICE_STOPPING.Log(service.Logger().Warn()).Msg("waiting for service to stop")
+			}
 		}
 	}
 

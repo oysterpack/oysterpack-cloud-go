@@ -14,14 +14,20 @@
 
 package app
 
+// log events
 const (
 	APP_STARTED  = LogEventID(0xa482715a50d67a5f)
 	APP_STOPPING = LogEventID(0xbcdae48c0cb8936e)
 	APP_STOPPED  = LogEventID(0xdd0c7775e42d7841)
 	APP_RESET    = LogEventID(0xee317bbb0fe0fafe)
 
-	SERVICE_STARTED  = LogEventID(0xc27a49a4e5a2a502)
-	SERVICE_STOPPING = LogEventID(0x85adbb661141efce)
-	SERVICE_STOPPED  = LogEventID(0xfd843c25ce81f841)
-	SERVICE_FAILURE  = LogEventID(0xd8f25797ffa58858)
+	// it is the service;s responsibility to log the SERVICE_STARTED event
+	SERVICE_STARTED = LogEventID(0xc27a49a4e5a2a502)
+
+	// the below events are logged by the app using the service logger
+	SERVICE_KILLED       = LogEventID(0x85adf7d70dcef626)
+	SERVICE_STOPPING     = LogEventID(0x85adbb661141efce)
+	SERVICE_STOPPED      = LogEventID(0xfd843c25ce81f841)
+	SERVICE_REGISTERED   = LogEventID(0xd8f25797ffa58858)
+	SERVICE_UNREGISTERED = LogEventID(0xa611d10b1dfc880d)
 )

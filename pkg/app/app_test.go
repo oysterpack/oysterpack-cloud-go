@@ -36,7 +36,7 @@ func TestRegisterService(t *testing.T) {
 	}
 
 	// When a service is registered
-	service := app.NewService(app.ServiceID(1), app.Logger())
+	service := app.NewService(app.ServiceID(1))
 	if err = app.RegisterService(service); err != nil {
 		t.Fatal(err)
 	}
@@ -83,7 +83,7 @@ func TestGetService(t *testing.T) {
 	app.Reset()
 
 	// When a service is registered
-	service := app.NewService(app.ServiceID(1), app.Logger())
+	service := app.NewService(app.ServiceID(1))
 	if err := app.RegisterService(service); err != nil {
 		t.Fatal(err)
 	}
@@ -219,7 +219,7 @@ func BenchmarkService(b *testing.B) {
 	app.Reset()
 	defer app.Reset()
 
-	foo := FooService{Service: app.NewService(FooServiceID, app.Logger())}
+	foo := FooService{Service: app.NewService(FooServiceID)}
 	foo.startServer()
 
 	if err := app.RegisterService(foo.Service); err != nil {
