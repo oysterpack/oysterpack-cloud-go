@@ -25,6 +25,9 @@ type ServiceID uint64
 // FunctionID unique function id
 type FunctionID uint64
 
+// RemoteFunctionID unique remote function id
+type RemoteFunctionID uint64
+
 // MessageID unique message id
 type MessageID uint64
 

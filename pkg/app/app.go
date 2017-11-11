@@ -27,6 +27,7 @@ import (
 
 	"strings"
 
+	"github.com/nats-io/nuid"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"gopkg.in/tomb.v2"
@@ -36,6 +37,9 @@ import (
 var (
 	logLevel = flag.String("log-level", "WARN", "valid log levels [DEBUG,INFO,WARN,ERROR] default = WARN")
 	appID    = flag.Uint64("app-id", 0, "AppID")
+
+	appInstanceId = InstanceID(nuid.Next())
+	createdOn     = time.Now()
 
 	app tomb.Tomb
 
@@ -49,9 +53,19 @@ var (
 	getServiceChan           chan getServiceRequest
 )
 
+type InstanceID string
+
 // ID returns the AppID which is specified via a command line argument
 func ID() AppID {
 	return AppID(*appID)
+}
+
+func InstanceId() InstanceID {
+	return appInstanceId
+}
+
+func CreatedOn() time.Time {
+	return createdOn
 }
 
 // Logger returns the app logger
@@ -273,7 +287,7 @@ func initZerolog() {
 	stdlog.SetFlags(0)
 	stdlog.SetOutput(log.Logger)
 
-	logger = log.Logger.With().Uint64("app", *appID).Logger().Level(zerolog.InfoLevel)
+	logger = log.Logger.With().Uint64("app", *appID).Str("instance", string(appInstanceId)).Logger().Level(zerolog.InfoLevel)
 	APP_STARTED.Log(logger.Info()).Msg("started")
 }
 
