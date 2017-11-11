@@ -35,8 +35,8 @@ import (
 
 // app vars
 var (
-	logLevel = flag.String("log-level", "WARN", "valid log levels [DEBUG,INFO,WARN,ERROR] default = WARN")
-	appID    = flag.Uint64("app-id", 0, "AppID")
+	logLevel string
+	appID    uint64
 
 	appInstanceId = InstanceID(nuid.Next())
 	createdOn     = time.Now()
@@ -57,7 +57,7 @@ type InstanceID string
 
 // ID returns the AppID which is specified via a command line argument
 func ID() AppID {
-	return AppID(*appID)
+	return AppID(appID)
 }
 
 func InstanceId() InstanceID {
@@ -79,10 +79,7 @@ func Logger() zerolog.Logger {
 // The log level is used to configure the log level for loggers returned via NewTypeLogger() and NewPackageLogger().
 // It is also used to initialize zerolog's global logger level.
 func LogLevel() zerolog.Level {
-	if logLevel == nil {
-		return zerolog.WarnLevel
-	}
-	switch strings.ToUpper(*logLevel) {
+	switch logLevel {
 	case "DEBUG":
 		return zerolog.DebugLevel
 	case "INFO":
@@ -258,8 +255,16 @@ func Reset() {
 	APP_RESET.Log(logger.Info()).Msg("reset")
 }
 
+// Kill triggers app shutdown
+func Kill() {
+	app.Kill(nil)
+}
+
 func init() {
+	flag.Uint64Var(&appID, "app-id", 0, "AppID")
+	flag.StringVar(&logLevel, "log-level", "WARN", "valid log levels [DEBUG,INFO,WARN,ERROR] default = WARN")
 	flag.Parse()
+	logLevel = strings.ToUpper(logLevel)
 
 	app = tomb.Tomb{}
 	services = make(map[ServiceID]*Service)
@@ -287,7 +292,7 @@ func initZerolog() {
 	stdlog.SetFlags(0)
 	stdlog.SetOutput(log.Logger)
 
-	logger = log.Logger.With().Uint64("app", *appID).Str("instance", string(appInstanceId)).Logger().Level(zerolog.InfoLevel)
+	logger = log.Logger.With().Uint64("app", appID).Str("instance", string(appInstanceId)).Logger().Level(zerolog.InfoLevel)
 	APP_STARTED.Log(logger.Info()).Msg("started")
 }
 
@@ -313,8 +318,8 @@ func runAppServer() {
 				delete(services, id)
 			case req := <-getServiceChan:
 				select {
-				case <-app.Dying():
 				case req.response <- services[req.ServiceID]:
+				case <-app.Dying():
 				}
 			}
 		}

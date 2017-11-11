@@ -14,7 +14,9 @@
 
 package app
 
-import "github.com/rs/zerolog"
+import (
+	"github.com/rs/zerolog"
+)
 
 // AppID unique application ID
 type AppID uint64

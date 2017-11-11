@@ -19,8 +19,84 @@ import (
 
 	"time"
 
+	"errors"
+
 	"github.com/oysterpack/oysterpack.go/pkg/app"
 )
+
+func TestNewService_IDZero(t *testing.T) {
+	defer func() {
+		if p := recover(); p == nil {
+			t.Error("a zero ServiceID should have triggered a panic")
+		} else {
+			t.Log(p)
+		}
+	}()
+
+	app.NewService(app.ServiceID(0))
+}
+
+func TestApp(t *testing.T) {
+	app.Reset()
+
+	t.Logf("app id = %v", app.ID())
+	if app.CreatedOn().IsZero() {
+		t.Error("app.CreatedOn() should not be the zero value")
+	}
+	if len(app.InstanceId()) == 0 {
+		t.Error("app instance id should not be blank")
+	}
+
+	// When a nil service is registered
+	// Then app.RegisterService should return app.ErrServiceNil
+	if err := app.RegisterService(nil); err == nil {
+		t.Error("registering a nill service is not allowed")
+	} else if err != app.ErrServiceNil {
+		t.Errorf("Wrong error ttype was returned : %T", err)
+	}
+
+	service := app.NewService(app.ServiceID(1))
+	service.Kill(nil)
+	// When a killed service is registered
+	// Then app.RegisterService should return app.ErrServiceNil
+	if err := app.RegisterService(service); err == nil {
+		t.Error("registering a dead service is not allowed")
+	} else if err != app.ErrServiceNotAlive {
+		t.Errorf("Wrong error ttype was returned : %T", err)
+	}
+
+	service = app.NewService(app.ServiceID(1))
+	// Given an app that has been killed, i.e., is not alive
+	app.Kill()
+	// When a service is registered
+	// Then app.RegisterService should return app.ErrAppNotAlive
+	if err := app.RegisterService(service); err == nil {
+		t.Error("registering a dead service is not allowed")
+	} else if err != app.ErrAppNotAlive {
+		t.Errorf("Wrong error ttype was returned : %T", err)
+	}
+
+	// When the app is dead
+	// Then all app functions should fail and return ErrAppNotAlive
+	if _, err := app.RegisteredServiceIds(); err == nil {
+		t.Error("should have failed because app is dead")
+	} else if err != app.ErrAppNotAlive {
+		t.Errorf("Wrong error ttype was returned : %T", err)
+	}
+	if err := app.UnregisterService(service.ID()); err == nil {
+		t.Error("should have failed because app is dead")
+	} else if err != app.ErrAppNotAlive {
+		t.Errorf("Wrong error ttype was returned : %T", err)
+	}
+	if _, err := app.GetService(service.ID()); err == nil {
+		t.Error("should have failed because app is dead")
+	} else {
+		t.Log(err.Error())
+		if err != app.ErrAppNotAlive {
+			t.Errorf("Wrong error ttype was returned : %T", err)
+		}
+	}
+}
 
 func TestRegisterService(t *testing.T) {
 	// Given a new app
@@ -52,6 +128,12 @@ func TestRegisterService(t *testing.T) {
 	if ids[0] != service.ID() {
 		t.Errorf("Returned service id does not match : %v", ids)
 	}
+	// And the service can be retrieved
+	if service2, err := app.GetService(service.ID()); err != nil {
+		t.Error(err)
+	} else if service2.ID() != service.ID() {
+		t.Errorf("wrong service was returned : %v", service2.ID())
+	}
 
 	// When the service is killed
 	service.Kill(nil)
@@ -75,6 +157,19 @@ func TestRegisterService(t *testing.T) {
 	}
 	if len(ids) != 0 {
 		t.Errorf("There should not be any services registered.")
+	}
+
+	// When an attempt to register a service that is already registered is made
+	// Then service registration should fail with app.ErrServiceAlreadyRegistered
+	app.Reset()
+	service = app.NewService(app.ServiceID(1))
+	if err := app.RegisterService(service); err != nil {
+		t.Error(err)
+	}
+	if err := app.RegisterService(service); err == nil {
+		t.Error(err)
+	} else if err != app.ErrServiceAlreadyRegistered {
+		t.Errorf("the wrong error type was returned : %T", err)
 	}
 }
 
@@ -107,6 +202,17 @@ func TestGetService(t *testing.T) {
 	if len(ids) != 0 {
 		t.Errorf("There should not be any services registered.")
 	}
+}
+
+func TestServiceDiedWithError(t *testing.T) {
+	app.Reset()
+
+	service := app.NewService(app.ServiceID(1))
+	if err := app.RegisterService(service); err != nil {
+		t.Fatal(err)
+	}
+
+	service.Kill(errors.New("TestServiceDiedWithError"))
 }
 
 const FooServiceID = app.ServiceID(0xc8947921de337098)

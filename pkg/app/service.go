@@ -21,7 +21,7 @@ import (
 
 func NewService(id ServiceID) *Service {
 	if id == 0 {
-		logger.Fatal().Err(ErrServiceIDZero).Msg("")
+		panic(ErrServiceIDZero)
 	}
 	return &Service{id: id, logger: Logger().With().Uint64("svc", uint64(id)).Logger().Level(LogLevel())}
 }
