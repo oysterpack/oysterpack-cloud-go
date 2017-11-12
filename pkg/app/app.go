@@ -108,6 +108,7 @@ type getLogLevelRequest struct {
 	response chan zerolog.Level
 }
 
+// SetLogLevel set the application log level
 func SetLogLevel(level zerolog.Level) {
 	select {
 	case <-app.Dying():
@@ -115,6 +116,11 @@ func SetLogLevel(level zerolog.Level) {
 	}
 }
 
+// SetServiceLogLevel sets the service log level
+//
+// errors:
+// 	- ErrAppNotAlive
+//  - ErrServiceNotRegistered
 func SetServiceLogLevel(serviceId ServiceID, level zerolog.Level) error {
 	req := setServiceLogLevelRequest{serviceId, level, make(chan error)}
 	select {
@@ -291,6 +297,9 @@ func GetService(id ServiceID) (*Service, error) {
 		case <-app.Dying():
 			return nil, ErrAppNotAlive
 		case svc := <-req.response:
+			if svc == nil {
+				return nil, ErrServiceNotRegistered
+			}
 			return svc, nil
 		}
 	}

@@ -75,6 +75,106 @@ func (c App) StartedOn(ctx context.Context, params func(App_startedOn_Params) er
 	}
 	return App_startedOn_Results_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(call))}
 }
+func (c App) LogLevel(ctx context.Context, params func(App_logLevel_Params) error, opts ...capnp.CallOption) App_logLevel_Results_Promise {
+	if c.Client == nil {
+		return App_logLevel_Results_Promise{Pipeline: capnp.NewPipeline(capnp.ErrorAnswer(capnp.ErrNullClient))}
+	}
+	call := &capnp.Call{
+		Ctx: ctx,
+		Method: capnp.Method{
+			InterfaceID:   0xf052e7e084b31199,
+			MethodID:      3,
+			InterfaceName: "app.capnp:App",
+			MethodName:    "logLevel",
+		},
+		Options: capnp.NewCallOptions(opts),
+	}
+	if params != nil {
+		call.ParamsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 0}
+		call.ParamsFunc = func(s capnp.Struct) error { return params(App_logLevel_Params{Struct: s}) }
+	}
+	return App_logLevel_Results_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(call))}
+}
+func (c App) SetLogLevel(ctx context.Context, params func(App_setLogLevel_Params) error, opts ...capnp.CallOption) App_setLogLevel_Results_Promise {
+	if c.Client == nil {
+		return App_setLogLevel_Results_Promise{Pipeline: capnp.NewPipeline(capnp.ErrorAnswer(capnp.ErrNullClient))}
+	}
+	call := &capnp.Call{
+		Ctx: ctx,
+		Method: capnp.Method{
+			InterfaceID:   0xf052e7e084b31199,
+			MethodID:      4,
+			InterfaceName: "app.capnp:App",
+			MethodName:    "setLogLevel",
+		},
+		Options: capnp.NewCallOptions(opts),
+	}
+	if params != nil {
+		call.ParamsSize = capnp.ObjectSize{DataSize: 8, PointerCount: 0}
+		call.ParamsFunc = func(s capnp.Struct) error { return params(App_setLogLevel_Params{Struct: s}) }
+	}
+	return App_setLogLevel_Results_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(call))}
+}
+func (c App) RegisteredServices(ctx context.Context, params func(App_registeredServices_Params) error, opts ...capnp.CallOption) App_registeredServices_Results_Promise {
+	if c.Client == nil {
+		return App_registeredServices_Results_Promise{Pipeline: capnp.NewPipeline(capnp.ErrorAnswer(capnp.ErrNullClient))}
+	}
+	call := &capnp.Call{
+		Ctx: ctx,
+		Method: capnp.Method{
+			InterfaceID:   0xf052e7e084b31199,
+			MethodID:      5,
+			InterfaceName: "app.capnp:App",
+			MethodName:    "registeredServices",
+		},
+		Options: capnp.NewCallOptions(opts),
+	}
+	if params != nil {
+		call.ParamsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 0}
+		call.ParamsFunc = func(s capnp.Struct) error { return params(App_registeredServices_Params{Struct: s}) }
+	}
+	return App_registeredServices_Results_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(call))}
+}
+func (c App) Service(ctx context.Context, params func(App_service_Params) error, opts ...capnp.CallOption) App_service_Results_Promise {
+	if c.Client == nil {
+		return App_service_Results_Promise{Pipeline: capnp.NewPipeline(capnp.ErrorAnswer(capnp.ErrNullClient))}
+	}
+	call := &capnp.Call{
+		Ctx: ctx,
+		Method: capnp.Method{
+			InterfaceID:   0xf052e7e084b31199,
+			MethodID:      6,
+			InterfaceName: "app.capnp:App",
+			MethodName:    "service",
+		},
+		Options: capnp.NewCallOptions(opts),
+	}
+	if params != nil {
+		call.ParamsSize = capnp.ObjectSize{DataSize: 8, PointerCount: 0}
+		call.ParamsFunc = func(s capnp.Struct) error { return params(App_service_Params{Struct: s}) }
+	}
+	return App_service_Results_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(call))}
+}
+func (c App) Kill(ctx context.Context, params func(App_kill_Params) error, opts ...capnp.CallOption) App_kill_Results_Promise {
+	if c.Client == nil {
+		return App_kill_Results_Promise{Pipeline: capnp.NewPipeline(capnp.ErrorAnswer(capnp.ErrNullClient))}
+	}
+	call := &capnp.Call{
+		Ctx: ctx,
+		Method: capnp.Method{
+			InterfaceID:   0xf052e7e084b31199,
+			MethodID:      7,
+			InterfaceName: "app.capnp:App",
+			MethodName:    "kill",
+		},
+		Options: capnp.NewCallOptions(opts),
+	}
+	if params != nil {
+		call.ParamsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 0}
+		call.ParamsFunc = func(s capnp.Struct) error { return params(App_kill_Params{Struct: s}) }
+	}
+	return App_kill_Results_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(call))}
+}
 
 type App_Server interface {
 	Id(App_id) error
@@ -82,6 +182,16 @@ type App_Server interface {
 	Instance(App_instance) error
 
 	StartedOn(App_startedOn) error
+
+	LogLevel(App_logLevel) error
+
+	SetLogLevel(App_setLogLevel) error
+
+	RegisteredServices(App_registeredServices) error
+
+	Service(App_service) error
+
+	Kill(App_kill) error
 }
 
 func App_ServerToClient(s App_Server) App {
@@ -91,7 +201,7 @@ func App_ServerToClient(s App_Server) App {
 
 func App_Methods(methods []server.Method, s App_Server) []server.Method {
 	if cap(methods) == 0 {
-		methods = make([]server.Method, 0, 3)
+		methods = make([]server.Method, 0, 8)
 	}
 
 	methods = append(methods, server.Method{
@@ -136,6 +246,76 @@ func App_Methods(methods []server.Method, s App_Server) []server.Method {
 		ResultsSize: capnp.ObjectSize{DataSize: 8, PointerCount: 0},
 	})
 
+	methods = append(methods, server.Method{
+		Method: capnp.Method{
+			InterfaceID:   0xf052e7e084b31199,
+			MethodID:      3,
+			InterfaceName: "app.capnp:App",
+			MethodName:    "logLevel",
+		},
+		Impl: func(c context.Context, opts capnp.CallOptions, p, r capnp.Struct) error {
+			call := App_logLevel{c, opts, App_logLevel_Params{Struct: p}, App_logLevel_Results{Struct: r}}
+			return s.LogLevel(call)
+		},
+		ResultsSize: capnp.ObjectSize{DataSize: 8, PointerCount: 0},
+	})
+
+	methods = append(methods, server.Method{
+		Method: capnp.Method{
+			InterfaceID:   0xf052e7e084b31199,
+			MethodID:      4,
+			InterfaceName: "app.capnp:App",
+			MethodName:    "setLogLevel",
+		},
+		Impl: func(c context.Context, opts capnp.CallOptions, p, r capnp.Struct) error {
+			call := App_setLogLevel{c, opts, App_setLogLevel_Params{Struct: p}, App_setLogLevel_Results{Struct: r}}
+			return s.SetLogLevel(call)
+		},
+		ResultsSize: capnp.ObjectSize{DataSize: 0, PointerCount: 0},
+	})
+
+	methods = append(methods, server.Method{
+		Method: capnp.Method{
+			InterfaceID:   0xf052e7e084b31199,
+			MethodID:      5,
+			InterfaceName: "app.capnp:App",
+			MethodName:    "registeredServices",
+		},
+		Impl: func(c context.Context, opts capnp.CallOptions, p, r capnp.Struct) error {
+			call := App_registeredServices{c, opts, App_registeredServices_Params{Struct: p}, App_registeredServices_Results{Struct: r}}
+			return s.RegisteredServices(call)
+		},
+		ResultsSize: capnp.ObjectSize{DataSize: 0, PointerCount: 1},
+	})
+
+	methods = append(methods, server.Method{
+		Method: capnp.Method{
+			InterfaceID:   0xf052e7e084b31199,
+			MethodID:      6,
+			InterfaceName: "app.capnp:App",
+			MethodName:    "service",
+		},
+		Impl: func(c context.Context, opts capnp.CallOptions, p, r capnp.Struct) error {
+			call := App_service{c, opts, App_service_Params{Struct: p}, App_service_Results{Struct: r}}
+			return s.Service(call)
+		},
+		ResultsSize: capnp.ObjectSize{DataSize: 0, PointerCount: 1},
+	})
+
+	methods = append(methods, server.Method{
+		Method: capnp.Method{
+			InterfaceID:   0xf052e7e084b31199,
+			MethodID:      7,
+			InterfaceName: "app.capnp:App",
+			MethodName:    "kill",
+		},
+		Impl: func(c context.Context, opts capnp.CallOptions, p, r capnp.Struct) error {
+			call := App_kill{c, opts, App_kill_Params{Struct: p}, App_kill_Results{Struct: r}}
+			return s.Kill(call)
+		},
+		ResultsSize: capnp.ObjectSize{DataSize: 0, PointerCount: 0},
+	})
+
 	return methods
 }
 
@@ -161,6 +341,46 @@ type App_startedOn struct {
 	Options capnp.CallOptions
 	Params  App_startedOn_Params
 	Results App_startedOn_Results
+}
+
+// App_logLevel holds the arguments for a server call to App.logLevel.
+type App_logLevel struct {
+	Ctx     context.Context
+	Options capnp.CallOptions
+	Params  App_logLevel_Params
+	Results App_logLevel_Results
+}
+
+// App_setLogLevel holds the arguments for a server call to App.setLogLevel.
+type App_setLogLevel struct {
+	Ctx     context.Context
+	Options capnp.CallOptions
+	Params  App_setLogLevel_Params
+	Results App_setLogLevel_Results
+}
+
+// App_registeredServices holds the arguments for a server call to App.registeredServices.
+type App_registeredServices struct {
+	Ctx     context.Context
+	Options capnp.CallOptions
+	Params  App_registeredServices_Params
+	Results App_registeredServices_Results
+}
+
+// App_service holds the arguments for a server call to App.service.
+type App_service struct {
+	Ctx     context.Context
+	Options capnp.CallOptions
+	Params  App_service_Params
+	Results App_service_Results
+}
+
+// App_kill holds the arguments for a server call to App.kill.
+type App_kill struct {
+	Ctx     context.Context
+	Options capnp.CallOptions
+	Params  App_kill_Params
+	Results App_kill_Results
 }
 
 type App_id_Params struct{ capnp.Struct }
@@ -520,41 +740,1624 @@ func (p App_startedOn_Results_Promise) Struct() (App_startedOn_Results, error) {
 	return App_startedOn_Results{s}, err
 }
 
-const schema_db8274f9144abc7e = "x\xdal\x92?h\x14A\x18\xc5\xdf\x9b\xd9\xcd\x1a9" +
-	"\x83\xc3\xa4\x10\x83\\s\x82B\x8c\x9cV\xda\xdc\xa5\xb0" +
-	"\xc8!\xb8\xb3\x08b\xc0b\xc9^q\x10\xd7\xf1v-" +
-	"T\xb0\x90\xb466b\x9f\xd8\x8b\x9c D\x0bAE" +
-	"A\x05+\xc5\x14\x0a\x82\x04\x11\xfcSy +n\xb2" +
-	"w{G\xea\xf7\xbd\xef\xf7\xcd\xbc\xb7\xf7[S\xd4\xdd" +
-	"\xb7\x120\xb3\xee\xc4\xdf\xcb\xe7\xd6fz_V\xd4\x14" +
-	"\x01\xc7\x03\xf4k\xf6\xe1d\xc9\xc3\xf9[\xcb\xbfWo" +
-	"#\x17\\\xfeW\xee\xb3\x0f\xea\x1e\x1b`\xf6~\xe3\xf4" +
-	"\xc6\xea\xcfKk\x18\x1a?\xf0)\x9c\xec\xc2\x91\xa3\x8b" +
-	"wfd\x0ff\x8a\xdb\xca\xf1G\x14\x04\xf5\xe3\xdcy" +
-	"u\xfdZ\xab\xfe\xe6\xde\x93\x92\xf33\x7f\xc1\xc9\x9e_" +
-	"?\xdb?t\xf8\xfc\xbb\x92S?\xe3+P\xbf\xcc\x8d" +
-	"w\xd5\x83\x95O_\x83\x1fP\xbbevc\xbd5\xfd" +
-	"'\xbd\xf9\x11\xa0\xdedW\x7f\xcf/\xdc\xe4\x0b\xdd\x11" +
-	"\x1ef\xb3\xd0\xda\xb9\xa5\xd0\xc6\xc2\x9e\x9c\xb7v.I" +
-	"\xc3n\xda\x8e\xce\xc4\xb5\x86\x1fv\xc3\x8b\xc9\xf8@'" +
-	"N\xd20^j\xd7\x82F;\xb9\xb2\x9c&\xc6\x91\x0e" +
-	"\xe0\x10P{\x16\x01S\x914\xfb\x04\xb3b\x10r!" +
-	"b\x05\x82\x15p\xb0lb{YT\xdb\xa2\xa0\x10\xc6" +
-	"\xaf\x08\xb6 (S\x82\x12\xa5\x98\x04c\xba\x10tK" +
-	"\x90\xf1\x8b\xfd\xea\xce/\x8a\x06\x94\x11\xcc1\xc0\xec\x92" +
-	"4\xd3\x82\xd5\xd0\xda\x85\x88\x93\x10\x9c,\x01P\xcd7" +
-	"\xf8\xa4\xa9H\x17\x18\x84\xcd\"\"e\xf6C\xa8S\x1e" +
-	"\x87q\xb2h\x8c:\xd1\x82Pu\x8f\xa2\xe8\xd6\xb0\x13" +
-	"\xea`\x00\xa1\x0ex\xb2\x135K_\x094G\x9e\xdc" +
-	"\xa4O\xfe\x0b\x00\x00\xff\xff\xe3e\xc6 "
+type App_logLevel_Params struct{ capnp.Struct }
+
+// App_logLevel_Params_TypeID is the unique identifier for the type App_logLevel_Params.
+const App_logLevel_Params_TypeID = 0x8ff15814cd06ecd7
+
+func NewApp_logLevel_Params(s *capnp.Segment) (App_logLevel_Params, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return App_logLevel_Params{st}, err
+}
+
+func NewRootApp_logLevel_Params(s *capnp.Segment) (App_logLevel_Params, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return App_logLevel_Params{st}, err
+}
+
+func ReadRootApp_logLevel_Params(msg *capnp.Message) (App_logLevel_Params, error) {
+	root, err := msg.RootPtr()
+	return App_logLevel_Params{root.Struct()}, err
+}
+
+func (s App_logLevel_Params) String() string {
+	str, _ := text.Marshal(0x8ff15814cd06ecd7, s.Struct)
+	return str
+}
+
+// App_logLevel_Params_List is a list of App_logLevel_Params.
+type App_logLevel_Params_List struct{ capnp.List }
+
+// NewApp_logLevel_Params creates a new list of App_logLevel_Params.
+func NewApp_logLevel_Params_List(s *capnp.Segment, sz int32) (App_logLevel_Params_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
+	return App_logLevel_Params_List{l}, err
+}
+
+func (s App_logLevel_Params_List) At(i int) App_logLevel_Params {
+	return App_logLevel_Params{s.List.Struct(i)}
+}
+
+func (s App_logLevel_Params_List) Set(i int, v App_logLevel_Params) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s App_logLevel_Params_List) String() string {
+	str, _ := text.MarshalList(0x8ff15814cd06ecd7, s.List)
+	return str
+}
+
+// App_logLevel_Params_Promise is a wrapper for a App_logLevel_Params promised by a client call.
+type App_logLevel_Params_Promise struct{ *capnp.Pipeline }
+
+func (p App_logLevel_Params_Promise) Struct() (App_logLevel_Params, error) {
+	s, err := p.Pipeline.Struct()
+	return App_logLevel_Params{s}, err
+}
+
+type App_logLevel_Results struct{ capnp.Struct }
+
+// App_logLevel_Results_TypeID is the unique identifier for the type App_logLevel_Results.
+const App_logLevel_Results_TypeID = 0x8ff88405c5bd0dec
+
+func NewApp_logLevel_Results(s *capnp.Segment) (App_logLevel_Results, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	return App_logLevel_Results{st}, err
+}
+
+func NewRootApp_logLevel_Results(s *capnp.Segment) (App_logLevel_Results, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	return App_logLevel_Results{st}, err
+}
+
+func ReadRootApp_logLevel_Results(msg *capnp.Message) (App_logLevel_Results, error) {
+	root, err := msg.RootPtr()
+	return App_logLevel_Results{root.Struct()}, err
+}
+
+func (s App_logLevel_Results) String() string {
+	str, _ := text.Marshal(0x8ff88405c5bd0dec, s.Struct)
+	return str
+}
+
+func (s App_logLevel_Results) Level() LogLevel {
+	return LogLevel(s.Struct.Uint16(0))
+}
+
+func (s App_logLevel_Results) SetLevel(v LogLevel) {
+	s.Struct.SetUint16(0, uint16(v))
+}
+
+// App_logLevel_Results_List is a list of App_logLevel_Results.
+type App_logLevel_Results_List struct{ capnp.List }
+
+// NewApp_logLevel_Results creates a new list of App_logLevel_Results.
+func NewApp_logLevel_Results_List(s *capnp.Segment, sz int32) (App_logLevel_Results_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
+	return App_logLevel_Results_List{l}, err
+}
+
+func (s App_logLevel_Results_List) At(i int) App_logLevel_Results {
+	return App_logLevel_Results{s.List.Struct(i)}
+}
+
+func (s App_logLevel_Results_List) Set(i int, v App_logLevel_Results) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s App_logLevel_Results_List) String() string {
+	str, _ := text.MarshalList(0x8ff88405c5bd0dec, s.List)
+	return str
+}
+
+// App_logLevel_Results_Promise is a wrapper for a App_logLevel_Results promised by a client call.
+type App_logLevel_Results_Promise struct{ *capnp.Pipeline }
+
+func (p App_logLevel_Results_Promise) Struct() (App_logLevel_Results, error) {
+	s, err := p.Pipeline.Struct()
+	return App_logLevel_Results{s}, err
+}
+
+type App_setLogLevel_Params struct{ capnp.Struct }
+
+// App_setLogLevel_Params_TypeID is the unique identifier for the type App_setLogLevel_Params.
+const App_setLogLevel_Params_TypeID = 0xa9121e4800ff7069
+
+func NewApp_setLogLevel_Params(s *capnp.Segment) (App_setLogLevel_Params, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	return App_setLogLevel_Params{st}, err
+}
+
+func NewRootApp_setLogLevel_Params(s *capnp.Segment) (App_setLogLevel_Params, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	return App_setLogLevel_Params{st}, err
+}
+
+func ReadRootApp_setLogLevel_Params(msg *capnp.Message) (App_setLogLevel_Params, error) {
+	root, err := msg.RootPtr()
+	return App_setLogLevel_Params{root.Struct()}, err
+}
+
+func (s App_setLogLevel_Params) String() string {
+	str, _ := text.Marshal(0xa9121e4800ff7069, s.Struct)
+	return str
+}
+
+func (s App_setLogLevel_Params) Level() LogLevel {
+	return LogLevel(s.Struct.Uint16(0))
+}
+
+func (s App_setLogLevel_Params) SetLevel(v LogLevel) {
+	s.Struct.SetUint16(0, uint16(v))
+}
+
+// App_setLogLevel_Params_List is a list of App_setLogLevel_Params.
+type App_setLogLevel_Params_List struct{ capnp.List }
+
+// NewApp_setLogLevel_Params creates a new list of App_setLogLevel_Params.
+func NewApp_setLogLevel_Params_List(s *capnp.Segment, sz int32) (App_setLogLevel_Params_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
+	return App_setLogLevel_Params_List{l}, err
+}
+
+func (s App_setLogLevel_Params_List) At(i int) App_setLogLevel_Params {
+	return App_setLogLevel_Params{s.List.Struct(i)}
+}
+
+func (s App_setLogLevel_Params_List) Set(i int, v App_setLogLevel_Params) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s App_setLogLevel_Params_List) String() string {
+	str, _ := text.MarshalList(0xa9121e4800ff7069, s.List)
+	return str
+}
+
+// App_setLogLevel_Params_Promise is a wrapper for a App_setLogLevel_Params promised by a client call.
+type App_setLogLevel_Params_Promise struct{ *capnp.Pipeline }
+
+func (p App_setLogLevel_Params_Promise) Struct() (App_setLogLevel_Params, error) {
+	s, err := p.Pipeline.Struct()
+	return App_setLogLevel_Params{s}, err
+}
+
+type App_setLogLevel_Results struct{ capnp.Struct }
+
+// App_setLogLevel_Results_TypeID is the unique identifier for the type App_setLogLevel_Results.
+const App_setLogLevel_Results_TypeID = 0xae6825c3fecb35bf
+
+func NewApp_setLogLevel_Results(s *capnp.Segment) (App_setLogLevel_Results, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return App_setLogLevel_Results{st}, err
+}
+
+func NewRootApp_setLogLevel_Results(s *capnp.Segment) (App_setLogLevel_Results, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return App_setLogLevel_Results{st}, err
+}
+
+func ReadRootApp_setLogLevel_Results(msg *capnp.Message) (App_setLogLevel_Results, error) {
+	root, err := msg.RootPtr()
+	return App_setLogLevel_Results{root.Struct()}, err
+}
+
+func (s App_setLogLevel_Results) String() string {
+	str, _ := text.Marshal(0xae6825c3fecb35bf, s.Struct)
+	return str
+}
+
+// App_setLogLevel_Results_List is a list of App_setLogLevel_Results.
+type App_setLogLevel_Results_List struct{ capnp.List }
+
+// NewApp_setLogLevel_Results creates a new list of App_setLogLevel_Results.
+func NewApp_setLogLevel_Results_List(s *capnp.Segment, sz int32) (App_setLogLevel_Results_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
+	return App_setLogLevel_Results_List{l}, err
+}
+
+func (s App_setLogLevel_Results_List) At(i int) App_setLogLevel_Results {
+	return App_setLogLevel_Results{s.List.Struct(i)}
+}
+
+func (s App_setLogLevel_Results_List) Set(i int, v App_setLogLevel_Results) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s App_setLogLevel_Results_List) String() string {
+	str, _ := text.MarshalList(0xae6825c3fecb35bf, s.List)
+	return str
+}
+
+// App_setLogLevel_Results_Promise is a wrapper for a App_setLogLevel_Results promised by a client call.
+type App_setLogLevel_Results_Promise struct{ *capnp.Pipeline }
+
+func (p App_setLogLevel_Results_Promise) Struct() (App_setLogLevel_Results, error) {
+	s, err := p.Pipeline.Struct()
+	return App_setLogLevel_Results{s}, err
+}
+
+type App_registeredServices_Params struct{ capnp.Struct }
+
+// App_registeredServices_Params_TypeID is the unique identifier for the type App_registeredServices_Params.
+const App_registeredServices_Params_TypeID = 0xb95426b082b00c25
+
+func NewApp_registeredServices_Params(s *capnp.Segment) (App_registeredServices_Params, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return App_registeredServices_Params{st}, err
+}
+
+func NewRootApp_registeredServices_Params(s *capnp.Segment) (App_registeredServices_Params, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return App_registeredServices_Params{st}, err
+}
+
+func ReadRootApp_registeredServices_Params(msg *capnp.Message) (App_registeredServices_Params, error) {
+	root, err := msg.RootPtr()
+	return App_registeredServices_Params{root.Struct()}, err
+}
+
+func (s App_registeredServices_Params) String() string {
+	str, _ := text.Marshal(0xb95426b082b00c25, s.Struct)
+	return str
+}
+
+// App_registeredServices_Params_List is a list of App_registeredServices_Params.
+type App_registeredServices_Params_List struct{ capnp.List }
+
+// NewApp_registeredServices_Params creates a new list of App_registeredServices_Params.
+func NewApp_registeredServices_Params_List(s *capnp.Segment, sz int32) (App_registeredServices_Params_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
+	return App_registeredServices_Params_List{l}, err
+}
+
+func (s App_registeredServices_Params_List) At(i int) App_registeredServices_Params {
+	return App_registeredServices_Params{s.List.Struct(i)}
+}
+
+func (s App_registeredServices_Params_List) Set(i int, v App_registeredServices_Params) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s App_registeredServices_Params_List) String() string {
+	str, _ := text.MarshalList(0xb95426b082b00c25, s.List)
+	return str
+}
+
+// App_registeredServices_Params_Promise is a wrapper for a App_registeredServices_Params promised by a client call.
+type App_registeredServices_Params_Promise struct{ *capnp.Pipeline }
+
+func (p App_registeredServices_Params_Promise) Struct() (App_registeredServices_Params, error) {
+	s, err := p.Pipeline.Struct()
+	return App_registeredServices_Params{s}, err
+}
+
+type App_registeredServices_Results struct{ capnp.Struct }
+
+// App_registeredServices_Results_TypeID is the unique identifier for the type App_registeredServices_Results.
+const App_registeredServices_Results_TypeID = 0xeb68797cd74f95c2
+
+func NewApp_registeredServices_Results(s *capnp.Segment) (App_registeredServices_Results, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
+	return App_registeredServices_Results{st}, err
+}
+
+func NewRootApp_registeredServices_Results(s *capnp.Segment) (App_registeredServices_Results, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
+	return App_registeredServices_Results{st}, err
+}
+
+func ReadRootApp_registeredServices_Results(msg *capnp.Message) (App_registeredServices_Results, error) {
+	root, err := msg.RootPtr()
+	return App_registeredServices_Results{root.Struct()}, err
+}
+
+func (s App_registeredServices_Results) String() string {
+	str, _ := text.Marshal(0xeb68797cd74f95c2, s.Struct)
+	return str
+}
+
+func (s App_registeredServices_Results) ServiceIds() (capnp.UInt64List, error) {
+	p, err := s.Struct.Ptr(0)
+	return capnp.UInt64List{List: p.List()}, err
+}
+
+func (s App_registeredServices_Results) HasServiceIds() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s App_registeredServices_Results) SetServiceIds(v capnp.UInt64List) error {
+	return s.Struct.SetPtr(0, v.List.ToPtr())
+}
+
+// NewServiceIds sets the serviceIds field to a newly
+// allocated capnp.UInt64List, preferring placement in s's segment.
+func (s App_registeredServices_Results) NewServiceIds(n int32) (capnp.UInt64List, error) {
+	l, err := capnp.NewUInt64List(s.Struct.Segment(), n)
+	if err != nil {
+		return capnp.UInt64List{}, err
+	}
+	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	return l, err
+}
+
+// App_registeredServices_Results_List is a list of App_registeredServices_Results.
+type App_registeredServices_Results_List struct{ capnp.List }
+
+// NewApp_registeredServices_Results creates a new list of App_registeredServices_Results.
+func NewApp_registeredServices_Results_List(s *capnp.Segment, sz int32) (App_registeredServices_Results_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
+	return App_registeredServices_Results_List{l}, err
+}
+
+func (s App_registeredServices_Results_List) At(i int) App_registeredServices_Results {
+	return App_registeredServices_Results{s.List.Struct(i)}
+}
+
+func (s App_registeredServices_Results_List) Set(i int, v App_registeredServices_Results) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s App_registeredServices_Results_List) String() string {
+	str, _ := text.MarshalList(0xeb68797cd74f95c2, s.List)
+	return str
+}
+
+// App_registeredServices_Results_Promise is a wrapper for a App_registeredServices_Results promised by a client call.
+type App_registeredServices_Results_Promise struct{ *capnp.Pipeline }
+
+func (p App_registeredServices_Results_Promise) Struct() (App_registeredServices_Results, error) {
+	s, err := p.Pipeline.Struct()
+	return App_registeredServices_Results{s}, err
+}
+
+type App_service_Params struct{ capnp.Struct }
+
+// App_service_Params_TypeID is the unique identifier for the type App_service_Params.
+const App_service_Params_TypeID = 0xa504000ac6204c12
+
+func NewApp_service_Params(s *capnp.Segment) (App_service_Params, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	return App_service_Params{st}, err
+}
+
+func NewRootApp_service_Params(s *capnp.Segment) (App_service_Params, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	return App_service_Params{st}, err
+}
+
+func ReadRootApp_service_Params(msg *capnp.Message) (App_service_Params, error) {
+	root, err := msg.RootPtr()
+	return App_service_Params{root.Struct()}, err
+}
+
+func (s App_service_Params) String() string {
+	str, _ := text.Marshal(0xa504000ac6204c12, s.Struct)
+	return str
+}
+
+func (s App_service_Params) Id() uint64 {
+	return s.Struct.Uint64(0)
+}
+
+func (s App_service_Params) SetId(v uint64) {
+	s.Struct.SetUint64(0, v)
+}
+
+// App_service_Params_List is a list of App_service_Params.
+type App_service_Params_List struct{ capnp.List }
+
+// NewApp_service_Params creates a new list of App_service_Params.
+func NewApp_service_Params_List(s *capnp.Segment, sz int32) (App_service_Params_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
+	return App_service_Params_List{l}, err
+}
+
+func (s App_service_Params_List) At(i int) App_service_Params {
+	return App_service_Params{s.List.Struct(i)}
+}
+
+func (s App_service_Params_List) Set(i int, v App_service_Params) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s App_service_Params_List) String() string {
+	str, _ := text.MarshalList(0xa504000ac6204c12, s.List)
+	return str
+}
+
+// App_service_Params_Promise is a wrapper for a App_service_Params promised by a client call.
+type App_service_Params_Promise struct{ *capnp.Pipeline }
+
+func (p App_service_Params_Promise) Struct() (App_service_Params, error) {
+	s, err := p.Pipeline.Struct()
+	return App_service_Params{s}, err
+}
+
+type App_service_Results struct{ capnp.Struct }
+
+// App_service_Results_TypeID is the unique identifier for the type App_service_Results.
+const App_service_Results_TypeID = 0xfa41cf108b6d790d
+
+func NewApp_service_Results(s *capnp.Segment) (App_service_Results, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
+	return App_service_Results{st}, err
+}
+
+func NewRootApp_service_Results(s *capnp.Segment) (App_service_Results, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
+	return App_service_Results{st}, err
+}
+
+func ReadRootApp_service_Results(msg *capnp.Message) (App_service_Results, error) {
+	root, err := msg.RootPtr()
+	return App_service_Results{root.Struct()}, err
+}
+
+func (s App_service_Results) String() string {
+	str, _ := text.Marshal(0xfa41cf108b6d790d, s.Struct)
+	return str
+}
+
+func (s App_service_Results) Service() Service {
+	p, _ := s.Struct.Ptr(0)
+	return Service{Client: p.Interface().Client()}
+}
+
+func (s App_service_Results) HasService() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s App_service_Results) SetService(v Service) error {
+	if v.Client == nil {
+		return s.Struct.SetPtr(0, capnp.Ptr{})
+	}
+	seg := s.Segment()
+	in := capnp.NewInterface(seg, seg.Message().AddCap(v.Client))
+	return s.Struct.SetPtr(0, in.ToPtr())
+}
+
+// App_service_Results_List is a list of App_service_Results.
+type App_service_Results_List struct{ capnp.List }
+
+// NewApp_service_Results creates a new list of App_service_Results.
+func NewApp_service_Results_List(s *capnp.Segment, sz int32) (App_service_Results_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
+	return App_service_Results_List{l}, err
+}
+
+func (s App_service_Results_List) At(i int) App_service_Results {
+	return App_service_Results{s.List.Struct(i)}
+}
+
+func (s App_service_Results_List) Set(i int, v App_service_Results) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s App_service_Results_List) String() string {
+	str, _ := text.MarshalList(0xfa41cf108b6d790d, s.List)
+	return str
+}
+
+// App_service_Results_Promise is a wrapper for a App_service_Results promised by a client call.
+type App_service_Results_Promise struct{ *capnp.Pipeline }
+
+func (p App_service_Results_Promise) Struct() (App_service_Results, error) {
+	s, err := p.Pipeline.Struct()
+	return App_service_Results{s}, err
+}
+
+func (p App_service_Results_Promise) Service() Service {
+	return Service{Client: p.Pipeline.GetPipeline(0).Client()}
+}
+
+type App_kill_Params struct{ capnp.Struct }
+
+// App_kill_Params_TypeID is the unique identifier for the type App_kill_Params.
+const App_kill_Params_TypeID = 0xd47381c89e2f1649
+
+func NewApp_kill_Params(s *capnp.Segment) (App_kill_Params, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return App_kill_Params{st}, err
+}
+
+func NewRootApp_kill_Params(s *capnp.Segment) (App_kill_Params, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return App_kill_Params{st}, err
+}
+
+func ReadRootApp_kill_Params(msg *capnp.Message) (App_kill_Params, error) {
+	root, err := msg.RootPtr()
+	return App_kill_Params{root.Struct()}, err
+}
+
+func (s App_kill_Params) String() string {
+	str, _ := text.Marshal(0xd47381c89e2f1649, s.Struct)
+	return str
+}
+
+// App_kill_Params_List is a list of App_kill_Params.
+type App_kill_Params_List struct{ capnp.List }
+
+// NewApp_kill_Params creates a new list of App_kill_Params.
+func NewApp_kill_Params_List(s *capnp.Segment, sz int32) (App_kill_Params_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
+	return App_kill_Params_List{l}, err
+}
+
+func (s App_kill_Params_List) At(i int) App_kill_Params { return App_kill_Params{s.List.Struct(i)} }
+
+func (s App_kill_Params_List) Set(i int, v App_kill_Params) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s App_kill_Params_List) String() string {
+	str, _ := text.MarshalList(0xd47381c89e2f1649, s.List)
+	return str
+}
+
+// App_kill_Params_Promise is a wrapper for a App_kill_Params promised by a client call.
+type App_kill_Params_Promise struct{ *capnp.Pipeline }
+
+func (p App_kill_Params_Promise) Struct() (App_kill_Params, error) {
+	s, err := p.Pipeline.Struct()
+	return App_kill_Params{s}, err
+}
+
+type App_kill_Results struct{ capnp.Struct }
+
+// App_kill_Results_TypeID is the unique identifier for the type App_kill_Results.
+const App_kill_Results_TypeID = 0xac531ffcc2cdbf05
+
+func NewApp_kill_Results(s *capnp.Segment) (App_kill_Results, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return App_kill_Results{st}, err
+}
+
+func NewRootApp_kill_Results(s *capnp.Segment) (App_kill_Results, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return App_kill_Results{st}, err
+}
+
+func ReadRootApp_kill_Results(msg *capnp.Message) (App_kill_Results, error) {
+	root, err := msg.RootPtr()
+	return App_kill_Results{root.Struct()}, err
+}
+
+func (s App_kill_Results) String() string {
+	str, _ := text.Marshal(0xac531ffcc2cdbf05, s.Struct)
+	return str
+}
+
+// App_kill_Results_List is a list of App_kill_Results.
+type App_kill_Results_List struct{ capnp.List }
+
+// NewApp_kill_Results creates a new list of App_kill_Results.
+func NewApp_kill_Results_List(s *capnp.Segment, sz int32) (App_kill_Results_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
+	return App_kill_Results_List{l}, err
+}
+
+func (s App_kill_Results_List) At(i int) App_kill_Results { return App_kill_Results{s.List.Struct(i)} }
+
+func (s App_kill_Results_List) Set(i int, v App_kill_Results) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s App_kill_Results_List) String() string {
+	str, _ := text.MarshalList(0xac531ffcc2cdbf05, s.List)
+	return str
+}
+
+// App_kill_Results_Promise is a wrapper for a App_kill_Results promised by a client call.
+type App_kill_Results_Promise struct{ *capnp.Pipeline }
+
+func (p App_kill_Results_Promise) Struct() (App_kill_Results, error) {
+	s, err := p.Pipeline.Struct()
+	return App_kill_Results{s}, err
+}
+
+type LogLevel uint16
+
+// LogLevel_TypeID is the unique identifier for the type LogLevel.
+const LogLevel_TypeID = 0xce802aa8977a9aee
+
+// Values of LogLevel.
+const (
+	LogLevel_debug LogLevel = 0
+	LogLevel_info  LogLevel = 1
+	LogLevel_warn  LogLevel = 2
+	LogLevel_error LogLevel = 3
+)
+
+// String returns the enum's constant name.
+func (c LogLevel) String() string {
+	switch c {
+	case LogLevel_debug:
+		return "debug"
+	case LogLevel_info:
+		return "info"
+	case LogLevel_warn:
+		return "warn"
+	case LogLevel_error:
+		return "error"
+
+	default:
+		return ""
+	}
+}
+
+// LogLevelFromString returns the enum value with a name,
+// or the zero value if there's no such value.
+func LogLevelFromString(c string) LogLevel {
+	switch c {
+	case "debug":
+		return LogLevel_debug
+	case "info":
+		return LogLevel_info
+	case "warn":
+		return LogLevel_warn
+	case "error":
+		return LogLevel_error
+
+	default:
+		return 0
+	}
+}
+
+type LogLevel_List struct{ capnp.List }
+
+func NewLogLevel_List(s *capnp.Segment, sz int32) (LogLevel_List, error) {
+	l, err := capnp.NewUInt16List(s, sz)
+	return LogLevel_List{l.List}, err
+}
+
+func (l LogLevel_List) At(i int) LogLevel {
+	ul := capnp.UInt16List{List: l.List}
+	return LogLevel(ul.At(i))
+}
+
+func (l LogLevel_List) Set(i int, v LogLevel) {
+	ul := capnp.UInt16List{List: l.List}
+	ul.Set(i, uint16(v))
+}
+
+type Service struct{ Client capnp.Client }
+
+// Service_TypeID is the unique identifier for the type Service.
+const Service_TypeID = 0xb25b411cec149334
+
+func (c Service) Id(ctx context.Context, params func(Service_id_Params) error, opts ...capnp.CallOption) Service_id_Results_Promise {
+	if c.Client == nil {
+		return Service_id_Results_Promise{Pipeline: capnp.NewPipeline(capnp.ErrorAnswer(capnp.ErrNullClient))}
+	}
+	call := &capnp.Call{
+		Ctx: ctx,
+		Method: capnp.Method{
+			InterfaceID:   0xb25b411cec149334,
+			MethodID:      0,
+			InterfaceName: "app.capnp:Service",
+			MethodName:    "id",
+		},
+		Options: capnp.NewCallOptions(opts),
+	}
+	if params != nil {
+		call.ParamsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 0}
+		call.ParamsFunc = func(s capnp.Struct) error { return params(Service_id_Params{Struct: s}) }
+	}
+	return Service_id_Results_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(call))}
+}
+func (c Service) LogLevel(ctx context.Context, params func(Service_logLevel_Params) error, opts ...capnp.CallOption) Service_logLevel_Results_Promise {
+	if c.Client == nil {
+		return Service_logLevel_Results_Promise{Pipeline: capnp.NewPipeline(capnp.ErrorAnswer(capnp.ErrNullClient))}
+	}
+	call := &capnp.Call{
+		Ctx: ctx,
+		Method: capnp.Method{
+			InterfaceID:   0xb25b411cec149334,
+			MethodID:      1,
+			InterfaceName: "app.capnp:Service",
+			MethodName:    "logLevel",
+		},
+		Options: capnp.NewCallOptions(opts),
+	}
+	if params != nil {
+		call.ParamsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 0}
+		call.ParamsFunc = func(s capnp.Struct) error { return params(Service_logLevel_Params{Struct: s}) }
+	}
+	return Service_logLevel_Results_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(call))}
+}
+func (c Service) SetLogLevel(ctx context.Context, params func(Service_setLogLevel_Params) error, opts ...capnp.CallOption) Service_setLogLevel_Results_Promise {
+	if c.Client == nil {
+		return Service_setLogLevel_Results_Promise{Pipeline: capnp.NewPipeline(capnp.ErrorAnswer(capnp.ErrNullClient))}
+	}
+	call := &capnp.Call{
+		Ctx: ctx,
+		Method: capnp.Method{
+			InterfaceID:   0xb25b411cec149334,
+			MethodID:      2,
+			InterfaceName: "app.capnp:Service",
+			MethodName:    "setLogLevel",
+		},
+		Options: capnp.NewCallOptions(opts),
+	}
+	if params != nil {
+		call.ParamsSize = capnp.ObjectSize{DataSize: 8, PointerCount: 0}
+		call.ParamsFunc = func(s capnp.Struct) error { return params(Service_setLogLevel_Params{Struct: s}) }
+	}
+	return Service_setLogLevel_Results_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(call))}
+}
+func (c Service) Alive(ctx context.Context, params func(Service_alive_Params) error, opts ...capnp.CallOption) Service_alive_Results_Promise {
+	if c.Client == nil {
+		return Service_alive_Results_Promise{Pipeline: capnp.NewPipeline(capnp.ErrorAnswer(capnp.ErrNullClient))}
+	}
+	call := &capnp.Call{
+		Ctx: ctx,
+		Method: capnp.Method{
+			InterfaceID:   0xb25b411cec149334,
+			MethodID:      3,
+			InterfaceName: "app.capnp:Service",
+			MethodName:    "alive",
+		},
+		Options: capnp.NewCallOptions(opts),
+	}
+	if params != nil {
+		call.ParamsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 0}
+		call.ParamsFunc = func(s capnp.Struct) error { return params(Service_alive_Params{Struct: s}) }
+	}
+	return Service_alive_Results_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(call))}
+}
+func (c Service) Kill(ctx context.Context, params func(Service_kill_Params) error, opts ...capnp.CallOption) Service_kill_Results_Promise {
+	if c.Client == nil {
+		return Service_kill_Results_Promise{Pipeline: capnp.NewPipeline(capnp.ErrorAnswer(capnp.ErrNullClient))}
+	}
+	call := &capnp.Call{
+		Ctx: ctx,
+		Method: capnp.Method{
+			InterfaceID:   0xb25b411cec149334,
+			MethodID:      4,
+			InterfaceName: "app.capnp:Service",
+			MethodName:    "kill",
+		},
+		Options: capnp.NewCallOptions(opts),
+	}
+	if params != nil {
+		call.ParamsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 0}
+		call.ParamsFunc = func(s capnp.Struct) error { return params(Service_kill_Params{Struct: s}) }
+	}
+	return Service_kill_Results_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(call))}
+}
+
+type Service_Server interface {
+	Id(Service_id) error
+
+	LogLevel(Service_logLevel) error
+
+	SetLogLevel(Service_setLogLevel) error
+
+	Alive(Service_alive) error
+
+	Kill(Service_kill) error
+}
+
+func Service_ServerToClient(s Service_Server) Service {
+	c, _ := s.(server.Closer)
+	return Service{Client: server.New(Service_Methods(nil, s), c)}
+}
+
+func Service_Methods(methods []server.Method, s Service_Server) []server.Method {
+	if cap(methods) == 0 {
+		methods = make([]server.Method, 0, 5)
+	}
+
+	methods = append(methods, server.Method{
+		Method: capnp.Method{
+			InterfaceID:   0xb25b411cec149334,
+			MethodID:      0,
+			InterfaceName: "app.capnp:Service",
+			MethodName:    "id",
+		},
+		Impl: func(c context.Context, opts capnp.CallOptions, p, r capnp.Struct) error {
+			call := Service_id{c, opts, Service_id_Params{Struct: p}, Service_id_Results{Struct: r}}
+			return s.Id(call)
+		},
+		ResultsSize: capnp.ObjectSize{DataSize: 8, PointerCount: 0},
+	})
+
+	methods = append(methods, server.Method{
+		Method: capnp.Method{
+			InterfaceID:   0xb25b411cec149334,
+			MethodID:      1,
+			InterfaceName: "app.capnp:Service",
+			MethodName:    "logLevel",
+		},
+		Impl: func(c context.Context, opts capnp.CallOptions, p, r capnp.Struct) error {
+			call := Service_logLevel{c, opts, Service_logLevel_Params{Struct: p}, Service_logLevel_Results{Struct: r}}
+			return s.LogLevel(call)
+		},
+		ResultsSize: capnp.ObjectSize{DataSize: 8, PointerCount: 0},
+	})
+
+	methods = append(methods, server.Method{
+		Method: capnp.Method{
+			InterfaceID:   0xb25b411cec149334,
+			MethodID:      2,
+			InterfaceName: "app.capnp:Service",
+			MethodName:    "setLogLevel",
+		},
+		Impl: func(c context.Context, opts capnp.CallOptions, p, r capnp.Struct) error {
+			call := Service_setLogLevel{c, opts, Service_setLogLevel_Params{Struct: p}, Service_setLogLevel_Results{Struct: r}}
+			return s.SetLogLevel(call)
+		},
+		ResultsSize: capnp.ObjectSize{DataSize: 0, PointerCount: 0},
+	})
+
+	methods = append(methods, server.Method{
+		Method: capnp.Method{
+			InterfaceID:   0xb25b411cec149334,
+			MethodID:      3,
+			InterfaceName: "app.capnp:Service",
+			MethodName:    "alive",
+		},
+		Impl: func(c context.Context, opts capnp.CallOptions, p, r capnp.Struct) error {
+			call := Service_alive{c, opts, Service_alive_Params{Struct: p}, Service_alive_Results{Struct: r}}
+			return s.Alive(call)
+		},
+		ResultsSize: capnp.ObjectSize{DataSize: 8, PointerCount: 0},
+	})
+
+	methods = append(methods, server.Method{
+		Method: capnp.Method{
+			InterfaceID:   0xb25b411cec149334,
+			MethodID:      4,
+			InterfaceName: "app.capnp:Service",
+			MethodName:    "kill",
+		},
+		Impl: func(c context.Context, opts capnp.CallOptions, p, r capnp.Struct) error {
+			call := Service_kill{c, opts, Service_kill_Params{Struct: p}, Service_kill_Results{Struct: r}}
+			return s.Kill(call)
+		},
+		ResultsSize: capnp.ObjectSize{DataSize: 0, PointerCount: 0},
+	})
+
+	return methods
+}
+
+// Service_id holds the arguments for a server call to Service.id.
+type Service_id struct {
+	Ctx     context.Context
+	Options capnp.CallOptions
+	Params  Service_id_Params
+	Results Service_id_Results
+}
+
+// Service_logLevel holds the arguments for a server call to Service.logLevel.
+type Service_logLevel struct {
+	Ctx     context.Context
+	Options capnp.CallOptions
+	Params  Service_logLevel_Params
+	Results Service_logLevel_Results
+}
+
+// Service_setLogLevel holds the arguments for a server call to Service.setLogLevel.
+type Service_setLogLevel struct {
+	Ctx     context.Context
+	Options capnp.CallOptions
+	Params  Service_setLogLevel_Params
+	Results Service_setLogLevel_Results
+}
+
+// Service_alive holds the arguments for a server call to Service.alive.
+type Service_alive struct {
+	Ctx     context.Context
+	Options capnp.CallOptions
+	Params  Service_alive_Params
+	Results Service_alive_Results
+}
+
+// Service_kill holds the arguments for a server call to Service.kill.
+type Service_kill struct {
+	Ctx     context.Context
+	Options capnp.CallOptions
+	Params  Service_kill_Params
+	Results Service_kill_Results
+}
+
+type Service_id_Params struct{ capnp.Struct }
+
+// Service_id_Params_TypeID is the unique identifier for the type Service_id_Params.
+const Service_id_Params_TypeID = 0x965465bd75220f94
+
+func NewService_id_Params(s *capnp.Segment) (Service_id_Params, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return Service_id_Params{st}, err
+}
+
+func NewRootService_id_Params(s *capnp.Segment) (Service_id_Params, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return Service_id_Params{st}, err
+}
+
+func ReadRootService_id_Params(msg *capnp.Message) (Service_id_Params, error) {
+	root, err := msg.RootPtr()
+	return Service_id_Params{root.Struct()}, err
+}
+
+func (s Service_id_Params) String() string {
+	str, _ := text.Marshal(0x965465bd75220f94, s.Struct)
+	return str
+}
+
+// Service_id_Params_List is a list of Service_id_Params.
+type Service_id_Params_List struct{ capnp.List }
+
+// NewService_id_Params creates a new list of Service_id_Params.
+func NewService_id_Params_List(s *capnp.Segment, sz int32) (Service_id_Params_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
+	return Service_id_Params_List{l}, err
+}
+
+func (s Service_id_Params_List) At(i int) Service_id_Params {
+	return Service_id_Params{s.List.Struct(i)}
+}
+
+func (s Service_id_Params_List) Set(i int, v Service_id_Params) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s Service_id_Params_List) String() string {
+	str, _ := text.MarshalList(0x965465bd75220f94, s.List)
+	return str
+}
+
+// Service_id_Params_Promise is a wrapper for a Service_id_Params promised by a client call.
+type Service_id_Params_Promise struct{ *capnp.Pipeline }
+
+func (p Service_id_Params_Promise) Struct() (Service_id_Params, error) {
+	s, err := p.Pipeline.Struct()
+	return Service_id_Params{s}, err
+}
+
+type Service_id_Results struct{ capnp.Struct }
+
+// Service_id_Results_TypeID is the unique identifier for the type Service_id_Results.
+const Service_id_Results_TypeID = 0xccdde1728f71e904
+
+func NewService_id_Results(s *capnp.Segment) (Service_id_Results, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	return Service_id_Results{st}, err
+}
+
+func NewRootService_id_Results(s *capnp.Segment) (Service_id_Results, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	return Service_id_Results{st}, err
+}
+
+func ReadRootService_id_Results(msg *capnp.Message) (Service_id_Results, error) {
+	root, err := msg.RootPtr()
+	return Service_id_Results{root.Struct()}, err
+}
+
+func (s Service_id_Results) String() string {
+	str, _ := text.Marshal(0xccdde1728f71e904, s.Struct)
+	return str
+}
+
+func (s Service_id_Results) ServiceId() uint64 {
+	return s.Struct.Uint64(0)
+}
+
+func (s Service_id_Results) SetServiceId(v uint64) {
+	s.Struct.SetUint64(0, v)
+}
+
+// Service_id_Results_List is a list of Service_id_Results.
+type Service_id_Results_List struct{ capnp.List }
+
+// NewService_id_Results creates a new list of Service_id_Results.
+func NewService_id_Results_List(s *capnp.Segment, sz int32) (Service_id_Results_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
+	return Service_id_Results_List{l}, err
+}
+
+func (s Service_id_Results_List) At(i int) Service_id_Results {
+	return Service_id_Results{s.List.Struct(i)}
+}
+
+func (s Service_id_Results_List) Set(i int, v Service_id_Results) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s Service_id_Results_List) String() string {
+	str, _ := text.MarshalList(0xccdde1728f71e904, s.List)
+	return str
+}
+
+// Service_id_Results_Promise is a wrapper for a Service_id_Results promised by a client call.
+type Service_id_Results_Promise struct{ *capnp.Pipeline }
+
+func (p Service_id_Results_Promise) Struct() (Service_id_Results, error) {
+	s, err := p.Pipeline.Struct()
+	return Service_id_Results{s}, err
+}
+
+type Service_logLevel_Params struct{ capnp.Struct }
+
+// Service_logLevel_Params_TypeID is the unique identifier for the type Service_logLevel_Params.
+const Service_logLevel_Params_TypeID = 0xa6b9c11c2aac9785
+
+func NewService_logLevel_Params(s *capnp.Segment) (Service_logLevel_Params, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return Service_logLevel_Params{st}, err
+}
+
+func NewRootService_logLevel_Params(s *capnp.Segment) (Service_logLevel_Params, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return Service_logLevel_Params{st}, err
+}
+
+func ReadRootService_logLevel_Params(msg *capnp.Message) (Service_logLevel_Params, error) {
+	root, err := msg.RootPtr()
+	return Service_logLevel_Params{root.Struct()}, err
+}
+
+func (s Service_logLevel_Params) String() string {
+	str, _ := text.Marshal(0xa6b9c11c2aac9785, s.Struct)
+	return str
+}
+
+// Service_logLevel_Params_List is a list of Service_logLevel_Params.
+type Service_logLevel_Params_List struct{ capnp.List }
+
+// NewService_logLevel_Params creates a new list of Service_logLevel_Params.
+func NewService_logLevel_Params_List(s *capnp.Segment, sz int32) (Service_logLevel_Params_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
+	return Service_logLevel_Params_List{l}, err
+}
+
+func (s Service_logLevel_Params_List) At(i int) Service_logLevel_Params {
+	return Service_logLevel_Params{s.List.Struct(i)}
+}
+
+func (s Service_logLevel_Params_List) Set(i int, v Service_logLevel_Params) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s Service_logLevel_Params_List) String() string {
+	str, _ := text.MarshalList(0xa6b9c11c2aac9785, s.List)
+	return str
+}
+
+// Service_logLevel_Params_Promise is a wrapper for a Service_logLevel_Params promised by a client call.
+type Service_logLevel_Params_Promise struct{ *capnp.Pipeline }
+
+func (p Service_logLevel_Params_Promise) Struct() (Service_logLevel_Params, error) {
+	s, err := p.Pipeline.Struct()
+	return Service_logLevel_Params{s}, err
+}
+
+type Service_logLevel_Results struct{ capnp.Struct }
+
+// Service_logLevel_Results_TypeID is the unique identifier for the type Service_logLevel_Results.
+const Service_logLevel_Results_TypeID = 0x9285c4944dfb709f
+
+func NewService_logLevel_Results(s *capnp.Segment) (Service_logLevel_Results, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	return Service_logLevel_Results{st}, err
+}
+
+func NewRootService_logLevel_Results(s *capnp.Segment) (Service_logLevel_Results, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	return Service_logLevel_Results{st}, err
+}
+
+func ReadRootService_logLevel_Results(msg *capnp.Message) (Service_logLevel_Results, error) {
+	root, err := msg.RootPtr()
+	return Service_logLevel_Results{root.Struct()}, err
+}
+
+func (s Service_logLevel_Results) String() string {
+	str, _ := text.Marshal(0x9285c4944dfb709f, s.Struct)
+	return str
+}
+
+func (s Service_logLevel_Results) Level() LogLevel {
+	return LogLevel(s.Struct.Uint16(0))
+}
+
+func (s Service_logLevel_Results) SetLevel(v LogLevel) {
+	s.Struct.SetUint16(0, uint16(v))
+}
+
+// Service_logLevel_Results_List is a list of Service_logLevel_Results.
+type Service_logLevel_Results_List struct{ capnp.List }
+
+// NewService_logLevel_Results creates a new list of Service_logLevel_Results.
+func NewService_logLevel_Results_List(s *capnp.Segment, sz int32) (Service_logLevel_Results_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
+	return Service_logLevel_Results_List{l}, err
+}
+
+func (s Service_logLevel_Results_List) At(i int) Service_logLevel_Results {
+	return Service_logLevel_Results{s.List.Struct(i)}
+}
+
+func (s Service_logLevel_Results_List) Set(i int, v Service_logLevel_Results) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s Service_logLevel_Results_List) String() string {
+	str, _ := text.MarshalList(0x9285c4944dfb709f, s.List)
+	return str
+}
+
+// Service_logLevel_Results_Promise is a wrapper for a Service_logLevel_Results promised by a client call.
+type Service_logLevel_Results_Promise struct{ *capnp.Pipeline }
+
+func (p Service_logLevel_Results_Promise) Struct() (Service_logLevel_Results, error) {
+	s, err := p.Pipeline.Struct()
+	return Service_logLevel_Results{s}, err
+}
+
+type Service_setLogLevel_Params struct{ capnp.Struct }
+
+// Service_setLogLevel_Params_TypeID is the unique identifier for the type Service_setLogLevel_Params.
+const Service_setLogLevel_Params_TypeID = 0x91dfcb778d8d16c0
+
+func NewService_setLogLevel_Params(s *capnp.Segment) (Service_setLogLevel_Params, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	return Service_setLogLevel_Params{st}, err
+}
+
+func NewRootService_setLogLevel_Params(s *capnp.Segment) (Service_setLogLevel_Params, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	return Service_setLogLevel_Params{st}, err
+}
+
+func ReadRootService_setLogLevel_Params(msg *capnp.Message) (Service_setLogLevel_Params, error) {
+	root, err := msg.RootPtr()
+	return Service_setLogLevel_Params{root.Struct()}, err
+}
+
+func (s Service_setLogLevel_Params) String() string {
+	str, _ := text.Marshal(0x91dfcb778d8d16c0, s.Struct)
+	return str
+}
+
+func (s Service_setLogLevel_Params) Level() LogLevel {
+	return LogLevel(s.Struct.Uint16(0))
+}
+
+func (s Service_setLogLevel_Params) SetLevel(v LogLevel) {
+	s.Struct.SetUint16(0, uint16(v))
+}
+
+// Service_setLogLevel_Params_List is a list of Service_setLogLevel_Params.
+type Service_setLogLevel_Params_List struct{ capnp.List }
+
+// NewService_setLogLevel_Params creates a new list of Service_setLogLevel_Params.
+func NewService_setLogLevel_Params_List(s *capnp.Segment, sz int32) (Service_setLogLevel_Params_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
+	return Service_setLogLevel_Params_List{l}, err
+}
+
+func (s Service_setLogLevel_Params_List) At(i int) Service_setLogLevel_Params {
+	return Service_setLogLevel_Params{s.List.Struct(i)}
+}
+
+func (s Service_setLogLevel_Params_List) Set(i int, v Service_setLogLevel_Params) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s Service_setLogLevel_Params_List) String() string {
+	str, _ := text.MarshalList(0x91dfcb778d8d16c0, s.List)
+	return str
+}
+
+// Service_setLogLevel_Params_Promise is a wrapper for a Service_setLogLevel_Params promised by a client call.
+type Service_setLogLevel_Params_Promise struct{ *capnp.Pipeline }
+
+func (p Service_setLogLevel_Params_Promise) Struct() (Service_setLogLevel_Params, error) {
+	s, err := p.Pipeline.Struct()
+	return Service_setLogLevel_Params{s}, err
+}
+
+type Service_setLogLevel_Results struct{ capnp.Struct }
+
+// Service_setLogLevel_Results_TypeID is the unique identifier for the type Service_setLogLevel_Results.
+const Service_setLogLevel_Results_TypeID = 0xe542d95b68592c1c
+
+func NewService_setLogLevel_Results(s *capnp.Segment) (Service_setLogLevel_Results, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return Service_setLogLevel_Results{st}, err
+}
+
+func NewRootService_setLogLevel_Results(s *capnp.Segment) (Service_setLogLevel_Results, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return Service_setLogLevel_Results{st}, err
+}
+
+func ReadRootService_setLogLevel_Results(msg *capnp.Message) (Service_setLogLevel_Results, error) {
+	root, err := msg.RootPtr()
+	return Service_setLogLevel_Results{root.Struct()}, err
+}
+
+func (s Service_setLogLevel_Results) String() string {
+	str, _ := text.Marshal(0xe542d95b68592c1c, s.Struct)
+	return str
+}
+
+// Service_setLogLevel_Results_List is a list of Service_setLogLevel_Results.
+type Service_setLogLevel_Results_List struct{ capnp.List }
+
+// NewService_setLogLevel_Results creates a new list of Service_setLogLevel_Results.
+func NewService_setLogLevel_Results_List(s *capnp.Segment, sz int32) (Service_setLogLevel_Results_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
+	return Service_setLogLevel_Results_List{l}, err
+}
+
+func (s Service_setLogLevel_Results_List) At(i int) Service_setLogLevel_Results {
+	return Service_setLogLevel_Results{s.List.Struct(i)}
+}
+
+func (s Service_setLogLevel_Results_List) Set(i int, v Service_setLogLevel_Results) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s Service_setLogLevel_Results_List) String() string {
+	str, _ := text.MarshalList(0xe542d95b68592c1c, s.List)
+	return str
+}
+
+// Service_setLogLevel_Results_Promise is a wrapper for a Service_setLogLevel_Results promised by a client call.
+type Service_setLogLevel_Results_Promise struct{ *capnp.Pipeline }
+
+func (p Service_setLogLevel_Results_Promise) Struct() (Service_setLogLevel_Results, error) {
+	s, err := p.Pipeline.Struct()
+	return Service_setLogLevel_Results{s}, err
+}
+
+type Service_alive_Params struct{ capnp.Struct }
+
+// Service_alive_Params_TypeID is the unique identifier for the type Service_alive_Params.
+const Service_alive_Params_TypeID = 0xe3ec490c3d4015bb
+
+func NewService_alive_Params(s *capnp.Segment) (Service_alive_Params, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return Service_alive_Params{st}, err
+}
+
+func NewRootService_alive_Params(s *capnp.Segment) (Service_alive_Params, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return Service_alive_Params{st}, err
+}
+
+func ReadRootService_alive_Params(msg *capnp.Message) (Service_alive_Params, error) {
+	root, err := msg.RootPtr()
+	return Service_alive_Params{root.Struct()}, err
+}
+
+func (s Service_alive_Params) String() string {
+	str, _ := text.Marshal(0xe3ec490c3d4015bb, s.Struct)
+	return str
+}
+
+// Service_alive_Params_List is a list of Service_alive_Params.
+type Service_alive_Params_List struct{ capnp.List }
+
+// NewService_alive_Params creates a new list of Service_alive_Params.
+func NewService_alive_Params_List(s *capnp.Segment, sz int32) (Service_alive_Params_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
+	return Service_alive_Params_List{l}, err
+}
+
+func (s Service_alive_Params_List) At(i int) Service_alive_Params {
+	return Service_alive_Params{s.List.Struct(i)}
+}
+
+func (s Service_alive_Params_List) Set(i int, v Service_alive_Params) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s Service_alive_Params_List) String() string {
+	str, _ := text.MarshalList(0xe3ec490c3d4015bb, s.List)
+	return str
+}
+
+// Service_alive_Params_Promise is a wrapper for a Service_alive_Params promised by a client call.
+type Service_alive_Params_Promise struct{ *capnp.Pipeline }
+
+func (p Service_alive_Params_Promise) Struct() (Service_alive_Params, error) {
+	s, err := p.Pipeline.Struct()
+	return Service_alive_Params{s}, err
+}
+
+type Service_alive_Results struct{ capnp.Struct }
+
+// Service_alive_Results_TypeID is the unique identifier for the type Service_alive_Results.
+const Service_alive_Results_TypeID = 0xf95512d6a5f5e530
+
+func NewService_alive_Results(s *capnp.Segment) (Service_alive_Results, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	return Service_alive_Results{st}, err
+}
+
+func NewRootService_alive_Results(s *capnp.Segment) (Service_alive_Results, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	return Service_alive_Results{st}, err
+}
+
+func ReadRootService_alive_Results(msg *capnp.Message) (Service_alive_Results, error) {
+	root, err := msg.RootPtr()
+	return Service_alive_Results{root.Struct()}, err
+}
+
+func (s Service_alive_Results) String() string {
+	str, _ := text.Marshal(0xf95512d6a5f5e530, s.Struct)
+	return str
+}
+
+func (s Service_alive_Results) Alive() bool {
+	return s.Struct.Bit(0)
+}
+
+func (s Service_alive_Results) SetAlive(v bool) {
+	s.Struct.SetBit(0, v)
+}
+
+// Service_alive_Results_List is a list of Service_alive_Results.
+type Service_alive_Results_List struct{ capnp.List }
+
+// NewService_alive_Results creates a new list of Service_alive_Results.
+func NewService_alive_Results_List(s *capnp.Segment, sz int32) (Service_alive_Results_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
+	return Service_alive_Results_List{l}, err
+}
+
+func (s Service_alive_Results_List) At(i int) Service_alive_Results {
+	return Service_alive_Results{s.List.Struct(i)}
+}
+
+func (s Service_alive_Results_List) Set(i int, v Service_alive_Results) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s Service_alive_Results_List) String() string {
+	str, _ := text.MarshalList(0xf95512d6a5f5e530, s.List)
+	return str
+}
+
+// Service_alive_Results_Promise is a wrapper for a Service_alive_Results promised by a client call.
+type Service_alive_Results_Promise struct{ *capnp.Pipeline }
+
+func (p Service_alive_Results_Promise) Struct() (Service_alive_Results, error) {
+	s, err := p.Pipeline.Struct()
+	return Service_alive_Results{s}, err
+}
+
+type Service_kill_Params struct{ capnp.Struct }
+
+// Service_kill_Params_TypeID is the unique identifier for the type Service_kill_Params.
+const Service_kill_Params_TypeID = 0xc04b3491e0b6f07c
+
+func NewService_kill_Params(s *capnp.Segment) (Service_kill_Params, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return Service_kill_Params{st}, err
+}
+
+func NewRootService_kill_Params(s *capnp.Segment) (Service_kill_Params, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return Service_kill_Params{st}, err
+}
+
+func ReadRootService_kill_Params(msg *capnp.Message) (Service_kill_Params, error) {
+	root, err := msg.RootPtr()
+	return Service_kill_Params{root.Struct()}, err
+}
+
+func (s Service_kill_Params) String() string {
+	str, _ := text.Marshal(0xc04b3491e0b6f07c, s.Struct)
+	return str
+}
+
+// Service_kill_Params_List is a list of Service_kill_Params.
+type Service_kill_Params_List struct{ capnp.List }
+
+// NewService_kill_Params creates a new list of Service_kill_Params.
+func NewService_kill_Params_List(s *capnp.Segment, sz int32) (Service_kill_Params_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
+	return Service_kill_Params_List{l}, err
+}
+
+func (s Service_kill_Params_List) At(i int) Service_kill_Params {
+	return Service_kill_Params{s.List.Struct(i)}
+}
+
+func (s Service_kill_Params_List) Set(i int, v Service_kill_Params) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s Service_kill_Params_List) String() string {
+	str, _ := text.MarshalList(0xc04b3491e0b6f07c, s.List)
+	return str
+}
+
+// Service_kill_Params_Promise is a wrapper for a Service_kill_Params promised by a client call.
+type Service_kill_Params_Promise struct{ *capnp.Pipeline }
+
+func (p Service_kill_Params_Promise) Struct() (Service_kill_Params, error) {
+	s, err := p.Pipeline.Struct()
+	return Service_kill_Params{s}, err
+}
+
+type Service_kill_Results struct{ capnp.Struct }
+
+// Service_kill_Results_TypeID is the unique identifier for the type Service_kill_Results.
+const Service_kill_Results_TypeID = 0xc3a5dd638e451965
+
+func NewService_kill_Results(s *capnp.Segment) (Service_kill_Results, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return Service_kill_Results{st}, err
+}
+
+func NewRootService_kill_Results(s *capnp.Segment) (Service_kill_Results, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return Service_kill_Results{st}, err
+}
+
+func ReadRootService_kill_Results(msg *capnp.Message) (Service_kill_Results, error) {
+	root, err := msg.RootPtr()
+	return Service_kill_Results{root.Struct()}, err
+}
+
+func (s Service_kill_Results) String() string {
+	str, _ := text.Marshal(0xc3a5dd638e451965, s.Struct)
+	return str
+}
+
+// Service_kill_Results_List is a list of Service_kill_Results.
+type Service_kill_Results_List struct{ capnp.List }
+
+// NewService_kill_Results creates a new list of Service_kill_Results.
+func NewService_kill_Results_List(s *capnp.Segment, sz int32) (Service_kill_Results_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
+	return Service_kill_Results_List{l}, err
+}
+
+func (s Service_kill_Results_List) At(i int) Service_kill_Results {
+	return Service_kill_Results{s.List.Struct(i)}
+}
+
+func (s Service_kill_Results_List) Set(i int, v Service_kill_Results) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s Service_kill_Results_List) String() string {
+	str, _ := text.MarshalList(0xc3a5dd638e451965, s.List)
+	return str
+}
+
+// Service_kill_Results_Promise is a wrapper for a Service_kill_Results promised by a client call.
+type Service_kill_Results_Promise struct{ *capnp.Pipeline }
+
+func (p Service_kill_Results_Promise) Struct() (Service_kill_Results, error) {
+	s, err := p.Pipeline.Struct()
+	return Service_kill_Results{s}, err
+}
+
+const schema_db8274f9144abc7e = "x\xda\xacVml\x14e\x10\x9e\xd9O\xa8\xa5\xc7\xdb" +
+	"\xadD>\xe2\xa1\x01\x03\x8d|\xf5\xe0\x07$\xa6\xd7&" +
+	"D[k\xe8\x15\x88\x02i\xcc\xd2{-\x17\xaf\xd7\xed" +
+	"\xeeQr\x88\x1f\x90\xf6\x071\x95\x14A\x02\x09\x1a\x13" +
+	"JlB\x0ch !R\xf9\x12\xa2\"\x18\x88\x88(" +
+	"\x0d\xa0\x12\xa36\x86b\x8cR\xc55\xef^\xdf\xdd\xf7" +
+	"zWH\xd4_\xfbcfg\x9e\x99y\x9eygn" +
+	"L\x8eJ\xf3\xd4g\xef\x03\x88u\xa8\xda\x9d\xb6\xa7{" +
+	"&\x1f\xfc\xbe\x83\x94 \x80\xa2\x03\x18\xdb\xd5!P\xdc" +
+	"K\x03\xda\xd9\xb2g\x06\xb7@`\xc8\xa8\xb7@q\x07" +
+	"\xc6\xf5\x9dR;\xfe\xd8\x02\xb1\x12\xe4\x96Fu\x08\xd0" +
+	"0\xd5J@\xf7\xd8\x84\xae\xaeug\xaevC\xac\x94" +
+	"\xdb#\x1b\xd5r\x0446{\x0eoY\x7f>\xb5\xed" +
+	"\xa3\xce\xad\xa2C\xaf:\x899\x1c\xf0\x1c\x9cCU]" +
+	"\xc9_\xf7l\xcd\xa6V\x91e8\xefe\xb8\xe8\xd9\xb7" +
+	"\x85\x1e^\xdbG\x97\xbd\x01\xa4\x94\x03\xb8\xad~\x0b\xca" +
+	"\xd5\xd2\xba\xa9\xa7\x8b\x94\x1e\x01X\xbf\xfa\x13\xa0q\xdd" +
+	"\xfb\xed\xab+uW\xf6\x0c\xb6\xf6\x08\x15\xa1v\x02\x14" +
+	"\xb7s\xc7\xbe\xf2)\xc7\x0f\xef\x0d\xe2E\xae\xab\xa5\x08" +
+	"\xca\xef\x09\xcb}\xe2\xc1\xd2\xde `\xe4\x13\xb5\x88\x01" +
+	"=\xefET\x8f\x9e=\xf1Wx\xe9>!\xe2\xa0\xfa" +
+	"5(\xee\xd1\x05g\xfe>9}\xcd\xbb\x81!r\xd1" +
+	"\x8b\xe8\xce\x7f\xbdl`J\xd5\xaa\xf7\x80\x14\xc9\xeeK" +
+	"Gj\xcbn\xa77}\x03\x80F\x9f\xba\xd58\xa52" +
+	"\xcf\xe3\xea\xe3htk:\x80\xdb8k\xce\xca\x1d\x93" +
+	"\xe5\x83B\xaf#\x19Mb\x08^\xd4\x18\x82\xe9\xc5\xfb" +
+	"7\xed\x7fd\xd9a!\xd1\xdbZ5K\x949\xb2\xbe" +
+	"v\xde\xb9\xbd\x1f\x0a\xd86kl~\x1bn\x1e\xba\xd6" +
+	"=\xff\xc9cB\xf7Z<\x03\x9d\xb8\xf8\xb5\xa6\xfe\x9e" +
+	"\x93\x82!\xa61*(?\xb6m\xb1\xaf\xf7\x7f&\x0c" +
+	"\xccX\xa0\xb1\xc6.\xf4@\xfc\xb2k\xfd\x8ew\xca_" +
+	"9\x07\xa4H\xca\xa9\xa9Q\xdbePV\x88aj\xcd" +
+	"\x80\xee\xe9\x17\x96\x0d\xcd\x98\xb9\xe2\x82H\x9dN\xedS" +
+	"\xc6\x0c/P\xcd\x849o~\xbc\xd1\xf9B\xc0\xdc\xab" +
+	"]\x00\xc5\xfd\xe0\xfe\xe8c\xc55\x03\xdf\x09\xd0\xba<" +
+	"hS\x1e]\xb1f\xd5\xe5\xea\x1b\xc2\xe8\xda\xb4\x0aV" +
+	"\xff\x89\xedK.m\xc8\xac\xf9Y Qd\x85V\xcb" +
+	"ZG\xbdd;\xc9\xfb\x1d\xd7~h\xb8\x997\x89\x9d" +
+	"\x9am\xecf\xa8#;5]2\x06u6\x89\xb97" +
+	"~\xeb\xf9\xb2t\xf9m\x91\xb4\x97uo\x12\xfd:\x0b" +
+	"7.\xd3\xf2\xea\xf8\xcf\xab\x86D\xd2\xde\xd1o\x01\x1a" +
+	"8\xa6\x12f\xb9\xa6e\xcdn2\xad\x94d-\xaa\xb2" +
+	"\xac\xd9N\xda\xb4\xd34\xbe$5\xad\xb2\xde\xb4\xcd\x16" +
+	"g\xa4C\xb2\xb5\xb9\x8e\xb6\xd3\xe4\xb4\xfa\xf0\xdd\xed\x0d" +
+	"\x95\xd4Y\x9bL;1EV\x00\x14\x04 \xe3*\x00" +
+	"bcd\x8c\x95I\x18N2/\x0c\x05S\x02\xc4\x10" +
+	"\xa0\x1fO\xb6\x16-\xa5v{\xa2\x89\xcevh\xba\xce" +
+	"Ok\x86X\xda\xff!j\x80\x94\x01\x95\xff=\xd2\xe1" +
+	"\xca\x13)'m\xa6\x9ah\xc1\xcaW\x02\xc4\x8ae\x8c" +
+	"= \xa1\xcb\x1dA\xae\x89c1HX\x9c\x1b\x8c\x03" +
+	"L\xc4\xa7\xd5\x9b\xb6^\xa0\xc9N\xd6\xa3P3&\x05" +
+	"\xc0\xe5D\x1c\xc7\x82\x84c\x85\xf0\xda0V/\xb4\xd9" +
+	"\xe2\x007\x14\xe8\x8b\xe7\x81\x8e\xd8\xbblrq\x1a^" +
+	"\x10\xf8\x8f\xad{>\x91\x0c\xc6p\xb7|\x9eOZ\xc0" +
+	"\x84\x1c7\xd2z\xc4X\x99\xac\x02\xf8\x8b\x18\xf9\x86 " +
+	"\xdd\x93@\"\x9d:\xa2\xbfT\x91\xaf{\x92\xa9\x05\x89" +
+	"\xb4\xe9(\xf9O\x04r\xf9\x12\xba\x1a$\xd2\xa8\xa3\xec" +
+	"K\x1d\xb9\xe2H\xac\x02$\xb2X\xc7`u!_U" +
+	"da9Hd\x96.'\xe2QtyC\x01 \x8a" +
+	"./\x07\xf4v\x9a\x8cb\xd8L&\xdai\x14C\xac" +
+	"\x07Q\xacG\xcc\xab\xdf\x97d\xb6z'\xa7\xdb\x0d\x02" +
+	"\xb1\xb8'`\x0aU\x90P\x15:\xadg\x83\xd9\xb49" +
+	"\xe1\xa4\xa9M\xe3\xc3\xe3v\xf2\x89\x90C\xe6\x022\xe7" +
+	"D\xf1\xa6v/;\x17\xc3(\x04o\xa0Nh\xa4V" +
+	"rJ\xca\xba\xd6\x00\xe6s\x19\xadEYb\xc84\xc9" +
+	"\x86?\x1e%\x002\xb3\x82\x91\x8c<T\x0e\x80\x12\x99" +
+	"\xc8>2!\x15\x00\xe18]\xbd\xb69\x94H=\xd7" +
+	"\x1aZg\xda\xa90\xb5\xedV;O\xc5q\xbf\xcd\xa3" +
+	"\xb2\xda\xb4\xac\x9a|8\"\x97GJG(\xda\x9bw" +
+	"\xdev\x1de\xdb5\xd0pn\xf7\x94Q\xc7X\x105" +
+	"_;3\xc4V\xcaq\x07K\x00\xebe\xf4j(\x11" +
+	"j\x80\xb0\x17\x9fus\xaa'%~\x9c \x7f#\xc9" +
+	" \x93\xd2\x0d&%\xfe\x94#?\x8c\xc8e&\xa5\xf3" +
+	":J\xfcz\x0b.\x05r\xaa\x01$\xd2\xc7\xa4\xc4O" +
+	"8\xe4'\x1b9\xc0\xfe\xeb\xd5\xd1\xbfl\x84Ke7" +
+	"\x93\xe0v\x1dU\xff\xa8@\xfe\x86\x92\xcd\xbb\xb2\xb2\xd6" +
+	"\xf8\x89%<w\x99j\x90H\x8b\x8e\xba\xff|#\xbf" +
+	"\x8b\x88\xc9\xe4\xb9|X\x9e\xfe:\xce\xca3\xd0\xd0\xbd" +
+	"\xa4\xeb\xf2) \x1f\x83L\x9d(\xbe<\xdc\xe8\xd14" +
+	"\x9dK\x84B\x9a\xce\xe1\x1a\xf3B\x04\x091\x9fk\xfc" +
+	"\x1d\xe04\x11\x83T\x07A8\"$\xc1\x9d\xc74\x02" +
+	"\xf8O\x00\x00\x00\xff\xff\x1c\x91a|"
 
 func init() {
 	schemas.Register(schema_db8274f9144abc7e,
 		0x84e4b51ba5570071,
+		0x8ff15814cd06ecd7,
+		0x8ff88405c5bd0dec,
+		0x91dfcb778d8d16c0,
+		0x9285c4944dfb709f,
 		0x92a4f36c8d41b673,
+		0x965465bd75220f94,
+		0xa504000ac6204c12,
 		0xa56ff1a4dc4cdcd8,
+		0xa6b9c11c2aac9785,
+		0xa9121e4800ff7069,
+		0xac531ffcc2cdbf05,
+		0xae6825c3fecb35bf,
+		0xb25b411cec149334,
 		0xb5031b975a2f2d5d,
+		0xb95426b082b00c25,
 		0xbea6ce314a7abc79,
+		0xc04b3491e0b6f07c,
+		0xc3a5dd638e451965,
+		0xccdde1728f71e904,
+		0xce802aa8977a9aee,
 		0xd2592928fa547bc6,
-		0xf052e7e084b31199)
+		0xd47381c89e2f1649,
+		0xe3ec490c3d4015bb,
+		0xe542d95b68592c1c,
+		0xeb68797cd74f95c2,
+		0xf052e7e084b31199,
+		0xf95512d6a5f5e530,
+		0xfa41cf108b6d790d)
 }

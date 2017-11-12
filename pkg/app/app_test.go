@@ -159,7 +159,9 @@ func TestRegisterService(t *testing.T) {
 	service.Wait()
 	// Then the app will automatically unregister the service
 	if service2, err := app.GetService(service.ID()); err != nil {
-		t.Error(err)
+		if err != app.ErrServiceNotRegistered {
+			t.Error(err)
+		}
 	} else if service2 != nil {
 		time.Sleep(time.Millisecond * 20)
 		if service2, err = app.GetService(service.ID()); err != nil {
