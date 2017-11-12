@@ -29,8 +29,9 @@ func (a *Error) Error() string {
 }
 
 var (
-	ErrAppNotAlive     = &Error{ErrorID(0xdf76e1927f240401), errors.New("App is not alive")}
-	ErrServiceNotAlive = &Error{ErrorID(0x9cb3a496d32894d2), errors.New("Service is not alive")}
+	ErrAppNotAlive          = &Error{ErrorID(0xdf76e1927f240401), errors.New("App is not alive")}
+	ErrServiceNotAlive      = &Error{ErrorID(0x9cb3a496d32894d2), errors.New("Service is not alive")}
+	ErrServiceNotRegistered = &Error{ErrorID(0xf34b64bac786f536), errors.New("Service is not registered")}
 
 	ErrServiceAlreadyRegistered = &Error{ErrorID(0xcfd879a478f9c733), errors.New("Service already registered")}
 	ErrServiceNil               = &Error{ErrorID(0x9d95c5fac078b82c), errors.New("Service is nil")}

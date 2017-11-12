@@ -13,36 +13,3 @@
 // limitations under the License.
 
 package app
-
-import (
-	"github.com/rs/zerolog"
-	"gopkg.in/tomb.v2"
-)
-
-func NewService(id ServiceID) *Service {
-	if id == 0 {
-		panic(ErrServiceIDZero)
-	}
-	return &Service{id: id, logger: Logger().With().Uint64("svc", uint64(id)).Logger().Level(LogLevel()), logLevel: LogLevel()}
-}
-
-type Service struct {
-	tomb.Tomb
-
-	id ServiceID
-
-	logLevel zerolog.Level
-	logger   zerolog.Logger
-}
-
-func (a *Service) ID() ServiceID {
-	return a.id
-}
-
-func (a *Service) Logger() zerolog.Logger {
-	return a.logger
-}
-
-func (a *Service) LogLevel() zerolog.Level {
-	return a.logLevel
-}

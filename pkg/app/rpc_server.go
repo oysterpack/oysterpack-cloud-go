@@ -14,35 +14,24 @@
 
 package app
 
-import (
-	"github.com/rs/zerolog"
-	"gopkg.in/tomb.v2"
-)
+import "github.com/oysterpack/oysterpack.go/pkg/app/capnprpc"
 
-func NewService(id ServiceID) *Service {
-	if id == 0 {
-		panic(ErrServiceIDZero)
-	}
-	return &Service{id: id, logger: Logger().With().Uint64("svc", uint64(id)).Logger().Level(LogLevel()), logLevel: LogLevel()}
+func NewAppServer() capnprpc.App_Server {
+	return rpcAppServer{}
 }
 
-type Service struct {
-	tomb.Tomb
+type rpcAppServer struct{}
 
-	id ServiceID
-
-	logLevel zerolog.Level
-	logger   zerolog.Logger
+func (a rpcAppServer) Id(call capnprpc.App_id) error {
+	call.Results.SetAppId(uint64(ID()))
+	return nil
 }
 
-func (a *Service) ID() ServiceID {
-	return a.id
+func (a rpcAppServer) Instance(call capnprpc.App_instance) error {
+	return call.Results.SetInstanceId(string(InstanceId()))
 }
 
-func (a *Service) Logger() zerolog.Logger {
-	return a.logger
-}
-
-func (a *Service) LogLevel() zerolog.Level {
-	return a.logLevel
+func (a rpcAppServer) StartedOn(call capnprpc.App_startedOn) error {
+	call.Results.SetStartedOn(StartedOn().UnixNano())
+	return nil
 }

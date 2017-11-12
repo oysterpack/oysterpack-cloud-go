@@ -1,7 +1,12 @@
 # Technology Stack
 
 ## Package Management
-- [dep](https://github.com/golang/dep)
+- [govendor](https://github.com/kardianos/govendor) - currently using
+- [dep](https://github.com/golang/dep) - no longer using
+    - I switched over to using [govendor](https://github.com/kardianos/govendor) on 11/11/2017. I tried to update the 
+      **zombiezen.com/go/capnproto2**  dependency from v2.16.0 to v2.17.0 using [dep](https://github.com/golang/dep), but 
+      [dep](https://github.com/golang/dep) failed to do it. Even worse - I tried to start over by deleting the vendor directory 
+      and reinit **dep**, but dep would fail init. That was a showstopper. It should be easy to start over.
 
 ## Logging
 - [zerolog](https://github.com/rs/zerolog) - Zero Allocation JSON Logger
@@ -18,8 +23,13 @@
   - metrics visualizations
    
 ## Service Layer
+- [capnp RPC](https://capnproto.org/index.html)
+  - [go-capnproto2](https://github.com/capnproto/go-capnproto2)
 - [gRPC](https://grpc.io/)
-  - [gRPC in Go](https://grpc.io/docs/quickstart/go.html)
+  - [gRPC in Go](https://grpc.io/docs/quickstart/go.html)  
+  
+## Service Mesh
+- [envoy](https://www.envoyproxy.io/)
 
 ## Messaging Layer
 - [NATS](http://nats.io/)

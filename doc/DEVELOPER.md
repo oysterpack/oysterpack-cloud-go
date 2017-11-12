@@ -46,7 +46,7 @@ the -benchmem flag will include memory allocation statistics in the report
 
 # How to format the code
 
-    goimport -w -l ./
+    goimports -w -l ./
     
 # Best Practices
 1. Define all package errors in a centralized location in a file name errors.go
@@ -76,4 +76,5 @@ Execute the following commands from this directory:
 
     sudo cp 60-idea.conf /etc/sysctl.d/
     sudo service procps start
+
 

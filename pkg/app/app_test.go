@@ -22,6 +22,7 @@ import (
 	"errors"
 
 	"github.com/oysterpack/oysterpack.go/pkg/app"
+	"github.com/rs/zerolog"
 )
 
 func TestNewService_IDZero(t *testing.T) {
@@ -40,8 +41,8 @@ func TestApp(t *testing.T) {
 	app.Reset()
 
 	t.Logf("app id = %v", app.ID())
-	if app.CreatedOn().IsZero() {
-		t.Error("app.CreatedOn() should not be the zero value")
+	if app.StartedOn().IsZero() {
+		t.Error("app.StartedOn() should not be the zero value")
 	}
 	if len(app.InstanceId()) == 0 {
 		t.Error("app instance id should not be blank")
@@ -95,6 +96,24 @@ func TestApp(t *testing.T) {
 		if err != app.ErrAppNotAlive {
 			t.Errorf("Wrong error ttype was returned : %T", err)
 		}
+	}
+
+	// And LogLevel() can be invoked without hanging
+	app.LogLevel()
+	// And SetServiceLogLevel should return an ErrAppNotAlive
+	if app.SetServiceLogLevel(service.ID(), zerolog.ErrorLevel) != app.ErrAppNotAlive {
+		t.Errorf("ErrAppNotAlive should have been returned : %v", app.SetServiceLogLevel(service.ID(), zerolog.ErrorLevel))
+	}
+
+	app.Reset()
+
+	app.SetLogLevel(zerolog.InfoLevel)
+	if app.LogLevel() != zerolog.InfoLevel {
+		t.Errorf("log level did not match : %v", app.LogLevel())
+	}
+	app.SetLogLevel(zerolog.DebugLevel)
+	if app.LogLevel() != zerolog.DebugLevel {
+		t.Errorf("log level did not match : %v", app.LogLevel())
 	}
 }
 
@@ -171,6 +190,36 @@ func TestRegisterService(t *testing.T) {
 	} else if err != app.ErrServiceAlreadyRegistered {
 		t.Errorf("the wrong error type was returned : %T", err)
 	}
+
+	// When the service log level is changed
+	// Then it is updated
+	app.SetServiceLogLevel(service.ID(), zerolog.DebugLevel)
+	if service.LogLevel() != zerolog.DebugLevel {
+		t.Error("log level did not match : %v", service.LogLevel())
+	}
+	service, _ = app.GetService(service.ID())
+	if service.LogLevel() != zerolog.DebugLevel {
+		t.Error("log level did not match : %v", service.LogLevel())
+	}
+
+	if err := app.SetServiceLogLevel(service.ID(), zerolog.ErrorLevel); err != nil {
+		t.Error(err)
+	} else {
+		if service.LogLevel() != zerolog.ErrorLevel {
+			t.Error("log level did not match : %v", service.LogLevel())
+		}
+		service, _ = app.GetService(service.ID())
+		if service.LogLevel() != zerolog.ErrorLevel {
+			t.Error("log level did not match : %v", service.LogLevel())
+		}
+	}
+
+	if err := app.SetServiceLogLevel(app.ServiceID(99), zerolog.ErrorLevel); err == nil {
+		t.Error("The service should not be registered")
+	} else if err != app.ErrServiceNotRegistered {
+		t.Errorf("The wrong error type was returned : %T", err)
+	}
+
 }
 
 func TestGetService(t *testing.T) {

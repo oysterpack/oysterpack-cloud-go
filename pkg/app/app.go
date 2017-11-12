@@ -39,20 +39,28 @@ var (
 	appID    uint64
 
 	appInstanceId = InstanceID(nuid.Next())
-	createdOn     = time.Now()
+	startedOn     = time.Now()
 
 	app tomb.Tomb
 
-	logger zerolog.Logger
+	logger      zerolog.Logger
+	appLogLevel zerolog.Level
 
 	services map[ServiceID]*Service
 
-	registerServiceChan      chan registerServiceRequest
+	registerServiceChan   chan registerServiceRequest
+	unregisterServiceChan chan ServiceID
+
 	registeredServiceIdsChan chan registeredServiceIdsRequest
-	unregisterServiceChan    chan ServiceID
 	getServiceChan           chan getServiceRequest
+
+	getLogLevelChan        chan getLogLevelRequest
+	setLogLevelChan        chan zerolog.Level
+	setServiceLogLevelChan chan setServiceLogLevelRequest
 )
 
+// InstanceID is the unique id for an app instance. There may be multiple instances, i.e., processes,  of an app running.
+// The instance id is used to differentiate the different app instances. For examples, logs and metrics will contain the instance id.
 type InstanceID string
 
 // ID returns the AppID which is specified via a command line argument
@@ -60,12 +68,15 @@ func ID() AppID {
 	return AppID(appID)
 }
 
+// InstanceID returns a new unique instance id each time the app is started, i.e., when the process is started.
+// The instance id remains for the lifetime of the process
 func InstanceId() InstanceID {
 	return appInstanceId
 }
 
-func CreatedOn() time.Time {
-	return createdOn
+//
+func StartedOn() time.Time {
+	return startedOn
 }
 
 // Logger returns the app logger
@@ -79,6 +90,53 @@ func Logger() zerolog.Logger {
 // The log level is used to configure the log level for loggers returned via NewTypeLogger() and NewPackageLogger().
 // It is also used to initialize zerolog's global logger level.
 func LogLevel() zerolog.Level {
+	req := getLogLevelRequest{make(chan zerolog.Level)}
+	select {
+	case <-app.Dying():
+		return appLogLevel
+	case getLogLevelChan <- req:
+		select {
+		case <-app.Dying():
+			return appLogLevel
+		case level := <-req.response:
+			return level
+		}
+	}
+}
+
+type getLogLevelRequest struct {
+	response chan zerolog.Level
+}
+
+func SetLogLevel(level zerolog.Level) {
+	select {
+	case <-app.Dying():
+	case setLogLevelChan <- level:
+	}
+}
+
+func SetServiceLogLevel(serviceId ServiceID, level zerolog.Level) error {
+	req := setServiceLogLevelRequest{serviceId, level, make(chan error)}
+	select {
+	case <-app.Dying():
+		return ErrAppNotAlive
+	case setServiceLogLevelChan <- req:
+		select {
+		case <-app.Dying():
+			return ErrAppNotAlive
+		case err := <-req.err:
+			return err
+		}
+	}
+}
+
+type setServiceLogLevelRequest struct {
+	ServiceID
+	zerolog.Level
+	err chan error
+}
+
+func zerologLevel(logLevel string) zerolog.Level {
 	switch logLevel {
 	case "DEBUG":
 		return zerolog.DebugLevel
@@ -202,7 +260,6 @@ func registeredServiceIds(req registeredServiceIdsRequest) {
 	}
 	select {
 	case <-app.Dying():
-		return
 	case req.response <- ids:
 	}
 }
@@ -276,9 +333,14 @@ func init() {
 
 func makeChans() {
 	registerServiceChan = make(chan registerServiceRequest)
-	registeredServiceIdsChan = make(chan registeredServiceIdsRequest)
 	unregisterServiceChan = make(chan ServiceID)
+
+	registeredServiceIdsChan = make(chan registeredServiceIdsRequest)
 	getServiceChan = make(chan getServiceRequest)
+
+	getLogLevelChan = make(chan getLogLevelRequest)
+	setLogLevelChan = make(chan zerolog.Level)
+	setServiceLogLevelChan = make(chan setServiceLogLevelRequest)
 }
 
 func initZerolog() {
@@ -286,18 +348,20 @@ func initZerolog() {
 	zerolog.TimeFieldFormat = time.RFC3339Nano
 
 	// set the global log level
-	log.Logger = log.Logger.Level(LogLevel())
+	appLogLevel := zerologLevel(logLevel)
+	log.Logger = log.Logger.Level(appLogLevel)
 
 	// redirects go's std log to zerolog
 	stdlog.SetFlags(0)
 	stdlog.SetOutput(log.Logger)
 
 	logger = log.Logger.With().Uint64("app", appID).Str("instance", string(appInstanceId)).Logger().Level(zerolog.InfoLevel)
-	APP_STARTED.Log(logger.Info()).Msg("started")
 }
 
 func runAppServer() {
 	app.Go(func() error {
+		APP_STARTED.Log(logger.Info()).Msg("started")
+
 		sigs := make(chan os.Signal, 1)
 		signal.Notify(sigs, syscall.SIGTERM)
 		for {
@@ -318,8 +382,30 @@ func runAppServer() {
 				delete(services, id)
 			case req := <-getServiceChan:
 				select {
-				case req.response <- services[req.ServiceID]:
 				case <-app.Dying():
+				case req.response <- services[req.ServiceID]:
+				}
+			case req := <-getLogLevelChan:
+				select {
+				case <-app.Dying():
+				case req.response <- appLogLevel:
+				}
+			case level := <-setLogLevelChan:
+				appLogLevel = level
+				logger.Level(level)
+			case req := <-setServiceLogLevelChan:
+				if service, ok := services[req.ServiceID]; !ok {
+					select {
+					case <-app.Dying():
+					case req.err <- ErrServiceNotRegistered:
+					}
+				} else {
+					service.logger.Level(req.Level)
+					service.logLevel = req.Level
+					select {
+					case <-app.Dying():
+					case req.err <- nil:
+					}
 				}
 			}
 		}

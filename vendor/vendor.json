@@ -265,38 +265,98 @@
 		{
 			"checksumSHA1": "TWTekr4so+vaCg8268ipVzcMkrY=",
 			"path": "zombiezen.com/go/capnproto2/encoding/text",
-			"revision": "1bfe1be4ca420323959a83fc0aade4b2fd5fbd69",
-			"revisionTime": "2017-11-03T18:30:46Z"
+			"revision": "243bfedb776812540b7e2fb8d4e5c19814ab1ed8",
+			"revisionTime": "2017-11-03T18:02:50Z",
+			"version": "v2.17.0",
+			"versionExact": "v2.17.0"
+		},
+		{
+			"checksumSHA1": "+P/8ubTTU7N7/pTPBaziq7qpYCc=",
+			"path": "zombiezen.com/go/capnproto2/internal/fulfiller",
+			"revision": "243bfedb776812540b7e2fb8d4e5c19814ab1ed8",
+			"revisionTime": "2017-11-03T18:02:50Z",
+			"version": "v2.17.0",
+			"versionExact": "v2.17.0"
 		},
 		{
 			"checksumSHA1": "MOa29pkoxG4yBKT8FE8ymqe6H4w=",
 			"path": "zombiezen.com/go/capnproto2/internal/nodemap",
-			"revision": "1bfe1be4ca420323959a83fc0aade4b2fd5fbd69",
-			"revisionTime": "2017-11-03T18:30:46Z"
+			"revision": "243bfedb776812540b7e2fb8d4e5c19814ab1ed8",
+			"revisionTime": "2017-11-03T18:02:50Z",
+			"version": "v2.17.0",
+			"versionExact": "v2.17.0"
 		},
 		{
 			"checksumSHA1": "vB29giYgHSGCBm7NSNc9VwxJA2k=",
 			"path": "zombiezen.com/go/capnproto2/internal/packed",
-			"revision": "1bfe1be4ca420323959a83fc0aade4b2fd5fbd69",
-			"revisionTime": "2017-11-03T18:30:46Z"
+			"revision": "243bfedb776812540b7e2fb8d4e5c19814ab1ed8",
+			"revisionTime": "2017-11-03T18:02:50Z",
+			"version": "v2.17.0",
+			"versionExact": "v2.17.0"
 		},
 		{
-			"checksumSHA1": "riP+1V8eDgXcwZG3QIuSfi2M8Iw=",
+			"checksumSHA1": "qiatRoWt5hI/BtcUevm0prk+CdI=",
+			"path": "zombiezen.com/go/capnproto2/internal/queue",
+			"revision": "243bfedb776812540b7e2fb8d4e5c19814ab1ed8",
+			"revisionTime": "2017-11-03T18:02:50Z",
+			"version": "v2.17.0",
+			"versionExact": "v2.17.0"
+		},
+		{
+			"checksumSHA1": "Uo53qAOG17jIbMj3ddouH4b90uk=",
 			"path": "zombiezen.com/go/capnproto2/internal/schema",
-			"revision": "1bfe1be4ca420323959a83fc0aade4b2fd5fbd69",
-			"revisionTime": "2017-11-03T18:30:46Z"
+			"revision": "243bfedb776812540b7e2fb8d4e5c19814ab1ed8",
+			"revisionTime": "2017-11-03T18:02:50Z",
+			"version": "v2.17.0",
+			"versionExact": "v2.17.0"
 		},
 		{
 			"checksumSHA1": "dr6VwSy7P+vIus+lLI/nM95IVyg=",
 			"path": "zombiezen.com/go/capnproto2/internal/strquote",
-			"revision": "1bfe1be4ca420323959a83fc0aade4b2fd5fbd69",
-			"revisionTime": "2017-11-03T18:30:46Z"
+			"revision": "243bfedb776812540b7e2fb8d4e5c19814ab1ed8",
+			"revisionTime": "2017-11-03T18:02:50Z",
+			"version": "v2.17.0",
+			"versionExact": "v2.17.0"
+		},
+		{
+			"checksumSHA1": "bdmiANnA/cq5vSULmpRp0BAu44M=",
+			"path": "zombiezen.com/go/capnproto2/rpc",
+			"revision": "243bfedb776812540b7e2fb8d4e5c19814ab1ed8",
+			"revisionTime": "2017-11-03T18:02:50Z",
+			"version": "v2.17.0",
+			"versionExact": "v2.17.0"
+		},
+		{
+			"checksumSHA1": "XuuGeKay9La4umAOyynI3Z0DHPM=",
+			"path": "zombiezen.com/go/capnproto2/rpc/internal/refcount",
+			"revision": "243bfedb776812540b7e2fb8d4e5c19814ab1ed8",
+			"revisionTime": "2017-11-03T18:02:50Z",
+			"version": "v2.17.0",
+			"versionExact": "v2.17.0"
 		},
 		{
 			"checksumSHA1": "zCLg7a8uDO2MS3Ypp4+kdarpDBk=",
 			"path": "zombiezen.com/go/capnproto2/schemas",
-			"revision": "1bfe1be4ca420323959a83fc0aade4b2fd5fbd69",
-			"revisionTime": "2017-11-03T18:30:46Z"
+			"revision": "243bfedb776812540b7e2fb8d4e5c19814ab1ed8",
+			"revisionTime": "2017-11-03T18:02:50Z",
+			"version": "v2.17.0",
+			"versionExact": "v2.17.0"
+		},
+		{
+			"checksumSHA1": "numKiB8QTUcC/y1E+6BpH59+uvE=",
+			"path": "zombiezen.com/go/capnproto2/server",
+			"revision": "243bfedb776812540b7e2fb8d4e5c19814ab1ed8",
+			"revisionTime": "2017-11-03T18:02:50Z",
+			"version": "v2.17.0",
+			"versionExact": "v2.17.0"
+		},
+		{
+			"checksumSHA1": "ONqBhqvHRHykPUfMycsRvpm4K/Q=",
+			"path": "zombiezen.com/go/capnproto2/std/capnp/rpc",
+			"revision": "243bfedb776812540b7e2fb8d4e5c19814ab1ed8",
+			"revisionTime": "2017-11-03T18:02:50Z",
+			"version": "v2.17.0",
+			"versionExact": "v2.17.0"
 		}
 	],
 	"rootPath": "github.com/oysterpack/oysterpack.go"
