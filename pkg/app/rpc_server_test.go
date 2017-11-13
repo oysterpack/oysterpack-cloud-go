@@ -27,18 +27,23 @@ import (
 	"github.com/rs/zerolog/log"
 	"gopkg.in/tomb.v2"
 	"zombiezen.com/go/capnproto2/rpc"
+	"github.com/rs/zerolog"
 )
 
 func startRPCAppServer() (listener net.Listener, client capnprpc.App) {
 	app.Reset()
+	app.SetLogLevel(zerolog.InfoLevel)
 
 	sockAddress := fmt.Sprintf("/tmp/app-%s.sock", app.InstanceId())
 	log.Logger.Info().Msgf("sockAddress = %s", sockAddress)
 
 	l, err := net.Listen("unix", sockAddress)
+	//l, err := net.Listen("tcp", ":")
 	if err != nil {
 		panic(err)
 	}
+
+	app.Logger().Info().Str("listener.network", l.Addr().Network()).Msg("startRPCAppServer")
 
 	var listenerTomb tomb.Tomb
 	var rpcTomb tomb.Tomb
@@ -59,6 +64,7 @@ func startRPCAppServer() (listener net.Listener, client capnprpc.App) {
 		log.Logger.Info().Msg("listenerTomb - DEAD")
 	}()
 
+	connLogger := app.NewConnLogger(app.Logger())
 	listenerTomb.Go(func() error {
 		server := capnprpc.App_ServerToClient(app.NewAppServer())
 		for {
@@ -67,20 +73,95 @@ func startRPCAppServer() (listener net.Listener, client capnprpc.App) {
 				return err
 			}
 			rpcTomb.Go(func() error {
-				rpcConn := rpc.NewConn(rpc.StreamTransport(conn), rpc.MainInterface(server.Client))
+				rpcConn := rpc.NewConn(rpc.StreamTransport(conn), rpc.MainInterface(server.Client), rpc.ConnLog(connLogger))
 				return rpcConn.Wait()
 			})
 		}
 	})
 
-	clientConn, err := net.Dial("unix", sockAddress)
+	return l, appClient(l)
+}
+
+func appClient(l net.Listener) capnprpc.App {
+	clientConn, err := net.Dial(l.Addr().Network(), l.Addr().String())
 	if err != nil {
 		panic(err)
 	}
 	rpcClient := rpc.NewConn(rpc.StreamTransport(clientConn))
+	return capnprpc.App{Client: rpcClient.Bootstrap(context.Background())}
+}
+
+func TestRPCAppServer_NetworkErrors(t *testing.T) {
+	app.Reset()
+
+	l, err := net.Listen("tcp", ":")
+	if err != nil {
+		t.Fatal(err)
+	}
+	network := l.Addr().Network()
+	address := l.Addr().String()
+	t.Logf("%s:/%s", network, address)
+
+	defer l.Close()
+	var listenerTomb tomb.Tomb
+	var rpcTomb tomb.Tomb
+	connLogger := app.NewConnLogger(app.Logger())
+	listenerTomb.Go(func() error {
+		server := capnprpc.App_ServerToClient(app.NewAppServer())
+		for {
+			conn, err := l.Accept()
+			if err != nil {
+				return err
+			}
+			rpcTomb.Go(func() error {
+				rpcConn := rpc.NewConn(rpc.StreamTransport(conn), rpc.MainInterface(server.Client), rpc.ConnLog(connLogger))
+				err := rpcConn.Wait()
+				t.Logf("rpcConn err : %[1]T : %[1]v", err)
+				return nil
+			})
+		}
+	})
+
+	appClient := appClient(l)
 
 	ctx := context.Background()
-	return l, capnprpc.App{Client: rpcClient.Bootstrap(ctx)}
+	if result, err := appClient.Id(ctx, func(params capnprpc.App_id_Params) error { return nil }).Struct(); err != nil {
+		t.Error(err)
+	} else {
+		t.Logf("id : %v", result.AppId())
+	}
+
+	// When the listener is closed
+	l.Close()
+	t.Logf("listenerTomb err : %[1]T : %[1]v", listenerTomb.Wait())
+
+
+	// Then no more connections can be made, but active connections should still continue to function
+	if result, err := appClient.LogLevel(ctx, func(params capnprpc.App_logLevel_Params) error { return nil }).Struct(); err != nil {
+		t.Error(err)
+	} else {
+		t.Logf("id : %v", result.Level())
+	}
+	appClient.SetLogLevel(ctx, func(params capnprpc.App_setLogLevel_Params) error {
+		params.SetLevel(capnprpc.LogLevel_info)
+		return nil
+	})
+	if result, err := appClient.LogLevel(ctx, func(params capnprpc.App_logLevel_Params) error { return nil }).Struct(); err != nil {
+		t.Error(err)
+	} else {
+		t.Logf("id : %v", result.Level())
+	}
+
+	// When the client is closed
+	appClient.Client.Close()
+	if _, err := appClient.LogLevel(ctx, func(params capnprpc.App_logLevel_Params) error { return nil }).Struct(); err == nil {
+		t.Error("client is closed")
+	} else {
+		t.Logf("error on closed client : %[1]T : %[1]v", err)
+	}
+
+
+
 }
 
 func TestRpcAppServer_LogLevel(t *testing.T) {
@@ -95,16 +176,16 @@ func TestRpcAppServer_LogLevel(t *testing.T) {
 	}).Struct(); err != nil {
 		t.Error(err)
 	} else {
-		 if level, err := app.CapnprpcLogLevel2zerologLevel(result.Level()); err != nil {
-		 	t.Error(err)
-		 } else {
-		 	t.Logf("level : %v", level)
-		 }
+		if level, err := app.CapnprpcLogLevel2zerologLevel(result.Level()); err != nil {
+			t.Error(err)
+		} else {
+			t.Logf("level : %v", level)
+		}
 	}
 
 	appClient.SetLogLevel(ctx, func(params capnprpc.App_setLogLevel_Params) error {
 		params.SetLevel(capnprpc.LogLevel_warn)
-		return  nil
+		return nil
 	})
 
 	if result, err := appClient.LogLevel(ctx, func(params capnprpc.App_logLevel_Params) error {
@@ -113,7 +194,7 @@ func TestRpcAppServer_LogLevel(t *testing.T) {
 		t.Error(err)
 	} else {
 		if result.Level() != capnprpc.LogLevel_warn {
-			t.Errorf("Level does not match : %v",result.Level())
+			t.Errorf("Level does not match : %v", result.Level())
 		}
 	}
 }
@@ -164,20 +245,20 @@ func TestRpcAppServer(t *testing.T) {
 		}
 	}
 
-	service:= app.NewService(app.ServiceID(999))
+	service := app.NewService(app.ServiceID(999))
 	app.RegisterService(service)
 	remoteService := appClient.Service(ctx, func(params capnprpc.App_service_Params) error {
 		params.SetId(uint64(service.ID()))
 		return nil
 	}).Service()
 
-	if results, err :=remoteService.Id(ctx, func(params capnprpc.Service_id_Params) error {
+	if results, err := remoteService.Id(ctx, func(params capnprpc.Service_id_Params) error {
 		return nil
 	}).Struct(); err != nil {
 		t.Error(err)
 	} else {
-		t.Logf("remote service id = %v",results.ServiceId())
-		if results.ServiceId() != uint64(service.ID()){
+		t.Logf("remote service id = %v", results.ServiceId())
+		if results.ServiceId() != uint64(service.ID()) {
 			t.Errorf("service id did not match : %v", results.ServiceId())
 		}
 	}
@@ -185,16 +266,16 @@ func TestRpcAppServer(t *testing.T) {
 	// When an invalid ServiceID is used to lookup a Service
 	// Then an error should be returned.
 	if _, err := appClient.Service(ctx, func(params capnprpc.App_service_Params) error {
-		params.SetId(uint64(service.ID()+1))
+		params.SetId(uint64(service.ID() + 1))
 		return nil
 	}).Struct(); err == nil {
 		t.Error("No service should have been found")
 	} else {
-		t.Logf("rpc error : %T : %v", err,err)
+		t.Logf("rpc error : %T : %v", err, err)
 	}
 
 	remoteService = appClient.Service(ctx, func(params capnprpc.App_service_Params) error {
-		params.SetId(uint64(service.ID()+1))
+		params.SetId(uint64(service.ID() + 1))
 		return nil
 	}).Service()
 
@@ -203,11 +284,11 @@ func TestRpcAppServer(t *testing.T) {
 	}).Struct(); err == nil {
 		t.Error("The service references should be invalid")
 	} else {
-		t.Logf("rpc error : %T : %v", err,err)
+		t.Logf("rpc error : %T : %v", err, err)
 	}
 
 	// When the service is registered
-	service1000 := app.NewService(app.ServiceID(service.ID()+1))
+	service1000 := app.NewService(app.ServiceID(service.ID() + 1))
 	if err := app.RegisterService(service1000); err != nil {
 		t.Fatal(err)
 	}
@@ -216,14 +297,14 @@ func TestRpcAppServer(t *testing.T) {
 	if _, err := remoteService.Id(ctx, func(params capnprpc.Service_id_Params) error {
 		return nil
 	}).Struct(); err == nil {
-		t.Errorf("the remote sevice reference is invalid : %T : %v", err,err)
+		t.Errorf("the remote sevice reference is invalid : %T : %v", err, err)
 	} else {
-		t.Logf("remote error : %T : %v",err, err)
+		t.Logf("remote error : %T : %v", err, err)
 	}
 
 	// When a new remote service reference is retrieved
 	remoteService = appClient.Service(ctx, func(params capnprpc.App_service_Params) error {
-		params.SetId(uint64(service.ID()+1))
+		params.SetId(uint64(service.ID() + 1))
 		return nil
 	}).Service()
 
@@ -231,7 +312,7 @@ func TestRpcAppServer(t *testing.T) {
 	if result, err := remoteService.Id(ctx, func(params capnprpc.Service_id_Params) error {
 		return nil
 	}).Struct(); err != nil {
-		t.Errorf("service should now be registered : %T : %v", err,err)
+		t.Errorf("service should now be registered : %T : %v", err, err)
 	} else {
 		if app.ServiceID(result.ServiceId()) != service1000.ID() {
 			t.Errorf("Service id did not match : %d", result.ServiceId())
@@ -248,9 +329,8 @@ func TestRpcAppServer(t *testing.T) {
 	}).Struct(); err == nil {
 		t.Errorf("The service reference should be invalid : %v", result.Level())
 	} else {
-		t.Logf("rpc error : %T : %v", err,err)
+		t.Logf("rpc error : %T : %v", err, err)
 	}
-
 
 	// Given a registered service
 	service1000 = app.NewService(service1000.ID())
