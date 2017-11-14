@@ -357,7 +357,7 @@ func initZerolog() {
 	zerolog.TimeFieldFormat = time.RFC3339Nano
 
 	// set the global log level
-	appLogLevel := zerologLevel(logLevel)
+	appLogLevel = zerologLevel(logLevel)
 	log.Logger = log.Logger.Level(appLogLevel)
 
 	// redirects go's std log to zerolog

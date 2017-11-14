@@ -21,12 +21,12 @@ import (
 )
 
 var (
-	ErrMessageIDBlank              = &app.Error{app.ErrorID(0x932a01de3b2b5d79), errors.New("MessageID cannot be blank")}
-	ErrEnvelopeCreatedOnZero       = &app.Error{app.ErrorID(0xa09b77a0c83578b8), errors.New("CreatedOn cannot be zero.")}
-	ErrAddressBlank                = &app.Error{app.ErrorID(0xa10bd3bd0162cb89), errors.New("Address cannot be blank")}
-	ErrEnvelopeMessageRequired     = &app.Error{app.ErrorID(0xbd2b8b2bcccc8415), errors.New("Message is required")}
-	ErrMessageTypeZero             = &app.Error{app.ErrorID(0xcdee88fa5b948509), errors.New("MessageType cannot be zero")}
-	ErrMessageTypeDoesNotMatch     = &app.Error{app.ErrorID(0x84d32a119aa62240), errors.New("MessageType does not match")}
-	ErrCorrelationIdBlank          = &app.Error{app.ErrorID(0xbd4a8fa096fd7e6d), errors.New("CorrelationID cannot be blank")}
-	ErrEnvelopeMessagePrototypeNil = &app.Error{app.ErrorID(0xc959e8ecd08e9442), errors.New("A Message prototype instance in needed for unmarshalling")}
+	ErrMessageIDBlank              = &app.Err{app.ErrorID(0x932a01de3b2b5d79), errors.New("MessageID cannot be blank")}
+	ErrEnvelopeCreatedOnZero       = &app.Err{app.ErrorID(0xa09b77a0c83578b8), errors.New("CreatedOn cannot be zero.")}
+	ErrAddressBlank                = &app.Err{app.ErrorID(0xa10bd3bd0162cb89), errors.New("Address cannot be blank")}
+	ErrEnvelopeMessageRequired     = &app.Err{app.ErrorID(0xbd2b8b2bcccc8415), errors.New("Message is required")}
+	ErrMessageTypeZero             = &app.Err{app.ErrorID(0xcdee88fa5b948509), errors.New("MessageType cannot be zero")}
+	ErrMessageTypeDoesNotMatch     = &app.Err{app.ErrorID(0x84d32a119aa62240), errors.New("MessageType does not match")}
+	ErrCorrelationIdBlank          = &app.Err{app.ErrorID(0xbd4a8fa096fd7e6d), errors.New("CorrelationID cannot be blank")}
+	ErrEnvelopeMessagePrototypeNil = &app.Err{app.ErrorID(0xc959e8ecd08e9442), errors.New("A Message prototype instance in needed for unmarshalling")}
 )

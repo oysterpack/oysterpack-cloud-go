@@ -32,7 +32,7 @@ type MessageProcessingError struct {
 	MessageID   MessageID
 	MessageType MessageType
 
-	Err *app.Error
+	Err *app.Err
 }
 
 // MarshalBinary implements encoding.BinaryMarshaler
@@ -97,6 +97,6 @@ func (a *MessageProcessingError) UnmarshalBinary(data []byte) error {
 	if err != nil {
 		return err
 	}
-	a.Err = &app.Error{app.ErrorID(capnpMsg.ErrCode()), errors.New(errMsg)}
+	a.Err = &app.Err{app.ErrorID(capnpMsg.ErrCode()), errors.New(errMsg)}
 	return nil
 }

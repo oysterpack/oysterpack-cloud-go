@@ -20,14 +20,14 @@ import (
 
 	"github.com/rs/zerolog"
 	"gopkg.in/tomb.v2"
-	"zombiezen.com/go/capnproto2/rpc"
 	"zombiezen.com/go/capnproto2"
+	"zombiezen.com/go/capnproto2/rpc"
 )
 
-// StartRPCService creates and starts a new RPCService.
+// StartRPCService creates and starts a new RPCService asynchronously.
 //
 //
-func StartRPCService(service *Service, listenerFactory ListenerFactory, serverFactory RPCServerFactory, maxConns uint) (*RPCService, error) {
+func StartRPCService(service *Service, listenerFactory ListenerFactory, server RPCMainInterface, maxConns uint) (*RPCService, error) {
 	if service == nil {
 		return nil, ErrServiceNil
 	}
@@ -37,55 +37,56 @@ func StartRPCService(service *Service, listenerFactory ListenerFactory, serverFa
 	if listenerFactory == nil {
 		return nil, ErrListenerFactoryNil
 	}
-	if serverFactory == nil {
-		return nil, ErrRPCServerFactoryNil
+	if server == nil {
+		return nil, ErrRPCMainInterfaceNil
 	}
 	if maxConns == 0 {
 		return nil, ErrRPCServiceMaxConnsZero
 	}
 
 	rpcService := &RPCService{
-		Service:         service,
-		listenerFactory: listenerFactory,
-		serverFactory:   serverFactory,
-		connSemaphore:   NewCountingSemaphore(maxConns),
-		conns:           make(map[*rpc.Conn]struct{}),
-		logger:          NewConnLogger(service.logger),
-		connDied:        make(chan *rpc.Conn),
+		Service:                service,
+		listenerFactory:        listenerFactory,
+		server:                 server,
+		connSemaphore:          NewCountingSemaphore(maxConns),
+		conns:                  make(map[uint64]*rpc.Conn),
+		logger:                 NewConnLogger(service.logger),
+		workQueue:              make(chan func()),
+		getListenerAddressChan: make(chan chan listenerAddress),
 	}
+	rpcService.start()
 
 	return rpcService, nil
 }
 
 type ListenerFactory func() (net.Listener, error)
 
-type RPCServerFactory func() (CapnpRpcServer, error)
-
 type RPCService struct {
 	*Service
 
 	listenerFactory ListenerFactory
-	serverFactory   RPCServerFactory
 
 	listenerTomb tomb.Tomb
 	listener     net.Listener
-	server       CapnpRpcServer
+	server       RPCMainInterface
 
 	connSemaphore CountingSemaphore
-	conns         map[*rpc.Conn]struct{}
-	connDied      chan *rpc.Conn
+
+	connSeq   uint64
+	conns     map[uint64]*rpc.Conn
+	workQueue chan func()
+
+	getListenerAddressChan chan chan listenerAddress
 
 	// wraps the service logger
 	logger rpc.Logger
 }
 
-type CapnpRpcServer interface {
-	MainInterface() capnp.Client
-}
+type RPCMainInterface func() (capnp.Client, error)
 
 func (a *RPCService) start() {
 	a.Go(func() error {
-		SERVICE_STARTED.Log(a.Logger().Info()).Msg("started")
+		SERVICE_STARTING.Log(a.Logger().Info()).Msg("starting")
 		a.startListener()
 
 		for {
@@ -97,17 +98,42 @@ func (a *RPCService) start() {
 				select {
 				case <-a.Dying():
 				default:
-					// restart the listener
-					a.logListenerRestart()
-					a.listenerTomb = tomb.Tomb{}
-					a.startListener()
+					a.restartListener()
 				}
-			case rpcConn := <-a.connDied:
-				delete(a.conns, rpcConn)
-				RPC_SERVICE_CONN_REMOVED.Log(a.Logger().Debug()).Int("conns",len(a.conns)).Msg("RPCService conn removed")
+			case f := <-a.workQueue:
+				f()
+			case c := <-a.getListenerAddressChan:
+				a.getListenerAddress(c)
 			}
 		}
 	})
+}
+
+func (a *RPCService) restartListener() {
+	a.logListenerRestart()
+	a.listenerTomb = tomb.Tomb{}
+	a.startListener()
+}
+
+func (a *RPCService) registerConn(key uint64, conn *rpc.Conn) func() {
+	return func() {
+		a.conns[key] = conn
+		RPC_SERVICE_NEW_CONN.Log(a.Logger().Debug()).Int("conns", len(a.conns)).Msg("new RPCService conn")
+	}
+}
+
+func (a *RPCService) unregisterConn(key uint64) func() {
+	return func() {
+		delete(a.conns, key)
+		RPC_SERVICE_CONN_REMOVED.Log(a.Logger().Debug()).Int("conns", len(a.conns)).Msg("RPCService conn removed")
+	}
+}
+
+func (a *RPCService) execute(command func()) {
+	select {
+	case <-a.Dying():
+	case a.workQueue <- command:
+	}
 }
 
 func (a *RPCService) logListenerRestart() {
@@ -126,10 +152,12 @@ func (a *RPCService) startListener() {
 			return NewListenerFactoryError(err)
 		}
 		defer a.listener.Close()
-		a.server, err = a.serverFactory()
+		mainInterface, err := a.server()
 		if err != nil {
 			return NewRPCServerFactoryError(err)
 		}
+
+		SERVICE_STARTED.Log(a.Logger().Info()).Msg("started")
 
 		for {
 			select {
@@ -140,20 +168,19 @@ func (a *RPCService) startListener() {
 				if err != nil {
 					return err
 				}
-				rpcConn := rpc.NewConn(rpc.StreamTransport(conn), rpc.MainInterface(a.server.MainInterface()), rpc.ConnLog(a.logger))
-				a.conns[rpcConn] = struct{}{}
-				RPC_SERVICE_NEW_CONN.Log(a.Logger().Debug()).Int("conns",len(a.conns)).Msg("new RPCService conn")
+				rpcConn := rpc.NewConn(rpc.StreamTransport(conn), rpc.MainInterface(mainInterface), rpc.ConnLog(a.logger))
+				a.connSeq++
+				connKey := a.connSeq
+				a.execute(a.registerConn(connKey, rpcConn))
 				go func() {
 					defer func() {
-						RPC_SERVICE_CONN_CLOSED.Log(a.Logger().Debug()).Int("conns",len(a.conns)).Msg("RPCService conn closed")
-						select {
-						case <-a.Dying():
-						case a.connDied <- rpcConn:
-						}
+						a.returnConnToken()
+						RPC_SERVICE_CONN_CLOSED.Log(a.Logger().Debug()).Msg("RPCService conn closed")
+						a.execute(a.unregisterConn(connKey))
 					}()
 					err := rpcConn.Wait()
 					if err != nil {
-						a.Service.Logger()
+						a.Service.Logger().Info().Err(err).Msg("")
 					}
 				}()
 			}
@@ -161,8 +188,21 @@ func (a *RPCService) startListener() {
 	})
 }
 
+func (a *RPCService) returnConnToken() {
+	select {
+	case <-a.Dying():
+	case a.connSemaphore <- struct{}{}:
+	}
+}
+
 func (a *RPCService) stop() {
-	// TODO
+	a.listener.Close()
+
+	for _, conn := range a.conns {
+		if err := conn.Close(); err != nil {
+			a.Logger().Warn().Err(err).Msg("Error on rpc.Conn.Close()")
+		}
+	}
 }
 
 func (a *RPCService) MaxConns() int {
@@ -170,17 +210,63 @@ func (a *RPCService) MaxConns() int {
 }
 
 func (a *RPCService) ConnCount() int {
-	return len(a.connSemaphore)
+	count := cap(a.connSemaphore) - len(a.connSemaphore)
+	if count == cap(a.connSemaphore) {
+		return count
+	}
+	if count > 0 {
+		// the listener will acquire the next token immediately, and wait for a connection
+		// thus, we need to account for it
+		return count - 1
+	}
+	return 0
+}
+
+func (a *RPCService) AvailableConnCapacity() int {
+	connCapacity := len(a.connSemaphore) + 1
+	if connCapacity > cap(a.connSemaphore) {
+		return cap(a.connSemaphore)
+	}
+	return connCapacity
+}
+
+func (a *RPCService) TotalConnsCreated() uint64 {
+	return a.connSeq
 }
 
 func (a *RPCService) ListenerAddress() (net.Addr, error) {
-	if !a.Alive() {
+	c := make(chan listenerAddress)
+
+	select {
+	case <-a.Dying():
 		return nil, ErrServiceNotAlive
+	case a.getListenerAddressChan <- c:
+		select {
+		case <-a.Dying():
+			return nil, ErrServiceNotAlive
+		case result := <-c:
+			return result.addr, result.err
+		}
 	}
+}
+
+type listenerAddress struct {
+	addr net.Addr
+	err  error
+}
+
+func (a *RPCService) getListenerAddress(c chan listenerAddress) {
+	response := listenerAddress{}
 	if a.listener == nil {
-		return nil, ErrServiceNotAvailable
+		response.err = ErrServiceNotAvailable
+	} else {
+		response.addr = a.listener.Addr()
 	}
-	return a.listener.Addr(), nil
+
+	select {
+	case <-a.Dying():
+	case c <- response:
+	}
 }
 
 type RpcConn struct {

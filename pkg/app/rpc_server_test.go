@@ -24,10 +24,10 @@ import (
 
 	"github.com/oysterpack/oysterpack.go/pkg/app"
 	"github.com/oysterpack/oysterpack.go/pkg/app/capnprpc"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"gopkg.in/tomb.v2"
 	"zombiezen.com/go/capnproto2/rpc"
-	"github.com/rs/zerolog"
 )
 
 func startRPCAppServer() (listener net.Listener, client capnprpc.App) {
@@ -79,16 +79,25 @@ func startRPCAppServer() (listener net.Listener, client capnprpc.App) {
 		}
 	})
 
-	return l, appClient(l)
+	return l, appClient(l.Addr())
 }
 
-func appClient(l net.Listener) capnprpc.App {
-	clientConn, err := net.Dial(l.Addr().Network(), l.Addr().String())
+func appClient(addr net.Addr) capnprpc.App {
+	clientConn, err := net.Dial(addr.Network(), addr.String())
 	if err != nil {
 		panic(err)
 	}
 	rpcClient := rpc.NewConn(rpc.StreamTransport(clientConn))
 	return capnprpc.App{Client: rpcClient.Bootstrap(context.Background())}
+}
+
+func appClientConn(addr net.Addr) (capnprpc.App, net.Conn) {
+	clientConn, err := net.Dial(addr.Network(), addr.String())
+	if err != nil {
+		panic(err)
+	}
+	rpcClient := rpc.NewConn(rpc.StreamTransport(clientConn))
+	return capnprpc.App{Client: rpcClient.Bootstrap(context.Background())}, clientConn
 }
 
 func TestRPCAppServer_NetworkErrors(t *testing.T) {
@@ -122,7 +131,7 @@ func TestRPCAppServer_NetworkErrors(t *testing.T) {
 		}
 	})
 
-	appClient := appClient(l)
+	appClient := appClient(l.Addr())
 
 	ctx := context.Background()
 	if result, err := appClient.Id(ctx, func(params capnprpc.App_id_Params) error { return nil }).Struct(); err != nil {
@@ -134,7 +143,6 @@ func TestRPCAppServer_NetworkErrors(t *testing.T) {
 	// When the listener is closed
 	l.Close()
 	t.Logf("listenerTomb err : %[1]T : %[1]v", listenerTomb.Wait())
-
 
 	// Then no more connections can be made, but active connections should still continue to function
 	if result, err := appClient.LogLevel(ctx, func(params capnprpc.App_logLevel_Params) error { return nil }).Struct(); err != nil {
@@ -159,8 +167,6 @@ func TestRPCAppServer_NetworkErrors(t *testing.T) {
 	} else {
 		t.Logf("error on closed client : %[1]T : %[1]v", err)
 	}
-
-
 
 }
 
