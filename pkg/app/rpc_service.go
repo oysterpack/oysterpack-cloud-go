@@ -89,6 +89,26 @@ type ListenerFactory func() (net.Listener, error)
 //   - handles RPC requests
 //	 - registers itself
 //	 - once the connection is closed, then the connection token is released and unregisters itself
+//
+// Log Events:
+// - WARN
+//	 - RPC_SERVICE_LISTENER_RESTART - will log the listener error
+//	 - RPC_CONN_CLOSE_ERR - if an error occurred when closing the RPC conn
+// - INFO
+// 	 - SERVICE_STARTING - when the main service goroutine is launched
+// 	 - SERVICE_STARTED - once the listener goroutine is launched
+// 	 - RPC_SERVICE_LISTENER_STARTED - once the listener goroutine has initialized
+// - DEBUG
+//   - RPC_SERVICE_NEW_CONN - when the connection is registered
+//   - RPC_SERVICE_CONN_REMOVED - when the connection is unregistered
+//	 - RPC_SERVICE_CONN_CLOSED - when the conn is closed and the conn goroutine is exiting
+//
+// Errors :
+// - ListenerFactoryError
+// - NetListenError
+// - RPCServerFactoryError
+// - ErrServiceNotAlive
+// - ErrRPCListenerNotStarted - on ListenerAddress()
 type RPCService struct {
 	*ServiceCommandChannel
 
@@ -146,6 +166,7 @@ func (a *RPCService) start() {
 	a.Go(func() error {
 		SERVICE_STARTING.Log(a.Logger().Info()).Msg("starting")
 		a.startListener()
+		SERVICE_STARTED.Log(a.Logger().Info()).Msg("started")
 
 		for {
 			select {
@@ -177,8 +198,7 @@ func (a *RPCService) startListener() {
 			return NewRPCServerFactoryError(err)
 		}
 
-		SERVICE_STARTED.Log(a.Logger().Info()).Msg("started")
-
+		RPC_SERVICE_LISTENER_STARTED.Log(a.Logger().Info()).Msg("rpc listener started")
 		for {
 			select {
 			case <-a.Dying():
@@ -195,7 +215,7 @@ func (a *RPCService) startListener() {
 					connKey := a.connSeq.Next()
 					a.Submit(a.registerConn(connKey, rpcConn))
 					defer func() {
-						a.returnConnToken()
+						a.releaseConnToken()
 						RPC_SERVICE_CONN_CLOSED.Log(a.Logger().Debug()).Msg("RPCService conn closed")
 						a.Submit(a.unregisterConn(connKey))
 					}()
@@ -222,7 +242,7 @@ func (a *RPCService) stop() {
 
 	for _, conn := range a.conns {
 		if err := conn.Close(); err != nil {
-			a.Logger().Warn().Err(err).Msg("Error on rpc.Conn.Close()")
+			RPC_CONN_CLOSE_ERR.Log(a.Logger().Warn()).Err(err).Msg("Error on rpc.Conn.Close()")
 		}
 	}
 }
@@ -250,7 +270,7 @@ func (a *RPCService) logListenerRestart() {
 	restartEvent.Msg("restarting RPCService listener")
 }
 
-func (a *RPCService) returnConnToken() {
+func (a *RPCService) releaseConnToken() {
 	select {
 	case <-a.Dying():
 	case a.connSemaphore <- struct{}{}:
@@ -282,6 +302,9 @@ func (a *RPCService) TotalConnsCreated() uint64 {
 }
 
 // ListenerAddress returns the address that the RPC server is bound to.
+// errors :
+// - ErrServiceNotAlive
+// - ErrRPCListenerNotStarted
 func (a *RPCService) ListenerAddress() (net.Addr, error) {
 	select {
 	case <-a.Dying():
@@ -294,15 +317,12 @@ func (a *RPCService) ListenerAddress() (net.Addr, error) {
 	}
 }
 
+// ListenerAlive returns true if the main service and listener goroutines are alive
 func (a *RPCService) ListenerAlive() bool {
 	return a.Alive() && a.listener.Alive()
 }
 
-type listenerAddress struct {
-	addr net.Addr
-	err  error
-}
-
+// NewConnLogger creates a new capnp rpc.Logger, which delegates to the specified zerolog.Logger
 func NewConnLogger(logger zerolog.Logger) rpc.Logger { return &CapnpRpcConnLogger{logger} }
 
 // CapnpRpcConnLogger implements zombiezen.com/go/capnproto2/rpc/Logger.
