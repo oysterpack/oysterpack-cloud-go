@@ -46,8 +46,8 @@ func TestStartRPCService(t *testing.T) {
 	if rpcService.MaxConns() != maxConns {
 		t.Errorf("MaxConns did not match : %d", rpcService.MaxConns())
 	}
-	if rpcService.ConnCount() != 0 {
-		t.Errorf("There should be no connections : %d", rpcService.ConnCount())
+	if rpcService.ActiveConns() != 0 {
+		t.Errorf("There should be no connections : %d", rpcService.ActiveConns())
 	}
 
 	for {
@@ -71,30 +71,40 @@ func TestStartRPCService(t *testing.T) {
 		t.Log("app id : %v", result.AppId())
 	}
 
-	if rpcService.ConnCount() != 1 {
-		t.Errorf("conn count does not match : %v", rpcService.ConnCount())
+	if rpcService.ActiveConns() != 1 {
+		t.Errorf("conn count does not match : %v", rpcService.ActiveConns())
 	}
+	// When the client is closed
 	client.Client.Close()
+	time.Sleep(time.Millisecond * 50)
+	// Then the network connection will remain connected
+	if rpcService.ActiveConns() != 1 {
+		t.Errorf("conn count does not match : %v", rpcService.ActiveConns())
+	}
+	// In order to close the network connection, the connection needs to be explicitly closed.
 	conn.Close()
-	for rpcService.ConnCount() != 0 {
+	for rpcService.ActiveConns() != 0 {
 		log.Logger.Info().Msg("Waiting for connection to close ...")
 		time.Sleep(time.Millisecond * 50)
 	}
 
 	clients := []capnprpc.App{}
+	conns := []net.Conn{}
 	for i := 0; i < maxConns; i++ {
-		clients = append(clients, appClient(addr))
+		client, conn := appClientConn(addr)
+		clients = append(clients, client)
+		conns = append(conns, conn)
 	}
 
 	t.Logf("Total conns created : %d", rpcService.TotalConnsCreated())
 
-	if rpcService.ConnCount() != maxConns {
-		t.Errorf("conn count does not match : %v != %v", rpcService.ConnCount(), maxConns)
+	for rpcService.ActiveConns() != maxConns {
+		t.Logf("Waiting for server side connections to establish : %v != %v", rpcService.ActiveConns(), maxConns)
+		time.Sleep(time.Millisecond * 10)
 	}
 
 	appRPCService.Kill(nil)
 	appRPCService.Wait()
-
 }
 
 func appRPCMainInterface() func() (capnp.Client, error) {

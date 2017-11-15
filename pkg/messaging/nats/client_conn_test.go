@@ -758,7 +758,7 @@ func checkTags(t *testing.T, client messaging.Client) {
 	}
 
 	if client.ConnCount() < client.ConnCount("a") {
-		t.Errorf("client.ConnCount() should return the total number of live connections : %d", client.ConnCount())
+		t.Errorf("client.ActiveConns() should return the total number of live connections : %d", client.ConnCount())
 	}
 
 	if count := client.ConnCount("a"); count != 1 {
@@ -793,7 +793,7 @@ func checkTags(t *testing.T, client messaging.Client) {
 		t.Errorf("count did not match %d != 1", count)
 	}
 	if client.ConnCount() < client.ConnCount("a") {
-		t.Errorf("client.ConnCount() should return the total number of live connections : %d", client.ConnCount())
+		t.Errorf("client.ActiveConns() should return the total number of live connections : %d", client.ConnCount())
 	}
 
 }

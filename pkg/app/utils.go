@@ -59,7 +59,7 @@ func NewCountingSemaphore(tokenCount uint) CountingSemaphore {
 	}
 	c := make(chan struct{}, tokenCount)
 	token := struct{}{}
-	for i:=0;i<cap(c);i++ {
+	for i := 0; i < cap(c); i++ {
 		c <- token
 	}
 	return c

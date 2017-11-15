@@ -45,6 +45,7 @@ var (
 	ErrRPCMainInterfaceNil          = &Err{ErrorID(0x9730bacf079fb410), errors.New("RPCMainInterface is nil")}
 	ErrRPCServiceMaxConnsZero       = &Err{ErrorID(0xea3df278b2992429), errors.New("The max numbe of connection must be > 0")}
 	ErrRPCServiceUnknownMessageType = &Err{ErrorID(0xdff7dbf6f092058e), errors.New("Unknown message type")}
+	ErrRPCListenerNotStarted        = &Err{ErrorID(0xdb45f1d3176ecad3), errors.New("RPC server listener is not started")}
 )
 
 func NewListenerFactoryError(err error) ListenerFactoryError {
@@ -54,6 +55,16 @@ func NewListenerFactoryError(err error) ListenerFactoryError {
 }
 
 type ListenerFactoryError struct {
+	*Err
+}
+
+func NewNetListenError(err error) NetListenError {
+	return NetListenError{
+		&Err{ErrorID(0xa1dcc954855732fc), err},
+	}
+}
+
+type NetListenError struct {
 	*Err
 }
 

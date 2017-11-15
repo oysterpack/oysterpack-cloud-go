@@ -103,7 +103,7 @@ func appClientConn(addr net.Addr) (capnprpc.App, net.Conn) {
 func TestRPCAppServer_NetworkErrors(t *testing.T) {
 	app.Reset()
 
-	l, err := net.Listen("tcp", ":")
+	l, err := net.Listen("tcp", ":0")
 	if err != nil {
 		t.Fatal(err)
 	}
