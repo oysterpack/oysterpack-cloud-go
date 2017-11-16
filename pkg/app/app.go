@@ -29,6 +29,9 @@ import (
 
 	"strconv"
 
+	"fmt"
+	"net"
+
 	"github.com/nats-io/nuid"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -106,7 +109,7 @@ func ServiceLogLevel(id ServiceID) zerolog.Level {
 }
 
 func zerologLevel(logLevel string) zerolog.Level {
-	switch logLevel {
+	switch strings.ToUpper(logLevel) {
 	case "DEBUG":
 		return zerolog.DebugLevel
 	case "INFO":
@@ -133,8 +136,7 @@ func RegisterService(s *Service) error {
 		return ErrServiceNotAlive
 	}
 
-	c := make(chan error)
-
+	c := make(chan error, 1)
 	err := submitCommand(func() {
 		if _, ok := services[s.id]; ok {
 			c <- ErrServiceAlreadyRegistered
@@ -183,7 +185,7 @@ func logServiceDeath(service *Service) {
 // errors:
 //	- ErrAppNotAlive
 func RegisteredServiceIds() ([]ServiceID, error) {
-	c := make(chan []ServiceID)
+	c := make(chan []ServiceID, 1)
 
 	if err := submitCommand(func() {
 		ids := make([]ServiceID, len(services))
@@ -192,10 +194,7 @@ func RegisteredServiceIds() ([]ServiceID, error) {
 			ids[i] = id
 			i++
 		}
-		select {
-		case <-app.Dying():
-		case c <- ids:
-		}
+		c <- ids
 	}); err != nil {
 		return nil, err
 	}
@@ -214,7 +213,7 @@ func RegisteredServiceIds() ([]ServiceID, error) {
 //	- ErrAppNotAlive
 //  - ErrServiceNotRegistered
 func UnregisterService(id ServiceID) error {
-	c := make(chan error)
+	c := make(chan error, 1)
 	if err := submitCommand(func() {
 		service, exists := services[id]
 		if !exists {
@@ -253,13 +252,10 @@ func UnregisterService(id ServiceID) error {
 // errors:
 //	- ErrAppNotAlive
 func GetService(id ServiceID) (*Service, error) {
-	c := make(chan *Service)
+	c := make(chan *Service, 1)
 
 	if err := submitCommand(func() {
-		select {
-		case <-app.Dying():
-		case c <- services[id]:
-		}
+		c <- services[id]
 	}); err != nil {
 		return nil, err
 	}
@@ -301,27 +297,53 @@ func init() {
 	flag.Uint64Var(&appIDVar, "app-id", 0, "AppID")
 
 	var releaseIDVar uint64
-	flag.Uint64Var(&releaseIDVar, "release-id", 0, "AppID")
+	flag.Uint64Var(&releaseIDVar, "release-id", 0, "ReleaseID")
 
 	var logLevelVar string
-	flag.StringVar(&logLevelVar, "log-level", "WARN", "valid log levels [DEBUG,INFO,WARN,ERROR] default = WARN")
+	flag.StringVar(&logLevelVar, "log-level", "WARN", "[DEBUG,INFO,WARN,ERROR] default = WARN")
 
 	var serviceLogLevelsVar string
 	flag.StringVar(&serviceLogLevelsVar, "service-log-level", "", "ServiceID=LogLevel[,ServiceID=LogLevel]")
 
+	var appRPCPort uint
+	flag.UintVar(&appRPCPort, "app-rpc-port", 0, "If specified, then the app RPC server is started on the specified port")
+
+	var appRPCMaxConns uint
+	flag.UintVar(&appRPCMaxConns, "app-rpc-max-conns", 10, "The max number of concurrent app RPC client connections")
+
 	flag.Parse()
 
-	logLevelVar = strings.ToUpper(logLevelVar)
 	appID = AppID(appIDVar)
 	releaseID = ReleaseID(releaseIDVar)
 
 	app = tomb.Tomb{}
 	services = make(map[ServiceID]*Service)
-
 	commandChan = make(chan func())
+
 	initZerolog(logLevelVar)
 	initServiceLogLevels(serviceLogLevelsVar)
+
 	runAppServer()
+
+	if appRPCPort != 0 {
+		if _, err := StartRPCAppServer(func() (net.Listener, error) {
+			return net.Listen("tcp", fmt.Sprintf(":%d", appRPCPort))
+		}, appRPCMaxConns); err != nil {
+			APP_RPC_START_ERR.Log(Logger().Error()).Err(err).Msg("Failed to start app RPC server")
+			app.Kill(err)
+		}
+	}
+}
+
+func runRPCAppServer(appRPCPort uint, appRPCMaxConns uint) {
+	if appRPCPort != 0 {
+		if _, err := StartRPCAppServer(func() (net.Listener, error) {
+			return net.Listen("tcp", fmt.Sprintf(":%d", appRPCPort))
+		}, appRPCMaxConns); err != nil {
+			APP_RPC_START_ERR.Log(Logger().Error()).Err(err).Msg("Failed to start app RPC server")
+			app.Kill(err)
+		}
+	}
 }
 
 func initZerolog(logLevel string) {

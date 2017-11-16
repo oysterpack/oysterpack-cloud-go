@@ -21,7 +21,7 @@ type Sequence struct {
 	n uint64
 }
 
-func (a Sequence) Next() uint64 {
+func (a *Sequence) Next() uint64 {
 	a.m.Lock()
 	a.n++
 	n := a.n
@@ -29,7 +29,7 @@ func (a Sequence) Next() uint64 {
 	return n
 }
 
-func (a Sequence) Value() uint64 {
+func (a *Sequence) Value() uint64 {
 	a.m.Lock()
 	n := a.n
 	a.m.Unlock()

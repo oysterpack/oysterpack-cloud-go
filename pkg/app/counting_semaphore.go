@@ -14,21 +14,24 @@
 
 package app
 
-import (
-	"io"
-	"runtime"
-)
+type CountingSemaphore chan struct{}
 
-// DumpAllStacks dumps all goroutine stacks to the specified writer.
-// Used for troubleshooting purposes.
-func DumpAllStacks(out io.Writer) {
-	size := 1024 * 8
-	for {
-		buf := make([]byte, size)
-		if len := runtime.Stack(buf, true); len <= size {
-			out.Write(buf[:len])
-			return
-		}
-		size = size + (1024 * 8)
+func NewCountingSemaphore(tokenCount uint) CountingSemaphore {
+	if tokenCount == 0 {
+		tokenCount = 1
+	}
+	c := make(chan struct{}, tokenCount)
+	token := struct{}{}
+	for i := 0; i < cap(c); i++ {
+		c <- token
+	}
+	return c
+}
+
+// ReturnToken returns a token back
+func (a CountingSemaphore) ReturnToken() {
+	select {
+	case a <- struct{}{}:
+	default:
 	}
 }

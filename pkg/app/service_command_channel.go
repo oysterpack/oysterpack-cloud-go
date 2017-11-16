@@ -15,11 +15,18 @@
 package app
 
 // NewServiceCommandChannel creates a new ServiceCommandChannel with the specified channel buffer size.
-func NewServiceCommandChannel(service *Service, chanSize uint16) *ServiceCommandChannel {
-	return &ServiceCommandChannel{Service: service, c: make(chan func(), chanSize)}
+func NewServiceCommandChannel(service *Service, chanSize uint16) (*ServiceCommandChannel, error) {
+	if service == nil {
+		return nil, ErrServiceNil
+	}
+	if !service.Alive() {
+		return nil, ErrServiceNotAlive
+	}
+	return &ServiceCommandChannel{Service: service, c: make(chan func(), chanSize)}, nil
 }
 
-// ServiceCommandChannel pairs a command channel to a service.
+// ServiceCommandChannel pairs a command channel to a service. It is the embedding service's responsibility to subscribe to
+// service command channel and execute the command functions.
 //
 // Service Channel Server Design Pattern
 // - The server's main goroutine will listen on the command channel, and when a command function is received it will
@@ -44,6 +51,8 @@ func NewServiceCommandChannel(service *Service, chanSize uint16) *ServiceCommand
 //		     }
 //		}
 //
+// CommandServer is reference implementation and is designed to be embedded into services.
+//
 type ServiceCommandChannel struct {
 	*Service
 
@@ -67,4 +76,81 @@ func (a *ServiceCommandChannel) Submit(f func()) error {
 	case a.c <- f:
 		return nil
 	}
+}
+
+// NewCommandServer creates a new CommandServer and returns it
+func NewCommandServer(service *Service, chanSize uint16, name string, init func(), destroy func()) (*CommandServer, error) {
+	serviceCommandChannel, err := NewServiceCommandChannel(service, chanSize)
+	if err != nil {
+		return nil, err
+	}
+	return &CommandServer{
+		ServiceCommandChannel: serviceCommandChannel,
+		Name:    name,
+		Init:    init,
+		Destroy: destroy,
+	}, nil
+}
+
+type CommandServer struct {
+	*ServiceCommandChannel
+
+	Name string
+
+	Init    func()
+	Destroy func()
+}
+
+// Start starts the server's main goroutine, i.e., the command event loop.
+//
+// 1. Log SERVICE_STARTING event
+// 2. Init()
+// 3. Log the SERVICE_STARTED event
+// 4. Run the command event loop until the service kill signal is received
+// 5. Destroy()
+//
+// NOTE: the SERVICE_STOPPING and SERVICE_STOPPED log events are logged by the app
+//
+// errors:
+// - ErrServiceNotAlive
+func (a *CommandServer) Start() error {
+	if !a.Alive() {
+		return ErrServiceNotAlive
+	}
+	a.Go(func() error {
+		a.starting()
+		if a.Init != nil {
+			a.Init()
+		}
+		a.started()
+
+		for {
+			select {
+			case <-a.Dying():
+				if a.Destroy != nil {
+					a.Destroy()
+				}
+				return nil
+			case f := <-a.CommandChan():
+				f()
+			}
+		}
+	})
+	return nil
+}
+
+func (a *CommandServer) starting() {
+	evt := SERVICE_STARTING.Log(a.Logger().Info())
+	if a.Name != "" {
+		evt.Str("cmdsvr", a.Name)
+	}
+	evt.Msg("starting")
+}
+
+func (a *CommandServer) started() {
+	evt := SERVICE_STARTED.Log(a.Logger().Info())
+	if a.Name != "" {
+		evt.Str("cmdsvr", a.Name)
+	}
+	evt.Msg("started")
 }

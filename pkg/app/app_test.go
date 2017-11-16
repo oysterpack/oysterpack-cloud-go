@@ -12,6 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// to run test coverage, execut the following command
+//
+// 		go test -covermode=count -coverprofile cover.out -args -app-id 123 -release-id 456 -log-level WARN -service-log-level 1=INFO,2=DISABLED,A=INFO,3
+//
+//  the test command line args will exercise the command line flag parsing
 package app_test
 
 import (
@@ -65,6 +70,8 @@ func TestApp(t *testing.T) {
 	if len(app.Instance()) == 0 {
 		t.Error("app instance id should not be blank")
 	}
+
+	t.Logf("ReleaseID: %d", app.Release())
 
 	// When a nil service is registered
 	// Then app.RegisterService should return app.ErrServiceNil

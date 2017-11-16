@@ -20,6 +20,8 @@ import (
 
 	"sync"
 
+	"fmt"
+
 	"github.com/rs/zerolog"
 	"gopkg.in/tomb.v2"
 	"zombiezen.com/go/capnproto2"
@@ -44,9 +46,15 @@ func StartRPCService(service *Service, listenerFactory ListenerFactory, server R
 		return nil, ErrRPCServiceMaxConnsZero
 	}
 
+	serviceCommandChannel, err := NewServiceCommandChannel(service, 1)
+	if err != nil {
+		return nil, err
+	}
+
 	rpcService := &RPCService{
-		ServiceCommandChannel: NewServiceCommandChannel(service, 1),
+		ServiceCommandChannel: serviceCommandChannel,
 		server:                server,
+		startedChan:           make(chan struct{}),
 		connSemaphore:         NewCountingSemaphore(maxConns),
 		conns:                 make(map[uint64]*rpc.Conn),
 		logger:                NewConnLogger(service.logger),
@@ -112,8 +120,9 @@ type ListenerFactory func() (net.Listener, error)
 type RPCService struct {
 	*ServiceCommandChannel
 
-	listener *listener
-	server   RPCMainInterface
+	listener    *listener
+	server      RPCMainInterface
+	startedChan chan struct{}
 
 	connSemaphore CountingSemaphore
 	connSeq       Sequence
@@ -186,6 +195,10 @@ func (a *RPCService) start() {
 	})
 }
 
+func (a *RPCService) Started() <-chan struct{} {
+	return a.startedChan
+}
+
 func (a *RPCService) startListener() {
 	a.listener.Go(func() (err error) {
 		listener, err := a.listener.start()
@@ -193,12 +206,18 @@ func (a *RPCService) startListener() {
 			return err
 		}
 		defer listener.Close()
+		// signal that the server is started, i.e., the listener was started
+		close(a.startedChan)
 		mainInterface, err := a.server()
 		if err != nil {
 			return NewRPCServerFactoryError(err)
 		}
 
-		RPC_SERVICE_LISTENER_STARTED.Log(a.Logger().Info()).Msg("rpc listener started")
+		addr := listener.Addr()
+		RPC_SERVICE_LISTENER_STARTED.Log(a.Logger().Info()).
+			Str("addr", fmt.Sprintf("%s://%s", addr.Network(), addr.String())).
+			Int("max-conns", a.MaxConns()).
+			Msg("rpc listener started")
 		for {
 			select {
 			case <-a.Dying():
@@ -215,7 +234,7 @@ func (a *RPCService) startListener() {
 					connKey := a.connSeq.Next()
 					a.Submit(a.registerConn(connKey, rpcConn))
 					defer func() {
-						a.releaseConnToken()
+						a.connSemaphore.ReturnToken()
 						RPC_SERVICE_CONN_CLOSED.Log(a.Logger().Debug()).Msg("RPCService conn closed")
 						a.Submit(a.unregisterConn(connKey))
 					}()
@@ -268,13 +287,6 @@ func (a *RPCService) logListenerRestart() {
 		restartEvent.Err(err)
 	}
 	restartEvent.Msg("restarting RPCService listener")
-}
-
-func (a *RPCService) releaseConnToken() {
-	select {
-	case <-a.Dying():
-	case a.connSemaphore <- struct{}{}:
-	}
 }
 
 // MaxConns returns the max number of concurrent connections supported by this RPC server

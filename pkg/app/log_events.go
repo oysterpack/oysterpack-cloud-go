@@ -21,6 +21,8 @@ const (
 	APP_STOPPED  = LogEventID(0xdd0c7775e42d7841)
 	APP_RESET    = LogEventID(0xee317bbb0fe0fafe)
 
+	APP_RPC_START_ERR = LogEventID(0x9de240c25779305c)
+
 	// it is the service's responsibility to log the following Service lifecycle events
 	SERVICE_STARTING = LogEventID(0xa3c3eb887d09f9aa)
 	SERVICE_STARTED  = LogEventID(0xc27a49a4e5a2a502)

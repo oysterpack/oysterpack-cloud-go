@@ -31,23 +31,8 @@ type ReleaseID uint64
 // ServiceID unique service ID
 type ServiceID uint64
 
-// FunctionID unique function id
-type FunctionID uint64
-
-// RemoteFunctionID unique remote function id
-type RemoteFunctionID uint64
-
-// MessageID unique message id
-type MessageID uint64
-
 // ErrorID unique error id
 type ErrorID uint64
-
-// MetricID unique error id
-type MetricID uint64
-
-// HealthCheckID unique healthcheck id
-type HealthCheckID uint64
 
 // LogEventID
 type LogEventID uint64
@@ -55,3 +40,9 @@ type LogEventID uint64
 func (a LogEventID) Log(event *zerolog.Event) *zerolog.Event {
 	return event.Uint64("event", uint64(a))
 }
+
+// MetricID unique error id
+type MetricID uint64
+
+// HealthCheckID unique healthcheck id
+type HealthCheckID uint64

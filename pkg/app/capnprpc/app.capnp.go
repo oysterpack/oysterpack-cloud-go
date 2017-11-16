@@ -3,6 +3,8 @@
 package capnprpc
 
 import (
+	math "math"
+
 	context "golang.org/x/net/context"
 	capnp "zombiezen.com/go/capnproto2"
 	text "zombiezen.com/go/capnproto2/encoding/text"
@@ -175,6 +177,26 @@ func (c App) Kill(ctx context.Context, params func(App_kill_Params) error, opts 
 	}
 	return App_kill_Results_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(call))}
 }
+func (c App) Runtime(ctx context.Context, params func(App_runtime_Params) error, opts ...capnp.CallOption) App_runtime_Results_Promise {
+	if c.Client == nil {
+		return App_runtime_Results_Promise{Pipeline: capnp.NewPipeline(capnp.ErrorAnswer(capnp.ErrNullClient))}
+	}
+	call := &capnp.Call{
+		Ctx: ctx,
+		Method: capnp.Method{
+			InterfaceID:   0xf052e7e084b31199,
+			MethodID:      8,
+			InterfaceName: "app.capnp:App",
+			MethodName:    "runtime",
+		},
+		Options: capnp.NewCallOptions(opts),
+	}
+	if params != nil {
+		call.ParamsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 0}
+		call.ParamsFunc = func(s capnp.Struct) error { return params(App_runtime_Params{Struct: s}) }
+	}
+	return App_runtime_Results_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(call))}
+}
 
 type App_Server interface {
 	Id(App_id) error
@@ -192,6 +214,8 @@ type App_Server interface {
 	Service(App_service) error
 
 	Kill(App_kill) error
+
+	Runtime(App_runtime) error
 }
 
 func App_ServerToClient(s App_Server) App {
@@ -201,7 +225,7 @@ func App_ServerToClient(s App_Server) App {
 
 func App_Methods(methods []server.Method, s App_Server) []server.Method {
 	if cap(methods) == 0 {
-		methods = make([]server.Method, 0, 8)
+		methods = make([]server.Method, 0, 9)
 	}
 
 	methods = append(methods, server.Method{
@@ -316,6 +340,20 @@ func App_Methods(methods []server.Method, s App_Server) []server.Method {
 		ResultsSize: capnp.ObjectSize{DataSize: 0, PointerCount: 0},
 	})
 
+	methods = append(methods, server.Method{
+		Method: capnp.Method{
+			InterfaceID:   0xf052e7e084b31199,
+			MethodID:      8,
+			InterfaceName: "app.capnp:App",
+			MethodName:    "runtime",
+		},
+		Impl: func(c context.Context, opts capnp.CallOptions, p, r capnp.Struct) error {
+			call := App_runtime{c, opts, App_runtime_Params{Struct: p}, App_runtime_Results{Struct: r}}
+			return s.Runtime(call)
+		},
+		ResultsSize: capnp.ObjectSize{DataSize: 0, PointerCount: 1},
+	})
+
 	return methods
 }
 
@@ -381,6 +419,14 @@ type App_kill struct {
 	Options capnp.CallOptions
 	Params  App_kill_Params
 	Results App_kill_Results
+}
+
+// App_runtime holds the arguments for a server call to App.runtime.
+type App_runtime struct {
+	Ctx     context.Context
+	Options capnp.CallOptions
+	Params  App_runtime_Params
+	Results App_runtime_Results
 }
 
 type App_id_Params struct{ capnp.Struct }
@@ -1358,69 +1404,137 @@ func (p App_kill_Results_Promise) Struct() (App_kill_Results, error) {
 	return App_kill_Results{s}, err
 }
 
-type LogLevel uint16
+type App_runtime_Params struct{ capnp.Struct }
 
-// LogLevel_TypeID is the unique identifier for the type LogLevel.
-const LogLevel_TypeID = 0xce802aa8977a9aee
+// App_runtime_Params_TypeID is the unique identifier for the type App_runtime_Params.
+const App_runtime_Params_TypeID = 0x933297e0a8a77222
 
-// Values of LogLevel.
-const (
-	LogLevel_debug LogLevel = 0
-	LogLevel_info  LogLevel = 1
-	LogLevel_warn  LogLevel = 2
-	LogLevel_error LogLevel = 3
-)
+func NewApp_runtime_Params(s *capnp.Segment) (App_runtime_Params, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return App_runtime_Params{st}, err
+}
 
-// String returns the enum's constant name.
-func (c LogLevel) String() string {
-	switch c {
-	case LogLevel_debug:
-		return "debug"
-	case LogLevel_info:
-		return "info"
-	case LogLevel_warn:
-		return "warn"
-	case LogLevel_error:
-		return "error"
+func NewRootApp_runtime_Params(s *capnp.Segment) (App_runtime_Params, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return App_runtime_Params{st}, err
+}
 
-	default:
-		return ""
+func ReadRootApp_runtime_Params(msg *capnp.Message) (App_runtime_Params, error) {
+	root, err := msg.RootPtr()
+	return App_runtime_Params{root.Struct()}, err
+}
+
+func (s App_runtime_Params) String() string {
+	str, _ := text.Marshal(0x933297e0a8a77222, s.Struct)
+	return str
+}
+
+// App_runtime_Params_List is a list of App_runtime_Params.
+type App_runtime_Params_List struct{ capnp.List }
+
+// NewApp_runtime_Params creates a new list of App_runtime_Params.
+func NewApp_runtime_Params_List(s *capnp.Segment, sz int32) (App_runtime_Params_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
+	return App_runtime_Params_List{l}, err
+}
+
+func (s App_runtime_Params_List) At(i int) App_runtime_Params {
+	return App_runtime_Params{s.List.Struct(i)}
+}
+
+func (s App_runtime_Params_List) Set(i int, v App_runtime_Params) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s App_runtime_Params_List) String() string {
+	str, _ := text.MarshalList(0x933297e0a8a77222, s.List)
+	return str
+}
+
+// App_runtime_Params_Promise is a wrapper for a App_runtime_Params promised by a client call.
+type App_runtime_Params_Promise struct{ *capnp.Pipeline }
+
+func (p App_runtime_Params_Promise) Struct() (App_runtime_Params, error) {
+	s, err := p.Pipeline.Struct()
+	return App_runtime_Params{s}, err
+}
+
+type App_runtime_Results struct{ capnp.Struct }
+
+// App_runtime_Results_TypeID is the unique identifier for the type App_runtime_Results.
+const App_runtime_Results_TypeID = 0xf09be4e8d421f422
+
+func NewApp_runtime_Results(s *capnp.Segment) (App_runtime_Results, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
+	return App_runtime_Results{st}, err
+}
+
+func NewRootApp_runtime_Results(s *capnp.Segment) (App_runtime_Results, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
+	return App_runtime_Results{st}, err
+}
+
+func ReadRootApp_runtime_Results(msg *capnp.Message) (App_runtime_Results, error) {
+	root, err := msg.RootPtr()
+	return App_runtime_Results{root.Struct()}, err
+}
+
+func (s App_runtime_Results) String() string {
+	str, _ := text.Marshal(0xf09be4e8d421f422, s.Struct)
+	return str
+}
+
+func (s App_runtime_Results) Runtime() Runtime {
+	p, _ := s.Struct.Ptr(0)
+	return Runtime{Client: p.Interface().Client()}
+}
+
+func (s App_runtime_Results) HasRuntime() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s App_runtime_Results) SetRuntime(v Runtime) error {
+	if v.Client == nil {
+		return s.Struct.SetPtr(0, capnp.Ptr{})
 	}
+	seg := s.Segment()
+	in := capnp.NewInterface(seg, seg.Message().AddCap(v.Client))
+	return s.Struct.SetPtr(0, in.ToPtr())
 }
 
-// LogLevelFromString returns the enum value with a name,
-// or the zero value if there's no such value.
-func LogLevelFromString(c string) LogLevel {
-	switch c {
-	case "debug":
-		return LogLevel_debug
-	case "info":
-		return LogLevel_info
-	case "warn":
-		return LogLevel_warn
-	case "error":
-		return LogLevel_error
+// App_runtime_Results_List is a list of App_runtime_Results.
+type App_runtime_Results_List struct{ capnp.List }
 
-	default:
-		return 0
-	}
+// NewApp_runtime_Results creates a new list of App_runtime_Results.
+func NewApp_runtime_Results_List(s *capnp.Segment, sz int32) (App_runtime_Results_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
+	return App_runtime_Results_List{l}, err
 }
 
-type LogLevel_List struct{ capnp.List }
-
-func NewLogLevel_List(s *capnp.Segment, sz int32) (LogLevel_List, error) {
-	l, err := capnp.NewUInt16List(s, sz)
-	return LogLevel_List{l.List}, err
+func (s App_runtime_Results_List) At(i int) App_runtime_Results {
+	return App_runtime_Results{s.List.Struct(i)}
 }
 
-func (l LogLevel_List) At(i int) LogLevel {
-	ul := capnp.UInt16List{List: l.List}
-	return LogLevel(ul.At(i))
+func (s App_runtime_Results_List) Set(i int, v App_runtime_Results) error {
+	return s.List.SetStruct(i, v.Struct)
 }
 
-func (l LogLevel_List) Set(i int, v LogLevel) {
-	ul := capnp.UInt16List{List: l.List}
-	ul.Set(i, uint16(v))
+func (s App_runtime_Results_List) String() string {
+	str, _ := text.MarshalList(0xf09be4e8d421f422, s.List)
+	return str
+}
+
+// App_runtime_Results_Promise is a wrapper for a App_runtime_Results promised by a client call.
+type App_runtime_Results_Promise struct{ *capnp.Pipeline }
+
+func (p App_runtime_Results_Promise) Struct() (App_runtime_Results, error) {
+	s, err := p.Pipeline.Struct()
+	return App_runtime_Results{s}, err
+}
+
+func (p App_runtime_Results_Promise) Runtime() Runtime {
+	return Runtime{Client: p.Pipeline.GetPipeline(0).Client()}
 }
 
 type Service struct{ Client capnp.Client }
@@ -2084,84 +2198,1376 @@ func (p Service_kill_Results_Promise) Struct() (Service_kill_Results, error) {
 	return Service_kill_Results{s}, err
 }
 
-const schema_db8274f9144abc7e = "x\xda\x9cV\x7fl\x13\xe5\x1b\x7f\x9e\xbb{{_\x96" +
-	"m\xe5\xed\x0d\xf2\xe5\x87\x96\x99a`q\xfc\xd8\xf4\x0f" +
-	"H\xc8\xda%$v\x99\xa1-\x10\x05\xe2\x1f'=\xc7" +
-	"\xc5\xae+w\xdd\xc8\x90\xa8\x90\xed\x0fc\x96\xc5\x09." +
-	",Qc\xc2\x88$\xa8\xa0\xc1\x84\xc8D\xa7#*\x0e" +
-	"\x03Q\x11\x85 \xeab\xd4\xc58\x0c\xd1M\xf1\xcc{" +
-	"\xed\xdb{\xbb\xb61\xf1\xaf6\xb9\xe7\xe7\xe7\xf9|\xde" +
-	"\xe7Y\xb3@\x0eIk\xc9\xeb\x15\x00\xb1}\xc4w{" +
-	"\xf7\x83#KN}\xdfK\xab\x11@Q\x01\xb4\x0d\xe4" +
-	"&(\xce\xe5)\xdfD\xcdC\xd3\x03\xe0}\xa8%\xb3" +
-	"\xa08SU\xa3\xe3\xa4\xf7\x8f\x01\x88Uc\xeeK\x13" +
-	"!\x12\x02j\xf3H3\xa0\xf3\xee\xc2\xfe\xfe=\xe7\xaf" +
-	"?\x0b4\xc0=\x1b\\\xcf\x97\xd2\x7f>p\xf0\x83\xbe" +
-	"A\x88\x05\xf2\x9e\x94,f\x9e\x8b\\O\xfb\xadp\x7f" +
-	"\xf2\xb7#\x83b\xe8u\xd9\xd0\x1b\\\x83\x83\xfe\xbb\xba" +
-	"F\x8d-\xcf\x0b\xa1u\xf2-(\xd7\x03m\xcb\xceU" +
-	"(#\x9e\x9f\xb6\x91\xfc\x04\xa8E\\\xb7/\xaf\xb6]" +
-	"=2\xdd9\"\xf4b\x921P\x9c\xbe\xa1\xe3\xf5K" +
-	"\xdf;}\xd4\x8b\xd7\x14!\x01\x04\xe5w3\xed\xdc\x7f" +
-	"g\xe0\x98\xe7\xb0\xd6E\x85\x9c\x9d\x18\xfb+\xb8\xf9\xb8" +
-	"\x10i\x01\xf9\x0a\x14\xe7\xec}\xe7\xff~\x7f\xf9\xae\xd7" +
-	"\x84\xd2\xb5\x19e\x16P\xbb\xad\xb0\x12\xee}\xaefj" +
-	"ix\xc7\x1b@+d\xe7\x893\xad53\x99\x03_" +
-	"\x03\xa0v\x07\x19\xd4\x96\x13\x96\xb9\x96\xa8\xa8\x8d\xb3\xbf" +
-	"\xce\xc3\x0d\xab\xb7\x0f-\x91Oe\xd3\x10d\xd1^%" +
-	",\xdaI\xb7\xa1\xe5\x95'\x0e\x9c\xb8{\xcbi\xaf\x8c" +
-	"\xa6\xcfI\x0b\x82\xe2\xf4\x9c\xd9\xdb\xba\xf6\xc2\xd1w\x84" +
-	"\x02G]\xf0\x95\x1fw\x0fX7\xae}\"\x80\xaf\xbd" +
-	"\xecb4\xe2\x86\xfcex\xef\xd0+\xf5O]\x00Z" +
-	"!\x15\x14\xf8\x11\x19\xd6.\xb2\xaa\xb4\x09\xd2\x0e\xe8\x9c" +
-	"{|\xcb\xec\x8a\x95\xdb.\x89\x9dN\x93\x8f\x01\xb5[" +
-	"n\xa0\xc8\xc2\xd5/~\xb8\xdf\xfeL\x84\xc8w\x09\x14" +
-	"\xe7\xed\x05\xa1\x0d\x95\x91\xa9\xef\x84\xe1\xcd\xb8\xa0.\xbd" +
-	"g\xdb\xae\x1dWZ&E^\\\xcb\x8e\xfd\x86\x1br" +
-	"\xec\xd0\xa6\xcb\xfbzv\xfd,\xc0\xd1\x84\xbeVfP" +
-	"\xe5c\x06\x87\xe9\x9b\xbd\xdf\xfc\x10\xff\xb5\x08\xdd\xb0\xcf" +
-	"\xd26\xfa\x98}\xd8\xa7J\xdaa\x95\xa1\xbbf\xf2\xd6" +
-	"\xc8\x17\x81\xad3B!\xfbU\x86QUO\xc73\xf3" +
-	"?\x0d\xcf\x8a\xb0\x1b\xeaM@\xcdT\x9b\xa1\xc1\xd1\xd3" +
-	"\xe9U;\xf5tJJ\xaf\x0f\xa7\xd3\xab\xcc\x94\x9d\xd1" +
-	"S;\x8d\xbahP\xb7\xf4\x0e{\xeew;\xa3[\x19" +
-	"#\xb1)U\xd7\x1c-4\x90\xe7\x1a\xc4\x0d\xbb+\x99" +
-	"\xb1!\xa6\xc8\x0a\x80\x82\x00\xb4*\x0e\x10\xab\x941\xf6" +
-	"\x7f\x09\x1dn\x09\x98B\x02\x12\x12@1\xdbf\xc3\xea" +
-	"6w\x1a\xab\xf4\xa4\xd9m\x94\xca\xc6\x0d\x92\x9d\xedm" +
-	"F\xb7\x91\xcc&\x943\xb6\x98\xb0\x11 \xf6?\x19c" +
-	"5\x12\x06\x93\xcc\x0a\xfd\x1e-\x00\xd1/$\xcdu`" +
-	"\x19IC\xb7\x8dH\xe2_;\xe0\x96\x80\x09\x9c\x07\x12" +
-	"\xce+\xdd\x81\x99\xa8\x8b\xea\x96Z\x0a\xcd\xacE]T" +
-	"\xf7\xb3\xee\xc4<\x8b\xbd\xc2e\xb38\xbc/7.7" +
-	"\xb4\xdea\x03\xffP\x02\x17\xd7\x02\x8b\x92{\xdfK\x8f" +
-	"\xfa13\xe9aZ\xd69\xde\x9c\x05\xe9\xbf\x82\x8e\xbc" +
-	"`4\xa2\x88\xb1\xf92\x01\xc8\xbf\x89\xc8\x15Nw/" +
-	"\x06\x89\x1a*b\xfe}C\xfe\xf4\xd2m\xad \xd1\x98" +
-	"\x8aR\xfe\x99F.?\xba\xb1\x11$\xbaNE9/" +
-	"U\xe4R\xa1\x0d\xf5 \xd1ZU6\x13!txC" +
-	"\x00\x10\xc2\xa0K\xba\x10\xfa\x19\x06!\x8c\"\x96\xd5I" +
-	"\xa9\xfe\xb7\x0b\x1c\xe1\x86 G\x12X\x09\x12V\x0a\xcd" +
-	"\xab\x9cq\xed\xa6\x9d1,#\x91\x9b\x9d]<\xd5B" +
-	"f\xce\x95C!\xdb\xe2\x86\xed\x9f[S\x81\xf2\xb2\xa6" +
-	"%y\x8b\xe9\xf5m.\x14\xb2\x91t\x07\x82\x12\x00]" +
-	"\xd9\xc8\xe6Fk\xeb\x01P\xa2\x8b\xd8\x8fLi#@" +
-	"0a<\xd2\xd5\xee7S\x8fv\xfa\xf7\xe8V*h" +
-	"XV\xa7U\x84\x96\xa7%(G\x14=\x9d\x8e\x94\x94" +
-	"Q\x9e\x8b%x\xcc\x9b\xce~\x0f\x96}#\xb2\x8fH" +
-	")=\x17\x94\xc0\xac\x10AB\x14JP\xca\x0e\xa9d" +
-	"O|\xf8+D\xa0\xe5\x84\x8d\xd5\x80Q\x19\xdd\x0e\xab" +
-	"\x85\xf0\x10t\xe33\xac\x97\xb9\xe4\xe7\x9b\x1d\xf9V\xa2" +
-	"\xd3\x8c\xfc\x93\x8c\xfc|\x15\"?+\xe8\x958H\xf4" +
-	"\xa2\x8a\x12?z\x84E;\xce\x841\xca\xc8\xcf/\x1f" +
-	"\xe4\x97\x0e=\xc9\xfc\x8e\xa9\x98?\x0b\xbcuO_`" +
-	"~\x87T$\xf9\xa5\x8c|]\xd1\xa7\x87A\xa2}*" +
-	"\xfa\xf8}\"l\x98\x9e\x16\x90h\x87\x8aj~a\"" +
-	"?.\xa8\xce\xc4\xb65'6\xe1\xe1\x0c\x09\x12a\xd2" +
-	"\x13\xd7\xc2\\Y:|\x06\xc8\x87 \x1bv\x08\x9f\xcc" +
-	"\xc1\\N\xaf\x05$\xe1z-\xf7\x14\xc7\x8d`\x91\x9e" +
-	"[<\x8e\xf0\\H\xbd\xf3\x87)\x03\xf0\x9f\x00\x00\x00" +
-	"\xff\xff\xc7>\x0d\xf2"
+type LogLevel uint16
+
+// LogLevel_TypeID is the unique identifier for the type LogLevel.
+const LogLevel_TypeID = 0xce802aa8977a9aee
+
+// Values of LogLevel.
+const (
+	LogLevel_debug LogLevel = 0
+	LogLevel_info  LogLevel = 1
+	LogLevel_warn  LogLevel = 2
+	LogLevel_error LogLevel = 3
+)
+
+// String returns the enum's constant name.
+func (c LogLevel) String() string {
+	switch c {
+	case LogLevel_debug:
+		return "debug"
+	case LogLevel_info:
+		return "info"
+	case LogLevel_warn:
+		return "warn"
+	case LogLevel_error:
+		return "error"
+
+	default:
+		return ""
+	}
+}
+
+// LogLevelFromString returns the enum value with a name,
+// or the zero value if there's no such value.
+func LogLevelFromString(c string) LogLevel {
+	switch c {
+	case "debug":
+		return LogLevel_debug
+	case "info":
+		return LogLevel_info
+	case "warn":
+		return LogLevel_warn
+	case "error":
+		return LogLevel_error
+
+	default:
+		return 0
+	}
+}
+
+type LogLevel_List struct{ capnp.List }
+
+func NewLogLevel_List(s *capnp.Segment, sz int32) (LogLevel_List, error) {
+	l, err := capnp.NewUInt16List(s, sz)
+	return LogLevel_List{l.List}, err
+}
+
+func (l LogLevel_List) At(i int) LogLevel {
+	ul := capnp.UInt16List{List: l.List}
+	return LogLevel(ul.At(i))
+}
+
+func (l LogLevel_List) Set(i int, v LogLevel) {
+	ul := capnp.UInt16List{List: l.List}
+	ul.Set(i, uint16(v))
+}
+
+type Runtime struct{ Client capnp.Client }
+
+// Runtime_TypeID is the unique identifier for the type Runtime.
+const Runtime_TypeID = 0xdda2e02140fe8f08
+
+func (c Runtime) GoVersion(ctx context.Context, params func(Runtime_goVersion_Params) error, opts ...capnp.CallOption) Runtime_goVersion_Results_Promise {
+	if c.Client == nil {
+		return Runtime_goVersion_Results_Promise{Pipeline: capnp.NewPipeline(capnp.ErrorAnswer(capnp.ErrNullClient))}
+	}
+	call := &capnp.Call{
+		Ctx: ctx,
+		Method: capnp.Method{
+			InterfaceID:   0xdda2e02140fe8f08,
+			MethodID:      0,
+			InterfaceName: "app.capnp:Runtime",
+			MethodName:    "goVersion",
+		},
+		Options: capnp.NewCallOptions(opts),
+	}
+	if params != nil {
+		call.ParamsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 0}
+		call.ParamsFunc = func(s capnp.Struct) error { return params(Runtime_goVersion_Params{Struct: s}) }
+	}
+	return Runtime_goVersion_Results_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(call))}
+}
+func (c Runtime) NumCPU(ctx context.Context, params func(Runtime_numCPU_Params) error, opts ...capnp.CallOption) Runtime_numCPU_Results_Promise {
+	if c.Client == nil {
+		return Runtime_numCPU_Results_Promise{Pipeline: capnp.NewPipeline(capnp.ErrorAnswer(capnp.ErrNullClient))}
+	}
+	call := &capnp.Call{
+		Ctx: ctx,
+		Method: capnp.Method{
+			InterfaceID:   0xdda2e02140fe8f08,
+			MethodID:      1,
+			InterfaceName: "app.capnp:Runtime",
+			MethodName:    "numCPU",
+		},
+		Options: capnp.NewCallOptions(opts),
+	}
+	if params != nil {
+		call.ParamsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 0}
+		call.ParamsFunc = func(s capnp.Struct) error { return params(Runtime_numCPU_Params{Struct: s}) }
+	}
+	return Runtime_numCPU_Results_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(call))}
+}
+func (c Runtime) NumGoroutine(ctx context.Context, params func(Runtime_numGoroutine_Params) error, opts ...capnp.CallOption) Runtime_numGoroutine_Results_Promise {
+	if c.Client == nil {
+		return Runtime_numGoroutine_Results_Promise{Pipeline: capnp.NewPipeline(capnp.ErrorAnswer(capnp.ErrNullClient))}
+	}
+	call := &capnp.Call{
+		Ctx: ctx,
+		Method: capnp.Method{
+			InterfaceID:   0xdda2e02140fe8f08,
+			MethodID:      2,
+			InterfaceName: "app.capnp:Runtime",
+			MethodName:    "numGoroutine",
+		},
+		Options: capnp.NewCallOptions(opts),
+	}
+	if params != nil {
+		call.ParamsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 0}
+		call.ParamsFunc = func(s capnp.Struct) error { return params(Runtime_numGoroutine_Params{Struct: s}) }
+	}
+	return Runtime_numGoroutine_Results_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(call))}
+}
+func (c Runtime) MemStats(ctx context.Context, params func(Runtime_memStats_Params) error, opts ...capnp.CallOption) Runtime_memStats_Results_Promise {
+	if c.Client == nil {
+		return Runtime_memStats_Results_Promise{Pipeline: capnp.NewPipeline(capnp.ErrorAnswer(capnp.ErrNullClient))}
+	}
+	call := &capnp.Call{
+		Ctx: ctx,
+		Method: capnp.Method{
+			InterfaceID:   0xdda2e02140fe8f08,
+			MethodID:      3,
+			InterfaceName: "app.capnp:Runtime",
+			MethodName:    "memStats",
+		},
+		Options: capnp.NewCallOptions(opts),
+	}
+	if params != nil {
+		call.ParamsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 0}
+		call.ParamsFunc = func(s capnp.Struct) error { return params(Runtime_memStats_Params{Struct: s}) }
+	}
+	return Runtime_memStats_Results_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(call))}
+}
+
+type Runtime_Server interface {
+	GoVersion(Runtime_goVersion) error
+
+	NumCPU(Runtime_numCPU) error
+
+	NumGoroutine(Runtime_numGoroutine) error
+
+	MemStats(Runtime_memStats) error
+}
+
+func Runtime_ServerToClient(s Runtime_Server) Runtime {
+	c, _ := s.(server.Closer)
+	return Runtime{Client: server.New(Runtime_Methods(nil, s), c)}
+}
+
+func Runtime_Methods(methods []server.Method, s Runtime_Server) []server.Method {
+	if cap(methods) == 0 {
+		methods = make([]server.Method, 0, 4)
+	}
+
+	methods = append(methods, server.Method{
+		Method: capnp.Method{
+			InterfaceID:   0xdda2e02140fe8f08,
+			MethodID:      0,
+			InterfaceName: "app.capnp:Runtime",
+			MethodName:    "goVersion",
+		},
+		Impl: func(c context.Context, opts capnp.CallOptions, p, r capnp.Struct) error {
+			call := Runtime_goVersion{c, opts, Runtime_goVersion_Params{Struct: p}, Runtime_goVersion_Results{Struct: r}}
+			return s.GoVersion(call)
+		},
+		ResultsSize: capnp.ObjectSize{DataSize: 0, PointerCount: 1},
+	})
+
+	methods = append(methods, server.Method{
+		Method: capnp.Method{
+			InterfaceID:   0xdda2e02140fe8f08,
+			MethodID:      1,
+			InterfaceName: "app.capnp:Runtime",
+			MethodName:    "numCPU",
+		},
+		Impl: func(c context.Context, opts capnp.CallOptions, p, r capnp.Struct) error {
+			call := Runtime_numCPU{c, opts, Runtime_numCPU_Params{Struct: p}, Runtime_numCPU_Results{Struct: r}}
+			return s.NumCPU(call)
+		},
+		ResultsSize: capnp.ObjectSize{DataSize: 8, PointerCount: 0},
+	})
+
+	methods = append(methods, server.Method{
+		Method: capnp.Method{
+			InterfaceID:   0xdda2e02140fe8f08,
+			MethodID:      2,
+			InterfaceName: "app.capnp:Runtime",
+			MethodName:    "numGoroutine",
+		},
+		Impl: func(c context.Context, opts capnp.CallOptions, p, r capnp.Struct) error {
+			call := Runtime_numGoroutine{c, opts, Runtime_numGoroutine_Params{Struct: p}, Runtime_numGoroutine_Results{Struct: r}}
+			return s.NumGoroutine(call)
+		},
+		ResultsSize: capnp.ObjectSize{DataSize: 8, PointerCount: 0},
+	})
+
+	methods = append(methods, server.Method{
+		Method: capnp.Method{
+			InterfaceID:   0xdda2e02140fe8f08,
+			MethodID:      3,
+			InterfaceName: "app.capnp:Runtime",
+			MethodName:    "memStats",
+		},
+		Impl: func(c context.Context, opts capnp.CallOptions, p, r capnp.Struct) error {
+			call := Runtime_memStats{c, opts, Runtime_memStats_Params{Struct: p}, Runtime_memStats_Results{Struct: r}}
+			return s.MemStats(call)
+		},
+		ResultsSize: capnp.ObjectSize{DataSize: 0, PointerCount: 1},
+	})
+
+	return methods
+}
+
+// Runtime_goVersion holds the arguments for a server call to Runtime.goVersion.
+type Runtime_goVersion struct {
+	Ctx     context.Context
+	Options capnp.CallOptions
+	Params  Runtime_goVersion_Params
+	Results Runtime_goVersion_Results
+}
+
+// Runtime_numCPU holds the arguments for a server call to Runtime.numCPU.
+type Runtime_numCPU struct {
+	Ctx     context.Context
+	Options capnp.CallOptions
+	Params  Runtime_numCPU_Params
+	Results Runtime_numCPU_Results
+}
+
+// Runtime_numGoroutine holds the arguments for a server call to Runtime.numGoroutine.
+type Runtime_numGoroutine struct {
+	Ctx     context.Context
+	Options capnp.CallOptions
+	Params  Runtime_numGoroutine_Params
+	Results Runtime_numGoroutine_Results
+}
+
+// Runtime_memStats holds the arguments for a server call to Runtime.memStats.
+type Runtime_memStats struct {
+	Ctx     context.Context
+	Options capnp.CallOptions
+	Params  Runtime_memStats_Params
+	Results Runtime_memStats_Results
+}
+
+type Runtime_goVersion_Params struct{ capnp.Struct }
+
+// Runtime_goVersion_Params_TypeID is the unique identifier for the type Runtime_goVersion_Params.
+const Runtime_goVersion_Params_TypeID = 0xed1583a692140448
+
+func NewRuntime_goVersion_Params(s *capnp.Segment) (Runtime_goVersion_Params, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return Runtime_goVersion_Params{st}, err
+}
+
+func NewRootRuntime_goVersion_Params(s *capnp.Segment) (Runtime_goVersion_Params, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return Runtime_goVersion_Params{st}, err
+}
+
+func ReadRootRuntime_goVersion_Params(msg *capnp.Message) (Runtime_goVersion_Params, error) {
+	root, err := msg.RootPtr()
+	return Runtime_goVersion_Params{root.Struct()}, err
+}
+
+func (s Runtime_goVersion_Params) String() string {
+	str, _ := text.Marshal(0xed1583a692140448, s.Struct)
+	return str
+}
+
+// Runtime_goVersion_Params_List is a list of Runtime_goVersion_Params.
+type Runtime_goVersion_Params_List struct{ capnp.List }
+
+// NewRuntime_goVersion_Params creates a new list of Runtime_goVersion_Params.
+func NewRuntime_goVersion_Params_List(s *capnp.Segment, sz int32) (Runtime_goVersion_Params_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
+	return Runtime_goVersion_Params_List{l}, err
+}
+
+func (s Runtime_goVersion_Params_List) At(i int) Runtime_goVersion_Params {
+	return Runtime_goVersion_Params{s.List.Struct(i)}
+}
+
+func (s Runtime_goVersion_Params_List) Set(i int, v Runtime_goVersion_Params) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s Runtime_goVersion_Params_List) String() string {
+	str, _ := text.MarshalList(0xed1583a692140448, s.List)
+	return str
+}
+
+// Runtime_goVersion_Params_Promise is a wrapper for a Runtime_goVersion_Params promised by a client call.
+type Runtime_goVersion_Params_Promise struct{ *capnp.Pipeline }
+
+func (p Runtime_goVersion_Params_Promise) Struct() (Runtime_goVersion_Params, error) {
+	s, err := p.Pipeline.Struct()
+	return Runtime_goVersion_Params{s}, err
+}
+
+type Runtime_goVersion_Results struct{ capnp.Struct }
+
+// Runtime_goVersion_Results_TypeID is the unique identifier for the type Runtime_goVersion_Results.
+const Runtime_goVersion_Results_TypeID = 0xe5a432109337fc5d
+
+func NewRuntime_goVersion_Results(s *capnp.Segment) (Runtime_goVersion_Results, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
+	return Runtime_goVersion_Results{st}, err
+}
+
+func NewRootRuntime_goVersion_Results(s *capnp.Segment) (Runtime_goVersion_Results, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
+	return Runtime_goVersion_Results{st}, err
+}
+
+func ReadRootRuntime_goVersion_Results(msg *capnp.Message) (Runtime_goVersion_Results, error) {
+	root, err := msg.RootPtr()
+	return Runtime_goVersion_Results{root.Struct()}, err
+}
+
+func (s Runtime_goVersion_Results) String() string {
+	str, _ := text.Marshal(0xe5a432109337fc5d, s.Struct)
+	return str
+}
+
+func (s Runtime_goVersion_Results) Version() (string, error) {
+	p, err := s.Struct.Ptr(0)
+	return p.Text(), err
+}
+
+func (s Runtime_goVersion_Results) HasVersion() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s Runtime_goVersion_Results) VersionBytes() ([]byte, error) {
+	p, err := s.Struct.Ptr(0)
+	return p.TextBytes(), err
+}
+
+func (s Runtime_goVersion_Results) SetVersion(v string) error {
+	return s.Struct.SetText(0, v)
+}
+
+// Runtime_goVersion_Results_List is a list of Runtime_goVersion_Results.
+type Runtime_goVersion_Results_List struct{ capnp.List }
+
+// NewRuntime_goVersion_Results creates a new list of Runtime_goVersion_Results.
+func NewRuntime_goVersion_Results_List(s *capnp.Segment, sz int32) (Runtime_goVersion_Results_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
+	return Runtime_goVersion_Results_List{l}, err
+}
+
+func (s Runtime_goVersion_Results_List) At(i int) Runtime_goVersion_Results {
+	return Runtime_goVersion_Results{s.List.Struct(i)}
+}
+
+func (s Runtime_goVersion_Results_List) Set(i int, v Runtime_goVersion_Results) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s Runtime_goVersion_Results_List) String() string {
+	str, _ := text.MarshalList(0xe5a432109337fc5d, s.List)
+	return str
+}
+
+// Runtime_goVersion_Results_Promise is a wrapper for a Runtime_goVersion_Results promised by a client call.
+type Runtime_goVersion_Results_Promise struct{ *capnp.Pipeline }
+
+func (p Runtime_goVersion_Results_Promise) Struct() (Runtime_goVersion_Results, error) {
+	s, err := p.Pipeline.Struct()
+	return Runtime_goVersion_Results{s}, err
+}
+
+type Runtime_numCPU_Params struct{ capnp.Struct }
+
+// Runtime_numCPU_Params_TypeID is the unique identifier for the type Runtime_numCPU_Params.
+const Runtime_numCPU_Params_TypeID = 0xad64659a5d76e80b
+
+func NewRuntime_numCPU_Params(s *capnp.Segment) (Runtime_numCPU_Params, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return Runtime_numCPU_Params{st}, err
+}
+
+func NewRootRuntime_numCPU_Params(s *capnp.Segment) (Runtime_numCPU_Params, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return Runtime_numCPU_Params{st}, err
+}
+
+func ReadRootRuntime_numCPU_Params(msg *capnp.Message) (Runtime_numCPU_Params, error) {
+	root, err := msg.RootPtr()
+	return Runtime_numCPU_Params{root.Struct()}, err
+}
+
+func (s Runtime_numCPU_Params) String() string {
+	str, _ := text.Marshal(0xad64659a5d76e80b, s.Struct)
+	return str
+}
+
+// Runtime_numCPU_Params_List is a list of Runtime_numCPU_Params.
+type Runtime_numCPU_Params_List struct{ capnp.List }
+
+// NewRuntime_numCPU_Params creates a new list of Runtime_numCPU_Params.
+func NewRuntime_numCPU_Params_List(s *capnp.Segment, sz int32) (Runtime_numCPU_Params_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
+	return Runtime_numCPU_Params_List{l}, err
+}
+
+func (s Runtime_numCPU_Params_List) At(i int) Runtime_numCPU_Params {
+	return Runtime_numCPU_Params{s.List.Struct(i)}
+}
+
+func (s Runtime_numCPU_Params_List) Set(i int, v Runtime_numCPU_Params) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s Runtime_numCPU_Params_List) String() string {
+	str, _ := text.MarshalList(0xad64659a5d76e80b, s.List)
+	return str
+}
+
+// Runtime_numCPU_Params_Promise is a wrapper for a Runtime_numCPU_Params promised by a client call.
+type Runtime_numCPU_Params_Promise struct{ *capnp.Pipeline }
+
+func (p Runtime_numCPU_Params_Promise) Struct() (Runtime_numCPU_Params, error) {
+	s, err := p.Pipeline.Struct()
+	return Runtime_numCPU_Params{s}, err
+}
+
+type Runtime_numCPU_Results struct{ capnp.Struct }
+
+// Runtime_numCPU_Results_TypeID is the unique identifier for the type Runtime_numCPU_Results.
+const Runtime_numCPU_Results_TypeID = 0xc3806a9410e187be
+
+func NewRuntime_numCPU_Results(s *capnp.Segment) (Runtime_numCPU_Results, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	return Runtime_numCPU_Results{st}, err
+}
+
+func NewRootRuntime_numCPU_Results(s *capnp.Segment) (Runtime_numCPU_Results, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	return Runtime_numCPU_Results{st}, err
+}
+
+func ReadRootRuntime_numCPU_Results(msg *capnp.Message) (Runtime_numCPU_Results, error) {
+	root, err := msg.RootPtr()
+	return Runtime_numCPU_Results{root.Struct()}, err
+}
+
+func (s Runtime_numCPU_Results) String() string {
+	str, _ := text.Marshal(0xc3806a9410e187be, s.Struct)
+	return str
+}
+
+func (s Runtime_numCPU_Results) Count() uint32 {
+	return s.Struct.Uint32(0)
+}
+
+func (s Runtime_numCPU_Results) SetCount(v uint32) {
+	s.Struct.SetUint32(0, v)
+}
+
+// Runtime_numCPU_Results_List is a list of Runtime_numCPU_Results.
+type Runtime_numCPU_Results_List struct{ capnp.List }
+
+// NewRuntime_numCPU_Results creates a new list of Runtime_numCPU_Results.
+func NewRuntime_numCPU_Results_List(s *capnp.Segment, sz int32) (Runtime_numCPU_Results_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
+	return Runtime_numCPU_Results_List{l}, err
+}
+
+func (s Runtime_numCPU_Results_List) At(i int) Runtime_numCPU_Results {
+	return Runtime_numCPU_Results{s.List.Struct(i)}
+}
+
+func (s Runtime_numCPU_Results_List) Set(i int, v Runtime_numCPU_Results) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s Runtime_numCPU_Results_List) String() string {
+	str, _ := text.MarshalList(0xc3806a9410e187be, s.List)
+	return str
+}
+
+// Runtime_numCPU_Results_Promise is a wrapper for a Runtime_numCPU_Results promised by a client call.
+type Runtime_numCPU_Results_Promise struct{ *capnp.Pipeline }
+
+func (p Runtime_numCPU_Results_Promise) Struct() (Runtime_numCPU_Results, error) {
+	s, err := p.Pipeline.Struct()
+	return Runtime_numCPU_Results{s}, err
+}
+
+type Runtime_numGoroutine_Params struct{ capnp.Struct }
+
+// Runtime_numGoroutine_Params_TypeID is the unique identifier for the type Runtime_numGoroutine_Params.
+const Runtime_numGoroutine_Params_TypeID = 0xfa6ca90efc9ff291
+
+func NewRuntime_numGoroutine_Params(s *capnp.Segment) (Runtime_numGoroutine_Params, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return Runtime_numGoroutine_Params{st}, err
+}
+
+func NewRootRuntime_numGoroutine_Params(s *capnp.Segment) (Runtime_numGoroutine_Params, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return Runtime_numGoroutine_Params{st}, err
+}
+
+func ReadRootRuntime_numGoroutine_Params(msg *capnp.Message) (Runtime_numGoroutine_Params, error) {
+	root, err := msg.RootPtr()
+	return Runtime_numGoroutine_Params{root.Struct()}, err
+}
+
+func (s Runtime_numGoroutine_Params) String() string {
+	str, _ := text.Marshal(0xfa6ca90efc9ff291, s.Struct)
+	return str
+}
+
+// Runtime_numGoroutine_Params_List is a list of Runtime_numGoroutine_Params.
+type Runtime_numGoroutine_Params_List struct{ capnp.List }
+
+// NewRuntime_numGoroutine_Params creates a new list of Runtime_numGoroutine_Params.
+func NewRuntime_numGoroutine_Params_List(s *capnp.Segment, sz int32) (Runtime_numGoroutine_Params_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
+	return Runtime_numGoroutine_Params_List{l}, err
+}
+
+func (s Runtime_numGoroutine_Params_List) At(i int) Runtime_numGoroutine_Params {
+	return Runtime_numGoroutine_Params{s.List.Struct(i)}
+}
+
+func (s Runtime_numGoroutine_Params_List) Set(i int, v Runtime_numGoroutine_Params) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s Runtime_numGoroutine_Params_List) String() string {
+	str, _ := text.MarshalList(0xfa6ca90efc9ff291, s.List)
+	return str
+}
+
+// Runtime_numGoroutine_Params_Promise is a wrapper for a Runtime_numGoroutine_Params promised by a client call.
+type Runtime_numGoroutine_Params_Promise struct{ *capnp.Pipeline }
+
+func (p Runtime_numGoroutine_Params_Promise) Struct() (Runtime_numGoroutine_Params, error) {
+	s, err := p.Pipeline.Struct()
+	return Runtime_numGoroutine_Params{s}, err
+}
+
+type Runtime_numGoroutine_Results struct{ capnp.Struct }
+
+// Runtime_numGoroutine_Results_TypeID is the unique identifier for the type Runtime_numGoroutine_Results.
+const Runtime_numGoroutine_Results_TypeID = 0xfcf6d1267c1553d3
+
+func NewRuntime_numGoroutine_Results(s *capnp.Segment) (Runtime_numGoroutine_Results, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	return Runtime_numGoroutine_Results{st}, err
+}
+
+func NewRootRuntime_numGoroutine_Results(s *capnp.Segment) (Runtime_numGoroutine_Results, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	return Runtime_numGoroutine_Results{st}, err
+}
+
+func ReadRootRuntime_numGoroutine_Results(msg *capnp.Message) (Runtime_numGoroutine_Results, error) {
+	root, err := msg.RootPtr()
+	return Runtime_numGoroutine_Results{root.Struct()}, err
+}
+
+func (s Runtime_numGoroutine_Results) String() string {
+	str, _ := text.Marshal(0xfcf6d1267c1553d3, s.Struct)
+	return str
+}
+
+func (s Runtime_numGoroutine_Results) Count() uint32 {
+	return s.Struct.Uint32(0)
+}
+
+func (s Runtime_numGoroutine_Results) SetCount(v uint32) {
+	s.Struct.SetUint32(0, v)
+}
+
+// Runtime_numGoroutine_Results_List is a list of Runtime_numGoroutine_Results.
+type Runtime_numGoroutine_Results_List struct{ capnp.List }
+
+// NewRuntime_numGoroutine_Results creates a new list of Runtime_numGoroutine_Results.
+func NewRuntime_numGoroutine_Results_List(s *capnp.Segment, sz int32) (Runtime_numGoroutine_Results_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
+	return Runtime_numGoroutine_Results_List{l}, err
+}
+
+func (s Runtime_numGoroutine_Results_List) At(i int) Runtime_numGoroutine_Results {
+	return Runtime_numGoroutine_Results{s.List.Struct(i)}
+}
+
+func (s Runtime_numGoroutine_Results_List) Set(i int, v Runtime_numGoroutine_Results) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s Runtime_numGoroutine_Results_List) String() string {
+	str, _ := text.MarshalList(0xfcf6d1267c1553d3, s.List)
+	return str
+}
+
+// Runtime_numGoroutine_Results_Promise is a wrapper for a Runtime_numGoroutine_Results promised by a client call.
+type Runtime_numGoroutine_Results_Promise struct{ *capnp.Pipeline }
+
+func (p Runtime_numGoroutine_Results_Promise) Struct() (Runtime_numGoroutine_Results, error) {
+	s, err := p.Pipeline.Struct()
+	return Runtime_numGoroutine_Results{s}, err
+}
+
+type Runtime_memStats_Params struct{ capnp.Struct }
+
+// Runtime_memStats_Params_TypeID is the unique identifier for the type Runtime_memStats_Params.
+const Runtime_memStats_Params_TypeID = 0xfa7d2ded965e55e3
+
+func NewRuntime_memStats_Params(s *capnp.Segment) (Runtime_memStats_Params, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return Runtime_memStats_Params{st}, err
+}
+
+func NewRootRuntime_memStats_Params(s *capnp.Segment) (Runtime_memStats_Params, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return Runtime_memStats_Params{st}, err
+}
+
+func ReadRootRuntime_memStats_Params(msg *capnp.Message) (Runtime_memStats_Params, error) {
+	root, err := msg.RootPtr()
+	return Runtime_memStats_Params{root.Struct()}, err
+}
+
+func (s Runtime_memStats_Params) String() string {
+	str, _ := text.Marshal(0xfa7d2ded965e55e3, s.Struct)
+	return str
+}
+
+// Runtime_memStats_Params_List is a list of Runtime_memStats_Params.
+type Runtime_memStats_Params_List struct{ capnp.List }
+
+// NewRuntime_memStats_Params creates a new list of Runtime_memStats_Params.
+func NewRuntime_memStats_Params_List(s *capnp.Segment, sz int32) (Runtime_memStats_Params_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
+	return Runtime_memStats_Params_List{l}, err
+}
+
+func (s Runtime_memStats_Params_List) At(i int) Runtime_memStats_Params {
+	return Runtime_memStats_Params{s.List.Struct(i)}
+}
+
+func (s Runtime_memStats_Params_List) Set(i int, v Runtime_memStats_Params) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s Runtime_memStats_Params_List) String() string {
+	str, _ := text.MarshalList(0xfa7d2ded965e55e3, s.List)
+	return str
+}
+
+// Runtime_memStats_Params_Promise is a wrapper for a Runtime_memStats_Params promised by a client call.
+type Runtime_memStats_Params_Promise struct{ *capnp.Pipeline }
+
+func (p Runtime_memStats_Params_Promise) Struct() (Runtime_memStats_Params, error) {
+	s, err := p.Pipeline.Struct()
+	return Runtime_memStats_Params{s}, err
+}
+
+type Runtime_memStats_Results struct{ capnp.Struct }
+
+// Runtime_memStats_Results_TypeID is the unique identifier for the type Runtime_memStats_Results.
+const Runtime_memStats_Results_TypeID = 0xc8c60b05d115f411
+
+func NewRuntime_memStats_Results(s *capnp.Segment) (Runtime_memStats_Results, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
+	return Runtime_memStats_Results{st}, err
+}
+
+func NewRootRuntime_memStats_Results(s *capnp.Segment) (Runtime_memStats_Results, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
+	return Runtime_memStats_Results{st}, err
+}
+
+func ReadRootRuntime_memStats_Results(msg *capnp.Message) (Runtime_memStats_Results, error) {
+	root, err := msg.RootPtr()
+	return Runtime_memStats_Results{root.Struct()}, err
+}
+
+func (s Runtime_memStats_Results) String() string {
+	str, _ := text.Marshal(0xc8c60b05d115f411, s.Struct)
+	return str
+}
+
+func (s Runtime_memStats_Results) Stats() (MemStats, error) {
+	p, err := s.Struct.Ptr(0)
+	return MemStats{Struct: p.Struct()}, err
+}
+
+func (s Runtime_memStats_Results) HasStats() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s Runtime_memStats_Results) SetStats(v MemStats) error {
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+}
+
+// NewStats sets the stats field to a newly
+// allocated MemStats struct, preferring placement in s's segment.
+func (s Runtime_memStats_Results) NewStats() (MemStats, error) {
+	ss, err := NewMemStats(s.Struct.Segment())
+	if err != nil {
+		return MemStats{}, err
+	}
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	return ss, err
+}
+
+// Runtime_memStats_Results_List is a list of Runtime_memStats_Results.
+type Runtime_memStats_Results_List struct{ capnp.List }
+
+// NewRuntime_memStats_Results creates a new list of Runtime_memStats_Results.
+func NewRuntime_memStats_Results_List(s *capnp.Segment, sz int32) (Runtime_memStats_Results_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
+	return Runtime_memStats_Results_List{l}, err
+}
+
+func (s Runtime_memStats_Results_List) At(i int) Runtime_memStats_Results {
+	return Runtime_memStats_Results{s.List.Struct(i)}
+}
+
+func (s Runtime_memStats_Results_List) Set(i int, v Runtime_memStats_Results) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s Runtime_memStats_Results_List) String() string {
+	str, _ := text.MarshalList(0xc8c60b05d115f411, s.List)
+	return str
+}
+
+// Runtime_memStats_Results_Promise is a wrapper for a Runtime_memStats_Results promised by a client call.
+type Runtime_memStats_Results_Promise struct{ *capnp.Pipeline }
+
+func (p Runtime_memStats_Results_Promise) Struct() (Runtime_memStats_Results, error) {
+	s, err := p.Pipeline.Struct()
+	return Runtime_memStats_Results{s}, err
+}
+
+func (p Runtime_memStats_Results_Promise) Stats() MemStats_Promise {
+	return MemStats_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+}
+
+type MemStats struct{ capnp.Struct }
+
+// MemStats_TypeID is the unique identifier for the type MemStats.
+const MemStats_TypeID = 0xcdf011e3e3860026
+
+func NewMemStats(s *capnp.Segment) (MemStats, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 208, PointerCount: 3})
+	return MemStats{st}, err
+}
+
+func NewRootMemStats(s *capnp.Segment) (MemStats, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 208, PointerCount: 3})
+	return MemStats{st}, err
+}
+
+func ReadRootMemStats(msg *capnp.Message) (MemStats, error) {
+	root, err := msg.RootPtr()
+	return MemStats{root.Struct()}, err
+}
+
+func (s MemStats) String() string {
+	str, _ := text.Marshal(0xcdf011e3e3860026, s.Struct)
+	return str
+}
+
+func (s MemStats) Alloc() uint64 {
+	return s.Struct.Uint64(0)
+}
+
+func (s MemStats) SetAlloc(v uint64) {
+	s.Struct.SetUint64(0, v)
+}
+
+func (s MemStats) TotalAlloc() uint64 {
+	return s.Struct.Uint64(8)
+}
+
+func (s MemStats) SetTotalAlloc(v uint64) {
+	s.Struct.SetUint64(8, v)
+}
+
+func (s MemStats) Sys() uint64 {
+	return s.Struct.Uint64(16)
+}
+
+func (s MemStats) SetSys(v uint64) {
+	s.Struct.SetUint64(16, v)
+}
+
+func (s MemStats) Lookups() uint64 {
+	return s.Struct.Uint64(24)
+}
+
+func (s MemStats) SetLookups(v uint64) {
+	s.Struct.SetUint64(24, v)
+}
+
+func (s MemStats) Mallocs() uint64 {
+	return s.Struct.Uint64(32)
+}
+
+func (s MemStats) SetMallocs(v uint64) {
+	s.Struct.SetUint64(32, v)
+}
+
+func (s MemStats) Frees() uint64 {
+	return s.Struct.Uint64(40)
+}
+
+func (s MemStats) SetFrees(v uint64) {
+	s.Struct.SetUint64(40, v)
+}
+
+func (s MemStats) HeapAlloc() uint64 {
+	return s.Struct.Uint64(48)
+}
+
+func (s MemStats) SetHeapAlloc(v uint64) {
+	s.Struct.SetUint64(48, v)
+}
+
+func (s MemStats) HeapSys() uint64 {
+	return s.Struct.Uint64(56)
+}
+
+func (s MemStats) SetHeapSys(v uint64) {
+	s.Struct.SetUint64(56, v)
+}
+
+func (s MemStats) HeapIdle() uint64 {
+	return s.Struct.Uint64(64)
+}
+
+func (s MemStats) SetHeapIdle(v uint64) {
+	s.Struct.SetUint64(64, v)
+}
+
+func (s MemStats) HeapInUse() uint64 {
+	return s.Struct.Uint64(72)
+}
+
+func (s MemStats) SetHeapInUse(v uint64) {
+	s.Struct.SetUint64(72, v)
+}
+
+func (s MemStats) HeapReleased() uint64 {
+	return s.Struct.Uint64(80)
+}
+
+func (s MemStats) SetHeapReleased(v uint64) {
+	s.Struct.SetUint64(80, v)
+}
+
+func (s MemStats) HeapObjects() uint64 {
+	return s.Struct.Uint64(88)
+}
+
+func (s MemStats) SetHeapObjects(v uint64) {
+	s.Struct.SetUint64(88, v)
+}
+
+func (s MemStats) StackInUse() uint64 {
+	return s.Struct.Uint64(96)
+}
+
+func (s MemStats) SetStackInUse(v uint64) {
+	s.Struct.SetUint64(96, v)
+}
+
+func (s MemStats) StackSys() uint64 {
+	return s.Struct.Uint64(104)
+}
+
+func (s MemStats) SetStackSys(v uint64) {
+	s.Struct.SetUint64(104, v)
+}
+
+func (s MemStats) MSpanInUse() uint64 {
+	return s.Struct.Uint64(112)
+}
+
+func (s MemStats) SetMSpanInUse(v uint64) {
+	s.Struct.SetUint64(112, v)
+}
+
+func (s MemStats) MSpanSys() uint64 {
+	return s.Struct.Uint64(120)
+}
+
+func (s MemStats) SetMSpanSys(v uint64) {
+	s.Struct.SetUint64(120, v)
+}
+
+func (s MemStats) MCacheInUse() uint64 {
+	return s.Struct.Uint64(128)
+}
+
+func (s MemStats) SetMCacheInUse(v uint64) {
+	s.Struct.SetUint64(128, v)
+}
+
+func (s MemStats) MCacheSys() uint64 {
+	return s.Struct.Uint64(136)
+}
+
+func (s MemStats) SetMCacheSys(v uint64) {
+	s.Struct.SetUint64(136, v)
+}
+
+func (s MemStats) BuckHashSys() uint64 {
+	return s.Struct.Uint64(144)
+}
+
+func (s MemStats) SetBuckHashSys(v uint64) {
+	s.Struct.SetUint64(144, v)
+}
+
+func (s MemStats) GCSys() uint64 {
+	return s.Struct.Uint64(152)
+}
+
+func (s MemStats) SetGCSys(v uint64) {
+	s.Struct.SetUint64(152, v)
+}
+
+func (s MemStats) OtherSys() uint64 {
+	return s.Struct.Uint64(160)
+}
+
+func (s MemStats) SetOtherSys(v uint64) {
+	s.Struct.SetUint64(160, v)
+}
+
+func (s MemStats) NextGC() uint64 {
+	return s.Struct.Uint64(168)
+}
+
+func (s MemStats) SetNextGC(v uint64) {
+	s.Struct.SetUint64(168, v)
+}
+
+func (s MemStats) LastGC() uint64 {
+	return s.Struct.Uint64(176)
+}
+
+func (s MemStats) SetLastGC(v uint64) {
+	s.Struct.SetUint64(176, v)
+}
+
+func (s MemStats) PauseTotalNs() uint64 {
+	return s.Struct.Uint64(184)
+}
+
+func (s MemStats) SetPauseTotalNs(v uint64) {
+	s.Struct.SetUint64(184, v)
+}
+
+func (s MemStats) PauseNs() (capnp.UInt64List, error) {
+	p, err := s.Struct.Ptr(0)
+	return capnp.UInt64List{List: p.List()}, err
+}
+
+func (s MemStats) HasPauseNs() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s MemStats) SetPauseNs(v capnp.UInt64List) error {
+	return s.Struct.SetPtr(0, v.List.ToPtr())
+}
+
+// NewPauseNs sets the pauseNs field to a newly
+// allocated capnp.UInt64List, preferring placement in s's segment.
+func (s MemStats) NewPauseNs(n int32) (capnp.UInt64List, error) {
+	l, err := capnp.NewUInt64List(s.Struct.Segment(), n)
+	if err != nil {
+		return capnp.UInt64List{}, err
+	}
+	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	return l, err
+}
+
+func (s MemStats) PauseEnd() (capnp.UInt64List, error) {
+	p, err := s.Struct.Ptr(1)
+	return capnp.UInt64List{List: p.List()}, err
+}
+
+func (s MemStats) HasPauseEnd() bool {
+	p, err := s.Struct.Ptr(1)
+	return p.IsValid() || err != nil
+}
+
+func (s MemStats) SetPauseEnd(v capnp.UInt64List) error {
+	return s.Struct.SetPtr(1, v.List.ToPtr())
+}
+
+// NewPauseEnd sets the pauseEnd field to a newly
+// allocated capnp.UInt64List, preferring placement in s's segment.
+func (s MemStats) NewPauseEnd(n int32) (capnp.UInt64List, error) {
+	l, err := capnp.NewUInt64List(s.Struct.Segment(), n)
+	if err != nil {
+		return capnp.UInt64List{}, err
+	}
+	err = s.Struct.SetPtr(1, l.List.ToPtr())
+	return l, err
+}
+
+func (s MemStats) NumGC() uint32 {
+	return s.Struct.Uint32(192)
+}
+
+func (s MemStats) SetNumGC(v uint32) {
+	s.Struct.SetUint32(192, v)
+}
+
+func (s MemStats) NumForcedGC() uint32 {
+	return s.Struct.Uint32(196)
+}
+
+func (s MemStats) SetNumForcedGC(v uint32) {
+	s.Struct.SetUint32(196, v)
+}
+
+func (s MemStats) GCCPUFraction() float64 {
+	return math.Float64frombits(s.Struct.Uint64(200))
+}
+
+func (s MemStats) SetGCCPUFraction(v float64) {
+	s.Struct.SetUint64(200, math.Float64bits(v))
+}
+
+func (s MemStats) BySize() (MemStats_BySize_List, error) {
+	p, err := s.Struct.Ptr(2)
+	return MemStats_BySize_List{List: p.List()}, err
+}
+
+func (s MemStats) HasBySize() bool {
+	p, err := s.Struct.Ptr(2)
+	return p.IsValid() || err != nil
+}
+
+func (s MemStats) SetBySize(v MemStats_BySize_List) error {
+	return s.Struct.SetPtr(2, v.List.ToPtr())
+}
+
+// NewBySize sets the bySize field to a newly
+// allocated MemStats_BySize_List, preferring placement in s's segment.
+func (s MemStats) NewBySize(n int32) (MemStats_BySize_List, error) {
+	l, err := NewMemStats_BySize_List(s.Struct.Segment(), n)
+	if err != nil {
+		return MemStats_BySize_List{}, err
+	}
+	err = s.Struct.SetPtr(2, l.List.ToPtr())
+	return l, err
+}
+
+// MemStats_List is a list of MemStats.
+type MemStats_List struct{ capnp.List }
+
+// NewMemStats creates a new list of MemStats.
+func NewMemStats_List(s *capnp.Segment, sz int32) (MemStats_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 208, PointerCount: 3}, sz)
+	return MemStats_List{l}, err
+}
+
+func (s MemStats_List) At(i int) MemStats { return MemStats{s.List.Struct(i)} }
+
+func (s MemStats_List) Set(i int, v MemStats) error { return s.List.SetStruct(i, v.Struct) }
+
+func (s MemStats_List) String() string {
+	str, _ := text.MarshalList(0xcdf011e3e3860026, s.List)
+	return str
+}
+
+// MemStats_Promise is a wrapper for a MemStats promised by a client call.
+type MemStats_Promise struct{ *capnp.Pipeline }
+
+func (p MemStats_Promise) Struct() (MemStats, error) {
+	s, err := p.Pipeline.Struct()
+	return MemStats{s}, err
+}
+
+type MemStats_BySize struct{ capnp.Struct }
+
+// MemStats_BySize_TypeID is the unique identifier for the type MemStats_BySize.
+const MemStats_BySize_TypeID = 0xc3e472677f9be8ad
+
+func NewMemStats_BySize(s *capnp.Segment) (MemStats_BySize, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 24, PointerCount: 0})
+	return MemStats_BySize{st}, err
+}
+
+func NewRootMemStats_BySize(s *capnp.Segment) (MemStats_BySize, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 24, PointerCount: 0})
+	return MemStats_BySize{st}, err
+}
+
+func ReadRootMemStats_BySize(msg *capnp.Message) (MemStats_BySize, error) {
+	root, err := msg.RootPtr()
+	return MemStats_BySize{root.Struct()}, err
+}
+
+func (s MemStats_BySize) String() string {
+	str, _ := text.Marshal(0xc3e472677f9be8ad, s.Struct)
+	return str
+}
+
+func (s MemStats_BySize) Size() uint32 {
+	return s.Struct.Uint32(0)
+}
+
+func (s MemStats_BySize) SetSize(v uint32) {
+	s.Struct.SetUint32(0, v)
+}
+
+func (s MemStats_BySize) Mallocs() uint64 {
+	return s.Struct.Uint64(8)
+}
+
+func (s MemStats_BySize) SetMallocs(v uint64) {
+	s.Struct.SetUint64(8, v)
+}
+
+func (s MemStats_BySize) Frees() uint64 {
+	return s.Struct.Uint64(16)
+}
+
+func (s MemStats_BySize) SetFrees(v uint64) {
+	s.Struct.SetUint64(16, v)
+}
+
+// MemStats_BySize_List is a list of MemStats_BySize.
+type MemStats_BySize_List struct{ capnp.List }
+
+// NewMemStats_BySize creates a new list of MemStats_BySize.
+func NewMemStats_BySize_List(s *capnp.Segment, sz int32) (MemStats_BySize_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 24, PointerCount: 0}, sz)
+	return MemStats_BySize_List{l}, err
+}
+
+func (s MemStats_BySize_List) At(i int) MemStats_BySize { return MemStats_BySize{s.List.Struct(i)} }
+
+func (s MemStats_BySize_List) Set(i int, v MemStats_BySize) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s MemStats_BySize_List) String() string {
+	str, _ := text.MarshalList(0xc3e472677f9be8ad, s.List)
+	return str
+}
+
+// MemStats_BySize_Promise is a wrapper for a MemStats_BySize promised by a client call.
+type MemStats_BySize_Promise struct{ *capnp.Pipeline }
+
+func (p MemStats_BySize_Promise) Struct() (MemStats_BySize, error) {
+	s, err := p.Pipeline.Struct()
+	return MemStats_BySize{s}, err
+}
+
+const schema_db8274f9144abc7e = "x\xda\x9cX{\x90\x14\xe5\xb5?\xa7\x1f\xd3\xc3\xb2\xbb" +
+	"\xb3\xbd_/\xc8\x82w\x06\x0a-\xa0\x04a\xf7ZW" +
+	"\xa9k\xed\xb2\\d\x97\x02\xd9\xd9f\xef\x15\xbcX\xb7" +
+	"w\xe6cw`^t\xf7 \xc3\xd5\xbb\xe0\xc5\xa4L" +
+	"\xa0P\x1e\x12\xd0DM\x89\xd1\x94&\xc6H*$\xe0" +
+	"3X\x12\xc5\x14\x86\xa8\x18)!H\x05\x0d\xa6\xc4h" +
+	"\x12\x08\xd8\xa9\xd33=\xd3;;\x0b\xa9\xfc\xb5;\xe7" +
+	"\xfc\xbe\xf3\xfe\xbe>\xe7\xcc\xbcQi\x17f\xc9\x83!" +
+	"\x80\xe8\xf3r\xe0\xd2\xea\xff\xda3~\xefG\x1b\xd5z" +
+	"\x04\x90\x14\x00\xb6G\xf9\x1c$\xe7\xdd\xb3\x81\xc3\xdam" +
+	"\xe7\xb6@\x99q\x9fr\x01$\xe7l\xdd\x81\x83\xf2\xc6" +
+	"\xbfn\x81h=\x169\xad)E@@\xb6Zi\x03" +
+	"t^\x1a\xb3y\xf3\x9do|\xf8\x00\xa8\x8d\xde\xc9\x1d" +
+	"\xee\xc9G\xb2\x7f[\xb4\xfd\x17\xf7n\x85hc\xe9d" +
+	"^i\xa6\x93\x1b\xdc\x93\xd6O\xe6lN\xfe\xe9\xf1\xad" +
+	"~\xd1\x8f\x15D\xefq\x01\x93\xcc\xef=ybg\xcb" +
+	"6\x9fQ\x87\x94O@r\xb6\x87&\xe5\x0e\xf0%\x0f" +
+	"\xfat>\xa3\xfc\x0e\xa4\x0f\x1b\x17F^\xab\x91\xf6\x94" +
+	"\x05\xb2\x07\x94O\x00\xd9\x0eW\xde{\x1f,\xfc\xe0\xf1" +
+	"s\x99=>y{\x95W@r\xee\xdd\xf9\xf4\xb4\x09" +
+	"/\xef{\xa2,\xafu\x87\xd2\x88 \xfd%\x91u:" +
+	"\xff\xa5\xf1\xa9\xf2\x81\xbb\xddp\xc9/\x1e~\xe5bX" +
+	"\x7f\xda'\xc9P\xde\x07\xc9\x19}f\xcd\xf2\xdd<\xfe" +
+	"\x8cO\xd2<rIr^\xbc\xe1\x8d\xaf^\xbdf\xe0" +
+	"\x07>o\xd9T\xe5\x02 \x9b\xee\x1a\xf7\xaf\xdb\xb4\xb3" +
+	"\x13\xe6\xdc\xfe\x1c\xa85\xa2\xf3\x7f\xfb\x17h\xe7\xed{" +
+	"~\x0b\x80l\x91\xb2\x95\xf5*$)\xaa(\xc8\xbe\xa4" +
+	"\x7f\x9d\xe5\xd3\xaf_\xb6s\xbc\xb8\xb7`\x80\x8c$\xed" +
+	"\xb8+\xed\xa4+\xed\x9a\xdag\xefy\xf6\xda%\xfb\xca" +
+	"\x06\xb6\xca\xc1\x0e\xb2#\xbf\x7f\xdd\x82Yo=\xf1\x82" +
+	"\xcf\xf4O\xdd|\xbd\xf0\xf5\x93\x0d\xdbW\xae\x7f\xd5\x9f" +
+	"\xaf#J\x0d\xa5\xe3\x98+\xf3\x993\x0f\x0d\xf6\x9b\x1f" +
+	"\xbd\x0aQ\x86\xe2\xa5k\xbfv\xea\x94\xfa\xd9aW\xc0" +
+	"y\xe5m&\x07\xe9?\x0c\xfe\x10\xd0Q\xbfh:\"" +
+	"\x8f~\xed\xf5B\x14\\\xebZw\x05\xdd\xd4?\x16$" +
+	"Q\xd2\xc7\xab\xb7\x98'\x8f\xbf\xe9\xd3\xc5^\x0eR\xa6" +
+	"\x0e\x12\xdf\x13\x1e\xad\xc1\xe6r,d\x91`\x1f\x07w" +
+	"\xb3s\xc1\xb1\x00\xad\xe7\x83;\x03\x80\xce\x1fw\xaf\xdb" +
+	"\xf9\xe4\xb4\xf5o\x81Z#\x0c\x09\xdct\xb6\x9b\xdd\xc0" +
+	"\xe8\xcc,\xd6\x0f\xe8\xbc\xf6\xbfK.L\x99\xba\xf4m" +
+	"\x7f\x06z\xd9/\x01\xd9RFFu\x8d\xb9\xfe;\xaf" +
+	"o\xb0\x8e\xfa\"\x93go\x83\xe4\x04\xb7|\xd5>\xf1" +
+	"\xc4w\x8f\x0fK\xcdr\xb6\x95q\xd2\xd0j0\x05Y" +
+	"\x9dF\xa9\xf9yS\xfb\xcd\xb5]gO\xf9\x8a\xf3K" +
+	"FE3\xe1\xba\xa5\x03\xb7\x1f\xeb8\xed\x0f\xf01\xe6" +
+	"\xd6\xfbq\xd7\x80\xe5\x17\xffm[C\xcb\xe3\xa7\xfda" +
+	"\xbb\xc4&\x11@\xd6\x08\xf0\xca\x8e\xc5\xef\xde\x95\x1f\xf8" +
+	"\x83/\xeb\xad\xd7h\x0b\x080\xcb\x05tJ\xda\xd6'" +
+	"\xfe\xbf\xe9S_\xf9q\xad\x99\xd2\xbeK\xfd\xf1\xc6\x13" +
+	"\xbf\xef\xf9lxyi&\x8b\x92\xe1\xad\x8b\xb4\xf9\x02" +
+	";\xdcD>L\xfab\xe2\xd13\x1f=\xf4\x99\xbf\xbc" +
+	"\xf66}\x0e\xc8\xf65\x91\x9e\x99\xa7\xbf\xdc\xf3Nc" +
+	"\xefy\x9f\x8f\xc7\x9a\xa8\x88\xea\xf2\xa9o6\xfcj\xce" +
+	"\x05\xff\xc1\x03\xee\xc1\x97\xdd\x83\x0f|\xfe\xc8\xc5\xfa\xa7" +
+	"\x92\x17|\x06\x9elj!\x03O\xf5\xde\xf1\xe0\xa7\xd3" +
+	"\xef\xf6s\x0e5\xd1\x1dt~\xad7\xddu\xed\x91?" +
+	"_\xf4\xc7\xedGM\xb3\xb1h\xcd\x8d\x8e\x91\xcd\xce\x88" +
+	"\x19\xd9\xb4\x90\x9d='\x9b\x9d\x91H[\xb6\x91\x8e\xf1" +
+	"\xc9\xdda\xc34RV%\xdf\xb2\x0d\xd3\xe6\xf1\xc5\xe9" +
+	"\xc9m\xddC\x01b%\xa0\x87[\xb9\xa4mAT\x12" +
+	"%\x00\x09\x01\xd4\xba\x1e\x80h\xad\x88\xd1\xab\x04t<" +
+	"$`\x1ae\x10P\x06\xf4k\xd3\xb9\xb9&\x11\xe33" +
+	"\x8cdb\x0d\xaf\xa6\xcd\x03$3\xfd\x0b\xf9\x1a\x9e," +
+	"(\x14m\xcb\xaf\xb0\x05 \x1a\x141\xaa\x09\x18N\x12" +
+	"\x0aC\xe5\xa2\x07\xc4\x90Oi\xd1\x03\x93'\xb9a\xf1" +
+	"\xae\xf8\x15=\xf0\x90\x80q\x1c\x05\x02\x8e\x1a\xea\x81+" +
+	",\x97\xb6\x13)>\xb9\xdb\x08U\x86\xd3\xb3?\x11\x9f" +
+	"\xdcm\x98J\xb5`\x17\x10\xdea\xbf\x19\xcde\xbf\xc4" +
+	"\xc4p\xed\x81b6]\xd1F\xca\x02\x8fQ%l." +
+	"\x02\x87)/\xf3\xabW\xc2\xaaD\xb2\x1cr\xbf\xe2\x9e" +
+	"\x82\xcb3\xd2\xb9\xd4\xdc\xee\xde\xe1\x06\x0c\x11\xde\xd3V" +
+	"\x88\xf1?\x9b3\xf4\x1cB\xde\x8d\x18m\x10e\x80\xd2" +
+	"'\x0e\xbd\xa7R]\xdd\x0c\x82\xca\x15\xc4\xd2\xe7\x0a\xbd" +
+	"O\xac\xbat\x01\x08jTA\xa1\xf49F\xef\xb5Q" +
+	"\xe7\xb5\x80\xa0\xde\xa4\xa0Xz\x99\xd0\xbb\xbe\xea\xf4i" +
+	" \xa8\x13\x151\x11oG\xc7s\x08\x00\xda1\xec\xd6" +
+	"l;\x86(F\xed\xd8\x8d8\xe25\xab\xe6\xff2_" +
+	"\x89y@\x10\xbb\xe2X\x0b\x02\xd6\xfa\x9cW\xbc\x82\xed" +
+	"OX67y\xbc\x98[\xabz\xd0\xcb\x85]\xe56" +
+	"Ud\xcd+}\x18)1\xb1L.mc\x10\x04\x0c" +
+	"\x0e\xad\xfaE<\xa5\xdb\x86m\xcd\xe8\xc8\xeb\x89u\x85" +
+	"\xb4\xd4\x96d\xcc\x9b\x06\x10m\x171\xbaP@\x15Q" +
+	"\xa3GI\xed\xea\x00\x88\xfe\x87\x88\xd1n\x01UA\xd0" +
+	"P\x00P\x17\x91\xb6N\x11\xa3K\x04\x0cY\x89u\xdc" +
+	"S6\x982\x92\xc9L\xcc\xf2\x8a>\xbc\xc2\xe4\xdc\x1a" +
+	"v\x05|>\xa5\x8a&]\xf1\x85\xb0\x08\x85\x0d\xde'" +
+	"\x14\x10\x1b\xaa?J\x09\xf7q\x08Ufn\xc8\xf3V" +
+	"\x80V}\x1c\xd0\x0b\x93k\x0b\xfa\xda\x03\x15g\xb7\xb9" +
+	"\x81\xe3\xd1\xb5\x9e\\v\x93\xd8\xc2n\x12\xc3zR\x14" +
+	"Q_+\x96#\xc7r\xe22\x96\x17\xc3\xfa\xf3\xc4y" +
+	"I,\x87\x8f\x1d\x10'\xb1\x03bX\xffB\x14\xb1G" +
+	"\x12P\x15E\x0dE\x00vI\xec`\x97\xc4\xb0\xfe\xef" +
+	"\x92\x88z'q$IC\x09\x80\xcd\x93:\xd8<)" +
+	"\xac\xaf'\xce&\xe2\xc8\xb2\x862\xb5\xb3R\x0b\xbbO" +
+	"\x0a\xeb/\x11\xe7M\xe2\x04\x02\x1a\x06\xa8\xa7\x94z\xd8" +
+	"a)\xdc#\x8b\xa8\xd7\xca\x02\xaa\x8a\xa2\xb9\x1f\xaeQ" +
+	"r\x07\x1b%\x87\xf5v\xe2,$N0\xa8a\x10\x80" +
+	"u\xc9\x0b\xd8\"9\xac\xaf'\xce&\xe2\x8c\x1a\xa5\xe1" +
+	"(R#\xf7\xb0\xcdrX\xdfO\x9c\xd7\x89SS\xa3" +
+	"a\x0d\x00;(\xafd\x87\xe4\xb0.\x05D\xd4\x1b\x02" +
+	"\x02\xaa\xa3Gk8\x1a\x80\xd5\x05\xfa\x98\x1a\x08\xeb\x9d" +
+	"\xc4YB\x9c\xdaZ\x0dk\x01X4\xb0\x0c@\xef&" +
+	"\xfa\x7f\x13\xbd\xaeN\xc3:\x00\xb64\xb0\x00@\xbf\x8d" +
+	"\xe8q\xa2\xd7\xd7kXOM\xa8\x8b\xff\x1f\xa2'\x89" +
+	"\x1e\x0ai\x18\x02`\x09\x17?@t\x9b\xe8\x0d\x0d\x1a" +
+	"6\x00\xb0\xd5\x81>\x00=K\xf4\xbb\x88\xae\xaa\x1a\xaa" +
+	"\xd4\xf7\x04z\x00\xf4\xb5D\xdfH\xf4\xc6F\x0d\x1b\x01" +
+	"\xd8\x06\x17\xbf\x9e\xe8\x9b\x88\xce\x98\x86\x8c\xbc\x0e\xb4\x00" +
+	"\xe8\x1b\x89~?\xd15MC\x0d\x80mv\xf5n\"" +
+	"\xfa\xb7\x88\xde\xd4\xa4a\x13M\x08\x81\xd9\x00\xfa\xfdD" +
+	"\x7f\x98\xe8c\xc6h8\x06\x80\xedr\xe9\xdb\x89\xfe(" +
+	"\xd1\xc7\x8e\xd5p,\x00\xfbv`%\x80\xfe0\xd1\x9f" +
+	"\x0c\x08\x88Wix\x15\xcd.\x81\x0e\x00\xfdQ\"\xef" +
+	"'\xf88\xd4p\x1c\x00\xdb\xe7\xaa\xfd)\xd1\x8f\x12\xbd" +
+	"y\xa6\x86\xcd\x00\xec\x88k\xe6\x9bD\x7f\x8f\xe8\xe3g" +
+	"i8\x1e\x80\xfd\xc6u\xeb(\xd1O\x10}\xc28\x0d" +
+	"'PG\x1d0\x01\xf4\x0f\x88~\x86\xe8W\x0b\x1a^" +
+	"\x0d\xc0N\xbbf\x9e \xfa\xc5\x80@oe2\x13\x8b" +
+	"J(8wl{$z\xe0\x9do\x1c\x84\xa8$\xe0" +
+	"\x9c\xc9HY\x9c\x85\x0b\xd0\x99C\x90H\xc2\x92\"}" +
+	"y\x9b[\x91\xcc\x8a\x88{\xca\xb0y<2\xc0\x8dl" +
+	"$\xd3\xb7\x92\xc7l\x0b\xb0t\xd5\xec\x8cm$\xe7$" +
+	"\x93 V\x95~]Q\xfa\xfb\xe8,)\"\x03\xae\x8e" +
+	"H,\x97\xca%\x0d;\xb1\x86\x17\xb5\x95U\xad\xc8\x98" +
+	"~u\xa25\x03\xc0S\xa8Xy\xab\x8a\x9e)E=" +
+	"?CG\xcf[$\xdf\x96\x07x\xc4\xb5\xae\xecM\x8a" +
+	"\xa72f>\x92\xe9\xb3\x8dD\x9a\x14\x99\x99T\xc4n" +
+	"\x1b\xe0\x91\xc5\xbaO\xc7`2\x93Y\x95\xcbV\xd33" +
+	"\xb3\xa8\xa7Qp\x16\x16@\x11\x85\x94\x0d\xf0H:\x97" +
+	"\xea\xe3&\xa9\xc9f\x12i\x9b\x9b\x91\xa2\x98H\x96\x9b" +
+	"+2f\x8a\xc7#}y\x17Z\xe8V\x90\xfbT\x16" +
+	"\x1f\xdb\xcb\x87pQ\x01\x14\x09\x14U\xfab\xe8~'" +
+	"H\xb9?O\xa5\x98\x8aq\x9f{\x85\x87\xfc2A\xfc" +
+	">:\xb7\x10$\x92\xb0\xe4\x7fL\xcf\x0a3\xc4\xb9_" +
+	"\x87Cl\xaa'\xc0\xcb\x15\xddJt:\x8b@\xc9\xad" +
+	"\x8a\xcb\x14^\xc8\xad\xbcr\xc4\x88\xae_\xb6\x18\x9e+" +
+	"H\xa7\x82\x90\xfd\xb2]\x89\xd5ka \\Q\x0b\xae" +
+	"#]\xf1$\x07\xfaF\x8f\xe8HOA\x15\x01\xa5\xb2" +
+	"\x1f\x89t$\x11O\xf2\xc8\x94\\:g\xf1\xf8\xd4\x88" +
+	"\x955\xd2\x16\x0e\x13\x9f\xee\xb5\x00y\x15\xf1\x91\xa2\xf8" +
+	"IE\xf1\xe9\x9c%\xf2\xa1\xf2\xd3\xd3s\x16'\xc1J" +
+	"\xda\xaa\x14\xdc\xc3\x93\x1cB\x86\xc5\xe3\x97\xa9\xabO\x0a" +
+	"\xb2\x09\x1b \xe8\x904d\x07\xf2V\"f$\xbdp" +
+	"\x99\xdc\xce\x99\x14.;C\x95\x11\xaa\x12\xac\xc5}+" +
+	"9(1\xfb\x0a\x15\xd6Y\x84\xcaT?\xc3\xaeP\x95" +
+	"w'\x14\xb3\x878h\xd9FlUW\xba\x17D\x8b" +
+	"\x0f%\xeay\x0b|\xc0\x94\x9e5\xd2\x95@\x97X\x09" +
+	"\x9ck\xc4\x06xW\x1a\x94^?\xd2\xa5\xeay\xc0r" +
+	"\xf3\xd3\x97\x8b\xad\xea4\xac\x01P\xf4|\xb9A\xea\x9f" +
+	"\xeb\xfb\xe5d\xec\x01n\x0e\xd5\xd0\x96\xe6k\xed\xf9s" +
+	"K?\x93\x86\xe5\xfb\xe9d\x8d\x9c\xc5\x97dl\x08\x19" +
+	"\xc9[K\x82\x06]\xf2\xad\x16\xd6\x03v\x8b\x85\x97\xb7" +
+	"\xdeC\xcfK\xc7I\xfePV8\x9dK\xcd\x9f[j" +
+	"\x1a\xd3\xb9\xd4-\x193\xc6A\x89\xfb\xa8\xfds\xe7v" +
+	"\xf7\xdeb\x1a\x10\x8e\xd9\x89L\x1aG\x83\x80\xa3\x01\xdb" +
+	"\xfa\xdc\xae\xc8\x93\xd8Pn\x99\x00]\xb5\xbe\xdej\xa1" +
+	"\xdb\x8c\x8b<\xe9\x8e\x04n79\xb5\x85p\xea\xc4i" +
+	"\x00(\xa8\xe3\xe8\x8f\xa8\xaa-\x00\xe18\xef\xcb\xf5\x87" +
+	"\x12\xe9\x15\x99\xd0\x9d\x86\x99\x0es\xd3\xcc\x98\xc3\xfa\xf5" +
+	"\xf8\x95;b#\x9b\xed\x1aq\x0et\xa7\xa5\xcaI\x0b" +
+	"\xbd\x16\xd5?\xbcxk\x08\xf46\x1a\xea\xea\x1e\x10\xd4" +
+	"\x04\x0d/\xde\x86\x0c\xbd}\x93\xba|\xb67\xbcx\xdb" +
+	"\x01\xf4F~u\xdeJ\x10\xd4\x9bix\xf1\xf6\x03\xe8" +
+	"-\x97\xd4Y4\xf4LU\x9c\xfe\xcc\x7fr\xd3Jd" +
+	"\x00\xd3\xed\xd8Vh\xfe\xdb\xdd\xd4\xcc\xcf\x98\x99\x1c\x84" +
+	"\xecD\x9a\xb7\xa3\xe3\xb5\xd0\xee|S1\xd0xMq" +
+	"\xc1\xc7\xf0\x88\x83za\x92\xaf6T\x0f\x09#\xa1\x10" +
+	"A@\xac\xde\xcd{&\x176\x0cJE\x0b\xdeQ\x16" +
+	"5\xb8\xa6\x80\x1b67I#\xceMU\x93\xec\xcdc" +
+	"S\xfc]\xbd\x18\x1fV\xf8\x97\xb5\x95r/\xfa\xe2\x02" +
+	"a\xd7\x08\xca\xfbd7\xef\xde\x82\x15\xbdU\x1bS\xb1" +
+	"\x19\x04&#e\xde\xdb<\xa2\xb7\xf8U\xcfSU\x9c" +
+	"SP\xf0\xd6\xd2\xbe\xbd\xe6i\xca\xeeq\xca\xbc\xb7\x9b" +
+	"Fo\x17\xad\x1e\xa1s\x87\x14,\xedg\xcb\xdbU\xf5" +
+	"\x00\x9d\xdb\xab\xa0\\\xda\x81\xa2\xb76S\x9f\xda\x0d\x82" +
+	"\xbaG\xc1\x80\xb7(\xf6\xed\xabvu\x80\xa0nVP" +
+	")\xed\x01\xd1\xdb\xf2\xaa\x1bhL\xce)\x18,\xad\xa4" +
+	"\xd1\xdb\x90\xa9\x09:\xb7\xbc8B\xfb\xb6)\xed\xbe\xc1" +
+	"\x97\x0a\xce\xbf+\xaa\x1c\xb6\x1d/\x8d\xe8\xe5Q\xe4V" +
+	";\x0e\x163U\x9a\xc2\x07\x8b\xab\x98\xaa\xf3\xb8\xb7\xa6" +
+	"\xe9\xe1\xe1a\xe3\xb8\xbf\xa2\x8a8T\xcb{MzV" +
+	"`\xe4\xfb\xe0\x0d\xf8#\xedv\xae\xa4\xb1\x88C\xb5\xbc" +
+	"\xe4\xae\xd08txw\xaf-]\xdaj7q\xd8@" +
+	"\\\xf9\"\x8d$\xebJk\x9a!\xdb\x80\xbf\x07\x00\x00" +
+	"\xff\xff\xe6\x95\xde0"
 
 func init() {
 	schemas.Register(schema_db8274f9144abc7e,
@@ -2171,25 +3577,38 @@ func init() {
 		0x91dfcb778d8d16c0,
 		0x9285c4944dfb709f,
 		0x92a4f36c8d41b673,
+		0x933297e0a8a77222,
 		0x965465bd75220f94,
 		0xa504000ac6204c12,
 		0xa56ff1a4dc4cdcd8,
 		0xa6b9c11c2aac9785,
 		0xa9121e4800ff7069,
 		0xac531ffcc2cdbf05,
+		0xad64659a5d76e80b,
 		0xae6825c3fecb35bf,
 		0xb25b411cec149334,
 		0xb5031b975a2f2d5d,
 		0xb95426b082b00c25,
 		0xbea6ce314a7abc79,
+		0xc3806a9410e187be,
+		0xc3e472677f9be8ad,
+		0xc8c60b05d115f411,
 		0xccdde1728f71e904,
+		0xcdf011e3e3860026,
 		0xce802aa8977a9aee,
 		0xd2592928fa547bc6,
 		0xd47381c89e2f1649,
+		0xdda2e02140fe8f08,
 		0xe3ec490c3d4015bb,
 		0xe542d95b68592c1c,
+		0xe5a432109337fc5d,
 		0xeb68797cd74f95c2,
+		0xed1583a692140448,
 		0xf052e7e084b31199,
+		0xf09be4e8d421f422,
 		0xf95512d6a5f5e530,
-		0xfa41cf108b6d790d)
+		0xfa41cf108b6d790d,
+		0xfa6ca90efc9ff291,
+		0xfa7d2ded965e55e3,
+		0xfcf6d1267c1553d3)
 }

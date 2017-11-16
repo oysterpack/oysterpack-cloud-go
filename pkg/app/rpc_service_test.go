@@ -68,7 +68,7 @@ func TestStartRPCService(t *testing.T) {
 	if result, err := client.Id(ctx, func(params capnprpc.App_id_Params) error { return nil }).Struct(); err != nil {
 		t.Error(err)
 	} else {
-		t.Log("app id : %v", result.AppId())
+		t.Logf("app id : %v", result.AppId())
 	}
 
 	if rpcService.ActiveConns() != 1 {
@@ -107,7 +107,7 @@ func TestStartRPCService(t *testing.T) {
 	appRPCService.Wait()
 }
 
-func appRPCMainInterface() func() (capnp.Client, error) {
+func appRPCMainInterface() app.RPCMainInterface {
 	server := capnprpc.App_ServerToClient(app.NewAppServer())
 	return func() (capnp.Client, error) {
 		return server.Client, nil
