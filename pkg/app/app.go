@@ -140,6 +140,7 @@ func RegisterService(s *Service) error {
 			c <- ErrServiceAlreadyRegistered
 		}
 		services[s.id] = s
+		SERVICE_REGISTERED.Log(s.logger.Info()).Msg("registered")
 		// signal that the service registration was completed successfully
 		close(c)
 
@@ -151,17 +152,7 @@ func RegisterService(s *Service) error {
 				return nil
 			case <-s.Dying():
 				SERVICE_STOPPING.Log(s.Logger().Info()).Msg("stopping")
-				if err := UnregisterService(s.id); err != nil {
-					app.Go(func() error {
-						select {
-						case <-app.Dying():
-							return nil
-						case <-s.Dead():
-							logServiceDeath(s)
-							return nil
-						}
-					})
-				}
+				UnregisterService(s.id)
 				return nil
 			}
 		})
@@ -230,6 +221,18 @@ func UnregisterService(id ServiceID) error {
 			c <- ErrServiceNotRegistered
 			return
 		}
+
+		// log an event when the service is dead
+		app.Go(func() error {
+			select {
+			case <-app.Dying():
+				return nil
+			case <-service.Dead():
+				logServiceDeath(service)
+				return nil
+			}
+		})
+
 		delete(services, id)
 		SERVICE_UNREGISTERED.Log(service.Logger().Info()).Msg("unregistered")
 		c <- nil

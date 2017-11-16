@@ -25,11 +25,9 @@
 //  4. One service per package, i.e., the package is the service. Public functions exposed by the package are the service interface.
 //	5. Each service package will initialize itself automatically, i.e., via package init() functions. Each service package will
 //	   register itself with the app.Application service.
-//  6. When Application shutdown is triggered, services that need to gracefully shutdown should listen on the Application Stopping channel.
-//  7. The Application has a lifecycle. Each lifecycle state has a channel that can be used to listen for lifecyle events.
-//  8. All services that must shutdown gracefully, must launch a goroutine through the Application. When the Application shutdown
-//     is triggered, the Application will not transition to the Dead state until all registered goroutines have completed.
-//  9. All key components will be assigned a unique numeric id (uint64) for tracking purposes.
+//  6. Graceful application shutdown : when the application is killed, all registered services will be killed. The application will wait
+//	   until all services are dead before exiting.
+//  7. All key components will be assigned a unique numeric id (uint64) for tracking purposes.
 //
 // 	   Most systems prefer instead to define a symbolic global namespace , but this would have some important disadvantages:
 //		1. Programmers often feel the need to change symbolic names and organization in order to make their code cleaner,
