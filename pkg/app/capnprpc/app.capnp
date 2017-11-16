@@ -5,17 +5,18 @@ $Go.import("github.com/oysterpack/oysterpack.go/pkg/app/capnprpc");
 
 interface App @0xf052e7e084b31199 {
 	id                 @0 () -> (appId :UInt64);
-	instance           @1 () -> (instanceId :Text);
+	releaseId          @1 () -> (releaseId :UInt64);
+	instance           @2 () -> (instanceId :Text);
 
 	# app start timestamp - as a Unix time, the number of seconds elapsed since January 1, 1970 UTC
-	startedOn          @2 () -> (startedOn :Int64);
+	startedOn          @3 () -> (startedOn :Int64);
 
-    logLevel           @3 () -> (level :LogLevel);
+    logLevel           @4 () -> (level :LogLevel);
 
-    registeredServices @4 () -> (serviceIds :List(UInt64));
-    service            @5 (id :UInt64) -> (service :Service);
+    registeredServices @5 () -> (serviceIds :List(UInt64));
+    service            @6 (id :UInt64) -> (service :Service);
 
-    kill               @6 () -> ();
+    kill               @7 () -> ();
 }
 
 enum LogLevel @0xce802aa8977a9aee {

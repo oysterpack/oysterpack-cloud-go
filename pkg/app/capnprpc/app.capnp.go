@@ -35,6 +35,26 @@ func (c App) Id(ctx context.Context, params func(App_id_Params) error, opts ...c
 	}
 	return App_id_Results_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(call))}
 }
+func (c App) ReleaseId(ctx context.Context, params func(App_releaseId_Params) error, opts ...capnp.CallOption) App_releaseId_Results_Promise {
+	if c.Client == nil {
+		return App_releaseId_Results_Promise{Pipeline: capnp.NewPipeline(capnp.ErrorAnswer(capnp.ErrNullClient))}
+	}
+	call := &capnp.Call{
+		Ctx: ctx,
+		Method: capnp.Method{
+			InterfaceID:   0xf052e7e084b31199,
+			MethodID:      1,
+			InterfaceName: "app.capnp:App",
+			MethodName:    "releaseId",
+		},
+		Options: capnp.NewCallOptions(opts),
+	}
+	if params != nil {
+		call.ParamsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 0}
+		call.ParamsFunc = func(s capnp.Struct) error { return params(App_releaseId_Params{Struct: s}) }
+	}
+	return App_releaseId_Results_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(call))}
+}
 func (c App) Instance(ctx context.Context, params func(App_instance_Params) error, opts ...capnp.CallOption) App_instance_Results_Promise {
 	if c.Client == nil {
 		return App_instance_Results_Promise{Pipeline: capnp.NewPipeline(capnp.ErrorAnswer(capnp.ErrNullClient))}
@@ -43,7 +63,7 @@ func (c App) Instance(ctx context.Context, params func(App_instance_Params) erro
 		Ctx: ctx,
 		Method: capnp.Method{
 			InterfaceID:   0xf052e7e084b31199,
-			MethodID:      1,
+			MethodID:      2,
 			InterfaceName: "app.capnp:App",
 			MethodName:    "instance",
 		},
@@ -63,7 +83,7 @@ func (c App) StartedOn(ctx context.Context, params func(App_startedOn_Params) er
 		Ctx: ctx,
 		Method: capnp.Method{
 			InterfaceID:   0xf052e7e084b31199,
-			MethodID:      2,
+			MethodID:      3,
 			InterfaceName: "app.capnp:App",
 			MethodName:    "startedOn",
 		},
@@ -83,7 +103,7 @@ func (c App) LogLevel(ctx context.Context, params func(App_logLevel_Params) erro
 		Ctx: ctx,
 		Method: capnp.Method{
 			InterfaceID:   0xf052e7e084b31199,
-			MethodID:      3,
+			MethodID:      4,
 			InterfaceName: "app.capnp:App",
 			MethodName:    "logLevel",
 		},
@@ -103,7 +123,7 @@ func (c App) RegisteredServices(ctx context.Context, params func(App_registeredS
 		Ctx: ctx,
 		Method: capnp.Method{
 			InterfaceID:   0xf052e7e084b31199,
-			MethodID:      4,
+			MethodID:      5,
 			InterfaceName: "app.capnp:App",
 			MethodName:    "registeredServices",
 		},
@@ -123,7 +143,7 @@ func (c App) Service(ctx context.Context, params func(App_service_Params) error,
 		Ctx: ctx,
 		Method: capnp.Method{
 			InterfaceID:   0xf052e7e084b31199,
-			MethodID:      5,
+			MethodID:      6,
 			InterfaceName: "app.capnp:App",
 			MethodName:    "service",
 		},
@@ -143,7 +163,7 @@ func (c App) Kill(ctx context.Context, params func(App_kill_Params) error, opts 
 		Ctx: ctx,
 		Method: capnp.Method{
 			InterfaceID:   0xf052e7e084b31199,
-			MethodID:      6,
+			MethodID:      7,
 			InterfaceName: "app.capnp:App",
 			MethodName:    "kill",
 		},
@@ -158,6 +178,8 @@ func (c App) Kill(ctx context.Context, params func(App_kill_Params) error, opts 
 
 type App_Server interface {
 	Id(App_id) error
+
+	ReleaseId(App_releaseId) error
 
 	Instance(App_instance) error
 
@@ -179,7 +201,7 @@ func App_ServerToClient(s App_Server) App {
 
 func App_Methods(methods []server.Method, s App_Server) []server.Method {
 	if cap(methods) == 0 {
-		methods = make([]server.Method, 0, 7)
+		methods = make([]server.Method, 0, 8)
 	}
 
 	methods = append(methods, server.Method{
@@ -201,6 +223,20 @@ func App_Methods(methods []server.Method, s App_Server) []server.Method {
 			InterfaceID:   0xf052e7e084b31199,
 			MethodID:      1,
 			InterfaceName: "app.capnp:App",
+			MethodName:    "releaseId",
+		},
+		Impl: func(c context.Context, opts capnp.CallOptions, p, r capnp.Struct) error {
+			call := App_releaseId{c, opts, App_releaseId_Params{Struct: p}, App_releaseId_Results{Struct: r}}
+			return s.ReleaseId(call)
+		},
+		ResultsSize: capnp.ObjectSize{DataSize: 8, PointerCount: 0},
+	})
+
+	methods = append(methods, server.Method{
+		Method: capnp.Method{
+			InterfaceID:   0xf052e7e084b31199,
+			MethodID:      2,
+			InterfaceName: "app.capnp:App",
 			MethodName:    "instance",
 		},
 		Impl: func(c context.Context, opts capnp.CallOptions, p, r capnp.Struct) error {
@@ -213,7 +249,7 @@ func App_Methods(methods []server.Method, s App_Server) []server.Method {
 	methods = append(methods, server.Method{
 		Method: capnp.Method{
 			InterfaceID:   0xf052e7e084b31199,
-			MethodID:      2,
+			MethodID:      3,
 			InterfaceName: "app.capnp:App",
 			MethodName:    "startedOn",
 		},
@@ -227,7 +263,7 @@ func App_Methods(methods []server.Method, s App_Server) []server.Method {
 	methods = append(methods, server.Method{
 		Method: capnp.Method{
 			InterfaceID:   0xf052e7e084b31199,
-			MethodID:      3,
+			MethodID:      4,
 			InterfaceName: "app.capnp:App",
 			MethodName:    "logLevel",
 		},
@@ -241,7 +277,7 @@ func App_Methods(methods []server.Method, s App_Server) []server.Method {
 	methods = append(methods, server.Method{
 		Method: capnp.Method{
 			InterfaceID:   0xf052e7e084b31199,
-			MethodID:      4,
+			MethodID:      5,
 			InterfaceName: "app.capnp:App",
 			MethodName:    "registeredServices",
 		},
@@ -255,7 +291,7 @@ func App_Methods(methods []server.Method, s App_Server) []server.Method {
 	methods = append(methods, server.Method{
 		Method: capnp.Method{
 			InterfaceID:   0xf052e7e084b31199,
-			MethodID:      5,
+			MethodID:      6,
 			InterfaceName: "app.capnp:App",
 			MethodName:    "service",
 		},
@@ -269,7 +305,7 @@ func App_Methods(methods []server.Method, s App_Server) []server.Method {
 	methods = append(methods, server.Method{
 		Method: capnp.Method{
 			InterfaceID:   0xf052e7e084b31199,
-			MethodID:      6,
+			MethodID:      7,
 			InterfaceName: "app.capnp:App",
 			MethodName:    "kill",
 		},
@@ -289,6 +325,14 @@ type App_id struct {
 	Options capnp.CallOptions
 	Params  App_id_Params
 	Results App_id_Results
+}
+
+// App_releaseId holds the arguments for a server call to App.releaseId.
+type App_releaseId struct {
+	Ctx     context.Context
+	Options capnp.CallOptions
+	Params  App_releaseId_Params
+	Results App_releaseId_Results
 }
 
 // App_instance holds the arguments for a server call to App.instance.
@@ -449,10 +493,128 @@ func (p App_id_Results_Promise) Struct() (App_id_Results, error) {
 	return App_id_Results{s}, err
 }
 
+type App_releaseId_Params struct{ capnp.Struct }
+
+// App_releaseId_Params_TypeID is the unique identifier for the type App_releaseId_Params.
+const App_releaseId_Params_TypeID = 0xbea6ce314a7abc79
+
+func NewApp_releaseId_Params(s *capnp.Segment) (App_releaseId_Params, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return App_releaseId_Params{st}, err
+}
+
+func NewRootApp_releaseId_Params(s *capnp.Segment) (App_releaseId_Params, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return App_releaseId_Params{st}, err
+}
+
+func ReadRootApp_releaseId_Params(msg *capnp.Message) (App_releaseId_Params, error) {
+	root, err := msg.RootPtr()
+	return App_releaseId_Params{root.Struct()}, err
+}
+
+func (s App_releaseId_Params) String() string {
+	str, _ := text.Marshal(0xbea6ce314a7abc79, s.Struct)
+	return str
+}
+
+// App_releaseId_Params_List is a list of App_releaseId_Params.
+type App_releaseId_Params_List struct{ capnp.List }
+
+// NewApp_releaseId_Params creates a new list of App_releaseId_Params.
+func NewApp_releaseId_Params_List(s *capnp.Segment, sz int32) (App_releaseId_Params_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
+	return App_releaseId_Params_List{l}, err
+}
+
+func (s App_releaseId_Params_List) At(i int) App_releaseId_Params {
+	return App_releaseId_Params{s.List.Struct(i)}
+}
+
+func (s App_releaseId_Params_List) Set(i int, v App_releaseId_Params) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s App_releaseId_Params_List) String() string {
+	str, _ := text.MarshalList(0xbea6ce314a7abc79, s.List)
+	return str
+}
+
+// App_releaseId_Params_Promise is a wrapper for a App_releaseId_Params promised by a client call.
+type App_releaseId_Params_Promise struct{ *capnp.Pipeline }
+
+func (p App_releaseId_Params_Promise) Struct() (App_releaseId_Params, error) {
+	s, err := p.Pipeline.Struct()
+	return App_releaseId_Params{s}, err
+}
+
+type App_releaseId_Results struct{ capnp.Struct }
+
+// App_releaseId_Results_TypeID is the unique identifier for the type App_releaseId_Results.
+const App_releaseId_Results_TypeID = 0x92a4f36c8d41b673
+
+func NewApp_releaseId_Results(s *capnp.Segment) (App_releaseId_Results, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	return App_releaseId_Results{st}, err
+}
+
+func NewRootApp_releaseId_Results(s *capnp.Segment) (App_releaseId_Results, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	return App_releaseId_Results{st}, err
+}
+
+func ReadRootApp_releaseId_Results(msg *capnp.Message) (App_releaseId_Results, error) {
+	root, err := msg.RootPtr()
+	return App_releaseId_Results{root.Struct()}, err
+}
+
+func (s App_releaseId_Results) String() string {
+	str, _ := text.Marshal(0x92a4f36c8d41b673, s.Struct)
+	return str
+}
+
+func (s App_releaseId_Results) ReleaseId() uint64 {
+	return s.Struct.Uint64(0)
+}
+
+func (s App_releaseId_Results) SetReleaseId(v uint64) {
+	s.Struct.SetUint64(0, v)
+}
+
+// App_releaseId_Results_List is a list of App_releaseId_Results.
+type App_releaseId_Results_List struct{ capnp.List }
+
+// NewApp_releaseId_Results creates a new list of App_releaseId_Results.
+func NewApp_releaseId_Results_List(s *capnp.Segment, sz int32) (App_releaseId_Results_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
+	return App_releaseId_Results_List{l}, err
+}
+
+func (s App_releaseId_Results_List) At(i int) App_releaseId_Results {
+	return App_releaseId_Results{s.List.Struct(i)}
+}
+
+func (s App_releaseId_Results_List) Set(i int, v App_releaseId_Results) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s App_releaseId_Results_List) String() string {
+	str, _ := text.MarshalList(0x92a4f36c8d41b673, s.List)
+	return str
+}
+
+// App_releaseId_Results_Promise is a wrapper for a App_releaseId_Results promised by a client call.
+type App_releaseId_Results_Promise struct{ *capnp.Pipeline }
+
+func (p App_releaseId_Results_Promise) Struct() (App_releaseId_Results, error) {
+	s, err := p.Pipeline.Struct()
+	return App_releaseId_Results{s}, err
+}
+
 type App_instance_Params struct{ capnp.Struct }
 
 // App_instance_Params_TypeID is the unique identifier for the type App_instance_Params.
-const App_instance_Params_TypeID = 0xbea6ce314a7abc79
+const App_instance_Params_TypeID = 0x84e4b51ba5570071
 
 func NewApp_instance_Params(s *capnp.Segment) (App_instance_Params, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
@@ -470,7 +632,7 @@ func ReadRootApp_instance_Params(msg *capnp.Message) (App_instance_Params, error
 }
 
 func (s App_instance_Params) String() string {
-	str, _ := text.Marshal(0xbea6ce314a7abc79, s.Struct)
+	str, _ := text.Marshal(0x84e4b51ba5570071, s.Struct)
 	return str
 }
 
@@ -492,7 +654,7 @@ func (s App_instance_Params_List) Set(i int, v App_instance_Params) error {
 }
 
 func (s App_instance_Params_List) String() string {
-	str, _ := text.MarshalList(0xbea6ce314a7abc79, s.List)
+	str, _ := text.MarshalList(0x84e4b51ba5570071, s.List)
 	return str
 }
 
@@ -507,7 +669,7 @@ func (p App_instance_Params_Promise) Struct() (App_instance_Params, error) {
 type App_instance_Results struct{ capnp.Struct }
 
 // App_instance_Results_TypeID is the unique identifier for the type App_instance_Results.
-const App_instance_Results_TypeID = 0x92a4f36c8d41b673
+const App_instance_Results_TypeID = 0xb5031b975a2f2d5d
 
 func NewApp_instance_Results(s *capnp.Segment) (App_instance_Results, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
@@ -525,7 +687,7 @@ func ReadRootApp_instance_Results(msg *capnp.Message) (App_instance_Results, err
 }
 
 func (s App_instance_Results) String() string {
-	str, _ := text.Marshal(0x92a4f36c8d41b673, s.Struct)
+	str, _ := text.Marshal(0xb5031b975a2f2d5d, s.Struct)
 	return str
 }
 
@@ -566,7 +728,7 @@ func (s App_instance_Results_List) Set(i int, v App_instance_Results) error {
 }
 
 func (s App_instance_Results_List) String() string {
-	str, _ := text.MarshalList(0x92a4f36c8d41b673, s.List)
+	str, _ := text.MarshalList(0xb5031b975a2f2d5d, s.List)
 	return str
 }
 
@@ -581,7 +743,7 @@ func (p App_instance_Results_Promise) Struct() (App_instance_Results, error) {
 type App_startedOn_Params struct{ capnp.Struct }
 
 // App_startedOn_Params_TypeID is the unique identifier for the type App_startedOn_Params.
-const App_startedOn_Params_TypeID = 0x84e4b51ba5570071
+const App_startedOn_Params_TypeID = 0x8ff15814cd06ecd7
 
 func NewApp_startedOn_Params(s *capnp.Segment) (App_startedOn_Params, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
@@ -599,7 +761,7 @@ func ReadRootApp_startedOn_Params(msg *capnp.Message) (App_startedOn_Params, err
 }
 
 func (s App_startedOn_Params) String() string {
-	str, _ := text.Marshal(0x84e4b51ba5570071, s.Struct)
+	str, _ := text.Marshal(0x8ff15814cd06ecd7, s.Struct)
 	return str
 }
 
@@ -621,7 +783,7 @@ func (s App_startedOn_Params_List) Set(i int, v App_startedOn_Params) error {
 }
 
 func (s App_startedOn_Params_List) String() string {
-	str, _ := text.MarshalList(0x84e4b51ba5570071, s.List)
+	str, _ := text.MarshalList(0x8ff15814cd06ecd7, s.List)
 	return str
 }
 
@@ -636,7 +798,7 @@ func (p App_startedOn_Params_Promise) Struct() (App_startedOn_Params, error) {
 type App_startedOn_Results struct{ capnp.Struct }
 
 // App_startedOn_Results_TypeID is the unique identifier for the type App_startedOn_Results.
-const App_startedOn_Results_TypeID = 0xb5031b975a2f2d5d
+const App_startedOn_Results_TypeID = 0x8ff88405c5bd0dec
 
 func NewApp_startedOn_Results(s *capnp.Segment) (App_startedOn_Results, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
@@ -654,7 +816,7 @@ func ReadRootApp_startedOn_Results(msg *capnp.Message) (App_startedOn_Results, e
 }
 
 func (s App_startedOn_Results) String() string {
-	str, _ := text.Marshal(0xb5031b975a2f2d5d, s.Struct)
+	str, _ := text.Marshal(0x8ff88405c5bd0dec, s.Struct)
 	return str
 }
 
@@ -684,7 +846,7 @@ func (s App_startedOn_Results_List) Set(i int, v App_startedOn_Results) error {
 }
 
 func (s App_startedOn_Results_List) String() string {
-	str, _ := text.MarshalList(0xb5031b975a2f2d5d, s.List)
+	str, _ := text.MarshalList(0x8ff88405c5bd0dec, s.List)
 	return str
 }
 
@@ -699,7 +861,7 @@ func (p App_startedOn_Results_Promise) Struct() (App_startedOn_Results, error) {
 type App_logLevel_Params struct{ capnp.Struct }
 
 // App_logLevel_Params_TypeID is the unique identifier for the type App_logLevel_Params.
-const App_logLevel_Params_TypeID = 0x8ff15814cd06ecd7
+const App_logLevel_Params_TypeID = 0xa9121e4800ff7069
 
 func NewApp_logLevel_Params(s *capnp.Segment) (App_logLevel_Params, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
@@ -717,7 +879,7 @@ func ReadRootApp_logLevel_Params(msg *capnp.Message) (App_logLevel_Params, error
 }
 
 func (s App_logLevel_Params) String() string {
-	str, _ := text.Marshal(0x8ff15814cd06ecd7, s.Struct)
+	str, _ := text.Marshal(0xa9121e4800ff7069, s.Struct)
 	return str
 }
 
@@ -739,7 +901,7 @@ func (s App_logLevel_Params_List) Set(i int, v App_logLevel_Params) error {
 }
 
 func (s App_logLevel_Params_List) String() string {
-	str, _ := text.MarshalList(0x8ff15814cd06ecd7, s.List)
+	str, _ := text.MarshalList(0xa9121e4800ff7069, s.List)
 	return str
 }
 
@@ -754,7 +916,7 @@ func (p App_logLevel_Params_Promise) Struct() (App_logLevel_Params, error) {
 type App_logLevel_Results struct{ capnp.Struct }
 
 // App_logLevel_Results_TypeID is the unique identifier for the type App_logLevel_Results.
-const App_logLevel_Results_TypeID = 0x8ff88405c5bd0dec
+const App_logLevel_Results_TypeID = 0xae6825c3fecb35bf
 
 func NewApp_logLevel_Results(s *capnp.Segment) (App_logLevel_Results, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
@@ -772,7 +934,7 @@ func ReadRootApp_logLevel_Results(msg *capnp.Message) (App_logLevel_Results, err
 }
 
 func (s App_logLevel_Results) String() string {
-	str, _ := text.Marshal(0x8ff88405c5bd0dec, s.Struct)
+	str, _ := text.Marshal(0xae6825c3fecb35bf, s.Struct)
 	return str
 }
 
@@ -802,7 +964,7 @@ func (s App_logLevel_Results_List) Set(i int, v App_logLevel_Results) error {
 }
 
 func (s App_logLevel_Results_List) String() string {
-	str, _ := text.MarshalList(0x8ff88405c5bd0dec, s.List)
+	str, _ := text.MarshalList(0xae6825c3fecb35bf, s.List)
 	return str
 }
 
@@ -817,7 +979,7 @@ func (p App_logLevel_Results_Promise) Struct() (App_logLevel_Results, error) {
 type App_registeredServices_Params struct{ capnp.Struct }
 
 // App_registeredServices_Params_TypeID is the unique identifier for the type App_registeredServices_Params.
-const App_registeredServices_Params_TypeID = 0xa9121e4800ff7069
+const App_registeredServices_Params_TypeID = 0xb95426b082b00c25
 
 func NewApp_registeredServices_Params(s *capnp.Segment) (App_registeredServices_Params, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
@@ -835,7 +997,7 @@ func ReadRootApp_registeredServices_Params(msg *capnp.Message) (App_registeredSe
 }
 
 func (s App_registeredServices_Params) String() string {
-	str, _ := text.Marshal(0xa9121e4800ff7069, s.Struct)
+	str, _ := text.Marshal(0xb95426b082b00c25, s.Struct)
 	return str
 }
 
@@ -857,7 +1019,7 @@ func (s App_registeredServices_Params_List) Set(i int, v App_registeredServices_
 }
 
 func (s App_registeredServices_Params_List) String() string {
-	str, _ := text.MarshalList(0xa9121e4800ff7069, s.List)
+	str, _ := text.MarshalList(0xb95426b082b00c25, s.List)
 	return str
 }
 
@@ -872,7 +1034,7 @@ func (p App_registeredServices_Params_Promise) Struct() (App_registeredServices_
 type App_registeredServices_Results struct{ capnp.Struct }
 
 // App_registeredServices_Results_TypeID is the unique identifier for the type App_registeredServices_Results.
-const App_registeredServices_Results_TypeID = 0xae6825c3fecb35bf
+const App_registeredServices_Results_TypeID = 0xeb68797cd74f95c2
 
 func NewApp_registeredServices_Results(s *capnp.Segment) (App_registeredServices_Results, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
@@ -890,7 +1052,7 @@ func ReadRootApp_registeredServices_Results(msg *capnp.Message) (App_registeredS
 }
 
 func (s App_registeredServices_Results) String() string {
-	str, _ := text.Marshal(0xae6825c3fecb35bf, s.Struct)
+	str, _ := text.Marshal(0xeb68797cd74f95c2, s.Struct)
 	return str
 }
 
@@ -937,7 +1099,7 @@ func (s App_registeredServices_Results_List) Set(i int, v App_registeredServices
 }
 
 func (s App_registeredServices_Results_List) String() string {
-	str, _ := text.MarshalList(0xae6825c3fecb35bf, s.List)
+	str, _ := text.MarshalList(0xeb68797cd74f95c2, s.List)
 	return str
 }
 
@@ -952,7 +1114,7 @@ func (p App_registeredServices_Results_Promise) Struct() (App_registeredServices
 type App_service_Params struct{ capnp.Struct }
 
 // App_service_Params_TypeID is the unique identifier for the type App_service_Params.
-const App_service_Params_TypeID = 0xb95426b082b00c25
+const App_service_Params_TypeID = 0xa504000ac6204c12
 
 func NewApp_service_Params(s *capnp.Segment) (App_service_Params, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
@@ -970,7 +1132,7 @@ func ReadRootApp_service_Params(msg *capnp.Message) (App_service_Params, error) 
 }
 
 func (s App_service_Params) String() string {
-	str, _ := text.Marshal(0xb95426b082b00c25, s.Struct)
+	str, _ := text.Marshal(0xa504000ac6204c12, s.Struct)
 	return str
 }
 
@@ -1000,7 +1162,7 @@ func (s App_service_Params_List) Set(i int, v App_service_Params) error {
 }
 
 func (s App_service_Params_List) String() string {
-	str, _ := text.MarshalList(0xb95426b082b00c25, s.List)
+	str, _ := text.MarshalList(0xa504000ac6204c12, s.List)
 	return str
 }
 
@@ -1015,7 +1177,7 @@ func (p App_service_Params_Promise) Struct() (App_service_Params, error) {
 type App_service_Results struct{ capnp.Struct }
 
 // App_service_Results_TypeID is the unique identifier for the type App_service_Results.
-const App_service_Results_TypeID = 0xeb68797cd74f95c2
+const App_service_Results_TypeID = 0xfa41cf108b6d790d
 
 func NewApp_service_Results(s *capnp.Segment) (App_service_Results, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
@@ -1033,7 +1195,7 @@ func ReadRootApp_service_Results(msg *capnp.Message) (App_service_Results, error
 }
 
 func (s App_service_Results) String() string {
-	str, _ := text.Marshal(0xeb68797cd74f95c2, s.Struct)
+	str, _ := text.Marshal(0xfa41cf108b6d790d, s.Struct)
 	return str
 }
 
@@ -1074,7 +1236,7 @@ func (s App_service_Results_List) Set(i int, v App_service_Results) error {
 }
 
 func (s App_service_Results_List) String() string {
-	str, _ := text.MarshalList(0xeb68797cd74f95c2, s.List)
+	str, _ := text.MarshalList(0xfa41cf108b6d790d, s.List)
 	return str
 }
 
@@ -1093,7 +1255,7 @@ func (p App_service_Results_Promise) Service() Service {
 type App_kill_Params struct{ capnp.Struct }
 
 // App_kill_Params_TypeID is the unique identifier for the type App_kill_Params.
-const App_kill_Params_TypeID = 0xa504000ac6204c12
+const App_kill_Params_TypeID = 0xd47381c89e2f1649
 
 func NewApp_kill_Params(s *capnp.Segment) (App_kill_Params, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
@@ -1111,7 +1273,7 @@ func ReadRootApp_kill_Params(msg *capnp.Message) (App_kill_Params, error) {
 }
 
 func (s App_kill_Params) String() string {
-	str, _ := text.Marshal(0xa504000ac6204c12, s.Struct)
+	str, _ := text.Marshal(0xd47381c89e2f1649, s.Struct)
 	return str
 }
 
@@ -1131,7 +1293,7 @@ func (s App_kill_Params_List) Set(i int, v App_kill_Params) error {
 }
 
 func (s App_kill_Params_List) String() string {
-	str, _ := text.MarshalList(0xa504000ac6204c12, s.List)
+	str, _ := text.MarshalList(0xd47381c89e2f1649, s.List)
 	return str
 }
 
@@ -1146,7 +1308,7 @@ func (p App_kill_Params_Promise) Struct() (App_kill_Params, error) {
 type App_kill_Results struct{ capnp.Struct }
 
 // App_kill_Results_TypeID is the unique identifier for the type App_kill_Results.
-const App_kill_Results_TypeID = 0xfa41cf108b6d790d
+const App_kill_Results_TypeID = 0xac531ffcc2cdbf05
 
 func NewApp_kill_Results(s *capnp.Segment) (App_kill_Results, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
@@ -1164,7 +1326,7 @@ func ReadRootApp_kill_Results(msg *capnp.Message) (App_kill_Results, error) {
 }
 
 func (s App_kill_Results) String() string {
-	str, _ := text.Marshal(0xfa41cf108b6d790d, s.Struct)
+	str, _ := text.Marshal(0xac531ffcc2cdbf05, s.Struct)
 	return str
 }
 
@@ -1184,7 +1346,7 @@ func (s App_kill_Results_List) Set(i int, v App_kill_Results) error {
 }
 
 func (s App_kill_Results_List) String() string {
-	str, _ := text.MarshalList(0xfa41cf108b6d790d, s.List)
+	str, _ := text.MarshalList(0xac531ffcc2cdbf05, s.List)
 	return str
 }
 
@@ -1922,80 +2084,84 @@ func (p Service_kill_Results_Promise) Struct() (Service_kill_Results, error) {
 	return Service_kill_Results{s}, err
 }
 
-const schema_db8274f9144abc7e = "x\xda\xa4VolSU\x14?\xe7\xbe\xfb\xfa\x1c\x19" +
-	"\x94\xdb7\x8c\xc2\xb0\xce\x0c\x03\x8b\xcc\xfd\xd1\x0f\x92\x98" +
-	"uKL\xec2B[Gt\x10?<\xd7\xe7\xd6\xd8" +
-	"u\xdd{\xdd\xc8\xd0\xf9\x87\x8c\x0f\xc4,\x0b\x13\\X" +
-	"b\xfcB\x89$\xce\x80f&\x8bL\x05\x1dFq\x98" +
-	"\x91(\"\x10D]\x0c\xba\x18\x871\xba\x19|\xe6\xbe" +
-	"\xee\xb6wk\xc7\x17?\xb5\xc9\xf9s\x7f\xe7w~\xe7" +
-	"\x9cWu\x99\x04H\xb5\xea\x14\x01\x84S\xaa\xe7V\xd7" +
-	"\x93\xe9\x0dc?\xf5\xb35\x08@5\x00}\x86.\x00" +
-	"u.\xcez\xa6J\x9e\x9a\x1b\x84\x9c\xe1sz\x13\xa8" +
-	"3\xbbzbR\xed\xff{\x10\xc2kPXF\xe9\x02" +
-	"\xa0~\x92\xd6\x01:\x1f\xdf90\xb0\xe7\xdc\xb5\x83\xc0" +
-	"|\xc2<\xedf|3\xf9\xcf\xf6C\x9f\xee\x1f\x82\xb0" +
-	"O\x04\xd6\x8e\xd1\xf5\x08\xa8O\xb8\x91\xf6\xfb\xf5\x03\xf1" +
-	"?\x8e\x0ee\x9eT\x91\x87^u3_w\xed\x87\xbc" +
-	"\xf7uO\x98\xcd\xafK\x99U\xf5\x07\xa0\xd7|M\xf7" +
-	"\x9e]E\xd39\xa47\xe8\x05\xa0\xce\xb7W\x9a\xae\x1c" +
-	"\x9d\xebLK%L\xd13@\x9d\xfd\xc3oW\x94\x9e" +
-	"\x1e?\x96KT;J}\x08\xf4\xafX\xd2y\xfc\x1e" +
-	"\xdf\xf1l@\xeda\xda\x80@\x9d\x8f\x1e>\xf7\xef'" +
-	"\x9b\xda\xdf\x91\xa0\xd5\xf6\xd1F\x8e\xfd\x80\x8b\xed\xa1\xd7" +
-	"JfK\xebw\xbf\x0bl\x95\xe2\xbcx\xaa\xb1d>" +
-	"\xb5\xef2\xb8\xa5\x0d\xe9\x93n\xaa\xd3TC\xddT5" +
-	"\x00\xe7\xe9\xad\x0f\xee\x1a\xde\xa0\x8cI\x1c\xd6nW\x09" +
-	"O\x17Vy\xbaM\xc5'\xf6\x9d\xb8\xbfy\\&\xb9" +
-	"[\xfd\x05P\xefu\xed\xbd\xa7\xf66V\x9f?\xf6\xa1" +
-	"T\xda\x11\x95w\x87\xde\xe8\x1a\xb4\xae_\xfdR\"Y" +
-	"\xefs\x03_q\x03\x7f\x1b\xd9;\xfcV\xc5\xcb\xe7\x81" +
-	"\xad\"Kp\xa6\xd5\x11}\x94\x83\xd3\x8f\xabm\x80\xce" +
-	"\xd9\xe7\x9b\x176oi\xb9 #\x98R\xbf\x00\xd4\xa7" +
-	"\xddD\x1f\xac\x0b<Z\x1c\x9c\xfdQj\xc6\x9c\x8b\xa0" +
-	"\xf4\x81\x96\xf6\xdd\x97\x1af\xe46\x7f\x9d\xa9\xed\x92\x1b" +
-	"y\xe6\xf0\x8e\x8b/\xf4\xb6\xff*\xb7y^\xbd\x09\xa8" +
-	"\xdfr\xedG\xd8{\xfd\xdf\xff\x1c\xf9=\x8f\xca\x8d\x1e" +
-	"K/\xf3\xf0|\x1b=\x9f\xa1\x1e\xd48\x95U3\x7f" +
-	"\xa6\xbf\xf1\xed\x9c\x97pTk\\n\xab{;^]" +
-	"\xfbU\xfd\x82D\xd1:\xed;\xa8r\x8cd\xb2\xb2\xd5" +
-	"H&Hr[}2Yi\xa7\x0c+eFw$" +
-	"\xca\xebB\x86et\xd8\xcb\x1d\xe2\x9dmMf\x8f\x19" +
-	"/\x0f\xf9oo\x8f\xd4\x99vw<e\x87\xa9B\x01" +
-	"(\x02\xb0\xd55\x00\xe1;\x14\x0c\x97\x10\xf4\xc7\xb9\x17" +
-	"zs=\x00D/\xa0\x9c\xef\x09\xd3\xea\x89\xb5\x9a\x95" +
-	"F<\xd6c\xe6\x01Rr\x0e\xb9G\xf9\x9b\xca\xffz" +
-	"\x94\x17\x11K\xd8)#\xd1j\x16,b\x17@\xb8X" +
-	"\xc1\xf0]\x04\x1d\xe1\x08J0\x8a\xc5@\xb0\xb8p\x05" +
-	"\xb1hy\xc8\xb0\xb4\x02|=\x17\x8b\xc7\xcb\xdd\xca0" +
-	"g\xf3,\xc2\x88f,6\x08C\x81\x92\x97\xc7\x16e" +
-	"b-\xb3-f\xa7L\xcb\x8c.F\xd8\xf9\xb9V\xf0" +
-	"\x8bdj\x06(T\xf5f\x82\x8e\x9d\xf1\x0c\x82\x12\xb5" +
-	"q\x0d`HA,\x02\xc2\xfffa\xa0\x80\x8af\x08" +
-	"1\xbcVQ\x01\xb2;\x0b\xc5`\xb2\xae\xf5@\x98\xa9" +
-	"!f\xd7\x10\x8a\xcd\xc8Z\x1a\x81\xb0\xb0\x86$\xbbE" +
-	"Q\x8c\x13{\xac\x06\x08{DC%;z(\xb4\xcf" +
-	"\xb6V\x00ae\x9a\x12\x8b\x06\xd0\x11<\x01@\x00\xfd" +
-	"\xae\x92\x02\xe8\xe5\xac\x070\x84(\xabi\xa9\xfe\x05\x0b" +
-	"2\x09\x11\xa9\xf5\xc2\x130\x81*\x10T\xf3e\xb4\xc8" +
-	"Sy\xc8\xf0r\xe6\xe5L\xebs\xa2TbQ\x97\xbd" +
-	"\xa2\xdb\xe8\xb0\xc0\xb0I\xd2\x8a\x98\xb6w\xb9J\x97@" +
-	"\x15\xfd\xc2\xfc\x970\xb9\xad\xc9\xa5H1\xe3n\xa3\x90" +
-	"\x00\xb0-5|2XY\x05\x00\x12v7\xffQ\x18" +
-	"\xab\x01\xf0G\xcdg\xba\xdb\xbc\xb1\xc4\xb3\x9d\xde=\x86" +
-	"\x95\xf0\x9b\x96\xd5i\xe5\xe1\x8e\x16\x16\x91<\x8aF2" +
-	"\x19,X\xb8(,3\x19\xfe\x15\x87>\xb3\x15\x0a\xb5" +
-	"i\xc93\xdc\x0b\x11\x08\xe2\xca\x0d\x8a\x98\xfe\xbc1o" +
-	"\xc8%yi\xd1\x0fY\xee\xb2qz\xa4\x84\xe0w3" +
-	"r\x06K]\xa9\x8bs\x8b\xe2t\xb0i.\xf5I." +
-	"uq\xafP\xdcx6\xce\xa5~RC\">@r" +
-	"G\x91\xa5#@\xd8\x1b\\\xea\xe2+\x04\xc5W\x07;" +
-	"\xc8\xe3\x0eh\x98\xbd\xd5\xd2m\xee\x1b\x01\xc2z5T" +
-	"\xb3\xf7\x13\xc5\xb1a\x1d\x0d@\x98\xa1\xa1G|-H" +
-	"\x07b'\x1f\x9f\xe0\xe2\xf8d\x17\x1c\x1f\x1fY\xf3\xcb" +
-	"G\xcb\x11\x8b\x04\xc5&QL;\x90\xa5\xae\xe0\xcc-" +
-	"o\xb6\xd8\xb6\x05w\xa4X\xed\xff\x05\x00\x00\xff\xffg" +
-	"\x84\xd8\x8c"
+const schema_db8274f9144abc7e = "x\xda\x9cV\x7fl\x13\xe5\x1b\x7f\x9e\xbb{{_\x96" +
+	"m\xe5\xed\x0d\xf2\xe5\x87\x96\x99a`q\xfc\xd8\xf4\x0f" +
+	"H\xc8\xda%$v\x99\xa1-\x10\x05\xe2\x1f'=\xc7" +
+	"\xc5\xae+w\xdd\xc8\x90\xa8\x90\xed\x0fc\x96\xc5\x09." +
+	",Qc\xc2\x88$\xa8\xa0\xc1\x84\xc8D\xa7#*\x0e" +
+	"\x03Q\x11\x85 \xeab\xd4\xc58\x0c\xd1M\xf1\xcc{" +
+	"\xed\xdb{\xbb\xb61\xf1\xaf6\xb9\xe7\xe7\xe7\xf9|\xde" +
+	"\xe7Y\xb3@\x0eIk\xc9\xeb\x15\x00\xb1}\xc4w{" +
+	"\xf7\x83#KN}\xdfK\xab\x11@Q\x01\xb4\x0d\xe4" +
+	"&(\xce\xe5)\xdfD\xcdC\xd3\x03\xe0}\xa8%\xb3" +
+	"\xa08SU\xa3\xe3\xa4\xf7\x8f\x01\x88Uc\xeeK\x13" +
+	"!\x12\x02j\xf3H3\xa0\xf3\xee\xc2\xfe\xfe=\xe7\xaf" +
+	"?\x0b4\xc0=\x1b\\\xcf\x97\xd2\x7f>p\xf0\x83\xbe" +
+	"A\x88\x05\xf2\x9e\x94,f\x9e\x8b\\O\xfb\xadp\x7f" +
+	"\xf2\xb7#\x83b\xe8u\xd9\xd0\x1b\\\x83\x83\xfe\xbb\xba" +
+	"F\x8d-\xcf\x0b\xa1u\xf2-(\xd7\x03m\xcb\xceU" +
+	"(#\x9e\x9f\xb6\x91\xfc\x04\xa8E\\\xb7/\xaf\xb6]" +
+	"=2\xdd9\"\xf4b\x921P\x9c\xbe\xa1\xe3\xf5K" +
+	"\xdf;}\xd4\x8b\xd7\x14!\x01\x04\xe5w3\xed\xdc\x7f" +
+	"g\xe0\x98\xe7\xb0\xd6E\x85\x9c\x9d\x18\xfb+\xb8\xf9\xb8" +
+	"\x10i\x01\xf9\x0a\x14\xe7\xec}\xe7\xff~\x7f\xf9\xae\xd7" +
+	"\x84\xd2\xb5\x19e\x16P\xbb\xad\xb0\x12\xee}\xaefj" +
+	"ix\xc7\x1b@+d\xe7\x893\xad53\x99\x03_" +
+	"\x03\xa0v\x07\x19\xd4\x96\x13\x96\xb9\x96\xa8\xa8\x8d\xb3\xbf" +
+	"\xce\xc3\x0d\xab\xb7\x0f-\x91Oe\xd3\x10d\xd1^%" +
+	",\xdaI\xb7\xa1\xe5\x95'\x0e\x9c\xb8{\xcbi\xaf\x8c" +
+	"\xa6\xcfI\x0b\x82\xe2\xf4\x9c\xd9\xdb\xba\xf6\xc2\xd1w\x84" +
+	"\x02G]\xf0\x95\x1fw\x0fX7\xae}\"\x80\xaf\xbd" +
+	"\xecb4\xe2\x86\xfcex\xef\xd0+\xf5O]\x00Z" +
+	"!\x15\x14\xf8\x11\x19\xd6.\xb2\xaa\xb4\x09\xd2\x0e\xe8\x9c" +
+	"{|\xcb\xec\x8a\x95\xdb.\x89\x9dN\x93\x8f\x01\xb5[" +
+	"n\xa0\xc8\xc2\xd5/~\xb8\xdf\xfeL\x84\xc8w\x09\x14" +
+	"\xe7\xed\x05\xa1\x0d\x95\x91\xa9\xef\x84\xe1\xcd\xb8\xa0.\xbd" +
+	"g\xdb\xae\x1dWZ&E^\\\xcb\x8e\xfd\x86\x1br" +
+	"\xec\xd0\xa6\xcb\xfbzv\xfd,\xc0\xd1\x84\xbeVfP" +
+	"\xe5c\x06\x87\xe9\x9b\xbd\xdf\xfc\x10\xff\xb5\x08\xdd\xb0\xcf" +
+	"\xd26\xfa\x98}\xd8\xa7J\xdaa\x95\xa1\xbbf\xf2\xd6" +
+	"\xc8\x17\x81\xad3B!\xfbU\x86QUO\xc73\xf3" +
+	"?\x0d\xcf\x8a\xb0\x1b\xeaM@\xcdT\x9b\xa1\xc1\xd1\xd3" +
+	"\xe9U;\xf5tJJ\xaf\x0f\xa7\xd3\xab\xcc\x94\x9d\xd1" +
+	"S;\x8d\xbahP\xb7\xf4\x0e{\xeew;\xa3[\x19" +
+	"#\xb1)U\xd7\x1c-4\x90\xe7\x1a\xc4\x0d\xbb+\x99" +
+	"\xb1!\xa6\xc8\x0a\x80\x82\x00\xb4*\x0e\x10\xab\x941\xf6" +
+	"\x7f\x09\x1dn\x09\x98B\x02\x12\x12@1\xdbf\xc3\xea" +
+	"6w\x1a\xab\xf4\xa4\xd9m\x94\xca\xc6\x0d\x92\x9d\xedm" +
+	"F\xb7\x91\xcc&\x943\xb6\x98\xb0\x11 \xf6?\x19c" +
+	"5\x12\x06\x93\xcc\x0a\xfd\x1e-\x00\xd1/$\xcdu`" +
+	"\x19IC\xb7\x8dH\xe2_;\xe0\x96\x80\x09\x9c\x07\x12" +
+	"\xce+\xdd\x81\x99\xa8\x8b\xea\x96Z\x0a\xcd\xacE]T" +
+	"\xf7\xb3\xee\xc4<\x8b\xbd\xc2e\xb38\xbc/7.7" +
+	"\xb4\xdea\x03\xffP\x02\x17\xd7\x02\x8b\x92{\xdfK\x8f" +
+	"\xfa13\xe9aZ\xd69\xde\x9c\x05\xe9\xbf\x82\x8e\xbc" +
+	"`4\xa2\x88\xb1\xf92\x01\xc8\xbf\x89\xc8\x15Nw/" +
+	"\x06\x89\x1a*b\xfe}C\xfe\xf4\xd2m\xad \xd1\x98" +
+	"\x8aR\xfe\x99F.?\xba\xb1\x11$\xbaNE9/" +
+	"U\xe4R\xa1\x0d\xf5 \xd1ZU6\x13!txC" +
+	"\x00\x10\xc2\xa0K\xba\x10\xfa\x19\x06!\x8c\"\x96\xd5I" +
+	"\xa9\xfe\xb7\x0b\x1c\xe1\x86 G\x12X\x09\x12V\x0a\xcd" +
+	"\xab\x9cq\xed\xa6\x9d1,#\x91\x9b\x9d]<\xd5B" +
+	"f\xce\x95C!\xdb\xe2\x86\xed\x9f[S\x81\xf2\xb2\xa6" +
+	"%y\x8b\xe9\xf5m.\x14\xb2\x91t\x07\x82\x12\x00]" +
+	"\xd9\xc8\xe6Fk\xeb\x01P\xa2\x8b\xd8\x8fLi#@" +
+	"0a<\xd2\xd5\xee7S\x8fv\xfa\xf7\xe8V*h" +
+	"XV\xa7U\x84\x96\xa7%(G\x14=\x9d\x8e\x94\x94" +
+	"Q\x9e\x8b%x\xcc\x9b\xce~\x0f\x96}#\xb2\x8fH" +
+	")=\x17\x94\xc0\xac\x10AB\x14JP\xca\x0e\xa9d" +
+	"O|\xf8+D\xa0\xe5\x84\x8d\xd5\x80Q\x19\xdd\x0e\xab" +
+	"\x85\xf0\x10t\xe33\xac\x97\xb9\xe4\xe7\x9b\x1d\xf9V\xa2" +
+	"\xd3\x8c\xfc\x93\x8c\xfc|\x15\"?+\xe8\x958H\xf4" +
+	"\xa2\x8a\x12?z\x84E;\xce\x841\xca\xc8\xcf/\x1f" +
+	"\xe4\x97\x0e=\xc9\xfc\x8e\xa9\x98?\x0b\xbcuO_`" +
+	"~\x87T$\xf9\xa5\x8c|]\xd1\xa7\x87A\xa2}*" +
+	"\xfa\xf8}\"l\x98\x9e\x16\x90h\x87\x8aj~a\"" +
+	"?.\xa8\xce\xc4\xb65'6\xe1\xe1\x0c\x09\x12a\xd2" +
+	"\x13\xd7\xc2\\Y:|\x06\xc8\x87 \x1bv\x08\x9f\xcc" +
+	"\xc1\\N\xaf\x05$\xe1z-\xf7\x14\xc7\x8d`\x91\x9e" +
+	"[<\x8e\xf0\\H\xbd\xf3\x87)\x03\xf0\x9f\x00\x00\x00" +
+	"\xff\xff\xc7>\x0d\xf2"
 
 func init() {
 	schemas.Register(schema_db8274f9144abc7e,
@@ -2010,6 +2176,7 @@ func init() {
 		0xa56ff1a4dc4cdcd8,
 		0xa6b9c11c2aac9785,
 		0xa9121e4800ff7069,
+		0xac531ffcc2cdbf05,
 		0xae6825c3fecb35bf,
 		0xb25b411cec149334,
 		0xb5031b975a2f2d5d,
@@ -2018,6 +2185,7 @@ func init() {
 		0xccdde1728f71e904,
 		0xce802aa8977a9aee,
 		0xd2592928fa547bc6,
+		0xd47381c89e2f1649,
 		0xe3ec490c3d4015bb,
 		0xe542d95b68592c1c,
 		0xeb68797cd74f95c2,

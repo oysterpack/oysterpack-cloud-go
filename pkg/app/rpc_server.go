@@ -31,6 +31,11 @@ func (a rpcAppServer) Id(call capnprpc.App_id) error {
 	return nil
 }
 
+func (a rpcAppServer) ReleaseId(call capnprpc.App_releaseId) error {
+	call.Results.SetReleaseId(uint64(Release()))
+	return nil
+}
+
 func (a rpcAppServer) Instance(call capnprpc.App_instance) error {
 	return call.Results.SetInstanceId(string(Instance()))
 }
