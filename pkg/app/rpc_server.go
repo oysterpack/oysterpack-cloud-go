@@ -32,7 +32,7 @@ func (a rpcAppServer) Id(call capnprpc.App_id) error {
 }
 
 func (a rpcAppServer) Instance(call capnprpc.App_instance) error {
-	return call.Results.SetInstanceId(string(InstanceId()))
+	return call.Results.SetInstanceId(string(Instance()))
 }
 
 func (a rpcAppServer) StartedOn(call capnprpc.App_startedOn) error {
@@ -46,15 +46,6 @@ func (a rpcAppServer) LogLevel(call capnprpc.App_logLevel) error {
 		return err
 	}
 	call.Results.SetLevel(level)
-	return nil
-}
-
-func (a rpcAppServer) SetLogLevel(call capnprpc.App_setLogLevel) error {
-	level, err := CapnprpcLogLevel2zerologLevel(call.Params.Level())
-	if err != nil {
-		return err
-	}
-	SetLogLevel(level)
 	return nil
 }
 
@@ -139,14 +130,6 @@ func (a ServiceServer) LogLevel(call capnprpc.Service_logLevel) error {
 	}
 	call.Results.SetLevel(logLevel)
 	return nil
-}
-
-func (a ServiceServer) SetLogLevel(call capnprpc.Service_setLogLevel) error {
-	logLevel, err := CapnprpcLogLevel2zerologLevel(call.Params.Level())
-	if err != nil {
-		return err
-	}
-	return SetServiceLogLevel(a.ServiceID, logLevel)
 }
 
 func (a ServiceServer) Alive(call capnprpc.Service_alive) error {

@@ -24,7 +24,6 @@ import (
 
 	"github.com/oysterpack/oysterpack.go/pkg/app"
 	"github.com/oysterpack/oysterpack.go/pkg/app/capnprpc"
-	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"gopkg.in/tomb.v2"
 	"zombiezen.com/go/capnproto2/rpc"
@@ -32,9 +31,8 @@ import (
 
 func startRPCAppServer() (listener net.Listener, client capnprpc.App) {
 	app.Reset()
-	app.SetLogLevel(zerolog.InfoLevel)
 
-	sockAddress := fmt.Sprintf("/tmp/app-%s.sock", app.InstanceId())
+	sockAddress := fmt.Sprintf("/tmp/app-%s.sock", app.Instance())
 	log.Logger.Info().Msgf("sockAddress = %s", sockAddress)
 
 	l, err := net.Listen("unix", sockAddress)
@@ -150,10 +148,7 @@ func TestRPCAppServer_NetworkErrors(t *testing.T) {
 	} else {
 		t.Logf("id : %v", result.Level())
 	}
-	appClient.SetLogLevel(ctx, func(params capnprpc.App_setLogLevel_Params) error {
-		params.SetLevel(capnprpc.LogLevel_info)
-		return nil
-	})
+
 	if result, err := appClient.LogLevel(ctx, func(params capnprpc.App_logLevel_Params) error { return nil }).Struct(); err != nil {
 		t.Error(err)
 	} else {
@@ -189,19 +184,12 @@ func TestRpcAppServer_LogLevel(t *testing.T) {
 		}
 	}
 
-	appClient.SetLogLevel(ctx, func(params capnprpc.App_setLogLevel_Params) error {
-		params.SetLevel(capnprpc.LogLevel_warn)
-		return nil
-	})
-
 	if result, err := appClient.LogLevel(ctx, func(params capnprpc.App_logLevel_Params) error {
 		return nil
 	}).Struct(); err != nil {
 		t.Error(err)
 	} else {
-		if result.Level() != capnprpc.LogLevel_warn {
-			t.Errorf("Level does not match : %v", result.Level())
-		}
+		t.Logf("Log Level : %v", result.Level())
 	}
 }
 
@@ -245,8 +233,8 @@ func TestRpcAppServer(t *testing.T) {
 			t.Error(err)
 		} else {
 			t.Logf("instance id : %v", instanceId)
-			if app.InstanceID(instanceId) != app.InstanceId() {
-				t.Errorf("Returned app instance id did not match : %v != %v", instanceId, app.InstanceId())
+			if app.InstanceID(instanceId) != app.Instance() {
+				t.Errorf("Returned app instance id did not match : %v != %v", instanceId, app.Instance())
 			}
 		}
 	}
@@ -377,7 +365,7 @@ func TestRpcAppServer(t *testing.T) {
 // BenchmarkRpcAppServer_UnixSocket/connect_-_close-8         10000            123790 ns/op           32753 B/op        174 allocs/op
 func BenchmarkRpcAppServer_UnixSocket(b *testing.B) {
 	app.Reset()
-	sockAddress := fmt.Sprintf("/tmp/app-%s.sock", app.InstanceId())
+	sockAddress := fmt.Sprintf("/tmp/app-%s.sock", app.Instance())
 	b.Logf("sockAddress = %s", sockAddress)
 
 	// start the server

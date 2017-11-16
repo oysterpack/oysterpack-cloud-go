@@ -21,6 +21,13 @@ import (
 // AppID unique application ID
 type AppID uint64
 
+// InstanceID is the unique id for an app instance. There may be multiple instances, i.e., processes,  of an app running.
+// The instance id is used to differentiate the different app instances. For examples, logs and metrics will contain the instance id.
+type InstanceID string
+
+// ReleaseID is a unique ID assigned to an application release
+type ReleaseID uint64
+
 // ServiceID unique service ID
 type ServiceID uint64
 

@@ -21,9 +21,27 @@ import (
 
 	"errors"
 
+	"sync"
+
 	"github.com/oysterpack/oysterpack.go/pkg/app"
-	"github.com/rs/zerolog"
+	"gopkg.in/tomb.v2"
 )
+
+func TestLogger(t *testing.T) {
+	wait := sync.WaitGroup{}
+	wait.Add(1)
+
+	g := tomb.Tomb{}
+	g.Go(func() error {
+		logger := app.Logger()
+		wait.Wait()
+		logger.Debug().Msg("logger.Debug() : DEBUG MSG")
+		app.Logger().Debug().Msg("app.Logger().Debug() : DEBUG MSG")
+		return nil
+	})
+	wait.Done()
+	g.Wait()
+}
 
 func TestNewService_IDZero(t *testing.T) {
 	defer func() {
@@ -44,7 +62,7 @@ func TestApp(t *testing.T) {
 	if app.StartedOn().IsZero() {
 		t.Error("app.StartedOn() should not be the zero value")
 	}
-	if len(app.InstanceId()) == 0 {
+	if len(app.Instance()) == 0 {
 		t.Error("app instance id should not be blank")
 	}
 
@@ -53,7 +71,7 @@ func TestApp(t *testing.T) {
 	if err := app.RegisterService(nil); err == nil {
 		t.Error("registering a nill service is not allowed")
 	} else if err != app.ErrServiceNil {
-		t.Errorf("Wrong error ttype was returned : %T", err)
+		t.Errorf("Wrong error type was returned : %T", err)
 	}
 
 	service := app.NewService(app.ServiceID(1))
@@ -63,18 +81,25 @@ func TestApp(t *testing.T) {
 	if err := app.RegisterService(service); err == nil {
 		t.Error("registering a dead service is not allowed")
 	} else if err != app.ErrServiceNotAlive {
-		t.Errorf("Wrong error ttype was returned : %T", err)
+		t.Errorf("Wrong error type was returned : %T", err)
 	}
 
-	service = app.NewService(app.ServiceID(1))
+	service = app.NewService(app.ServiceID(2))
+	if !service.Alive() {
+		t.Error("Service should be alive")
+	}
 	// Given an app that has been killed, i.e., is not alive
 	app.Kill()
+	if app.Alive() {
+		t.Error("app was killed and should not be alive")
+	}
+
 	// When a service is registered
 	// Then app.RegisterService should return app.ErrAppNotAlive
 	if err := app.RegisterService(service); err == nil {
 		t.Error("registering a dead service is not allowed")
 	} else if err != app.ErrAppNotAlive {
-		t.Errorf("Wrong error ttype was returned : %T", err)
+		t.Errorf("Wrong error type was returned : %[1]T : %[1]v", err)
 	}
 
 	// When the app is dead
@@ -94,26 +119,18 @@ func TestApp(t *testing.T) {
 	} else {
 		t.Log(err.Error())
 		if err != app.ErrAppNotAlive {
-			t.Errorf("Wrong error ttype was returned : %T", err)
+			t.Errorf("Wrong error type was returned : %T", err)
 		}
 	}
 
 	// And LogLevel() can be invoked without hanging
 	app.LogLevel()
-	// And SetServiceLogLevel should return an ErrAppNotAlive
-	if app.SetServiceLogLevel(service.ID(), zerolog.ErrorLevel) != app.ErrAppNotAlive {
-		t.Errorf("ErrAppNotAlive should have been returned : %v", app.SetServiceLogLevel(service.ID(), zerolog.ErrorLevel))
-	}
 
+	// When the app is reset - after being killed
 	app.Reset()
-
-	app.SetLogLevel(zerolog.InfoLevel)
-	if app.LogLevel() != zerolog.InfoLevel {
-		t.Errorf("log level did not match : %v", app.LogLevel())
-	}
-	app.SetLogLevel(zerolog.DebugLevel)
-	if app.LogLevel() != zerolog.DebugLevel {
-		t.Errorf("log level did not match : %v", app.LogLevel())
+	// Then it should become alive again
+	if !app.Alive() {
+		t.Error("app was reset and should be alive")
 	}
 }
 
@@ -191,35 +208,6 @@ func TestRegisterService(t *testing.T) {
 		t.Error(err)
 	} else if err != app.ErrServiceAlreadyRegistered {
 		t.Errorf("the wrong error type was returned : %T", err)
-	}
-
-	// When the service log level is changed
-	// Then it is updated
-	app.SetServiceLogLevel(service.ID(), zerolog.DebugLevel)
-	if service.LogLevel() != zerolog.DebugLevel {
-		t.Error("log level did not match : %v", service.LogLevel())
-	}
-	service, _ = app.GetService(service.ID())
-	if service.LogLevel() != zerolog.DebugLevel {
-		t.Error("log level did not match : %v", service.LogLevel())
-	}
-
-	if err := app.SetServiceLogLevel(service.ID(), zerolog.ErrorLevel); err != nil {
-		t.Error(err)
-	} else {
-		if service.LogLevel() != zerolog.ErrorLevel {
-			t.Error("log level did not match : %v", service.LogLevel())
-		}
-		service, _ = app.GetService(service.ID())
-		if service.LogLevel() != zerolog.ErrorLevel {
-			t.Error("log level did not match : %v", service.LogLevel())
-		}
-	}
-
-	if err := app.SetServiceLogLevel(app.ServiceID(99), zerolog.ErrorLevel); err == nil {
-		t.Error("The service should not be registered")
-	} else if err != app.ErrServiceNotRegistered {
-		t.Errorf("The wrong error type was returned : %T", err)
 	}
 
 }

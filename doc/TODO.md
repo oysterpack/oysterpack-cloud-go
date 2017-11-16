@@ -10,4 +10,9 @@
 5. benchmark compression comparing gzip, zlib, lz4
    - what is the best (in general) compression for messaging ? 
      I would lean for best compression ratio because network IO will be the bottleneck.
+6. Logging into ELK
+    - each LogEvent would map to its own separate index template
+7. Logging config
+    - app log level
+    - service log level
    

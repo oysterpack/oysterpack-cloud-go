@@ -27,6 +27,8 @@ import (
 
 	"strings"
 
+	"strconv"
+
 	"github.com/nats-io/nuid"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -35,43 +37,45 @@ import (
 
 // app vars
 var (
-	logLevel string
-	appID    uint64
+	appID     AppID
+	releaseID ReleaseID
 
 	appInstanceId = InstanceID(nuid.Next())
 	startedOn     = time.Now()
 
-	app tomb.Tomb
+	app         tomb.Tomb
+	commandChan chan func()
 
-	logger      zerolog.Logger
-	appLogLevel zerolog.Level
+	logger           zerolog.Logger
+	appLogLevel      zerolog.Level
+	serviceLogLevels map[ServiceID]zerolog.Level
 
 	services map[ServiceID]*Service
-
-	registerServiceChan   chan registerServiceRequest
-	unregisterServiceChan chan ServiceID
-
-	registeredServiceIdsChan chan registeredServiceIdsRequest
-	getServiceChan           chan getServiceRequest
-
-	getLogLevelChan        chan getLogLevelRequest
-	setLogLevelChan        chan zerolog.Level
-	setServiceLogLevelChan chan setServiceLogLevelRequest
 )
 
-// InstanceID is the unique id for an app instance. There may be multiple instances, i.e., processes,  of an app running.
-// The instance id is used to differentiate the different app instances. For examples, logs and metrics will contain the instance id.
-type InstanceID string
+func submitCommand(f func()) error {
+	select {
+	case <-app.Dying():
+		return ErrAppNotAlive
+	case commandChan <- f:
+		return nil
+	}
+}
 
 // ID returns the AppID which is specified via a command line argument
 func ID() AppID {
-	return AppID(appID)
+	return appID
 }
 
 // InstanceID returns a new unique instance id each time the app is started, i.e., when the process is started.
 // The instance id remains for the lifetime of the process
-func InstanceId() InstanceID {
+func Instance() InstanceID {
 	return appInstanceId
+}
+
+// Release returns the application ReleaseID
+func Release() ReleaseID {
+	return releaseID
 }
 
 //
@@ -90,56 +94,15 @@ func Logger() zerolog.Logger {
 // The log level is used to configure the log level for loggers returned via NewTypeLogger() and NewPackageLogger().
 // It is also used to initialize zerolog's global logger level.
 func LogLevel() zerolog.Level {
-	req := getLogLevelRequest{make(chan zerolog.Level)}
-	select {
-	case <-app.Dying():
-		return appLogLevel
-	case getLogLevelChan <- req:
-		select {
-		case <-app.Dying():
-			return appLogLevel
-		case level := <-req.response:
-			return level
-		}
+	return appLogLevel
+}
+
+func ServiceLogLevel(id ServiceID) zerolog.Level {
+	logLevel, ok := serviceLogLevels[id]
+	if ok {
+		return logLevel
 	}
-}
-
-type getLogLevelRequest struct {
-	response chan zerolog.Level
-}
-
-// SetLogLevel set the application log level
-func SetLogLevel(level zerolog.Level) {
-	select {
-	case <-app.Dying():
-	case setLogLevelChan <- level:
-	}
-}
-
-// SetServiceLogLevel sets the service log level
-//
-// errors:
-// 	- ErrAppNotAlive
-//  - ErrServiceNotRegistered
-func SetServiceLogLevel(serviceId ServiceID, level zerolog.Level) error {
-	req := setServiceLogLevelRequest{serviceId, level, make(chan error)}
-	select {
-	case <-app.Dying():
-		return ErrAppNotAlive
-	case setServiceLogLevelChan <- req:
-		select {
-		case <-app.Dying():
-			return ErrAppNotAlive
-		case err := <-req.err:
-			return err
-		}
-	}
-}
-
-type setServiceLogLevelRequest struct {
-	ServiceID
-	zerolog.Level
-	err chan error
+	return LogLevel()
 }
 
 func zerologLevel(logLevel string) zerolog.Level {
@@ -169,61 +132,51 @@ func RegisterService(s *Service) error {
 	if !s.Alive() {
 		return ErrServiceNotAlive
 	}
-	req := registerServiceRequest{s, make(chan error)}
-	select {
-	case <-app.Dying():
-		return ErrAppNotAlive
-	case registerServiceChan <- req:
-		select {
-		case <-app.Dying():
-			return ErrAppNotAlive
-		case err := <-req.response:
-			return err
+
+	c := make(chan error)
+
+	err := submitCommand(func() {
+		if _, ok := services[s.id]; ok {
+			c <- ErrServiceAlreadyRegistered
 		}
-	}
-}
+		services[s.id] = s
+		// signal that the service registration was completed successfully
+		close(c)
 
-type registerServiceRequest struct {
-	*Service
-	response chan error
-}
-
-func registerService(req registerServiceRequest) {
-	if _, ok := services[req.Service.id]; ok {
-		req.response <- ErrServiceAlreadyRegistered
-	}
-	services[req.Service.id] = req.Service
-
-	// signal that the service registration was completed successfully
-	close(req.response)
-
-	SERVICE_REGISTERED.Log(req.Service.Logger().Info()).Msg("registered")
-
-	// watch the service
-	// when it dies, then unregister it
-	req.Service.Go(func() error {
-		select {
-		case <-app.Dying():
-			return nil
-		case <-req.Service.Dying():
-			SERVICE_STOPPING.Log(req.Service.Logger().Info()).Msg("stopping")
+		// watch the service
+		// when it dies, then unregister it
+		s.Go(func() error {
 			select {
 			case <-app.Dying():
 				return nil
-			case unregisterServiceChan <- req.Service.id:
-				app.Go(func() error {
-					select {
-					case <-app.Dying():
-						return nil
-					case <-req.Service.Dead():
-						logServiceDeath(req.Service)
-						return nil
-					}
-				})
+			case <-s.Dying():
+				SERVICE_STOPPING.Log(s.Logger().Info()).Msg("stopping")
+				if err := UnregisterService(s.id); err != nil {
+					app.Go(func() error {
+						select {
+						case <-app.Dying():
+							return nil
+						case <-s.Dead():
+							logServiceDeath(s)
+							return nil
+						}
+					})
+				}
 				return nil
 			}
-		}
+		})
 	})
+
+	if err != nil {
+		return err
+	}
+
+	select {
+	case <-app.Dying():
+		return ErrAppNotAlive
+	case err := <-c:
+		return err
+	}
 }
 
 func logServiceDeath(service *Service) {
@@ -239,34 +192,28 @@ func logServiceDeath(service *Service) {
 // errors:
 //	- ErrAppNotAlive
 func RegisteredServiceIds() ([]ServiceID, error) {
-	req := registeredServiceIdsRequest{make(chan []ServiceID)}
+	c := make(chan []ServiceID)
+
+	if err := submitCommand(func() {
+		ids := make([]ServiceID, len(services))
+		i := 0
+		for id := range services {
+			ids[i] = id
+			i++
+		}
+		select {
+		case <-app.Dying():
+		case c <- ids:
+		}
+	}); err != nil {
+		return nil, err
+	}
+
 	select {
 	case <-app.Dying():
 		return nil, ErrAppNotAlive
-	case registeredServiceIdsChan <- req:
-		select {
-		case <-app.Dying():
-			return nil, ErrAppNotAlive
-		case ids := <-req.response:
-			return ids, nil
-		}
-	}
-}
-
-type registeredServiceIdsRequest struct {
-	response chan []ServiceID
-}
-
-func registeredServiceIds(req registeredServiceIdsRequest) {
-	ids := make([]ServiceID, len(services))
-	i := 0
-	for id := range services {
-		ids[i] = id
-		i++
-	}
-	select {
-	case <-app.Dying():
-	case req.response <- ids:
+	case ids := <-c:
+		return ids, nil
 	}
 }
 
@@ -274,12 +221,27 @@ func registeredServiceIds(req registeredServiceIdsRequest) {
 //
 // errors:
 //	- ErrAppNotAlive
+//  - ErrServiceNotRegistered
 func UnregisterService(id ServiceID) error {
+	c := make(chan error)
+	if err := submitCommand(func() {
+		service, exists := services[id]
+		if !exists {
+			c <- ErrServiceNotRegistered
+			return
+		}
+		delete(services, id)
+		SERVICE_UNREGISTERED.Log(service.Logger().Info()).Msg("unregistered")
+		c <- nil
+	}); err != nil {
+		return err
+	}
+
 	select {
 	case <-app.Dying():
 		return ErrAppNotAlive
-	case unregisterServiceChan <- id:
-		return nil
+	case err := <-c:
+		return err
 	}
 }
 
@@ -288,26 +250,26 @@ func UnregisterService(id ServiceID) error {
 // errors:
 //	- ErrAppNotAlive
 func GetService(id ServiceID) (*Service, error) {
-	req := getServiceRequest{id, make(chan *Service)}
+	c := make(chan *Service)
+
+	if err := submitCommand(func() {
+		select {
+		case <-app.Dying():
+		case c <- services[id]:
+		}
+	}); err != nil {
+		return nil, err
+	}
+
 	select {
 	case <-app.Dying():
 		return nil, ErrAppNotAlive
-	case getServiceChan <- req:
-		select {
-		case <-app.Dying():
-			return nil, ErrAppNotAlive
-		case svc := <-req.response:
-			if svc == nil {
-				return nil, ErrServiceNotRegistered
-			}
-			return svc, nil
+	case svc := <-c:
+		if svc == nil {
+			return nil, ErrServiceNotRegistered
 		}
+		return svc, nil
 	}
-}
-
-type getServiceRequest struct {
-	ServiceID
-	response chan *Service
 }
 
 // Reset is exposed only for testing purposes.
@@ -321,38 +283,45 @@ func Reset() {
 	APP_RESET.Log(logger.Info()).Msg("reset")
 }
 
+// Alive returns true if the app is still alive
+func Alive() bool {
+	return app.Alive()
+}
+
 // Kill triggers app shutdown
 func Kill() {
 	app.Kill(nil)
 }
 
 func init() {
-	flag.Uint64Var(&appID, "app-id", 0, "AppID")
-	flag.StringVar(&logLevel, "log-level", "WARN", "valid log levels [DEBUG,INFO,WARN,ERROR] default = WARN")
+	var appIDVar uint64
+	flag.Uint64Var(&appIDVar, "app-id", 0, "AppID")
+
+	var releaseIDVar uint64
+	flag.Uint64Var(&releaseIDVar, "release-id", 0, "AppID")
+
+	var logLevelVar string
+	flag.StringVar(&logLevelVar, "log-level", "WARN", "valid log levels [DEBUG,INFO,WARN,ERROR] default = WARN")
+
+	var serviceLogLevelsVar string
+	flag.StringVar(&serviceLogLevelsVar, "service-log-level", "", "ServiceID=LogLevel[,ServiceID=LogLevel]")
+
 	flag.Parse()
-	logLevel = strings.ToUpper(logLevel)
+
+	logLevelVar = strings.ToUpper(logLevelVar)
+	appID = AppID(appIDVar)
+	releaseID = ReleaseID(releaseIDVar)
 
 	app = tomb.Tomb{}
 	services = make(map[ServiceID]*Service)
 
-	makeChans()
-	initZerolog()
+	commandChan = make(chan func())
+	initZerolog(logLevelVar)
+	initServiceLogLevels(serviceLogLevelsVar)
 	runAppServer()
 }
 
-func makeChans() {
-	registerServiceChan = make(chan registerServiceRequest)
-	unregisterServiceChan = make(chan ServiceID)
-
-	registeredServiceIdsChan = make(chan registeredServiceIdsRequest)
-	getServiceChan = make(chan getServiceRequest)
-
-	getLogLevelChan = make(chan getLogLevelRequest)
-	setLogLevelChan = make(chan zerolog.Level)
-	setServiceLogLevelChan = make(chan setServiceLogLevelRequest)
-}
-
-func initZerolog() {
+func initZerolog(logLevel string) {
 	// log with nanosecond precision time
 	zerolog.TimeFieldFormat = time.RFC3339Nano
 
@@ -364,7 +333,36 @@ func initZerolog() {
 	stdlog.SetFlags(0)
 	stdlog.SetOutput(log.Logger)
 
-	logger = log.Logger.With().Uint64("app", appID).Str("instance", string(appInstanceId)).Logger().Level(zerolog.InfoLevel)
+	logger = log.Logger.With().
+		Uint64("app", uint64(appID)).
+		Uint64("release", uint64(releaseID)).
+		Str("instance", string(appInstanceId)).
+		Logger().
+		Level(zerolog.InfoLevel)
+}
+
+func initServiceLogLevels(serviceLogLevelsFlag string) {
+	serviceLogLevelsFlag = strings.TrimSpace(serviceLogLevelsFlag)
+	if serviceLogLevelsFlag == "" {
+		return
+	}
+
+	serviceLogLevels = make(map[ServiceID]zerolog.Level)
+	for _, serviceLogLevel := range strings.Split(serviceLogLevelsFlag, ",") {
+		tokens := strings.Split(serviceLogLevel, "=")
+		if len(tokens) != 2 {
+			logger.Warn().Str("service-log-level", serviceLogLevel).Msg("invalid service log level flag")
+			continue
+		}
+
+		serviceId, err := strconv.ParseUint(tokens[0], 0, 64)
+		if err != nil {
+			logger.Warn().Str("service-log-level", serviceLogLevel).Err(err).Msg("invalid service id")
+			continue
+		}
+		serviceLogLevels[ServiceID(serviceId)] = zerologLevel(tokens[1])
+	}
+
 }
 
 func runAppServer() {
@@ -380,42 +378,8 @@ func runAppServer() {
 			case <-app.Dying():
 				shutdown()
 				return nil
-			case req := <-registerServiceChan:
-				registerService(req)
-			case req := <-registeredServiceIdsChan:
-				registeredServiceIds(req)
-			case id := <-unregisterServiceChan:
-				if service, ok := services[id]; ok {
-					SERVICE_UNREGISTERED.Log(service.Logger().Info()).Msg("unregistered")
-				}
-				delete(services, id)
-			case req := <-getServiceChan:
-				select {
-				case <-app.Dying():
-				case req.response <- services[req.ServiceID]:
-				}
-			case req := <-getLogLevelChan:
-				select {
-				case <-app.Dying():
-				case req.response <- appLogLevel:
-				}
-			case level := <-setLogLevelChan:
-				appLogLevel = level
-				logger.Level(level)
-			case req := <-setServiceLogLevelChan:
-				if service, ok := services[req.ServiceID]; !ok {
-					select {
-					case <-app.Dying():
-					case req.err <- ErrServiceNotRegistered:
-					}
-				} else {
-					service.logger.Level(req.Level)
-					service.logLevel = req.Level
-					select {
-					case <-app.Dying():
-					case req.err <- nil:
-					}
-				}
+			case f := <-commandChan:
+				f()
 			}
 		}
 	})

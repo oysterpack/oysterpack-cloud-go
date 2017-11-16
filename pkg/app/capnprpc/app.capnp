@@ -11,12 +11,11 @@ interface App @0xf052e7e084b31199 {
 	startedOn          @2 () -> (startedOn :Int64);
 
     logLevel           @3 () -> (level :LogLevel);
-    setLogLevel        @4 (level :LogLevel) -> ();
 
-    registeredServices @5 () -> (serviceIds :List(UInt64));
-    service            @6 (id :UInt64) -> (service :Service);
+    registeredServices @4 () -> (serviceIds :List(UInt64));
+    service            @5 (id :UInt64) -> (service :Service);
 
-    kill               @7 () -> ();
+    kill               @6 () -> ();
 }
 
 enum LogLevel @0xce802aa8977a9aee {
@@ -30,8 +29,7 @@ interface Service @0xb25b411cec149334 {
     id          @0 () -> (serviceId :UInt64);
 
     logLevel    @1 () -> (level :LogLevel);
-    setLogLevel @2 (level :LogLevel) -> ();
 
-    alive       @3 () -> (alive :Bool);
-    kill        @4 () -> ();
+    alive       @2 () -> (alive :Bool);
+    kill        @3 () -> ();
 }
