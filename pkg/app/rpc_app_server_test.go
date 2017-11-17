@@ -22,6 +22,14 @@ import (
 	"context"
 	"time"
 
+	"bytes"
+
+	"compress/zlib"
+
+	"io"
+
+	"runtime"
+
 	"github.com/oysterpack/oysterpack.go/pkg/app"
 	"github.com/oysterpack/oysterpack.go/pkg/app/capnprpc"
 	"gopkg.in/tomb.v2"
@@ -325,6 +333,160 @@ func TestRPCAppServer(t *testing.T) {
 			t.Error(err)
 		} else if result.Alive() {
 			t.Error("service should not be alive")
+		}
+	})
+
+	t.Run("Runtime().GoVersion()", func(t *testing.T) {
+		appRuntime := appClient.Runtime(ctx, func(params capnprpc.App_runtime_Params) error {
+			return nil
+		}).Runtime()
+
+		if result, err := appRuntime.GoVersion(ctx, func(params capnprpc.Runtime_goVersion_Params) error { return nil }).Struct(); err != nil {
+			t.Fatal(err)
+		} else {
+			goVersion, err := result.Version()
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Logf("go version: %v", goVersion)
+		}
+
+	})
+
+	t.Run("Runtime().NumGoroutine().StackDump()", func(t *testing.T) {
+		appRuntime := appClient.Runtime(ctx, func(params capnprpc.App_runtime_Params) error {
+			return nil
+		}).Runtime()
+
+		if result, err := appRuntime.NumGoroutine(ctx, func(params capnprpc.Runtime_numGoroutine_Params) error {
+			return nil
+		}).Struct(); err != nil {
+			t.Errorf("NumGoroutine failure: %v", err)
+		} else {
+			t.Logf("num goroutine = %d", result.Count())
+
+			if result, err := appRuntime.StackDump(ctx, func(params capnprpc.Runtime_stackDump_Params) error {
+				return nil
+			}).Struct(); err != nil {
+				t.Errorf("Failed to get stack dump : %v", err)
+			} else {
+				compressedStackDump, err := result.StackDump()
+				if err != nil {
+					t.Error(err)
+				}
+				r, err := zlib.NewReader(bytes.NewReader(compressedStackDump))
+				var stackDump bytes.Buffer
+				io.Copy(&stackDump, r)
+				t.Log(stackDump.String())
+			}
+		}
+
+		if result, err := appRuntime.NumCPU(ctx, func(params capnprpc.Runtime_numCPU_Params) error {
+			return nil
+		}).Struct(); err != nil {
+			t.Error(err)
+		} else {
+			t.Logf("NumCPU = %d", result.Count())
+		}
+	})
+
+	t.Run("Runtime().NumCPU()", func(t *testing.T) {
+		appRuntime := appClient.Runtime(ctx, func(params capnprpc.App_runtime_Params) error {
+			return nil
+		}).Runtime()
+
+		if result, err := appRuntime.NumCPU(ctx, func(params capnprpc.Runtime_numCPU_Params) error {
+			return nil
+		}).Struct(); err != nil {
+			t.Error(err)
+		} else {
+			t.Logf("NumCPU = %d", result.Count())
+		}
+	})
+
+	t.Run("Runtime().MemStats()", func(t *testing.T) {
+		appRuntime := appClient.Runtime(ctx, func(params capnprpc.App_runtime_Params) error {
+			return nil
+		}).Runtime()
+
+		if result, err := appRuntime.MemStats(ctx, func(params capnprpc.Runtime_memStats_Params) error {
+			return nil
+		}).Struct(); err != nil {
+			t.Error(err)
+		} else {
+			if stats, err := result.Stats(); err != nil {
+				t.Error(err)
+			} else {
+				t.Logf("alloc : %d", stats.Alloc())
+				t.Logf("totalAlloc : %d", stats.TotalAlloc())
+				t.Logf("sys : %d", stats.Sys())
+				t.Logf("lookups : %d", stats.Lookups())
+				t.Logf("mallocs : %d", stats.Mallocs())
+				t.Logf("frees : %d", stats.Frees())
+
+				t.Logf("heapAlloc : %d", stats.HeapAlloc())
+				t.Logf("heapSys : %d", stats.HeapSys())
+				t.Logf("heapIdle : %d", stats.HeapIdle())
+				t.Logf("heapInUse : %d", stats.HeapInUse())
+				t.Logf("heapReleased : %d", stats.HeapReleased())
+				t.Logf("heapObjects : %d", stats.HeapObjects())
+
+				t.Logf("stackInUse : %d", stats.StackInUse())
+				t.Logf("stackSys : %d", stats.StackSys())
+
+				t.Logf("mSpanInUse : %d", stats.MSpanInUse())
+				t.Logf("mSpanSys : %d", stats.MSpanSys())
+				t.Logf("mCacheInUse : %d", stats.MCacheInUse())
+				t.Logf("mCacheSys : %d", stats.MCacheSys())
+
+				t.Logf("buckHashSys : %d", stats.BuckHashSys())
+				t.Logf("gCSys : %d", stats.GCSys())
+				t.Logf("otherSys : %d", stats.OtherSys())
+
+				t.Logf("nextGC : %d", stats.NextGC())
+				t.Logf("lastGC : %d", stats.LastGC())
+
+				t.Logf("pauseTotalNs : %d", stats.PauseTotalNs())
+
+				memstats := &runtime.MemStats{}
+				if nl, err := stats.PauseNs(); err != nil {
+					t.Error(err)
+				} else {
+					data := make([]uint64, nl.Len())
+					for i := 0; i < nl.Len(); i++ {
+						data[i] = nl.At(i)
+					}
+					t.Logf("pauseNs : %v", data)
+					runtime.ReadMemStats(memstats)
+					t.Logf("current pauseNs : %v", memstats.PauseNs)
+				}
+				if nl, err := stats.PauseEnd(); err != nil {
+					t.Error(err)
+				} else {
+					data := make([]uint64, nl.Len())
+					for i := 0; i < nl.Len(); i++ {
+						data[i] = nl.At(i)
+					}
+					t.Logf("pauseEnd : %v", data)
+					runtime.ReadMemStats(memstats)
+					t.Logf("current pauseNs : %v", memstats.PauseEnd)
+				}
+
+				t.Logf("numGC : %d", stats.NumGC())
+				t.Logf("numForcedGC : %d", stats.NumForcedGC())
+				t.Logf("gCCPUFraction : %d", stats.GCCPUFraction())
+
+				if nl, err := stats.BySize(); err != nil {
+					t.Error(err)
+				} else {
+					data := make([]capnprpc.MemStats_BySize, nl.Len())
+					for i := 0; i < nl.Len(); i++ {
+						data[i] = nl.At(i)
+					}
+					t.Logf("bySize : %v", data)
+
+				}
+			}
 		}
 	})
 

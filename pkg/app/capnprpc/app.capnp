@@ -42,6 +42,7 @@ interface Runtime @0xdda2e02140fe8f08 {
     numCPU          @1 () -> (count :UInt32);
     numGoroutine    @2 () -> (count :UInt32);
     memStats        @3 () -> (stats :MemStats);
+    stackDump       @4 () -> (stackDump :Data);     # zlib compressed
 }
 
 struct MemStats @0xcdf011e3e3860026 {

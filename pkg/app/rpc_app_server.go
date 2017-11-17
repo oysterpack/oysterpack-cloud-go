@@ -17,6 +17,9 @@ package app
 import (
 	"runtime"
 
+	"bytes"
+	"compress/zlib"
+
 	"github.com/oysterpack/oysterpack.go/pkg/app/capnprpc"
 	"github.com/rs/zerolog"
 	"zombiezen.com/go/capnproto2"
@@ -282,4 +285,12 @@ func (a rpcRuntimeServer) MemStats(call capnprpc.Runtime_memStats) error {
 	}
 
 	return call.Results.SetStats(stats)
+}
+
+func (a rpcRuntimeServer) StackDump(call capnprpc.Runtime_stackDump) error {
+	var b bytes.Buffer
+	w := zlib.NewWriter(&b)
+	DumpAllStacks(w)
+	w.Close()
+	return call.Results.SetStackDump(b.Bytes())
 }
