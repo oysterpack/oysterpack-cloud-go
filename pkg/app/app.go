@@ -376,22 +376,20 @@ func init() {
 	initServiceLogLevels(serviceLogLevelsVar)
 
 	runAppServer()
-
-	if appRPCPort != 0 {
-		if _, err := startRPCAppServer(func() (net.Listener, error) {
-			return net.Listen("tcp", fmt.Sprintf(":%d", appRPCPort))
-		}, appRPCMaxConns); err != nil {
-			APP_RPC_START_ERR.Log(Logger().Error()).Err(err).Msg("Failed to start app RPC server")
-			app.Kill(err)
-		}
-	}
+	runRPCAppServer(appRPCPort, appRPCMaxConns)
 }
 
 func runRPCAppServer(appRPCPort uint, appRPCMaxConns uint) {
+	runTLSRPCAppServer(appRPCPort, appRPCPort, nil)
+}
+
+func runTLSRPCAppServer(appRPCPort uint, appRPCMaxConns uint, tlsConfigProvider TLSConfigProvider) {
 	if appRPCPort != 0 {
-		if _, err := startRPCAppServer(func() (net.Listener, error) {
+		listenerFactory := func() (net.Listener, error) {
 			return net.Listen("tcp", fmt.Sprintf(":%d", appRPCPort))
-		}, appRPCMaxConns); err != nil {
+		}
+
+		if _, err := startRPCAppServer(listenerFactory, tlsConfigProvider, appRPCMaxConns); err != nil {
 			APP_RPC_START_ERR.Log(Logger().Error()).Err(err).Msg("Failed to start app RPC server")
 			app.Kill(err)
 		}

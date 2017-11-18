@@ -58,6 +58,16 @@ type ListenerFactoryError struct {
 	*Err
 }
 
+func NewTLSConfigError(err error) ListenerFactoryError {
+	return ListenerFactoryError{
+		&Err{ErrorID: ErrorID(0xb67cbd821c0ab946), Err: err},
+	}
+}
+
+type TLSConfigError struct {
+	*Err
+}
+
 func NewNetListenError(err error) NetListenError {
 	return NetListenError{
 		&Err{ErrorID: ErrorID(0xa1dcc954855732fc), Err: err},

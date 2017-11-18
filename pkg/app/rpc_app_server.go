@@ -29,7 +29,7 @@ const (
 	APP_RPC_SERVICE_ID = ServiceID(0xe49214fa20b35ba8)
 )
 
-func startRPCAppServer(listenerFactory ListenerFactory, maxConns uint) (*RPCService, error) {
+func startRPCAppServer(listenerFactory ListenerFactory, tlsConfigProvider TLSConfigProvider, maxConns uint) (*RPCService, error) {
 	rpcServer := NewService(APP_RPC_SERVICE_ID)
 	if err := RegisterService(rpcServer); err != nil {
 		Logger().Fatal().Err(err).Msg("Failed to register app RPC server")
@@ -39,7 +39,7 @@ func startRPCAppServer(listenerFactory ListenerFactory, maxConns uint) (*RPCServ
 	rpcMainInterface := func() (capnp.Client, error) {
 		return server.Client, nil
 	}
-	return StartRPCService(rpcServer, listenerFactory, rpcMainInterface, maxConns)
+	return StartRPCService(rpcServer, listenerFactory, tlsConfigProvider, rpcMainInterface, maxConns)
 }
 
 func NewAppServer() capnprpc.App_Server {

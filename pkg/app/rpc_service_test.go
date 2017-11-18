@@ -38,7 +38,7 @@ func TestStartRPCService(t *testing.T) {
 	}
 
 	const maxConns = 5
-	rpcService, err := app.StartRPCService(appRPCService, listenerFactory, appRPCMainInterface(), maxConns)
+	rpcService, err := app.StartRPCService(appRPCService, listenerFactory, nil, appRPCMainInterface(), maxConns)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -111,6 +111,56 @@ func TestStartRPCService(t *testing.T) {
 
 	appRPCService.Kill(nil)
 	appRPCService.Wait()
+}
+
+func TestRPCService_TLS(t *testing.T) {
+	app.Reset()
+
+	// Given the app RPC service is registered with maxConns = 5
+	appRPCService := app.NewService(app.ServiceID(0xfef711bb74ee4e13))
+	app.RegisterService(appRPCService)
+
+	var listenerFactory app.ListenerFactory = func() (net.Listener, error) {
+		return net.Listen("tcp", "")
+	}
+
+	var tlsConfigProvider app.TLSConfigProvider = serverTLSConfig
+
+	const maxConns = 5
+	rpcService, err := app.StartRPCService(appRPCService, listenerFactory, tlsConfigProvider, appRPCMainInterface(), maxConns)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	<-rpcService.Started()
+	addr, err := rpcService.ListenerAddress()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	appClient, conn, err := appTLSClientConn(addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx := context.Background()
+	if result, err := appClient.Id(ctx, func(params capnprpc.App_id_Params) error {
+		return nil
+	}).Struct(); err != nil {
+		t.Error(err)
+	} else {
+		t.Logf("app id : %x", result.AppId())
+	}
+
+	// When the conn is closed
+	conn.Close()
+	if _, err := appClient.Id(ctx, func(params capnprpc.App_id_Params) error {
+		return nil
+	}).Struct(); err == nil {
+		t.Error("Client RPC call should have failed because the underlying connection has been closed.")
+	} else {
+		t.Logf("error after using client when the network connection is closed : %[1]T : %[1]v", err)
+	}
 }
 
 func appRPCMainInterface() app.RPCMainInterface {

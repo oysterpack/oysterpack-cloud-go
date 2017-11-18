@@ -22,6 +22,8 @@ import (
 
 	"fmt"
 
+	"crypto/tls"
+
 	"github.com/rs/zerolog"
 	"gopkg.in/tomb.v2"
 	"zombiezen.com/go/capnproto2"
@@ -29,7 +31,7 @@ import (
 )
 
 // StartRPCService creates and starts a new RPCService asynchronously.
-func StartRPCService(service *Service, listenerFactory ListenerFactory, server RPCMainInterface, maxConns uint) (*RPCService, error) {
+func StartRPCService(service *Service, listenerFactory ListenerFactory, tlsConfigProvider TLSConfigProvider, server RPCMainInterface, maxConns uint) (*RPCService, error) {
 	if service == nil {
 		return nil, ErrServiceNil
 	}
@@ -58,7 +60,7 @@ func StartRPCService(service *Service, listenerFactory ListenerFactory, server R
 		connSemaphore:         NewCountingSemaphore(maxConns),
 		conns:                 make(map[uint64]*rpc.Conn),
 		logger:                NewConnLogger(service.logger),
-		listener:              &listener{factory: listenerFactory},
+		listener:              &listener{factory: listenerFactory, tlsConfigProvider: tlsConfigProvider},
 	}
 	rpcService.start()
 
@@ -68,6 +70,8 @@ func StartRPCService(service *Service, listenerFactory ListenerFactory, server R
 // ListenerFactory provides a way to start a new listener.
 // It abstracts away how the listener is created and what network address it listens on.
 type ListenerFactory func() (net.Listener, error)
+
+type TLSConfigProvider func() (*tls.Config, error)
 
 // RPCService provides the infrastructure to run a capnp RPC based server.
 //
@@ -137,10 +141,12 @@ type RPCService struct {
 
 type listener struct {
 	tomb.Tomb
-	factory ListenerFactory
+	factory           ListenerFactory
+	tlsConfigProvider TLSConfigProvider
 
-	m sync.Mutex
-	l net.Listener
+	m         sync.Mutex
+	l         net.Listener
+	tlsConfig *tls.Config
 }
 
 func (a *listener) get() net.Listener {
@@ -154,17 +160,37 @@ func (a *listener) start() (listener net.Listener, err error) {
 	a.m.Lock()
 	if a.l == nil {
 		// starting for the first time
-		listener, err = a.factory()
+		l, err := a.factory()
 		if err != nil {
 			err = NewListenerFactoryError(err)
+		}
+
+		if a.tlsConfigProvider != nil && a.tlsConfig == nil {
+			tlsConfig, err := a.tlsConfigProvider()
+			if err != nil {
+				err = NewTLSConfigError(err)
+			}
+			a.tlsConfig = tlsConfig
+		}
+
+		if a.tlsConfig != nil {
+			listener = tls.NewListener(l, a.tlsConfig)
+		} else {
+			listener = l
 		}
 	} else {
 		// restarting using same address as before
 		addr := a.l.Addr()
-		listener, err = net.Listen(addr.Network(), addr.String())
-		if err != nil {
-			err = NewNetListenError(err)
+		if a.tlsConfig != nil {
+			if listener, err = tls.Listen(addr.Network(), addr.String(), a.tlsConfig); err != nil {
+				err = NewNetListenError(err)
+			}
+		} else {
+			if listener, err = net.Listen(addr.Network(), addr.String()); err != nil {
+				err = NewNetListenError(err)
+			}
 		}
+
 	}
 	a.l = listener
 	a.m.Unlock()

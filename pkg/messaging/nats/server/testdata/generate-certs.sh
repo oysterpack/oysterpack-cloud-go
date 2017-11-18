@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+# create the PKI directory
+mkdir -p $PKI_ROOT
+
 # create the CA authority
 easypki create --filename oysterpack --ca dev.oysterpack.com
 

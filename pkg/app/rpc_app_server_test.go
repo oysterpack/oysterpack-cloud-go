@@ -117,9 +117,11 @@ func TestRPCAppServer_NetworkErrors(t *testing.T) {
 func TestRPCAppServer(t *testing.T) {
 	Reset()
 
-	rpcServer, err := startRPCAppServer(func() (net.Listener, error) {
+	listenerFactory := func() (net.Listener, error) {
 		return net.Listen("tcp", ":0")
-	}, 10)
+	}
+	var tlsConfigProvider TLSConfigProvider
+	rpcServer, err := startRPCAppServer(listenerFactory, tlsConfigProvider, 10)
 
 	if err != nil {
 		t.Fatal(err)
