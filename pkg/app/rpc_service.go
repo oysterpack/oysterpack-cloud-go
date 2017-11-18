@@ -93,6 +93,9 @@ type ListenerFactory func() (net.Listener, error)
 //	 - the total number of concurrent connections is limited by a counting semaphore - in order for the listener to accept
 //     a new connection, it must first acquire a token
 //	 - each new RPC connection is handled in a new goroutine
+//   - once the max connection capacity limit has been reached, the listener will automatically close itself. Clients will
+//     fail fast with connection refused errors because the port will be down. Load balancers should automatically route
+//     clients to other servers with capacity. Once connection capacity is freed up, then the listener will automatically restart.
 // - RPC conn handler goroutine
 //   - handles RPC requests
 //	 - registers itself
@@ -177,6 +180,8 @@ func (a *RPCService) start() {
 		a.startListener()
 		SERVICE_STARTED.Log(a.Logger().Info()).Msg("started")
 
+		a.registerRPCService()
+
 		for {
 			select {
 			case <-a.Dying():
@@ -195,6 +200,18 @@ func (a *RPCService) start() {
 	})
 }
 
+func (a *RPCService) registerRPCService() {
+	submitCommand(func() {
+		rpcServices[a.Service.ID()] = a
+	})
+}
+
+func (a *RPCService) unregisterRPCService() {
+	submitCommand(func() {
+		delete(rpcServices, a.Service.ID())
+	})
+}
+
 func (a *RPCService) Started() <-chan struct{} {
 	return a.startedChan
 }
@@ -205,7 +222,11 @@ func (a *RPCService) startListener() {
 		if err != nil {
 			return err
 		}
-		defer listener.Close()
+		defer func() {
+			if listener != nil {
+				listener.Close()
+			}
+		}()
 		// signal that the server is started, i.e., the listener was started
 		close(a.startedChan)
 		mainInterface, err := a.server()
@@ -225,6 +246,12 @@ func (a *RPCService) startListener() {
 			case <-a.listener.Dying():
 				return nil
 			case <-a.connSemaphore:
+				if listener == nil {
+					listener, err = a.listener.start()
+					if err != nil {
+						return err
+					}
+				}
 				conn, err := listener.Accept()
 				if err != nil {
 					return err
@@ -243,6 +270,12 @@ func (a *RPCService) startListener() {
 						a.Service.Logger().Info().Err(err).Msg("")
 					}
 				}(conn)
+
+				if a.RemainingConnectionCapacity() == 0 {
+					// no longer accept connections - we want clients to fail fast and not hang waiting to be served
+					listener.Close()
+					listener = nil
+				}
 			}
 		}
 	})
@@ -264,6 +297,8 @@ func (a *RPCService) stop() {
 			RPC_CONN_CLOSE_ERR.Log(a.Logger().Warn()).Err(err).Msg("Error on rpc.Conn.Close()")
 		}
 	}
+
+	a.unregisterRPCService()
 }
 
 func (a *RPCService) registerConn(key uint64, conn *rpc.Conn) func() {
@@ -298,7 +333,17 @@ func (a *RPCService) MaxConns() int {
 func (a *RPCService) ActiveConns() int {
 	count := cap(a.connSemaphore) - len(a.connSemaphore)
 	if count == cap(a.connSemaphore) {
-		return count
+		c := make(chan int, 1)
+		a.Submit(func() {
+			c <- len(a.conns)
+		})
+
+		select {
+		case <-a.Dying():
+			return 0
+		case count = <-c:
+			return count
+		}
 	}
 	if count > 0 {
 		// the listener will acquire the next token immediately, and wait for a connection
@@ -306,6 +351,10 @@ func (a *RPCService) ActiveConns() int {
 		return count - 1
 	}
 	return 0
+}
+
+func (a *RPCService) RemainingConnectionCapacity() int {
+	return len(a.connSemaphore)
 }
 
 // TotalConnsCreated returns the total number of connections that have been created since the RPC server initially started

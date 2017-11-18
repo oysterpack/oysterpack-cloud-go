@@ -62,7 +62,10 @@ func TestStartRPCService(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	client, conn := appClientConn(addr)
+	client, conn, err := appClientConn(addr)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ctx := context.Background()
 	if result, err := client.Id(ctx, func(params capnprpc.App_id_Params) error { return nil }).Struct(); err != nil {
@@ -91,7 +94,10 @@ func TestStartRPCService(t *testing.T) {
 	clients := []capnprpc.App{}
 	conns := []net.Conn{}
 	for i := 0; i < maxConns; i++ {
-		client, conn := appClientConn(addr)
+		client, conn, err := appClientConn(addr)
+		if err != nil {
+			t.Fatal(err)
+		}
 		clients = append(clients, client)
 		conns = append(conns, conn)
 	}

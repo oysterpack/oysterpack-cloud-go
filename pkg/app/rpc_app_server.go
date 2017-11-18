@@ -29,7 +29,7 @@ const (
 	APP_RPC_SERVICE_ID = ServiceID(0xe49214fa20b35ba8)
 )
 
-func StartRPCAppServer(listenerFactory ListenerFactory, maxConns uint) (*RPCService, error) {
+func startRPCAppServer(listenerFactory ListenerFactory, maxConns uint) (*RPCService, error) {
 	rpcServer := NewService(APP_RPC_SERVICE_ID)
 	if err := RegisterService(rpcServer); err != nil {
 		Logger().Fatal().Err(err).Msg("Failed to register app RPC server")
@@ -78,8 +78,8 @@ func (a rpcAppServer) LogLevel(call capnprpc.App_logLevel) error {
 	return nil
 }
 
-func (a rpcAppServer) RegisteredServices(call capnprpc.App_registeredServices) error {
-	ids, err := RegisteredServiceIds()
+func (a rpcAppServer) ServiceIds(call capnprpc.App_serviceIds) error {
+	ids, err := ServiceIDs()
 	if err != nil {
 		return err
 	}
@@ -95,11 +95,6 @@ func (a rpcAppServer) RegisteredServices(call capnprpc.App_registeredServices) e
 	return nil
 }
 
-func (a rpcAppServer) Kill(call capnprpc.App_kill) error {
-	app.Kill(nil)
-	return nil
-}
-
 func (a rpcAppServer) Service(call capnprpc.App_service) error {
 	service, err := GetService(ServiceID(call.Params.Id()))
 	if err != nil {
@@ -107,6 +102,36 @@ func (a rpcAppServer) Service(call capnprpc.App_service) error {
 	}
 
 	return call.Results.SetService(capnprpc.Service_ServerToClient(rpcServiceServer{service.ID()}))
+}
+
+func (a rpcAppServer) RpcServiceIds(call capnprpc.App_rpcServiceIds) error {
+	ids, err := RPCServiceIDs()
+	if err != nil {
+		return err
+	}
+
+	list, err := capnp.NewUInt64List(call.Results.Segment(), int32(len(ids)))
+	if err != nil {
+		return err
+	}
+	for i := 0; i < list.Len(); i++ {
+		list.Set(i, uint64(ids[i]))
+	}
+	call.Results.SetServiceIds(list)
+	return nil
+}
+
+func (a rpcAppServer) RpcService(call capnprpc.App_rpcService) error {
+	service, err := GetRPCService(ServiceID(call.Params.Id()))
+	if err != nil {
+		return err
+	}
+	return call.Results.SetService(capnprpc.RPCService_ServerToClient(rpcRPCServiceServer{service.ID()}))
+}
+
+func (a rpcAppServer) Kill(call capnprpc.App_kill) error {
+	app.Kill(nil)
+	return nil
 }
 
 func (a rpcAppServer) Runtime(call capnprpc.App_runtime) error {
@@ -175,15 +200,6 @@ func (a rpcServiceServer) Alive(call capnprpc.Service_alive) error {
 		return err
 	}
 	call.Results.SetAlive(service.Alive())
-	return nil
-}
-
-func (a rpcServiceServer) Kill(call capnprpc.Service_kill) error {
-	service, err := GetService(a.ServiceID)
-	if err != nil {
-		return err
-	}
-	service.Kill(nil)
 	return nil
 }
 
@@ -293,4 +309,71 @@ func (a rpcRuntimeServer) StackDump(call capnprpc.Runtime_stackDump) error {
 	DumpAllStacks(w)
 	w.Close()
 	return call.Results.SetStackDump(b.Bytes())
+}
+
+type rpcRPCServiceServer struct {
+	ServiceID
+}
+
+func (a rpcRPCServiceServer) Id(call capnprpc.RPCService_id) error {
+	call.Results.SetServiceId(uint64(a.ServiceID))
+	return nil
+}
+
+func (a rpcRPCServiceServer) ListenerAlive(call capnprpc.RPCService_listenerAlive) error {
+	service, err := GetRPCService(a.ServiceID)
+	if err != nil {
+		if err == ErrServiceNotRegistered {
+			call.Results.SetListenerAlive(false)
+			return nil
+		}
+		return err
+	}
+	call.Results.SetListenerAlive(service.Alive())
+	return nil
+}
+
+func (a rpcRPCServiceServer) ListenerAddress(call capnprpc.RPCService_listenerAddress) error {
+	addr, err := a.listenerAddress(call.Results.Segment())
+	if err != nil {
+		return err
+	}
+	return call.Results.SetAddress(*addr)
+}
+
+func (a rpcRPCServiceServer) listenerAddress(s *capnp.Segment) (*capnprpc.NetworkAddress, error) {
+	service, err := GetRPCService(a.ServiceID)
+	if err != nil {
+		return nil, err
+	}
+
+	addr, err := service.ListenerAddress()
+	if err != nil {
+		return nil, err
+	}
+	capnpAddr, err := capnprpc.NewNetworkAddress(s)
+	if err != nil {
+		return nil, err
+	}
+	capnpAddr.SetNetwork(addr.Network())
+	capnpAddr.SetAddress(addr.String())
+	return &capnpAddr, nil
+}
+
+func (a rpcRPCServiceServer) ActiveConns(call capnprpc.RPCService_activeConns) error {
+	service, err := GetRPCService(a.ServiceID)
+	if err != nil {
+		return err
+	}
+	call.Results.SetCount(uint32(service.ActiveConns()))
+	return nil
+}
+
+func (a rpcRPCServiceServer) MaxConns(call capnprpc.RPCService_maxConns) error {
+	service, err := GetRPCService(a.ServiceID)
+	if err != nil {
+		return err
+	}
+	call.Results.SetCount(uint32(service.MaxConns()))
+	return nil
 }

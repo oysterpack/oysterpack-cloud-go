@@ -46,14 +46,15 @@ var (
 	appInstanceId = InstanceID(nuid.Next())
 	startedOn     = time.Now()
 
-	app         tomb.Tomb
-	commandChan chan func()
+	app         = tomb.Tomb{}
+	commandChan = make(chan func(), 32)
 
 	logger           zerolog.Logger
 	appLogLevel      zerolog.Level
 	serviceLogLevels map[ServiceID]zerolog.Level
 
-	services map[ServiceID]*Service
+	services    = make(map[ServiceID]*Service)
+	rpcServices = make(map[ServiceID]*RPCService)
 )
 
 func submitCommand(f func()) error {
@@ -180,11 +181,11 @@ func logServiceDeath(service *Service) {
 	logEvent.Msg("stopped")
 }
 
-// RegisteredServiceIds returns the ServiceID(s) for the currently registered services
+// ServiceIDs returns the ServiceID(s) for the currently registered services
 //
 // errors:
 //	- ErrAppNotAlive
-func RegisteredServiceIds() ([]ServiceID, error) {
+func ServiceIDs() ([]ServiceID, error) {
 	c := make(chan []ServiceID, 1)
 
 	if err := submitCommand(func() {
@@ -204,6 +205,61 @@ func RegisteredServiceIds() ([]ServiceID, error) {
 		return nil, ErrAppNotAlive
 	case ids := <-c:
 		return ids, nil
+	}
+}
+
+// RPCServiceIDs returns ServiceID(s) for registered RPCService(s)
+//
+// errors:
+//	- ErrAppNotAlive
+func RPCServiceIDs() ([]ServiceID, error) {
+	c := make(chan []ServiceID, 1)
+
+	if err := submitCommand(func() {
+		ids := make([]ServiceID, len(rpcServices))
+		i := 0
+		for id := range rpcServices {
+			ids[i] = id
+			i++
+		}
+		c <- ids
+	}); err != nil {
+		return nil, err
+	}
+
+	select {
+	case <-app.Dying():
+		return nil, ErrAppNotAlive
+	case ids := <-c:
+		return ids, nil
+	}
+}
+
+// GetRPCService returns the registered *RPCService
+//
+// errors :
+// - ErrAppNotAlive
+// - ErrServiceNotRegistered
+func GetRPCService(id ServiceID) (*RPCService, error) {
+	c := make(chan *RPCService, 1)
+
+	submitCommand(func() {
+		service, ok := rpcServices[id]
+		if !ok {
+			close(c)
+			return
+		}
+		c <- service
+	})
+
+	select {
+	case <-app.Dying():
+		return nil, ErrAppNotAlive
+	case svc := <-c:
+		if svc == nil {
+			return nil, ErrServiceNotRegistered
+		}
+		return svc, nil
 	}
 }
 
@@ -316,17 +372,13 @@ func init() {
 	appID = AppID(appIDVar)
 	releaseID = ReleaseID(releaseIDVar)
 
-	app = tomb.Tomb{}
-	services = make(map[ServiceID]*Service)
-	commandChan = make(chan func())
-
 	initZerolog(logLevelVar)
 	initServiceLogLevels(serviceLogLevelsVar)
 
 	runAppServer()
 
 	if appRPCPort != 0 {
-		if _, err := StartRPCAppServer(func() (net.Listener, error) {
+		if _, err := startRPCAppServer(func() (net.Listener, error) {
 			return net.Listen("tcp", fmt.Sprintf(":%d", appRPCPort))
 		}, appRPCMaxConns); err != nil {
 			APP_RPC_START_ERR.Log(Logger().Error()).Err(err).Msg("Failed to start app RPC server")
@@ -337,7 +389,7 @@ func init() {
 
 func runRPCAppServer(appRPCPort uint, appRPCMaxConns uint) {
 	if appRPCPort != 0 {
-		if _, err := StartRPCAppServer(func() (net.Listener, error) {
+		if _, err := startRPCAppServer(func() (net.Listener, error) {
 			return net.Listen("tcp", fmt.Sprintf(":%d", appRPCPort))
 		}, appRPCMaxConns); err != nil {
 			APP_RPC_START_ERR.Log(Logger().Error()).Err(err).Msg("Failed to start app RPC server")
@@ -414,25 +466,37 @@ func shutdown() {
 	APP_STOPPING.Log(logger.Info()).Msg("stopping")
 	defer APP_STOPPED.Log(logger.Info()).Msg("stopped")
 
+	// Kill each registered service
 	for _, service := range services {
 		service.Kill(nil)
 		SERVICE_KILLED.Log(service.Logger().Info()).Msg("killed")
 	}
 
-	ticker := time.NewTicker(time.Second * 10)
-	defer ticker.Stop()
+	// Wait until all registered srevices are shutdown.
+	// If the service takes longer than 10 seconds to shutdown, then log a warning and move on.
+	// Wait a maximum of 2 minute for the app to shutdown, after which we move on. We don't want to hang the whole app
+	// because we are waiting for a service to shutdown.
+	maxWaitTime := time.NewTicker(time.Minute * 2)
+	defer maxWaitTime.Stop()
 SERVICE_LOOP:
 	for _, service := range services {
+		ticker := time.NewTicker(time.Second * 10)
+		defer ticker.Stop()
 		for {
 			select {
 			case <-service.Dead():
 				logServiceDeath(service)
 				continue SERVICE_LOOP
 			case <-ticker.C:
-				SERVICE_STOPPING.Log(service.Logger().Warn()).Msg("waiting for service to stop")
+				ticker.Stop()
+				SERVICE_STOPPING_TIMEOUT.Log(service.Logger().Warn()).Msg("service is taking too long to stop")
+				continue SERVICE_LOOP
+			case <-maxWaitTime.C:
+				APP_STOPPING_TIMEOUT.Log(Logger().Warn()).Msg("app is taking too long to stop")
 			}
 		}
 	}
 
 	services = make(map[ServiceID]*Service)
+	rpcServices = make(map[ServiceID]*RPCService)
 }

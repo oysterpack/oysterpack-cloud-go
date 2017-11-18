@@ -111,7 +111,7 @@ func TestApp(t *testing.T) {
 
 	// When the app is dead
 	// Then all app functions should fail and return ErrAppNotAlive
-	if _, err := app.RegisteredServiceIds(); err == nil {
+	if _, err := app.ServiceIDs(); err == nil {
 		t.Error("should have failed because app is dead")
 	} else if err != app.ErrAppNotAlive {
 		t.Errorf("Wrong error ttype was returned : %T", err)
@@ -146,7 +146,7 @@ func TestRegisterService(t *testing.T) {
 	app.Reset()
 
 	// Then there should be no registered services
-	ids, err := app.RegisteredServiceIds()
+	ids, err := app.ServiceIDs()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -161,7 +161,7 @@ func TestRegisterService(t *testing.T) {
 	}
 
 	// Then the service id should be returned
-	ids, err = app.RegisteredServiceIds()
+	ids, err = app.ServiceIDs()
 	if err != nil {
 		t.Error(err)
 	}
@@ -196,7 +196,7 @@ func TestRegisterService(t *testing.T) {
 	}
 
 	// And no ServiceIDs should be returned
-	ids, err = app.RegisteredServiceIds()
+	ids, err = app.ServiceIDs()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -241,7 +241,7 @@ func TestGetService(t *testing.T) {
 	// When the app is reset, it is effectively restarted
 	app.Reset()
 	// And no ServiceIDs should be returned
-	ids, err := app.RegisteredServiceIds()
+	ids, err := app.ServiceIDs()
 	if err != nil {
 		t.Fatal(err)
 	}

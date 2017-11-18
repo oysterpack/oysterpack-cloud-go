@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package app_test
+package app
 
 import (
 	"fmt"
@@ -30,32 +30,22 @@ import (
 
 	"runtime"
 
-	"github.com/oysterpack/oysterpack.go/pkg/app"
 	"github.com/oysterpack/oysterpack.go/pkg/app/capnprpc"
 	"gopkg.in/tomb.v2"
 	"zombiezen.com/go/capnproto2/rpc"
 )
 
-func appClient(addr net.Addr) capnprpc.App {
+func newAppClient(addr net.Addr) (capnprpc.App, net.Conn, error) {
 	clientConn, err := net.Dial(addr.Network(), addr.String())
 	if err != nil {
-		panic(err)
+		return capnprpc.App{}, nil, err
 	}
 	rpcClient := rpc.NewConn(rpc.StreamTransport(clientConn))
-	return capnprpc.App{Client: rpcClient.Bootstrap(context.Background())}
-}
-
-func appClientConn(addr net.Addr) (capnprpc.App, net.Conn) {
-	clientConn, err := net.Dial(addr.Network(), addr.String())
-	if err != nil {
-		panic(err)
-	}
-	rpcClient := rpc.NewConn(rpc.StreamTransport(clientConn))
-	return capnprpc.App{Client: rpcClient.Bootstrap(context.Background())}, clientConn
+	return capnprpc.App{Client: rpcClient.Bootstrap(context.Background())}, clientConn, nil
 }
 
 func TestRPCAppServer_NetworkErrors(t *testing.T) {
-	app.Reset()
+	Reset()
 
 	l, err := net.Listen("tcp", ":0")
 	if err != nil {
@@ -68,9 +58,9 @@ func TestRPCAppServer_NetworkErrors(t *testing.T) {
 	defer l.Close()
 	var listenerTomb tomb.Tomb
 	var rpcTomb tomb.Tomb
-	connLogger := app.NewConnLogger(app.Logger())
+	connLogger := NewConnLogger(Logger())
 	listenerTomb.Go(func() error {
-		server := capnprpc.App_ServerToClient(app.NewAppServer())
+		server := capnprpc.App_ServerToClient(NewAppServer())
 		for {
 			conn, err := l.Accept()
 			if err != nil {
@@ -85,7 +75,10 @@ func TestRPCAppServer_NetworkErrors(t *testing.T) {
 		}
 	})
 
-	appClient := appClient(l.Addr())
+	appClient, _, err := newAppClient(l.Addr())
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ctx := context.Background()
 	if result, err := appClient.Id(ctx, func(params capnprpc.App_id_Params) error { return nil }).Struct(); err != nil {
@@ -122,9 +115,9 @@ func TestRPCAppServer_NetworkErrors(t *testing.T) {
 }
 
 func TestRPCAppServer(t *testing.T) {
-	app.Reset()
+	Reset()
 
-	rpcServer, err := app.StartRPCAppServer(func() (net.Listener, error) {
+	rpcServer, err := startRPCAppServer(func() (net.Listener, error) {
 		return net.Listen("tcp", ":0")
 	}, 10)
 
@@ -139,7 +132,10 @@ func TestRPCAppServer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	appClient := appClient(addr)
+	appClient, _, err := newAppClient(addr)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	t.Run("LogLevel()", func(t *testing.T) {
 		if result, err := appClient.LogLevel(ctx, func(params capnprpc.App_logLevel_Params) error {
@@ -147,7 +143,7 @@ func TestRPCAppServer(t *testing.T) {
 		}).Struct(); err != nil {
 			t.Error(err)
 		} else {
-			if level, err := app.CapnprpcLogLevel2zerologLevel(result.Level()); err != nil {
+			if level, err := CapnprpcLogLevel2zerologLevel(result.Level()); err != nil {
 				t.Error(err)
 			} else {
 				t.Logf("level : %v", level)
@@ -170,8 +166,8 @@ func TestRPCAppServer(t *testing.T) {
 			t.Error(err)
 		} else {
 			t.Logf("app id : %v", result.AppId())
-			if app.AppID(result.AppId()) != app.ID() {
-				t.Errorf("Returned app id did not match : %v != %v", result.AppId(), app.ID())
+			if AppID(result.AppId()) != ID() {
+				t.Errorf("Returned app id did not match : %v != %v", result.AppId(), ID())
 			}
 		}
 	})
@@ -184,8 +180,8 @@ func TestRPCAppServer(t *testing.T) {
 		} else {
 			startedOn := time.Unix(0, result.StartedOn())
 			t.Logf("startedOn: %v", startedOn)
-			if !startedOn.Equal(app.StartedOn()) {
-				t.Errorf("Returned app startedOn did not match : %v != %v", startedOn, app.StartedOn())
+			if !startedOn.Equal(StartedOn()) {
+				t.Errorf("Returned app startedOn did not match : %v != %v", startedOn, StartedOn())
 			}
 		}
 	})
@@ -201,16 +197,16 @@ func TestRPCAppServer(t *testing.T) {
 				t.Error(err)
 			} else {
 				t.Logf("instance id : %v", instanceId)
-				if app.InstanceID(instanceId) != app.Instance() {
-					t.Errorf("Returned app instance id did not match : %v != %v", instanceId, app.Instance())
+				if InstanceID(instanceId) != Instance() {
+					t.Errorf("Returned app instance id did not match : %v != %v", instanceId, Instance())
 				}
 			}
 		}
 	})
 
 	t.Run("Service() - for registered service", func(t *testing.T) {
-		service := app.NewService(app.ServiceID(999))
-		app.RegisterService(service)
+		service := NewService(ServiceID(999))
+		RegisterService(service)
 		remoteService := appClient.Service(ctx, func(params capnprpc.App_service_Params) error {
 			params.SetId(uint64(service.ID()))
 			return nil
@@ -226,10 +222,31 @@ func TestRPCAppServer(t *testing.T) {
 				t.Errorf("service id did not match : %v", results.ServiceId())
 			}
 		}
+
+		if result, err := appClient.ServiceIds(ctx, func(params capnprpc.App_serviceIds_Params) error {
+			return nil
+		}).Struct(); err != nil {
+			t.Error(err)
+		} else {
+			ids, err := result.ServiceIds()
+			if err != nil {
+				t.Error(err)
+			}
+			hasId := false
+			for i := 0; i < ids.Len(); i++ {
+				if ids.At(i) == uint64(service.ID()) {
+					hasId = true
+					break
+				}
+			}
+			if !hasId {
+				t.Error("service id was not returned")
+			}
+		}
 	})
 
 	t.Run("Service() - for unregistered service", func(t *testing.T) {
-		const SERVICE_ID = app.ServiceID(987654321)
+		const SERVICE_ID = ServiceID(987654321)
 
 		// When an invalid ServiceID is used to lookup a Service
 		// Then an error should be returned.
@@ -256,8 +273,8 @@ func TestRPCAppServer(t *testing.T) {
 		}
 
 		// When the service is registered
-		service1000 := app.NewService(app.ServiceID(SERVICE_ID))
-		if err := app.RegisterService(service1000); err != nil {
+		service1000 := NewService(ServiceID(SERVICE_ID))
+		if err := RegisterService(service1000); err != nil {
 			t.Fatal(err)
 		}
 
@@ -282,7 +299,7 @@ func TestRPCAppServer(t *testing.T) {
 		}).Struct(); err != nil {
 			t.Errorf("service should now be registered : %T : %v", err, err)
 		} else {
-			if app.ServiceID(result.ServiceId()) != service1000.ID() {
+			if ServiceID(result.ServiceId()) != service1000.ID() {
 				t.Errorf("Service id did not match : %d", result.ServiceId())
 			}
 		}
@@ -303,36 +320,12 @@ func TestRPCAppServer(t *testing.T) {
 	})
 
 	t.Run("Service.Kill()", func(t *testing.T) {
-		const SERVICE_ID = app.ServiceID(987654321)
+		const SERVICE_ID = ServiceID(987654321)
 
 		// Given a registered service
-		service1000 := app.NewService(SERVICE_ID)
-		if err := app.RegisterService(service1000); err != nil {
+		service1000 := NewService(SERVICE_ID)
+		if err := RegisterService(service1000); err != nil {
 			t.Fatal(err)
-		}
-		// When the service is killed remotely
-		remoteService := appClient.Service(ctx, func(params capnprpc.App_service_Params) error {
-			params.SetId(uint64(service1000.ID()))
-			return nil
-		}).Service()
-		if result, err := remoteService.Alive(ctx, func(params capnprpc.Service_alive_Params) error {
-			return nil
-		}).Struct(); err != nil {
-			t.Error(err)
-		} else if !result.Alive() {
-			t.Error("service should be alive")
-		}
-		remoteService.Kill(ctx, func(params capnprpc.Service_kill_Params) error {
-			return nil
-		})
-
-		// Then the service should no longer be alive
-		if result, err := remoteService.Alive(ctx, func(params capnprpc.Service_alive_Params) error {
-			return nil
-		}).Struct(); err != nil {
-			t.Error(err)
-		} else if result.Alive() {
-			t.Error("service should not be alive")
 		}
 	})
 
@@ -490,6 +483,202 @@ func TestRPCAppServer(t *testing.T) {
 		}
 	})
 
+	t.Run("RpcServiceIds()", func(t *testing.T) {
+		if results, err := appClient.RpcServiceIds(ctx, func(params capnprpc.App_rpcServiceIds_Params) error {
+			return nil
+		}).Struct(); err != nil {
+			t.Error(err)
+		} else {
+			serviceIds, err := results.ServiceIds()
+			if err != nil {
+				t.Error(err)
+			}
+			ids := make([]ServiceID, serviceIds.Len())
+			for i := 0; i < serviceIds.Len(); i++ {
+				ids[i] = ServiceID(serviceIds.At(i))
+			}
+			t.Logf("RPC ServiceIDs : %v", ids)
+			if serviceIds.Len() == 0 {
+				t.Error("No service ids were returned")
+			}
+			appRPCServiceIDFound := false
+			for i := 0; i < serviceIds.Len(); i++ {
+				if ids[i] == APP_RPC_SERVICE_ID {
+					appRPCServiceIDFound = true
+					break
+				}
+			}
+			if !appRPCServiceIDFound {
+				t.Error("APP_RPC_SERVICE_ID was not returned")
+			}
+		}
+	})
+
+	t.Run("RpcService()", func(t *testing.T) {
+		if results, err := appClient.RpcServiceIds(ctx, func(params capnprpc.App_rpcServiceIds_Params) error {
+			return nil
+		}).Struct(); err != nil {
+			t.Error(err)
+		} else {
+			serviceIds, err := results.ServiceIds()
+			if err != nil {
+				t.Error(err)
+			}
+			ids := make([]ServiceID, serviceIds.Len())
+			for i := 0; i < serviceIds.Len(); i++ {
+				ids[i] = ServiceID(serviceIds.At(i))
+			}
+			t.Logf("RPC ServiceIDs : %v", ids)
+			if serviceIds.Len() == 0 {
+				t.Error("No service ids were returned")
+			}
+
+			for i := 0; i < serviceIds.Len(); i++ {
+				if result, err := appClient.RpcService(ctx, func(params capnprpc.App_rpcService_Params) error {
+					params.SetId(serviceIds.At(i))
+					return nil
+				}).Struct(); err != nil {
+					t.Error(err)
+				} else {
+					rpcService := result.Service()
+					if result, err := rpcService.Id(ctx, func(params capnprpc.RPCService_id_Params) error {
+						return nil
+					}).Struct(); err != nil {
+						t.Error(err)
+					} else {
+						if result.ServiceId() != serviceIds.At(i) {
+							t.Error("service id did not match %x != %x", result.ServiceId(), serviceIds.At(i))
+						}
+					}
+
+					if result, err := rpcService.ListenerAddress(ctx, func(params capnprpc.RPCService_listenerAddress_Params) error {
+						return nil
+					}).Struct(); err != nil {
+						t.Error(err)
+					} else {
+						if addr, err := result.Address(); err != nil {
+							t.Error(err)
+						} else {
+							network, err := addr.Network()
+							if err != nil {
+								t.Error(err)
+							}
+							address, err := addr.Address()
+							if err != nil {
+								t.Error(err)
+							}
+							t.Logf("listener address : %s://%s", network, address)
+						}
+					}
+
+					if result, err := rpcService.ListenerAlive(ctx, func(params capnprpc.RPCService_listenerAlive_Params) error {
+						return nil
+					}).Struct(); err != nil {
+						t.Error(err)
+					} else {
+						t.Logf("listener alive = %d", result.ListenerAlive())
+						if !result.ListenerAlive() {
+							t.Error("Listener should be alive")
+						}
+					}
+
+					if result, err := rpcService.MaxConns(ctx, func(params capnprpc.RPCService_maxConns_Params) error {
+						return nil
+					}).Struct(); err != nil {
+						t.Error(err)
+					} else {
+						t.Logf("max conns = %d", result.Count())
+						if rpcService, err := GetRPCService(ServiceID(serviceIds.At(i))); err != nil {
+							t.Error(err)
+						} else {
+							if rpcService.MaxConns() != int(result.Count()) {
+								t.Errorf("max conns does not match : %d != %d", rpcService.MaxConns(), result.Count())
+							}
+						}
+
+					}
+
+					if result, err := rpcService.ActiveConns(ctx, func(params capnprpc.RPCService_activeConns_Params) error {
+						return nil
+					}).Struct(); err != nil {
+						t.Error(err)
+					} else {
+						t.Logf("active conns = %d", result.Count())
+						if rpcService, err := GetRPCService(ServiceID(serviceIds.At(i))); err != nil {
+							t.Error(err)
+						} else {
+							if rpcService.ActiveConns() != int(result.Count()) {
+								t.Errorf("active conns conns does not match : %d != %d", rpcService.ActiveConns(), result.Count())
+							}
+						}
+					}
+				}
+			}
+		}
+	})
+
+	t.Run("Listener Too Many Conns", func(t *testing.T) {
+		rpcService, err := GetRPCService(APP_RPC_SERVICE_ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		clients := []capnprpc.App{}
+		conns := []net.Conn{}
+		t.Logf("max conns = %d", rpcService.MaxConns())
+		for rpcService.ActiveConns() < rpcService.MaxConns() {
+			t.Logf("activeConns = %d", rpcService.ActiveConns())
+			client, conn, err := newAppClient(addr)
+			if err != nil {
+				t.Fatal(err)
+			}
+			clients = append(clients, client)
+			conns = append(conns, conn)
+			time.Sleep(time.Millisecond * 5)
+		}
+		t.Logf("activeConns = %d", rpcService.ActiveConns())
+		if rpcService.ActiveConns() != rpcService.MaxConns() {
+			t.Fatal("active conn count (%d) should be at max conn limit : %d", rpcService.ActiveConns(), rpcService.MaxConns())
+		}
+
+		t.Logf("RemainingConnectionCapacity = %d", rpcService.RemainingConnectionCapacity())
+		// When max conn capacity has been reached, the RPC server will no longer accept connections, i.e., the RPC listener will automatically close itself
+		for i := 0; i < 5; i++ {
+			_, _, err = newAppClient(addr)
+			if err == nil {
+				rpcService.Logger().Error().Msgf("%d : No more connections should have been allowed : %d", i, rpcService.ActiveConns())
+				t.Errorf("%d : No more connections should have been allowed : %d", i, rpcService.ActiveConns())
+			} else {
+				t.Logf("%d : error when trying to connect after max conn limit has been reached : %[2]T : %[2]v", i, err)
+			}
+		}
+
+		for _, client := range clients {
+			client.Client.Close()
+		}
+		time.Sleep(time.Millisecond * 100)
+		t.Logf("after closing clients : activeConns = %d", rpcService.ActiveConns())
+
+		for _, conn := range conns {
+			conn.Close()
+		}
+		time.Sleep(time.Millisecond * 100)
+		t.Logf("after closing network conns : activeConns = %d", rpcService.ActiveConns())
+
+		// After closing connections, new clients can connect
+		for rpcService.ActiveConns() < rpcService.MaxConns() {
+			t.Logf("activeConns = %d", rpcService.ActiveConns())
+			client, conn, err := newAppClient(addr)
+			if err != nil {
+				t.Fatal(err)
+			}
+			clients = append(clients, client)
+			conns = append(conns, conn)
+			time.Sleep(time.Millisecond * 5)
+		}
+		t.Logf("activeConns = %d", rpcService.ActiveConns())
+	})
+
 }
 
 // BenchmarkRpcAppServer_UnixSocket/ID()-8                    20000             79748 ns/op           18266 B/op         78 allocs/op
@@ -497,8 +686,8 @@ func TestRPCAppServer(t *testing.T) {
 // BenchmarkRpcAppServer_UnixSocket/StartedOn()-8             20000             79975 ns/op           18265 B/op         78 allocs/op
 // BenchmarkRpcAppServer_UnixSocket/connect_-_close-8         10000            123790 ns/op           32753 B/op        174 allocs/op
 func BenchmarkRpcAppServer_UnixSocket(b *testing.B) {
-	app.Reset()
-	sockAddress := fmt.Sprintf("/tmp/app-%s.sock", app.Instance())
+	Reset()
+	sockAddress := fmt.Sprintf("/tmp/app-%s.sock", Instance())
 	b.Logf("sockAddress = %s", sockAddress)
 
 	// start the server
@@ -510,7 +699,7 @@ func BenchmarkRpcAppServer_UnixSocket(b *testing.B) {
 	var listenerTomb tomb.Tomb
 	var rpcTomb tomb.Tomb
 	listenerTomb.Go(func() error {
-		server := capnprpc.App_ServerToClient(app.NewAppServer())
+		server := capnprpc.App_ServerToClient(NewAppServer())
 		for {
 			conn, err := l.Accept()
 			if err != nil {

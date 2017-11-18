@@ -117,9 +117,9 @@ func (c App) LogLevel(ctx context.Context, params func(App_logLevel_Params) erro
 	}
 	return App_logLevel_Results_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(call))}
 }
-func (c App) RegisteredServices(ctx context.Context, params func(App_registeredServices_Params) error, opts ...capnp.CallOption) App_registeredServices_Results_Promise {
+func (c App) ServiceIds(ctx context.Context, params func(App_serviceIds_Params) error, opts ...capnp.CallOption) App_serviceIds_Results_Promise {
 	if c.Client == nil {
-		return App_registeredServices_Results_Promise{Pipeline: capnp.NewPipeline(capnp.ErrorAnswer(capnp.ErrNullClient))}
+		return App_serviceIds_Results_Promise{Pipeline: capnp.NewPipeline(capnp.ErrorAnswer(capnp.ErrNullClient))}
 	}
 	call := &capnp.Call{
 		Ctx: ctx,
@@ -127,15 +127,15 @@ func (c App) RegisteredServices(ctx context.Context, params func(App_registeredS
 			InterfaceID:   0xf052e7e084b31199,
 			MethodID:      5,
 			InterfaceName: "app.capnp:App",
-			MethodName:    "registeredServices",
+			MethodName:    "serviceIds",
 		},
 		Options: capnp.NewCallOptions(opts),
 	}
 	if params != nil {
 		call.ParamsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 0}
-		call.ParamsFunc = func(s capnp.Struct) error { return params(App_registeredServices_Params{Struct: s}) }
+		call.ParamsFunc = func(s capnp.Struct) error { return params(App_serviceIds_Params{Struct: s}) }
 	}
-	return App_registeredServices_Results_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(call))}
+	return App_serviceIds_Results_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(call))}
 }
 func (c App) Service(ctx context.Context, params func(App_service_Params) error, opts ...capnp.CallOption) App_service_Results_Promise {
 	if c.Client == nil {
@@ -157,6 +157,46 @@ func (c App) Service(ctx context.Context, params func(App_service_Params) error,
 	}
 	return App_service_Results_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(call))}
 }
+func (c App) RpcServiceIds(ctx context.Context, params func(App_rpcServiceIds_Params) error, opts ...capnp.CallOption) App_rpcServiceIds_Results_Promise {
+	if c.Client == nil {
+		return App_rpcServiceIds_Results_Promise{Pipeline: capnp.NewPipeline(capnp.ErrorAnswer(capnp.ErrNullClient))}
+	}
+	call := &capnp.Call{
+		Ctx: ctx,
+		Method: capnp.Method{
+			InterfaceID:   0xf052e7e084b31199,
+			MethodID:      7,
+			InterfaceName: "app.capnp:App",
+			MethodName:    "rpcServiceIds",
+		},
+		Options: capnp.NewCallOptions(opts),
+	}
+	if params != nil {
+		call.ParamsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 0}
+		call.ParamsFunc = func(s capnp.Struct) error { return params(App_rpcServiceIds_Params{Struct: s}) }
+	}
+	return App_rpcServiceIds_Results_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(call))}
+}
+func (c App) RpcService(ctx context.Context, params func(App_rpcService_Params) error, opts ...capnp.CallOption) App_rpcService_Results_Promise {
+	if c.Client == nil {
+		return App_rpcService_Results_Promise{Pipeline: capnp.NewPipeline(capnp.ErrorAnswer(capnp.ErrNullClient))}
+	}
+	call := &capnp.Call{
+		Ctx: ctx,
+		Method: capnp.Method{
+			InterfaceID:   0xf052e7e084b31199,
+			MethodID:      8,
+			InterfaceName: "app.capnp:App",
+			MethodName:    "rpcService",
+		},
+		Options: capnp.NewCallOptions(opts),
+	}
+	if params != nil {
+		call.ParamsSize = capnp.ObjectSize{DataSize: 8, PointerCount: 0}
+		call.ParamsFunc = func(s capnp.Struct) error { return params(App_rpcService_Params{Struct: s}) }
+	}
+	return App_rpcService_Results_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(call))}
+}
 func (c App) Kill(ctx context.Context, params func(App_kill_Params) error, opts ...capnp.CallOption) App_kill_Results_Promise {
 	if c.Client == nil {
 		return App_kill_Results_Promise{Pipeline: capnp.NewPipeline(capnp.ErrorAnswer(capnp.ErrNullClient))}
@@ -165,7 +205,7 @@ func (c App) Kill(ctx context.Context, params func(App_kill_Params) error, opts 
 		Ctx: ctx,
 		Method: capnp.Method{
 			InterfaceID:   0xf052e7e084b31199,
-			MethodID:      7,
+			MethodID:      9,
 			InterfaceName: "app.capnp:App",
 			MethodName:    "kill",
 		},
@@ -185,7 +225,7 @@ func (c App) Runtime(ctx context.Context, params func(App_runtime_Params) error,
 		Ctx: ctx,
 		Method: capnp.Method{
 			InterfaceID:   0xf052e7e084b31199,
-			MethodID:      8,
+			MethodID:      10,
 			InterfaceName: "app.capnp:App",
 			MethodName:    "runtime",
 		},
@@ -209,9 +249,13 @@ type App_Server interface {
 
 	LogLevel(App_logLevel) error
 
-	RegisteredServices(App_registeredServices) error
+	ServiceIds(App_serviceIds) error
 
 	Service(App_service) error
+
+	RpcServiceIds(App_rpcServiceIds) error
+
+	RpcService(App_rpcService) error
 
 	Kill(App_kill) error
 
@@ -225,7 +269,7 @@ func App_ServerToClient(s App_Server) App {
 
 func App_Methods(methods []server.Method, s App_Server) []server.Method {
 	if cap(methods) == 0 {
-		methods = make([]server.Method, 0, 9)
+		methods = make([]server.Method, 0, 11)
 	}
 
 	methods = append(methods, server.Method{
@@ -303,11 +347,11 @@ func App_Methods(methods []server.Method, s App_Server) []server.Method {
 			InterfaceID:   0xf052e7e084b31199,
 			MethodID:      5,
 			InterfaceName: "app.capnp:App",
-			MethodName:    "registeredServices",
+			MethodName:    "serviceIds",
 		},
 		Impl: func(c context.Context, opts capnp.CallOptions, p, r capnp.Struct) error {
-			call := App_registeredServices{c, opts, App_registeredServices_Params{Struct: p}, App_registeredServices_Results{Struct: r}}
-			return s.RegisteredServices(call)
+			call := App_serviceIds{c, opts, App_serviceIds_Params{Struct: p}, App_serviceIds_Results{Struct: r}}
+			return s.ServiceIds(call)
 		},
 		ResultsSize: capnp.ObjectSize{DataSize: 0, PointerCount: 1},
 	})
@@ -331,6 +375,34 @@ func App_Methods(methods []server.Method, s App_Server) []server.Method {
 			InterfaceID:   0xf052e7e084b31199,
 			MethodID:      7,
 			InterfaceName: "app.capnp:App",
+			MethodName:    "rpcServiceIds",
+		},
+		Impl: func(c context.Context, opts capnp.CallOptions, p, r capnp.Struct) error {
+			call := App_rpcServiceIds{c, opts, App_rpcServiceIds_Params{Struct: p}, App_rpcServiceIds_Results{Struct: r}}
+			return s.RpcServiceIds(call)
+		},
+		ResultsSize: capnp.ObjectSize{DataSize: 0, PointerCount: 1},
+	})
+
+	methods = append(methods, server.Method{
+		Method: capnp.Method{
+			InterfaceID:   0xf052e7e084b31199,
+			MethodID:      8,
+			InterfaceName: "app.capnp:App",
+			MethodName:    "rpcService",
+		},
+		Impl: func(c context.Context, opts capnp.CallOptions, p, r capnp.Struct) error {
+			call := App_rpcService{c, opts, App_rpcService_Params{Struct: p}, App_rpcService_Results{Struct: r}}
+			return s.RpcService(call)
+		},
+		ResultsSize: capnp.ObjectSize{DataSize: 0, PointerCount: 1},
+	})
+
+	methods = append(methods, server.Method{
+		Method: capnp.Method{
+			InterfaceID:   0xf052e7e084b31199,
+			MethodID:      9,
+			InterfaceName: "app.capnp:App",
 			MethodName:    "kill",
 		},
 		Impl: func(c context.Context, opts capnp.CallOptions, p, r capnp.Struct) error {
@@ -343,7 +415,7 @@ func App_Methods(methods []server.Method, s App_Server) []server.Method {
 	methods = append(methods, server.Method{
 		Method: capnp.Method{
 			InterfaceID:   0xf052e7e084b31199,
-			MethodID:      8,
+			MethodID:      10,
 			InterfaceName: "app.capnp:App",
 			MethodName:    "runtime",
 		},
@@ -397,12 +469,12 @@ type App_logLevel struct {
 	Results App_logLevel_Results
 }
 
-// App_registeredServices holds the arguments for a server call to App.registeredServices.
-type App_registeredServices struct {
+// App_serviceIds holds the arguments for a server call to App.serviceIds.
+type App_serviceIds struct {
 	Ctx     context.Context
 	Options capnp.CallOptions
-	Params  App_registeredServices_Params
-	Results App_registeredServices_Results
+	Params  App_serviceIds_Params
+	Results App_serviceIds_Results
 }
 
 // App_service holds the arguments for a server call to App.service.
@@ -411,6 +483,22 @@ type App_service struct {
 	Options capnp.CallOptions
 	Params  App_service_Params
 	Results App_service_Results
+}
+
+// App_rpcServiceIds holds the arguments for a server call to App.rpcServiceIds.
+type App_rpcServiceIds struct {
+	Ctx     context.Context
+	Options capnp.CallOptions
+	Params  App_rpcServiceIds_Params
+	Results App_rpcServiceIds_Results
+}
+
+// App_rpcService holds the arguments for a server call to App.rpcService.
+type App_rpcService struct {
+	Ctx     context.Context
+	Options capnp.CallOptions
+	Params  App_rpcService_Params
+	Results App_rpcService_Results
 }
 
 // App_kill holds the arguments for a server call to App.kill.
@@ -1022,103 +1110,103 @@ func (p App_logLevel_Results_Promise) Struct() (App_logLevel_Results, error) {
 	return App_logLevel_Results{s}, err
 }
 
-type App_registeredServices_Params struct{ capnp.Struct }
+type App_serviceIds_Params struct{ capnp.Struct }
 
-// App_registeredServices_Params_TypeID is the unique identifier for the type App_registeredServices_Params.
-const App_registeredServices_Params_TypeID = 0xb95426b082b00c25
+// App_serviceIds_Params_TypeID is the unique identifier for the type App_serviceIds_Params.
+const App_serviceIds_Params_TypeID = 0xb95426b082b00c25
 
-func NewApp_registeredServices_Params(s *capnp.Segment) (App_registeredServices_Params, error) {
+func NewApp_serviceIds_Params(s *capnp.Segment) (App_serviceIds_Params, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
-	return App_registeredServices_Params{st}, err
+	return App_serviceIds_Params{st}, err
 }
 
-func NewRootApp_registeredServices_Params(s *capnp.Segment) (App_registeredServices_Params, error) {
+func NewRootApp_serviceIds_Params(s *capnp.Segment) (App_serviceIds_Params, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
-	return App_registeredServices_Params{st}, err
+	return App_serviceIds_Params{st}, err
 }
 
-func ReadRootApp_registeredServices_Params(msg *capnp.Message) (App_registeredServices_Params, error) {
+func ReadRootApp_serviceIds_Params(msg *capnp.Message) (App_serviceIds_Params, error) {
 	root, err := msg.RootPtr()
-	return App_registeredServices_Params{root.Struct()}, err
+	return App_serviceIds_Params{root.Struct()}, err
 }
 
-func (s App_registeredServices_Params) String() string {
+func (s App_serviceIds_Params) String() string {
 	str, _ := text.Marshal(0xb95426b082b00c25, s.Struct)
 	return str
 }
 
-// App_registeredServices_Params_List is a list of App_registeredServices_Params.
-type App_registeredServices_Params_List struct{ capnp.List }
+// App_serviceIds_Params_List is a list of App_serviceIds_Params.
+type App_serviceIds_Params_List struct{ capnp.List }
 
-// NewApp_registeredServices_Params creates a new list of App_registeredServices_Params.
-func NewApp_registeredServices_Params_List(s *capnp.Segment, sz int32) (App_registeredServices_Params_List, error) {
+// NewApp_serviceIds_Params creates a new list of App_serviceIds_Params.
+func NewApp_serviceIds_Params_List(s *capnp.Segment, sz int32) (App_serviceIds_Params_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
-	return App_registeredServices_Params_List{l}, err
+	return App_serviceIds_Params_List{l}, err
 }
 
-func (s App_registeredServices_Params_List) At(i int) App_registeredServices_Params {
-	return App_registeredServices_Params{s.List.Struct(i)}
+func (s App_serviceIds_Params_List) At(i int) App_serviceIds_Params {
+	return App_serviceIds_Params{s.List.Struct(i)}
 }
 
-func (s App_registeredServices_Params_List) Set(i int, v App_registeredServices_Params) error {
+func (s App_serviceIds_Params_List) Set(i int, v App_serviceIds_Params) error {
 	return s.List.SetStruct(i, v.Struct)
 }
 
-func (s App_registeredServices_Params_List) String() string {
+func (s App_serviceIds_Params_List) String() string {
 	str, _ := text.MarshalList(0xb95426b082b00c25, s.List)
 	return str
 }
 
-// App_registeredServices_Params_Promise is a wrapper for a App_registeredServices_Params promised by a client call.
-type App_registeredServices_Params_Promise struct{ *capnp.Pipeline }
+// App_serviceIds_Params_Promise is a wrapper for a App_serviceIds_Params promised by a client call.
+type App_serviceIds_Params_Promise struct{ *capnp.Pipeline }
 
-func (p App_registeredServices_Params_Promise) Struct() (App_registeredServices_Params, error) {
+func (p App_serviceIds_Params_Promise) Struct() (App_serviceIds_Params, error) {
 	s, err := p.Pipeline.Struct()
-	return App_registeredServices_Params{s}, err
+	return App_serviceIds_Params{s}, err
 }
 
-type App_registeredServices_Results struct{ capnp.Struct }
+type App_serviceIds_Results struct{ capnp.Struct }
 
-// App_registeredServices_Results_TypeID is the unique identifier for the type App_registeredServices_Results.
-const App_registeredServices_Results_TypeID = 0xeb68797cd74f95c2
+// App_serviceIds_Results_TypeID is the unique identifier for the type App_serviceIds_Results.
+const App_serviceIds_Results_TypeID = 0xeb68797cd74f95c2
 
-func NewApp_registeredServices_Results(s *capnp.Segment) (App_registeredServices_Results, error) {
+func NewApp_serviceIds_Results(s *capnp.Segment) (App_serviceIds_Results, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return App_registeredServices_Results{st}, err
+	return App_serviceIds_Results{st}, err
 }
 
-func NewRootApp_registeredServices_Results(s *capnp.Segment) (App_registeredServices_Results, error) {
+func NewRootApp_serviceIds_Results(s *capnp.Segment) (App_serviceIds_Results, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return App_registeredServices_Results{st}, err
+	return App_serviceIds_Results{st}, err
 }
 
-func ReadRootApp_registeredServices_Results(msg *capnp.Message) (App_registeredServices_Results, error) {
+func ReadRootApp_serviceIds_Results(msg *capnp.Message) (App_serviceIds_Results, error) {
 	root, err := msg.RootPtr()
-	return App_registeredServices_Results{root.Struct()}, err
+	return App_serviceIds_Results{root.Struct()}, err
 }
 
-func (s App_registeredServices_Results) String() string {
+func (s App_serviceIds_Results) String() string {
 	str, _ := text.Marshal(0xeb68797cd74f95c2, s.Struct)
 	return str
 }
 
-func (s App_registeredServices_Results) ServiceIds() (capnp.UInt64List, error) {
+func (s App_serviceIds_Results) ServiceIds() (capnp.UInt64List, error) {
 	p, err := s.Struct.Ptr(0)
 	return capnp.UInt64List{List: p.List()}, err
 }
 
-func (s App_registeredServices_Results) HasServiceIds() bool {
+func (s App_serviceIds_Results) HasServiceIds() bool {
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
 
-func (s App_registeredServices_Results) SetServiceIds(v capnp.UInt64List) error {
+func (s App_serviceIds_Results) SetServiceIds(v capnp.UInt64List) error {
 	return s.Struct.SetPtr(0, v.List.ToPtr())
 }
 
 // NewServiceIds sets the serviceIds field to a newly
 // allocated capnp.UInt64List, preferring placement in s's segment.
-func (s App_registeredServices_Results) NewServiceIds(n int32) (capnp.UInt64List, error) {
+func (s App_serviceIds_Results) NewServiceIds(n int32) (capnp.UInt64List, error) {
 	l, err := capnp.NewUInt64List(s.Struct.Segment(), n)
 	if err != nil {
 		return capnp.UInt64List{}, err
@@ -1127,34 +1215,34 @@ func (s App_registeredServices_Results) NewServiceIds(n int32) (capnp.UInt64List
 	return l, err
 }
 
-// App_registeredServices_Results_List is a list of App_registeredServices_Results.
-type App_registeredServices_Results_List struct{ capnp.List }
+// App_serviceIds_Results_List is a list of App_serviceIds_Results.
+type App_serviceIds_Results_List struct{ capnp.List }
 
-// NewApp_registeredServices_Results creates a new list of App_registeredServices_Results.
-func NewApp_registeredServices_Results_List(s *capnp.Segment, sz int32) (App_registeredServices_Results_List, error) {
+// NewApp_serviceIds_Results creates a new list of App_serviceIds_Results.
+func NewApp_serviceIds_Results_List(s *capnp.Segment, sz int32) (App_serviceIds_Results_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return App_registeredServices_Results_List{l}, err
+	return App_serviceIds_Results_List{l}, err
 }
 
-func (s App_registeredServices_Results_List) At(i int) App_registeredServices_Results {
-	return App_registeredServices_Results{s.List.Struct(i)}
+func (s App_serviceIds_Results_List) At(i int) App_serviceIds_Results {
+	return App_serviceIds_Results{s.List.Struct(i)}
 }
 
-func (s App_registeredServices_Results_List) Set(i int, v App_registeredServices_Results) error {
+func (s App_serviceIds_Results_List) Set(i int, v App_serviceIds_Results) error {
 	return s.List.SetStruct(i, v.Struct)
 }
 
-func (s App_registeredServices_Results_List) String() string {
+func (s App_serviceIds_Results_List) String() string {
 	str, _ := text.MarshalList(0xeb68797cd74f95c2, s.List)
 	return str
 }
 
-// App_registeredServices_Results_Promise is a wrapper for a App_registeredServices_Results promised by a client call.
-type App_registeredServices_Results_Promise struct{ *capnp.Pipeline }
+// App_serviceIds_Results_Promise is a wrapper for a App_serviceIds_Results promised by a client call.
+type App_serviceIds_Results_Promise struct{ *capnp.Pipeline }
 
-func (p App_registeredServices_Results_Promise) Struct() (App_registeredServices_Results, error) {
+func (p App_serviceIds_Results_Promise) Struct() (App_serviceIds_Results, error) {
 	s, err := p.Pipeline.Struct()
-	return App_registeredServices_Results{s}, err
+	return App_serviceIds_Results{s}, err
 }
 
 type App_service_Params struct{ capnp.Struct }
@@ -1298,10 +1386,286 @@ func (p App_service_Results_Promise) Service() Service {
 	return Service{Client: p.Pipeline.GetPipeline(0).Client()}
 }
 
+type App_rpcServiceIds_Params struct{ capnp.Struct }
+
+// App_rpcServiceIds_Params_TypeID is the unique identifier for the type App_rpcServiceIds_Params.
+const App_rpcServiceIds_Params_TypeID = 0xd47381c89e2f1649
+
+func NewApp_rpcServiceIds_Params(s *capnp.Segment) (App_rpcServiceIds_Params, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return App_rpcServiceIds_Params{st}, err
+}
+
+func NewRootApp_rpcServiceIds_Params(s *capnp.Segment) (App_rpcServiceIds_Params, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return App_rpcServiceIds_Params{st}, err
+}
+
+func ReadRootApp_rpcServiceIds_Params(msg *capnp.Message) (App_rpcServiceIds_Params, error) {
+	root, err := msg.RootPtr()
+	return App_rpcServiceIds_Params{root.Struct()}, err
+}
+
+func (s App_rpcServiceIds_Params) String() string {
+	str, _ := text.Marshal(0xd47381c89e2f1649, s.Struct)
+	return str
+}
+
+// App_rpcServiceIds_Params_List is a list of App_rpcServiceIds_Params.
+type App_rpcServiceIds_Params_List struct{ capnp.List }
+
+// NewApp_rpcServiceIds_Params creates a new list of App_rpcServiceIds_Params.
+func NewApp_rpcServiceIds_Params_List(s *capnp.Segment, sz int32) (App_rpcServiceIds_Params_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
+	return App_rpcServiceIds_Params_List{l}, err
+}
+
+func (s App_rpcServiceIds_Params_List) At(i int) App_rpcServiceIds_Params {
+	return App_rpcServiceIds_Params{s.List.Struct(i)}
+}
+
+func (s App_rpcServiceIds_Params_List) Set(i int, v App_rpcServiceIds_Params) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s App_rpcServiceIds_Params_List) String() string {
+	str, _ := text.MarshalList(0xd47381c89e2f1649, s.List)
+	return str
+}
+
+// App_rpcServiceIds_Params_Promise is a wrapper for a App_rpcServiceIds_Params promised by a client call.
+type App_rpcServiceIds_Params_Promise struct{ *capnp.Pipeline }
+
+func (p App_rpcServiceIds_Params_Promise) Struct() (App_rpcServiceIds_Params, error) {
+	s, err := p.Pipeline.Struct()
+	return App_rpcServiceIds_Params{s}, err
+}
+
+type App_rpcServiceIds_Results struct{ capnp.Struct }
+
+// App_rpcServiceIds_Results_TypeID is the unique identifier for the type App_rpcServiceIds_Results.
+const App_rpcServiceIds_Results_TypeID = 0xac531ffcc2cdbf05
+
+func NewApp_rpcServiceIds_Results(s *capnp.Segment) (App_rpcServiceIds_Results, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
+	return App_rpcServiceIds_Results{st}, err
+}
+
+func NewRootApp_rpcServiceIds_Results(s *capnp.Segment) (App_rpcServiceIds_Results, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
+	return App_rpcServiceIds_Results{st}, err
+}
+
+func ReadRootApp_rpcServiceIds_Results(msg *capnp.Message) (App_rpcServiceIds_Results, error) {
+	root, err := msg.RootPtr()
+	return App_rpcServiceIds_Results{root.Struct()}, err
+}
+
+func (s App_rpcServiceIds_Results) String() string {
+	str, _ := text.Marshal(0xac531ffcc2cdbf05, s.Struct)
+	return str
+}
+
+func (s App_rpcServiceIds_Results) ServiceIds() (capnp.UInt64List, error) {
+	p, err := s.Struct.Ptr(0)
+	return capnp.UInt64List{List: p.List()}, err
+}
+
+func (s App_rpcServiceIds_Results) HasServiceIds() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s App_rpcServiceIds_Results) SetServiceIds(v capnp.UInt64List) error {
+	return s.Struct.SetPtr(0, v.List.ToPtr())
+}
+
+// NewServiceIds sets the serviceIds field to a newly
+// allocated capnp.UInt64List, preferring placement in s's segment.
+func (s App_rpcServiceIds_Results) NewServiceIds(n int32) (capnp.UInt64List, error) {
+	l, err := capnp.NewUInt64List(s.Struct.Segment(), n)
+	if err != nil {
+		return capnp.UInt64List{}, err
+	}
+	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	return l, err
+}
+
+// App_rpcServiceIds_Results_List is a list of App_rpcServiceIds_Results.
+type App_rpcServiceIds_Results_List struct{ capnp.List }
+
+// NewApp_rpcServiceIds_Results creates a new list of App_rpcServiceIds_Results.
+func NewApp_rpcServiceIds_Results_List(s *capnp.Segment, sz int32) (App_rpcServiceIds_Results_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
+	return App_rpcServiceIds_Results_List{l}, err
+}
+
+func (s App_rpcServiceIds_Results_List) At(i int) App_rpcServiceIds_Results {
+	return App_rpcServiceIds_Results{s.List.Struct(i)}
+}
+
+func (s App_rpcServiceIds_Results_List) Set(i int, v App_rpcServiceIds_Results) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s App_rpcServiceIds_Results_List) String() string {
+	str, _ := text.MarshalList(0xac531ffcc2cdbf05, s.List)
+	return str
+}
+
+// App_rpcServiceIds_Results_Promise is a wrapper for a App_rpcServiceIds_Results promised by a client call.
+type App_rpcServiceIds_Results_Promise struct{ *capnp.Pipeline }
+
+func (p App_rpcServiceIds_Results_Promise) Struct() (App_rpcServiceIds_Results, error) {
+	s, err := p.Pipeline.Struct()
+	return App_rpcServiceIds_Results{s}, err
+}
+
+type App_rpcService_Params struct{ capnp.Struct }
+
+// App_rpcService_Params_TypeID is the unique identifier for the type App_rpcService_Params.
+const App_rpcService_Params_TypeID = 0x933297e0a8a77222
+
+func NewApp_rpcService_Params(s *capnp.Segment) (App_rpcService_Params, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	return App_rpcService_Params{st}, err
+}
+
+func NewRootApp_rpcService_Params(s *capnp.Segment) (App_rpcService_Params, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	return App_rpcService_Params{st}, err
+}
+
+func ReadRootApp_rpcService_Params(msg *capnp.Message) (App_rpcService_Params, error) {
+	root, err := msg.RootPtr()
+	return App_rpcService_Params{root.Struct()}, err
+}
+
+func (s App_rpcService_Params) String() string {
+	str, _ := text.Marshal(0x933297e0a8a77222, s.Struct)
+	return str
+}
+
+func (s App_rpcService_Params) Id() uint64 {
+	return s.Struct.Uint64(0)
+}
+
+func (s App_rpcService_Params) SetId(v uint64) {
+	s.Struct.SetUint64(0, v)
+}
+
+// App_rpcService_Params_List is a list of App_rpcService_Params.
+type App_rpcService_Params_List struct{ capnp.List }
+
+// NewApp_rpcService_Params creates a new list of App_rpcService_Params.
+func NewApp_rpcService_Params_List(s *capnp.Segment, sz int32) (App_rpcService_Params_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
+	return App_rpcService_Params_List{l}, err
+}
+
+func (s App_rpcService_Params_List) At(i int) App_rpcService_Params {
+	return App_rpcService_Params{s.List.Struct(i)}
+}
+
+func (s App_rpcService_Params_List) Set(i int, v App_rpcService_Params) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s App_rpcService_Params_List) String() string {
+	str, _ := text.MarshalList(0x933297e0a8a77222, s.List)
+	return str
+}
+
+// App_rpcService_Params_Promise is a wrapper for a App_rpcService_Params promised by a client call.
+type App_rpcService_Params_Promise struct{ *capnp.Pipeline }
+
+func (p App_rpcService_Params_Promise) Struct() (App_rpcService_Params, error) {
+	s, err := p.Pipeline.Struct()
+	return App_rpcService_Params{s}, err
+}
+
+type App_rpcService_Results struct{ capnp.Struct }
+
+// App_rpcService_Results_TypeID is the unique identifier for the type App_rpcService_Results.
+const App_rpcService_Results_TypeID = 0xf09be4e8d421f422
+
+func NewApp_rpcService_Results(s *capnp.Segment) (App_rpcService_Results, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
+	return App_rpcService_Results{st}, err
+}
+
+func NewRootApp_rpcService_Results(s *capnp.Segment) (App_rpcService_Results, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
+	return App_rpcService_Results{st}, err
+}
+
+func ReadRootApp_rpcService_Results(msg *capnp.Message) (App_rpcService_Results, error) {
+	root, err := msg.RootPtr()
+	return App_rpcService_Results{root.Struct()}, err
+}
+
+func (s App_rpcService_Results) String() string {
+	str, _ := text.Marshal(0xf09be4e8d421f422, s.Struct)
+	return str
+}
+
+func (s App_rpcService_Results) Service() RPCService {
+	p, _ := s.Struct.Ptr(0)
+	return RPCService{Client: p.Interface().Client()}
+}
+
+func (s App_rpcService_Results) HasService() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s App_rpcService_Results) SetService(v RPCService) error {
+	if v.Client == nil {
+		return s.Struct.SetPtr(0, capnp.Ptr{})
+	}
+	seg := s.Segment()
+	in := capnp.NewInterface(seg, seg.Message().AddCap(v.Client))
+	return s.Struct.SetPtr(0, in.ToPtr())
+}
+
+// App_rpcService_Results_List is a list of App_rpcService_Results.
+type App_rpcService_Results_List struct{ capnp.List }
+
+// NewApp_rpcService_Results creates a new list of App_rpcService_Results.
+func NewApp_rpcService_Results_List(s *capnp.Segment, sz int32) (App_rpcService_Results_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
+	return App_rpcService_Results_List{l}, err
+}
+
+func (s App_rpcService_Results_List) At(i int) App_rpcService_Results {
+	return App_rpcService_Results{s.List.Struct(i)}
+}
+
+func (s App_rpcService_Results_List) Set(i int, v App_rpcService_Results) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s App_rpcService_Results_List) String() string {
+	str, _ := text.MarshalList(0xf09be4e8d421f422, s.List)
+	return str
+}
+
+// App_rpcService_Results_Promise is a wrapper for a App_rpcService_Results promised by a client call.
+type App_rpcService_Results_Promise struct{ *capnp.Pipeline }
+
+func (p App_rpcService_Results_Promise) Struct() (App_rpcService_Results, error) {
+	s, err := p.Pipeline.Struct()
+	return App_rpcService_Results{s}, err
+}
+
+func (p App_rpcService_Results_Promise) Service() RPCService {
+	return RPCService{Client: p.Pipeline.GetPipeline(0).Client()}
+}
+
 type App_kill_Params struct{ capnp.Struct }
 
 // App_kill_Params_TypeID is the unique identifier for the type App_kill_Params.
-const App_kill_Params_TypeID = 0xd47381c89e2f1649
+const App_kill_Params_TypeID = 0x9596c4fb3d4044a6
 
 func NewApp_kill_Params(s *capnp.Segment) (App_kill_Params, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
@@ -1319,7 +1683,7 @@ func ReadRootApp_kill_Params(msg *capnp.Message) (App_kill_Params, error) {
 }
 
 func (s App_kill_Params) String() string {
-	str, _ := text.Marshal(0xd47381c89e2f1649, s.Struct)
+	str, _ := text.Marshal(0x9596c4fb3d4044a6, s.Struct)
 	return str
 }
 
@@ -1339,7 +1703,7 @@ func (s App_kill_Params_List) Set(i int, v App_kill_Params) error {
 }
 
 func (s App_kill_Params_List) String() string {
-	str, _ := text.MarshalList(0xd47381c89e2f1649, s.List)
+	str, _ := text.MarshalList(0x9596c4fb3d4044a6, s.List)
 	return str
 }
 
@@ -1354,7 +1718,7 @@ func (p App_kill_Params_Promise) Struct() (App_kill_Params, error) {
 type App_kill_Results struct{ capnp.Struct }
 
 // App_kill_Results_TypeID is the unique identifier for the type App_kill_Results.
-const App_kill_Results_TypeID = 0xac531ffcc2cdbf05
+const App_kill_Results_TypeID = 0xd451112d04c75608
 
 func NewApp_kill_Results(s *capnp.Segment) (App_kill_Results, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
@@ -1372,7 +1736,7 @@ func ReadRootApp_kill_Results(msg *capnp.Message) (App_kill_Results, error) {
 }
 
 func (s App_kill_Results) String() string {
-	str, _ := text.Marshal(0xac531ffcc2cdbf05, s.Struct)
+	str, _ := text.Marshal(0xd451112d04c75608, s.Struct)
 	return str
 }
 
@@ -1392,7 +1756,7 @@ func (s App_kill_Results_List) Set(i int, v App_kill_Results) error {
 }
 
 func (s App_kill_Results_List) String() string {
-	str, _ := text.MarshalList(0xac531ffcc2cdbf05, s.List)
+	str, _ := text.MarshalList(0xd451112d04c75608, s.List)
 	return str
 }
 
@@ -1407,7 +1771,7 @@ func (p App_kill_Results_Promise) Struct() (App_kill_Results, error) {
 type App_runtime_Params struct{ capnp.Struct }
 
 // App_runtime_Params_TypeID is the unique identifier for the type App_runtime_Params.
-const App_runtime_Params_TypeID = 0x933297e0a8a77222
+const App_runtime_Params_TypeID = 0xad48fb996c416d96
 
 func NewApp_runtime_Params(s *capnp.Segment) (App_runtime_Params, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
@@ -1425,7 +1789,7 @@ func ReadRootApp_runtime_Params(msg *capnp.Message) (App_runtime_Params, error) 
 }
 
 func (s App_runtime_Params) String() string {
-	str, _ := text.Marshal(0x933297e0a8a77222, s.Struct)
+	str, _ := text.Marshal(0xad48fb996c416d96, s.Struct)
 	return str
 }
 
@@ -1447,7 +1811,7 @@ func (s App_runtime_Params_List) Set(i int, v App_runtime_Params) error {
 }
 
 func (s App_runtime_Params_List) String() string {
-	str, _ := text.MarshalList(0x933297e0a8a77222, s.List)
+	str, _ := text.MarshalList(0xad48fb996c416d96, s.List)
 	return str
 }
 
@@ -1462,7 +1826,7 @@ func (p App_runtime_Params_Promise) Struct() (App_runtime_Params, error) {
 type App_runtime_Results struct{ capnp.Struct }
 
 // App_runtime_Results_TypeID is the unique identifier for the type App_runtime_Results.
-const App_runtime_Results_TypeID = 0xf09be4e8d421f422
+const App_runtime_Results_TypeID = 0xed7c7bac1db2cb02
 
 func NewApp_runtime_Results(s *capnp.Segment) (App_runtime_Results, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
@@ -1480,7 +1844,7 @@ func ReadRootApp_runtime_Results(msg *capnp.Message) (App_runtime_Results, error
 }
 
 func (s App_runtime_Results) String() string {
-	str, _ := text.Marshal(0xf09be4e8d421f422, s.Struct)
+	str, _ := text.Marshal(0xed7c7bac1db2cb02, s.Struct)
 	return str
 }
 
@@ -1521,7 +1885,7 @@ func (s App_runtime_Results_List) Set(i int, v App_runtime_Results) error {
 }
 
 func (s App_runtime_Results_List) String() string {
-	str, _ := text.MarshalList(0xf09be4e8d421f422, s.List)
+	str, _ := text.MarshalList(0xed7c7bac1db2cb02, s.List)
 	return str
 }
 
@@ -1602,26 +1966,6 @@ func (c Service) Alive(ctx context.Context, params func(Service_alive_Params) er
 	}
 	return Service_alive_Results_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(call))}
 }
-func (c Service) Kill(ctx context.Context, params func(Service_kill_Params) error, opts ...capnp.CallOption) Service_kill_Results_Promise {
-	if c.Client == nil {
-		return Service_kill_Results_Promise{Pipeline: capnp.NewPipeline(capnp.ErrorAnswer(capnp.ErrNullClient))}
-	}
-	call := &capnp.Call{
-		Ctx: ctx,
-		Method: capnp.Method{
-			InterfaceID:   0xb25b411cec149334,
-			MethodID:      3,
-			InterfaceName: "app.capnp:Service",
-			MethodName:    "kill",
-		},
-		Options: capnp.NewCallOptions(opts),
-	}
-	if params != nil {
-		call.ParamsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 0}
-		call.ParamsFunc = func(s capnp.Struct) error { return params(Service_kill_Params{Struct: s}) }
-	}
-	return Service_kill_Results_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(call))}
-}
 
 type Service_Server interface {
 	Id(Service_id) error
@@ -1629,8 +1973,6 @@ type Service_Server interface {
 	LogLevel(Service_logLevel) error
 
 	Alive(Service_alive) error
-
-	Kill(Service_kill) error
 }
 
 func Service_ServerToClient(s Service_Server) Service {
@@ -1640,7 +1982,7 @@ func Service_ServerToClient(s Service_Server) Service {
 
 func Service_Methods(methods []server.Method, s Service_Server) []server.Method {
 	if cap(methods) == 0 {
-		methods = make([]server.Method, 0, 4)
+		methods = make([]server.Method, 0, 3)
 	}
 
 	methods = append(methods, server.Method{
@@ -1685,20 +2027,6 @@ func Service_Methods(methods []server.Method, s Service_Server) []server.Method 
 		ResultsSize: capnp.ObjectSize{DataSize: 8, PointerCount: 0},
 	})
 
-	methods = append(methods, server.Method{
-		Method: capnp.Method{
-			InterfaceID:   0xb25b411cec149334,
-			MethodID:      3,
-			InterfaceName: "app.capnp:Service",
-			MethodName:    "kill",
-		},
-		Impl: func(c context.Context, opts capnp.CallOptions, p, r capnp.Struct) error {
-			call := Service_kill{c, opts, Service_kill_Params{Struct: p}, Service_kill_Results{Struct: r}}
-			return s.Kill(call)
-		},
-		ResultsSize: capnp.ObjectSize{DataSize: 0, PointerCount: 0},
-	})
-
 	return methods
 }
 
@@ -1724,14 +2052,6 @@ type Service_alive struct {
 	Options capnp.CallOptions
 	Params  Service_alive_Params
 	Results Service_alive_Results
-}
-
-// Service_kill holds the arguments for a server call to Service.kill.
-type Service_kill struct {
-	Ctx     context.Context
-	Options capnp.CallOptions
-	Params  Service_kill_Params
-	Results Service_kill_Results
 }
 
 type Service_id_Params struct{ capnp.Struct }
@@ -2088,114 +2408,945 @@ func (p Service_alive_Results_Promise) Struct() (Service_alive_Results, error) {
 	return Service_alive_Results{s}, err
 }
 
-type Service_kill_Params struct{ capnp.Struct }
+type RPCService struct{ Client capnp.Client }
 
-// Service_kill_Params_TypeID is the unique identifier for the type Service_kill_Params.
-const Service_kill_Params_TypeID = 0xe3ec490c3d4015bb
+// RPCService_TypeID is the unique identifier for the type RPCService.
+const RPCService_TypeID = 0xa7e3c40f8e5ecb74
 
-func NewService_kill_Params(s *capnp.Segment) (Service_kill_Params, error) {
+func (c RPCService) Id(ctx context.Context, params func(RPCService_id_Params) error, opts ...capnp.CallOption) RPCService_id_Results_Promise {
+	if c.Client == nil {
+		return RPCService_id_Results_Promise{Pipeline: capnp.NewPipeline(capnp.ErrorAnswer(capnp.ErrNullClient))}
+	}
+	call := &capnp.Call{
+		Ctx: ctx,
+		Method: capnp.Method{
+			InterfaceID:   0xa7e3c40f8e5ecb74,
+			MethodID:      0,
+			InterfaceName: "app.capnp:RPCService",
+			MethodName:    "id",
+		},
+		Options: capnp.NewCallOptions(opts),
+	}
+	if params != nil {
+		call.ParamsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 0}
+		call.ParamsFunc = func(s capnp.Struct) error { return params(RPCService_id_Params{Struct: s}) }
+	}
+	return RPCService_id_Results_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(call))}
+}
+func (c RPCService) ListenerAlive(ctx context.Context, params func(RPCService_listenerAlive_Params) error, opts ...capnp.CallOption) RPCService_listenerAlive_Results_Promise {
+	if c.Client == nil {
+		return RPCService_listenerAlive_Results_Promise{Pipeline: capnp.NewPipeline(capnp.ErrorAnswer(capnp.ErrNullClient))}
+	}
+	call := &capnp.Call{
+		Ctx: ctx,
+		Method: capnp.Method{
+			InterfaceID:   0xa7e3c40f8e5ecb74,
+			MethodID:      1,
+			InterfaceName: "app.capnp:RPCService",
+			MethodName:    "listenerAlive",
+		},
+		Options: capnp.NewCallOptions(opts),
+	}
+	if params != nil {
+		call.ParamsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 0}
+		call.ParamsFunc = func(s capnp.Struct) error { return params(RPCService_listenerAlive_Params{Struct: s}) }
+	}
+	return RPCService_listenerAlive_Results_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(call))}
+}
+func (c RPCService) ListenerAddress(ctx context.Context, params func(RPCService_listenerAddress_Params) error, opts ...capnp.CallOption) RPCService_listenerAddress_Results_Promise {
+	if c.Client == nil {
+		return RPCService_listenerAddress_Results_Promise{Pipeline: capnp.NewPipeline(capnp.ErrorAnswer(capnp.ErrNullClient))}
+	}
+	call := &capnp.Call{
+		Ctx: ctx,
+		Method: capnp.Method{
+			InterfaceID:   0xa7e3c40f8e5ecb74,
+			MethodID:      2,
+			InterfaceName: "app.capnp:RPCService",
+			MethodName:    "listenerAddress",
+		},
+		Options: capnp.NewCallOptions(opts),
+	}
+	if params != nil {
+		call.ParamsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 0}
+		call.ParamsFunc = func(s capnp.Struct) error { return params(RPCService_listenerAddress_Params{Struct: s}) }
+	}
+	return RPCService_listenerAddress_Results_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(call))}
+}
+func (c RPCService) ActiveConns(ctx context.Context, params func(RPCService_activeConns_Params) error, opts ...capnp.CallOption) RPCService_activeConns_Results_Promise {
+	if c.Client == nil {
+		return RPCService_activeConns_Results_Promise{Pipeline: capnp.NewPipeline(capnp.ErrorAnswer(capnp.ErrNullClient))}
+	}
+	call := &capnp.Call{
+		Ctx: ctx,
+		Method: capnp.Method{
+			InterfaceID:   0xa7e3c40f8e5ecb74,
+			MethodID:      3,
+			InterfaceName: "app.capnp:RPCService",
+			MethodName:    "activeConns",
+		},
+		Options: capnp.NewCallOptions(opts),
+	}
+	if params != nil {
+		call.ParamsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 0}
+		call.ParamsFunc = func(s capnp.Struct) error { return params(RPCService_activeConns_Params{Struct: s}) }
+	}
+	return RPCService_activeConns_Results_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(call))}
+}
+func (c RPCService) MaxConns(ctx context.Context, params func(RPCService_maxConns_Params) error, opts ...capnp.CallOption) RPCService_maxConns_Results_Promise {
+	if c.Client == nil {
+		return RPCService_maxConns_Results_Promise{Pipeline: capnp.NewPipeline(capnp.ErrorAnswer(capnp.ErrNullClient))}
+	}
+	call := &capnp.Call{
+		Ctx: ctx,
+		Method: capnp.Method{
+			InterfaceID:   0xa7e3c40f8e5ecb74,
+			MethodID:      4,
+			InterfaceName: "app.capnp:RPCService",
+			MethodName:    "maxConns",
+		},
+		Options: capnp.NewCallOptions(opts),
+	}
+	if params != nil {
+		call.ParamsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 0}
+		call.ParamsFunc = func(s capnp.Struct) error { return params(RPCService_maxConns_Params{Struct: s}) }
+	}
+	return RPCService_maxConns_Results_Promise{Pipeline: capnp.NewPipeline(c.Client.Call(call))}
+}
+
+type RPCService_Server interface {
+	Id(RPCService_id) error
+
+	ListenerAlive(RPCService_listenerAlive) error
+
+	ListenerAddress(RPCService_listenerAddress) error
+
+	ActiveConns(RPCService_activeConns) error
+
+	MaxConns(RPCService_maxConns) error
+}
+
+func RPCService_ServerToClient(s RPCService_Server) RPCService {
+	c, _ := s.(server.Closer)
+	return RPCService{Client: server.New(RPCService_Methods(nil, s), c)}
+}
+
+func RPCService_Methods(methods []server.Method, s RPCService_Server) []server.Method {
+	if cap(methods) == 0 {
+		methods = make([]server.Method, 0, 5)
+	}
+
+	methods = append(methods, server.Method{
+		Method: capnp.Method{
+			InterfaceID:   0xa7e3c40f8e5ecb74,
+			MethodID:      0,
+			InterfaceName: "app.capnp:RPCService",
+			MethodName:    "id",
+		},
+		Impl: func(c context.Context, opts capnp.CallOptions, p, r capnp.Struct) error {
+			call := RPCService_id{c, opts, RPCService_id_Params{Struct: p}, RPCService_id_Results{Struct: r}}
+			return s.Id(call)
+		},
+		ResultsSize: capnp.ObjectSize{DataSize: 8, PointerCount: 0},
+	})
+
+	methods = append(methods, server.Method{
+		Method: capnp.Method{
+			InterfaceID:   0xa7e3c40f8e5ecb74,
+			MethodID:      1,
+			InterfaceName: "app.capnp:RPCService",
+			MethodName:    "listenerAlive",
+		},
+		Impl: func(c context.Context, opts capnp.CallOptions, p, r capnp.Struct) error {
+			call := RPCService_listenerAlive{c, opts, RPCService_listenerAlive_Params{Struct: p}, RPCService_listenerAlive_Results{Struct: r}}
+			return s.ListenerAlive(call)
+		},
+		ResultsSize: capnp.ObjectSize{DataSize: 8, PointerCount: 0},
+	})
+
+	methods = append(methods, server.Method{
+		Method: capnp.Method{
+			InterfaceID:   0xa7e3c40f8e5ecb74,
+			MethodID:      2,
+			InterfaceName: "app.capnp:RPCService",
+			MethodName:    "listenerAddress",
+		},
+		Impl: func(c context.Context, opts capnp.CallOptions, p, r capnp.Struct) error {
+			call := RPCService_listenerAddress{c, opts, RPCService_listenerAddress_Params{Struct: p}, RPCService_listenerAddress_Results{Struct: r}}
+			return s.ListenerAddress(call)
+		},
+		ResultsSize: capnp.ObjectSize{DataSize: 0, PointerCount: 1},
+	})
+
+	methods = append(methods, server.Method{
+		Method: capnp.Method{
+			InterfaceID:   0xa7e3c40f8e5ecb74,
+			MethodID:      3,
+			InterfaceName: "app.capnp:RPCService",
+			MethodName:    "activeConns",
+		},
+		Impl: func(c context.Context, opts capnp.CallOptions, p, r capnp.Struct) error {
+			call := RPCService_activeConns{c, opts, RPCService_activeConns_Params{Struct: p}, RPCService_activeConns_Results{Struct: r}}
+			return s.ActiveConns(call)
+		},
+		ResultsSize: capnp.ObjectSize{DataSize: 8, PointerCount: 0},
+	})
+
+	methods = append(methods, server.Method{
+		Method: capnp.Method{
+			InterfaceID:   0xa7e3c40f8e5ecb74,
+			MethodID:      4,
+			InterfaceName: "app.capnp:RPCService",
+			MethodName:    "maxConns",
+		},
+		Impl: func(c context.Context, opts capnp.CallOptions, p, r capnp.Struct) error {
+			call := RPCService_maxConns{c, opts, RPCService_maxConns_Params{Struct: p}, RPCService_maxConns_Results{Struct: r}}
+			return s.MaxConns(call)
+		},
+		ResultsSize: capnp.ObjectSize{DataSize: 8, PointerCount: 0},
+	})
+
+	return methods
+}
+
+// RPCService_id holds the arguments for a server call to RPCService.id.
+type RPCService_id struct {
+	Ctx     context.Context
+	Options capnp.CallOptions
+	Params  RPCService_id_Params
+	Results RPCService_id_Results
+}
+
+// RPCService_listenerAlive holds the arguments for a server call to RPCService.listenerAlive.
+type RPCService_listenerAlive struct {
+	Ctx     context.Context
+	Options capnp.CallOptions
+	Params  RPCService_listenerAlive_Params
+	Results RPCService_listenerAlive_Results
+}
+
+// RPCService_listenerAddress holds the arguments for a server call to RPCService.listenerAddress.
+type RPCService_listenerAddress struct {
+	Ctx     context.Context
+	Options capnp.CallOptions
+	Params  RPCService_listenerAddress_Params
+	Results RPCService_listenerAddress_Results
+}
+
+// RPCService_activeConns holds the arguments for a server call to RPCService.activeConns.
+type RPCService_activeConns struct {
+	Ctx     context.Context
+	Options capnp.CallOptions
+	Params  RPCService_activeConns_Params
+	Results RPCService_activeConns_Results
+}
+
+// RPCService_maxConns holds the arguments for a server call to RPCService.maxConns.
+type RPCService_maxConns struct {
+	Ctx     context.Context
+	Options capnp.CallOptions
+	Params  RPCService_maxConns_Params
+	Results RPCService_maxConns_Results
+}
+
+type RPCService_id_Params struct{ capnp.Struct }
+
+// RPCService_id_Params_TypeID is the unique identifier for the type RPCService_id_Params.
+const RPCService_id_Params_TypeID = 0x88e166675c857e18
+
+func NewRPCService_id_Params(s *capnp.Segment) (RPCService_id_Params, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
-	return Service_kill_Params{st}, err
+	return RPCService_id_Params{st}, err
 }
 
-func NewRootService_kill_Params(s *capnp.Segment) (Service_kill_Params, error) {
+func NewRootRPCService_id_Params(s *capnp.Segment) (RPCService_id_Params, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
-	return Service_kill_Params{st}, err
+	return RPCService_id_Params{st}, err
 }
 
-func ReadRootService_kill_Params(msg *capnp.Message) (Service_kill_Params, error) {
+func ReadRootRPCService_id_Params(msg *capnp.Message) (RPCService_id_Params, error) {
 	root, err := msg.RootPtr()
-	return Service_kill_Params{root.Struct()}, err
+	return RPCService_id_Params{root.Struct()}, err
 }
 
-func (s Service_kill_Params) String() string {
-	str, _ := text.Marshal(0xe3ec490c3d4015bb, s.Struct)
+func (s RPCService_id_Params) String() string {
+	str, _ := text.Marshal(0x88e166675c857e18, s.Struct)
 	return str
 }
 
-// Service_kill_Params_List is a list of Service_kill_Params.
-type Service_kill_Params_List struct{ capnp.List }
+// RPCService_id_Params_List is a list of RPCService_id_Params.
+type RPCService_id_Params_List struct{ capnp.List }
 
-// NewService_kill_Params creates a new list of Service_kill_Params.
-func NewService_kill_Params_List(s *capnp.Segment, sz int32) (Service_kill_Params_List, error) {
+// NewRPCService_id_Params creates a new list of RPCService_id_Params.
+func NewRPCService_id_Params_List(s *capnp.Segment, sz int32) (RPCService_id_Params_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
-	return Service_kill_Params_List{l}, err
+	return RPCService_id_Params_List{l}, err
 }
 
-func (s Service_kill_Params_List) At(i int) Service_kill_Params {
-	return Service_kill_Params{s.List.Struct(i)}
+func (s RPCService_id_Params_List) At(i int) RPCService_id_Params {
+	return RPCService_id_Params{s.List.Struct(i)}
 }
 
-func (s Service_kill_Params_List) Set(i int, v Service_kill_Params) error {
+func (s RPCService_id_Params_List) Set(i int, v RPCService_id_Params) error {
 	return s.List.SetStruct(i, v.Struct)
 }
 
-func (s Service_kill_Params_List) String() string {
-	str, _ := text.MarshalList(0xe3ec490c3d4015bb, s.List)
+func (s RPCService_id_Params_List) String() string {
+	str, _ := text.MarshalList(0x88e166675c857e18, s.List)
 	return str
 }
 
-// Service_kill_Params_Promise is a wrapper for a Service_kill_Params promised by a client call.
-type Service_kill_Params_Promise struct{ *capnp.Pipeline }
+// RPCService_id_Params_Promise is a wrapper for a RPCService_id_Params promised by a client call.
+type RPCService_id_Params_Promise struct{ *capnp.Pipeline }
 
-func (p Service_kill_Params_Promise) Struct() (Service_kill_Params, error) {
+func (p RPCService_id_Params_Promise) Struct() (RPCService_id_Params, error) {
 	s, err := p.Pipeline.Struct()
-	return Service_kill_Params{s}, err
+	return RPCService_id_Params{s}, err
 }
 
-type Service_kill_Results struct{ capnp.Struct }
+type RPCService_id_Results struct{ capnp.Struct }
 
-// Service_kill_Results_TypeID is the unique identifier for the type Service_kill_Results.
-const Service_kill_Results_TypeID = 0xf95512d6a5f5e530
+// RPCService_id_Results_TypeID is the unique identifier for the type RPCService_id_Results.
+const RPCService_id_Results_TypeID = 0xc21e37cdb9df069e
 
-func NewService_kill_Results(s *capnp.Segment) (Service_kill_Results, error) {
-	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
-	return Service_kill_Results{st}, err
+func NewRPCService_id_Results(s *capnp.Segment) (RPCService_id_Results, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	return RPCService_id_Results{st}, err
 }
 
-func NewRootService_kill_Results(s *capnp.Segment) (Service_kill_Results, error) {
-	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
-	return Service_kill_Results{st}, err
+func NewRootRPCService_id_Results(s *capnp.Segment) (RPCService_id_Results, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	return RPCService_id_Results{st}, err
 }
 
-func ReadRootService_kill_Results(msg *capnp.Message) (Service_kill_Results, error) {
+func ReadRootRPCService_id_Results(msg *capnp.Message) (RPCService_id_Results, error) {
 	root, err := msg.RootPtr()
-	return Service_kill_Results{root.Struct()}, err
+	return RPCService_id_Results{root.Struct()}, err
 }
 
-func (s Service_kill_Results) String() string {
-	str, _ := text.Marshal(0xf95512d6a5f5e530, s.Struct)
+func (s RPCService_id_Results) String() string {
+	str, _ := text.Marshal(0xc21e37cdb9df069e, s.Struct)
 	return str
 }
 
-// Service_kill_Results_List is a list of Service_kill_Results.
-type Service_kill_Results_List struct{ capnp.List }
-
-// NewService_kill_Results creates a new list of Service_kill_Results.
-func NewService_kill_Results_List(s *capnp.Segment, sz int32) (Service_kill_Results_List, error) {
-	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
-	return Service_kill_Results_List{l}, err
+func (s RPCService_id_Results) ServiceId() uint64 {
+	return s.Struct.Uint64(0)
 }
 
-func (s Service_kill_Results_List) At(i int) Service_kill_Results {
-	return Service_kill_Results{s.List.Struct(i)}
+func (s RPCService_id_Results) SetServiceId(v uint64) {
+	s.Struct.SetUint64(0, v)
 }
 
-func (s Service_kill_Results_List) Set(i int, v Service_kill_Results) error {
+// RPCService_id_Results_List is a list of RPCService_id_Results.
+type RPCService_id_Results_List struct{ capnp.List }
+
+// NewRPCService_id_Results creates a new list of RPCService_id_Results.
+func NewRPCService_id_Results_List(s *capnp.Segment, sz int32) (RPCService_id_Results_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
+	return RPCService_id_Results_List{l}, err
+}
+
+func (s RPCService_id_Results_List) At(i int) RPCService_id_Results {
+	return RPCService_id_Results{s.List.Struct(i)}
+}
+
+func (s RPCService_id_Results_List) Set(i int, v RPCService_id_Results) error {
 	return s.List.SetStruct(i, v.Struct)
 }
 
-func (s Service_kill_Results_List) String() string {
-	str, _ := text.MarshalList(0xf95512d6a5f5e530, s.List)
+func (s RPCService_id_Results_List) String() string {
+	str, _ := text.MarshalList(0xc21e37cdb9df069e, s.List)
 	return str
 }
 
-// Service_kill_Results_Promise is a wrapper for a Service_kill_Results promised by a client call.
-type Service_kill_Results_Promise struct{ *capnp.Pipeline }
+// RPCService_id_Results_Promise is a wrapper for a RPCService_id_Results promised by a client call.
+type RPCService_id_Results_Promise struct{ *capnp.Pipeline }
 
-func (p Service_kill_Results_Promise) Struct() (Service_kill_Results, error) {
+func (p RPCService_id_Results_Promise) Struct() (RPCService_id_Results, error) {
 	s, err := p.Pipeline.Struct()
-	return Service_kill_Results{s}, err
+	return RPCService_id_Results{s}, err
+}
+
+type RPCService_listenerAlive_Params struct{ capnp.Struct }
+
+// RPCService_listenerAlive_Params_TypeID is the unique identifier for the type RPCService_listenerAlive_Params.
+const RPCService_listenerAlive_Params_TypeID = 0xc7fcacbb7e6c5bb0
+
+func NewRPCService_listenerAlive_Params(s *capnp.Segment) (RPCService_listenerAlive_Params, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return RPCService_listenerAlive_Params{st}, err
+}
+
+func NewRootRPCService_listenerAlive_Params(s *capnp.Segment) (RPCService_listenerAlive_Params, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return RPCService_listenerAlive_Params{st}, err
+}
+
+func ReadRootRPCService_listenerAlive_Params(msg *capnp.Message) (RPCService_listenerAlive_Params, error) {
+	root, err := msg.RootPtr()
+	return RPCService_listenerAlive_Params{root.Struct()}, err
+}
+
+func (s RPCService_listenerAlive_Params) String() string {
+	str, _ := text.Marshal(0xc7fcacbb7e6c5bb0, s.Struct)
+	return str
+}
+
+// RPCService_listenerAlive_Params_List is a list of RPCService_listenerAlive_Params.
+type RPCService_listenerAlive_Params_List struct{ capnp.List }
+
+// NewRPCService_listenerAlive_Params creates a new list of RPCService_listenerAlive_Params.
+func NewRPCService_listenerAlive_Params_List(s *capnp.Segment, sz int32) (RPCService_listenerAlive_Params_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
+	return RPCService_listenerAlive_Params_List{l}, err
+}
+
+func (s RPCService_listenerAlive_Params_List) At(i int) RPCService_listenerAlive_Params {
+	return RPCService_listenerAlive_Params{s.List.Struct(i)}
+}
+
+func (s RPCService_listenerAlive_Params_List) Set(i int, v RPCService_listenerAlive_Params) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s RPCService_listenerAlive_Params_List) String() string {
+	str, _ := text.MarshalList(0xc7fcacbb7e6c5bb0, s.List)
+	return str
+}
+
+// RPCService_listenerAlive_Params_Promise is a wrapper for a RPCService_listenerAlive_Params promised by a client call.
+type RPCService_listenerAlive_Params_Promise struct{ *capnp.Pipeline }
+
+func (p RPCService_listenerAlive_Params_Promise) Struct() (RPCService_listenerAlive_Params, error) {
+	s, err := p.Pipeline.Struct()
+	return RPCService_listenerAlive_Params{s}, err
+}
+
+type RPCService_listenerAlive_Results struct{ capnp.Struct }
+
+// RPCService_listenerAlive_Results_TypeID is the unique identifier for the type RPCService_listenerAlive_Results.
+const RPCService_listenerAlive_Results_TypeID = 0xa76b7607195dee3a
+
+func NewRPCService_listenerAlive_Results(s *capnp.Segment) (RPCService_listenerAlive_Results, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	return RPCService_listenerAlive_Results{st}, err
+}
+
+func NewRootRPCService_listenerAlive_Results(s *capnp.Segment) (RPCService_listenerAlive_Results, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	return RPCService_listenerAlive_Results{st}, err
+}
+
+func ReadRootRPCService_listenerAlive_Results(msg *capnp.Message) (RPCService_listenerAlive_Results, error) {
+	root, err := msg.RootPtr()
+	return RPCService_listenerAlive_Results{root.Struct()}, err
+}
+
+func (s RPCService_listenerAlive_Results) String() string {
+	str, _ := text.Marshal(0xa76b7607195dee3a, s.Struct)
+	return str
+}
+
+func (s RPCService_listenerAlive_Results) ListenerAlive() bool {
+	return s.Struct.Bit(0)
+}
+
+func (s RPCService_listenerAlive_Results) SetListenerAlive(v bool) {
+	s.Struct.SetBit(0, v)
+}
+
+// RPCService_listenerAlive_Results_List is a list of RPCService_listenerAlive_Results.
+type RPCService_listenerAlive_Results_List struct{ capnp.List }
+
+// NewRPCService_listenerAlive_Results creates a new list of RPCService_listenerAlive_Results.
+func NewRPCService_listenerAlive_Results_List(s *capnp.Segment, sz int32) (RPCService_listenerAlive_Results_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
+	return RPCService_listenerAlive_Results_List{l}, err
+}
+
+func (s RPCService_listenerAlive_Results_List) At(i int) RPCService_listenerAlive_Results {
+	return RPCService_listenerAlive_Results{s.List.Struct(i)}
+}
+
+func (s RPCService_listenerAlive_Results_List) Set(i int, v RPCService_listenerAlive_Results) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s RPCService_listenerAlive_Results_List) String() string {
+	str, _ := text.MarshalList(0xa76b7607195dee3a, s.List)
+	return str
+}
+
+// RPCService_listenerAlive_Results_Promise is a wrapper for a RPCService_listenerAlive_Results promised by a client call.
+type RPCService_listenerAlive_Results_Promise struct{ *capnp.Pipeline }
+
+func (p RPCService_listenerAlive_Results_Promise) Struct() (RPCService_listenerAlive_Results, error) {
+	s, err := p.Pipeline.Struct()
+	return RPCService_listenerAlive_Results{s}, err
+}
+
+type RPCService_listenerAddress_Params struct{ capnp.Struct }
+
+// RPCService_listenerAddress_Params_TypeID is the unique identifier for the type RPCService_listenerAddress_Params.
+const RPCService_listenerAddress_Params_TypeID = 0xdc063192b2b7a561
+
+func NewRPCService_listenerAddress_Params(s *capnp.Segment) (RPCService_listenerAddress_Params, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return RPCService_listenerAddress_Params{st}, err
+}
+
+func NewRootRPCService_listenerAddress_Params(s *capnp.Segment) (RPCService_listenerAddress_Params, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return RPCService_listenerAddress_Params{st}, err
+}
+
+func ReadRootRPCService_listenerAddress_Params(msg *capnp.Message) (RPCService_listenerAddress_Params, error) {
+	root, err := msg.RootPtr()
+	return RPCService_listenerAddress_Params{root.Struct()}, err
+}
+
+func (s RPCService_listenerAddress_Params) String() string {
+	str, _ := text.Marshal(0xdc063192b2b7a561, s.Struct)
+	return str
+}
+
+// RPCService_listenerAddress_Params_List is a list of RPCService_listenerAddress_Params.
+type RPCService_listenerAddress_Params_List struct{ capnp.List }
+
+// NewRPCService_listenerAddress_Params creates a new list of RPCService_listenerAddress_Params.
+func NewRPCService_listenerAddress_Params_List(s *capnp.Segment, sz int32) (RPCService_listenerAddress_Params_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
+	return RPCService_listenerAddress_Params_List{l}, err
+}
+
+func (s RPCService_listenerAddress_Params_List) At(i int) RPCService_listenerAddress_Params {
+	return RPCService_listenerAddress_Params{s.List.Struct(i)}
+}
+
+func (s RPCService_listenerAddress_Params_List) Set(i int, v RPCService_listenerAddress_Params) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s RPCService_listenerAddress_Params_List) String() string {
+	str, _ := text.MarshalList(0xdc063192b2b7a561, s.List)
+	return str
+}
+
+// RPCService_listenerAddress_Params_Promise is a wrapper for a RPCService_listenerAddress_Params promised by a client call.
+type RPCService_listenerAddress_Params_Promise struct{ *capnp.Pipeline }
+
+func (p RPCService_listenerAddress_Params_Promise) Struct() (RPCService_listenerAddress_Params, error) {
+	s, err := p.Pipeline.Struct()
+	return RPCService_listenerAddress_Params{s}, err
+}
+
+type RPCService_listenerAddress_Results struct{ capnp.Struct }
+
+// RPCService_listenerAddress_Results_TypeID is the unique identifier for the type RPCService_listenerAddress_Results.
+const RPCService_listenerAddress_Results_TypeID = 0xb95e72a43cd7c47c
+
+func NewRPCService_listenerAddress_Results(s *capnp.Segment) (RPCService_listenerAddress_Results, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
+	return RPCService_listenerAddress_Results{st}, err
+}
+
+func NewRootRPCService_listenerAddress_Results(s *capnp.Segment) (RPCService_listenerAddress_Results, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
+	return RPCService_listenerAddress_Results{st}, err
+}
+
+func ReadRootRPCService_listenerAddress_Results(msg *capnp.Message) (RPCService_listenerAddress_Results, error) {
+	root, err := msg.RootPtr()
+	return RPCService_listenerAddress_Results{root.Struct()}, err
+}
+
+func (s RPCService_listenerAddress_Results) String() string {
+	str, _ := text.Marshal(0xb95e72a43cd7c47c, s.Struct)
+	return str
+}
+
+func (s RPCService_listenerAddress_Results) Address() (NetworkAddress, error) {
+	p, err := s.Struct.Ptr(0)
+	return NetworkAddress{Struct: p.Struct()}, err
+}
+
+func (s RPCService_listenerAddress_Results) HasAddress() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s RPCService_listenerAddress_Results) SetAddress(v NetworkAddress) error {
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+}
+
+// NewAddress sets the address field to a newly
+// allocated NetworkAddress struct, preferring placement in s's segment.
+func (s RPCService_listenerAddress_Results) NewAddress() (NetworkAddress, error) {
+	ss, err := NewNetworkAddress(s.Struct.Segment())
+	if err != nil {
+		return NetworkAddress{}, err
+	}
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	return ss, err
+}
+
+// RPCService_listenerAddress_Results_List is a list of RPCService_listenerAddress_Results.
+type RPCService_listenerAddress_Results_List struct{ capnp.List }
+
+// NewRPCService_listenerAddress_Results creates a new list of RPCService_listenerAddress_Results.
+func NewRPCService_listenerAddress_Results_List(s *capnp.Segment, sz int32) (RPCService_listenerAddress_Results_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
+	return RPCService_listenerAddress_Results_List{l}, err
+}
+
+func (s RPCService_listenerAddress_Results_List) At(i int) RPCService_listenerAddress_Results {
+	return RPCService_listenerAddress_Results{s.List.Struct(i)}
+}
+
+func (s RPCService_listenerAddress_Results_List) Set(i int, v RPCService_listenerAddress_Results) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s RPCService_listenerAddress_Results_List) String() string {
+	str, _ := text.MarshalList(0xb95e72a43cd7c47c, s.List)
+	return str
+}
+
+// RPCService_listenerAddress_Results_Promise is a wrapper for a RPCService_listenerAddress_Results promised by a client call.
+type RPCService_listenerAddress_Results_Promise struct{ *capnp.Pipeline }
+
+func (p RPCService_listenerAddress_Results_Promise) Struct() (RPCService_listenerAddress_Results, error) {
+	s, err := p.Pipeline.Struct()
+	return RPCService_listenerAddress_Results{s}, err
+}
+
+func (p RPCService_listenerAddress_Results_Promise) Address() NetworkAddress_Promise {
+	return NetworkAddress_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+}
+
+type RPCService_activeConns_Params struct{ capnp.Struct }
+
+// RPCService_activeConns_Params_TypeID is the unique identifier for the type RPCService_activeConns_Params.
+const RPCService_activeConns_Params_TypeID = 0xf604c2f7eff9f3c7
+
+func NewRPCService_activeConns_Params(s *capnp.Segment) (RPCService_activeConns_Params, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return RPCService_activeConns_Params{st}, err
+}
+
+func NewRootRPCService_activeConns_Params(s *capnp.Segment) (RPCService_activeConns_Params, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return RPCService_activeConns_Params{st}, err
+}
+
+func ReadRootRPCService_activeConns_Params(msg *capnp.Message) (RPCService_activeConns_Params, error) {
+	root, err := msg.RootPtr()
+	return RPCService_activeConns_Params{root.Struct()}, err
+}
+
+func (s RPCService_activeConns_Params) String() string {
+	str, _ := text.Marshal(0xf604c2f7eff9f3c7, s.Struct)
+	return str
+}
+
+// RPCService_activeConns_Params_List is a list of RPCService_activeConns_Params.
+type RPCService_activeConns_Params_List struct{ capnp.List }
+
+// NewRPCService_activeConns_Params creates a new list of RPCService_activeConns_Params.
+func NewRPCService_activeConns_Params_List(s *capnp.Segment, sz int32) (RPCService_activeConns_Params_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
+	return RPCService_activeConns_Params_List{l}, err
+}
+
+func (s RPCService_activeConns_Params_List) At(i int) RPCService_activeConns_Params {
+	return RPCService_activeConns_Params{s.List.Struct(i)}
+}
+
+func (s RPCService_activeConns_Params_List) Set(i int, v RPCService_activeConns_Params) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s RPCService_activeConns_Params_List) String() string {
+	str, _ := text.MarshalList(0xf604c2f7eff9f3c7, s.List)
+	return str
+}
+
+// RPCService_activeConns_Params_Promise is a wrapper for a RPCService_activeConns_Params promised by a client call.
+type RPCService_activeConns_Params_Promise struct{ *capnp.Pipeline }
+
+func (p RPCService_activeConns_Params_Promise) Struct() (RPCService_activeConns_Params, error) {
+	s, err := p.Pipeline.Struct()
+	return RPCService_activeConns_Params{s}, err
+}
+
+type RPCService_activeConns_Results struct{ capnp.Struct }
+
+// RPCService_activeConns_Results_TypeID is the unique identifier for the type RPCService_activeConns_Results.
+const RPCService_activeConns_Results_TypeID = 0xf175231b9048f2c5
+
+func NewRPCService_activeConns_Results(s *capnp.Segment) (RPCService_activeConns_Results, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	return RPCService_activeConns_Results{st}, err
+}
+
+func NewRootRPCService_activeConns_Results(s *capnp.Segment) (RPCService_activeConns_Results, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	return RPCService_activeConns_Results{st}, err
+}
+
+func ReadRootRPCService_activeConns_Results(msg *capnp.Message) (RPCService_activeConns_Results, error) {
+	root, err := msg.RootPtr()
+	return RPCService_activeConns_Results{root.Struct()}, err
+}
+
+func (s RPCService_activeConns_Results) String() string {
+	str, _ := text.Marshal(0xf175231b9048f2c5, s.Struct)
+	return str
+}
+
+func (s RPCService_activeConns_Results) Count() uint32 {
+	return s.Struct.Uint32(0)
+}
+
+func (s RPCService_activeConns_Results) SetCount(v uint32) {
+	s.Struct.SetUint32(0, v)
+}
+
+// RPCService_activeConns_Results_List is a list of RPCService_activeConns_Results.
+type RPCService_activeConns_Results_List struct{ capnp.List }
+
+// NewRPCService_activeConns_Results creates a new list of RPCService_activeConns_Results.
+func NewRPCService_activeConns_Results_List(s *capnp.Segment, sz int32) (RPCService_activeConns_Results_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
+	return RPCService_activeConns_Results_List{l}, err
+}
+
+func (s RPCService_activeConns_Results_List) At(i int) RPCService_activeConns_Results {
+	return RPCService_activeConns_Results{s.List.Struct(i)}
+}
+
+func (s RPCService_activeConns_Results_List) Set(i int, v RPCService_activeConns_Results) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s RPCService_activeConns_Results_List) String() string {
+	str, _ := text.MarshalList(0xf175231b9048f2c5, s.List)
+	return str
+}
+
+// RPCService_activeConns_Results_Promise is a wrapper for a RPCService_activeConns_Results promised by a client call.
+type RPCService_activeConns_Results_Promise struct{ *capnp.Pipeline }
+
+func (p RPCService_activeConns_Results_Promise) Struct() (RPCService_activeConns_Results, error) {
+	s, err := p.Pipeline.Struct()
+	return RPCService_activeConns_Results{s}, err
+}
+
+type RPCService_maxConns_Params struct{ capnp.Struct }
+
+// RPCService_maxConns_Params_TypeID is the unique identifier for the type RPCService_maxConns_Params.
+const RPCService_maxConns_Params_TypeID = 0x8526d6d896c688e0
+
+func NewRPCService_maxConns_Params(s *capnp.Segment) (RPCService_maxConns_Params, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return RPCService_maxConns_Params{st}, err
+}
+
+func NewRootRPCService_maxConns_Params(s *capnp.Segment) (RPCService_maxConns_Params, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return RPCService_maxConns_Params{st}, err
+}
+
+func ReadRootRPCService_maxConns_Params(msg *capnp.Message) (RPCService_maxConns_Params, error) {
+	root, err := msg.RootPtr()
+	return RPCService_maxConns_Params{root.Struct()}, err
+}
+
+func (s RPCService_maxConns_Params) String() string {
+	str, _ := text.Marshal(0x8526d6d896c688e0, s.Struct)
+	return str
+}
+
+// RPCService_maxConns_Params_List is a list of RPCService_maxConns_Params.
+type RPCService_maxConns_Params_List struct{ capnp.List }
+
+// NewRPCService_maxConns_Params creates a new list of RPCService_maxConns_Params.
+func NewRPCService_maxConns_Params_List(s *capnp.Segment, sz int32) (RPCService_maxConns_Params_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
+	return RPCService_maxConns_Params_List{l}, err
+}
+
+func (s RPCService_maxConns_Params_List) At(i int) RPCService_maxConns_Params {
+	return RPCService_maxConns_Params{s.List.Struct(i)}
+}
+
+func (s RPCService_maxConns_Params_List) Set(i int, v RPCService_maxConns_Params) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s RPCService_maxConns_Params_List) String() string {
+	str, _ := text.MarshalList(0x8526d6d896c688e0, s.List)
+	return str
+}
+
+// RPCService_maxConns_Params_Promise is a wrapper for a RPCService_maxConns_Params promised by a client call.
+type RPCService_maxConns_Params_Promise struct{ *capnp.Pipeline }
+
+func (p RPCService_maxConns_Params_Promise) Struct() (RPCService_maxConns_Params, error) {
+	s, err := p.Pipeline.Struct()
+	return RPCService_maxConns_Params{s}, err
+}
+
+type RPCService_maxConns_Results struct{ capnp.Struct }
+
+// RPCService_maxConns_Results_TypeID is the unique identifier for the type RPCService_maxConns_Results.
+const RPCService_maxConns_Results_TypeID = 0xa23b4c1a964c722b
+
+func NewRPCService_maxConns_Results(s *capnp.Segment) (RPCService_maxConns_Results, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	return RPCService_maxConns_Results{st}, err
+}
+
+func NewRootRPCService_maxConns_Results(s *capnp.Segment) (RPCService_maxConns_Results, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	return RPCService_maxConns_Results{st}, err
+}
+
+func ReadRootRPCService_maxConns_Results(msg *capnp.Message) (RPCService_maxConns_Results, error) {
+	root, err := msg.RootPtr()
+	return RPCService_maxConns_Results{root.Struct()}, err
+}
+
+func (s RPCService_maxConns_Results) String() string {
+	str, _ := text.Marshal(0xa23b4c1a964c722b, s.Struct)
+	return str
+}
+
+func (s RPCService_maxConns_Results) Count() uint32 {
+	return s.Struct.Uint32(0)
+}
+
+func (s RPCService_maxConns_Results) SetCount(v uint32) {
+	s.Struct.SetUint32(0, v)
+}
+
+// RPCService_maxConns_Results_List is a list of RPCService_maxConns_Results.
+type RPCService_maxConns_Results_List struct{ capnp.List }
+
+// NewRPCService_maxConns_Results creates a new list of RPCService_maxConns_Results.
+func NewRPCService_maxConns_Results_List(s *capnp.Segment, sz int32) (RPCService_maxConns_Results_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
+	return RPCService_maxConns_Results_List{l}, err
+}
+
+func (s RPCService_maxConns_Results_List) At(i int) RPCService_maxConns_Results {
+	return RPCService_maxConns_Results{s.List.Struct(i)}
+}
+
+func (s RPCService_maxConns_Results_List) Set(i int, v RPCService_maxConns_Results) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s RPCService_maxConns_Results_List) String() string {
+	str, _ := text.MarshalList(0xa23b4c1a964c722b, s.List)
+	return str
+}
+
+// RPCService_maxConns_Results_Promise is a wrapper for a RPCService_maxConns_Results promised by a client call.
+type RPCService_maxConns_Results_Promise struct{ *capnp.Pipeline }
+
+func (p RPCService_maxConns_Results_Promise) Struct() (RPCService_maxConns_Results, error) {
+	s, err := p.Pipeline.Struct()
+	return RPCService_maxConns_Results{s}, err
+}
+
+type NetworkAddress struct{ capnp.Struct }
+
+// NetworkAddress_TypeID is the unique identifier for the type NetworkAddress.
+const NetworkAddress_TypeID = 0x9aae3a8502e6d5eb
+
+func NewNetworkAddress(s *capnp.Segment) (NetworkAddress, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
+	return NetworkAddress{st}, err
+}
+
+func NewRootNetworkAddress(s *capnp.Segment) (NetworkAddress, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
+	return NetworkAddress{st}, err
+}
+
+func ReadRootNetworkAddress(msg *capnp.Message) (NetworkAddress, error) {
+	root, err := msg.RootPtr()
+	return NetworkAddress{root.Struct()}, err
+}
+
+func (s NetworkAddress) String() string {
+	str, _ := text.Marshal(0x9aae3a8502e6d5eb, s.Struct)
+	return str
+}
+
+func (s NetworkAddress) Network() (string, error) {
+	p, err := s.Struct.Ptr(0)
+	return p.Text(), err
+}
+
+func (s NetworkAddress) HasNetwork() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s NetworkAddress) NetworkBytes() ([]byte, error) {
+	p, err := s.Struct.Ptr(0)
+	return p.TextBytes(), err
+}
+
+func (s NetworkAddress) SetNetwork(v string) error {
+	return s.Struct.SetText(0, v)
+}
+
+func (s NetworkAddress) Address() (string, error) {
+	p, err := s.Struct.Ptr(1)
+	return p.Text(), err
+}
+
+func (s NetworkAddress) HasAddress() bool {
+	p, err := s.Struct.Ptr(1)
+	return p.IsValid() || err != nil
+}
+
+func (s NetworkAddress) AddressBytes() ([]byte, error) {
+	p, err := s.Struct.Ptr(1)
+	return p.TextBytes(), err
+}
+
+func (s NetworkAddress) SetAddress(v string) error {
+	return s.Struct.SetText(1, v)
+}
+
+// NetworkAddress_List is a list of NetworkAddress.
+type NetworkAddress_List struct{ capnp.List }
+
+// NewNetworkAddress creates a new list of NetworkAddress.
+func NewNetworkAddress_List(s *capnp.Segment, sz int32) (NetworkAddress_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2}, sz)
+	return NetworkAddress_List{l}, err
+}
+
+func (s NetworkAddress_List) At(i int) NetworkAddress { return NetworkAddress{s.List.Struct(i)} }
+
+func (s NetworkAddress_List) Set(i int, v NetworkAddress) error { return s.List.SetStruct(i, v.Struct) }
+
+func (s NetworkAddress_List) String() string {
+	str, _ := text.MarshalList(0x9aae3a8502e6d5eb, s.List)
+	return str
+}
+
+// NetworkAddress_Promise is a wrapper for a NetworkAddress promised by a client call.
+type NetworkAddress_Promise struct{ *capnp.Pipeline }
+
+func (p NetworkAddress_Promise) Struct() (NetworkAddress, error) {
+	s, err := p.Pipeline.Struct()
+	return NetworkAddress{s}, err
 }
 
 type LogLevel uint16
@@ -3551,237 +4702,296 @@ func (p MemStats_BySize_Promise) Struct() (MemStats_BySize, error) {
 	return MemStats_BySize{s}, err
 }
 
-const schema_db8274f9144abc7e = "x\xda\x9cX}pTU\x96?\xe7\xbd\xd7\xfd:!" +
-	"I\xe7\xe5\xbe\x04\x09\xb8\xddPh!%\x08a\xad]" +
-	"\xa9\xb5\x12\x82HB\x81\xa4\xf3\xc8\xae\xe0b\xedK\xf7" +
-	"%i\xe8\xaf\xbc\xf7\x1aiV\x17tq\xb7\xd8\x85B" +
-	"\x01eA]\x9d)qpJ\x1d\xc7\x19\xa7\x86\x19\xf0" +
-	"s\xb0d\x14\xa7p\xf0[J\x1c\xa4\x06\x1d\x98B\xc7" +
-	"\xf9\x80\x01{\xea\xdc\xee\x97~\x9d\xee\x84\xa9\xf9\xab\xab" +
-	"\xcf9\xf7\xfc\xce\xd7\xbd\xef\x9c3\xcbQ;\xa4\xd9\xbe" +
-	"\xeb\x1a\x01\"\x07|\xfeKC\xff\xb2w\xe2\xf3\x9fm" +
-	"\xd2\x1a\x10@Q\x01\xd8%\xf5+P\xf2\xef\x9d\xf1\x1f" +
-	"\xd1o\xfdr\x1b\x94\x18\x9f\xaa\x17@\xc9\x9f\xa9?x" +
-	"\xc8\xb7\xe9O\xdb \xd2\x80E\xce\x9cC\xaa\x84\x80\xec" +
-	"\xb0\xda\x0e\x98\x7f\xa9e\xeb\xd6;\xde\xf8\xe4~\xd0\x9a" +
-	"\xdc\x93g\xc5\xc9G3\x7f^\xb2\xf3g\xf7n\x87H" +
-	"\xd3\xf0\xc9\xa3j+\x9d\xfc@\x9c\xb4\x7f4ok\xe2" +
-	"w\x8fo\xf7\xaa>_P}I\x08L\xb1\xbe\xb3\xef" +
-	"\xc4\xae\xb6\x1d\x1e\xa3&\x07\xbe\x00%\xbf38%{" +
-	"\x90/{\xd0\x83\xe9\x0b\xfc\x0a\x94O\x9a\x16\x87_\xab" +
-	"U\xf6\x96\x14\xb2\xcf\xd5/\x00\xd9Y\xa1\xef\xfd\x8f\x17" +
-	"\x7f\xfc\xf8\x97\xe9\xbd\x1e}\xf5\x81W@\xc9\xdf\xbb\xeb" +
-	"\xa9\xe9\x93^\xde\xffDI\xdf\x9c\xb3j\x13\x82\x92\x9f" +
-	"\xfe\x91\xc4\xac\xe6\x8b\xfb\x0a\x1c\x1f\x12\xeb\x1du\x0a\xd9" +
-	"x\x9ct\xfe1\x9e\xc9w\xfd]\xd3\x93%\x8d\x18\xa0" +
-	"x\xfa^<\xf2\xca\xc5\x90\xf1\x94\x07\xea\x94\xfa!(" +
-	"\xf9q\xa7\xd7\xae\xdc\xc3cO{\xa0\x0e\x93\xcfJ\xfe" +
-	"\xc5\xeb\xdf\xf8\xe6\xd5\xab\x06\x9f\xf1\x84\x83=\xad^\x00" +
-	"d\xdf\x17\xd6\xff\xfd\x0e\xfd\xcc\xa4y\xb7=\x07Z\xad" +
-	"\x9c\xff\x8f\x03\x8b\xf4\xf3\xce=\x1f\x01 ;\xaang" +
-	"\x1f\xa8\x05\xcbTd\xb9\x80\x0a\x90_9\xe3\xba\x15\xbb" +
-	"&\xca\xcf\x17\x0c\x10\x8633@\xdax\x80\xb4]U" +
-	"\xf7\xec=\xcf^\xbdl\x7f\xc9\xc09\x9b\x03\x9ddG" +
-	"\xe73\xd9\x15\xe7\x1e<\xbc\xdfc\xe1P\xa0\x958\xb9" +
-	"\x03\xeb\x17\xcd~\xeb\x89\x17<N-\x0fP\xaa_\xf8" +
-	"\xefO\x1bw\xae\xde\xf8\xaa7\xd57\x06j)J\x0b" +
-	"\x04\xda\xd3\xa7\x1f\xda0`}\xf6*D\x18\xca\x97\xae" +
-	"\xfe\xaf\x93'\xb5sG\x84\x02\x1ex\x9b\x0d\x91\xc5," +
-	"\x19\xf8\x1e`^\xfb\xba\xf9\xa8o\xdck\xaf{\x03\xee" +
-	"\xab\x11US_C\xaa\x94\xcf\x87\xb6Y\x9f\x1e\x7f\xd3" +
-	"\x83\xc5f\xd4P\x92g\x13\xdfU\x1e\xa9\xc5\xd6R\x94" +
-	"|2\x89\xf5\xd5\xeca+k\xc6\x03\xcc\xe15\xbb\xfc" +
-	"\x80\xf9\xdf\xeeY\xbfk\xdf\xf4\x8do\x81V+\x95\x85" +
-	"t7\xdb\xc3\xbe\xc5\xe8\xcc#l\x000\xff\xda\xbf/" +
-	"\xbb0\xed\x9a\xe5o{s\xf32\xfb9 ;\xc4\xc8" +
-	"\xa8\xee\x96\xeb\xfe\xff\xf5\xbb\xedc\xdet\xb3\xb7A\xc9" +
-	"\x07\xb6}\xd31\xf9\xc4\xb7\x8fW$\xed0\xdb\xce\x8e" +
-	"\x12\xc2\x9c#l!\xb2\xbd:%\xed\xa7\xcd\x1d7\xd6" +
-	"u\x9f9\xe9\xa9\xeb\xad:\x95\xd3\xa4k\x97\x0f\xde\xf6" +
-	"A\xe7)o\x80\x87tqU\xb2:\x19\xb0\xf2\xe2?" +
-	"\xechl{\xfc\x947l\x0f\xe8\xa2N\x1f\x11\x02\xaf" +
-	"<\xb0\xf4\xbd;s\x83\xbf\xf1\xd4\xc3\x9c\x83\xfa\"q" +
-	"\x8f\x85@\x97\xa2o\x7f\xe2?\x9b\xcfz\xd2~I\x17" +
-	"i\xdf\xad\xfd`\xd3\x89_\xf7\x9e\xab\xf0\xe1\x94n\xb1" +
-	"\xcf\xc9\xf09\xa7\xf4\x85\x12\xe3-\xe4\xc3\x94\xaf'\x1f" +
-	";\xfd\xd9C\xe7\xbc\x85\xb7\xa4\xe5+@\x16i!\x9c" +
-	"Y\xa7~\xbf\xf7\xdd\xa6\xbe\xf3\x1e\x1f\x87Z\xa8\x88\xea" +
-	"s\xc9\xffm\xfc\xc5\xbc\x0b\xde\x83}\xe2\xe0rq\xf0" +
-	"\xfe\xaf\x1e\xbd\xd8\xf0d\xe2\x82\xc7\xc0\\K\x1b\x19x" +
-	"\xb2\xef\xf6\x07\xcf\xce\xb8\xcb\xcb1[\xc4\xf5\xfd\xa5\xd1" +
-	"|\xe7\xd5G\xffp\xd1\x1b\xb7\xee\x96\xb9X\xb4\xe6\x1f" +
-	"\xf3f&33jfRRf\xee\xbcLff<" +
-	"e;f*\xca\xa7\xf6\x84L\xcbL\xda#\xf9\xb6c" +
-	"Z\x0e\x8f-MMm\xef)\x17\x90G\x0a\xf4r;" +
-	"\x9bpl\x88(\xb2\x02\xa0 \x80V\xdf\x0b\x10\xa9\x93" +
-	"1r\x85\x84yW\x120\x85>\x90\xd0\x07\xe8E3" +
-	"\xb8\xb56\x1e\xe53\xcdD|-\xaf\x86\xe6\x0a$\xd2" +
-	"\x03\x8b\xf9Z\x9e(\x00\xca\x8e\xed\x05l\x03\x88\x04d" +
-	"\x8c\xe8\x12\x86\x12$\x85\xc1R\xd1\x03b\xd0\x03Z\xf4" +
-	"\xc0\xe2\x09n\xda\xbc;vY\x0f\\I\xc0\x18\xd6\x80" +
-	"\x845\xe5\x1e\x08e\xd9\x94\x13O\xf2\xa9=fpd" +
-	"8]\xfb\xe3\xb1\xa9=\xa6\xa5V\x0bvA\xc2=\xec" +
-	"5\xa3\xb5\xe4\x97\x1c\xafD\xf7\x17\xb3)T\x9bI\x1b" +
-	"\\F\x95\xb0\x09\x09,\x0bmo\xc1jJft\xcd" +
-	"M\xd9dF\x84BM\x94\xc7vD2\x85$`\x06" +
-	"\xebA\xc2\xfa\xcaP\x94\x00\xab\x97\xd6\x9ax\xa2\x94C" +
-	"\xaf'\xae5\xa9lr~O_\xa5Ge\xca{\xdb" +
-	"\x0bI\xfb[\x8b\x00\xdd\x08!\xefA\x8c4\xca>\x80" +
-	"\xe1\xcf-\xbao\xaf6\xd4\x0a\x92\xc6U\xc4\xe1O'" +
-	"\xba\x9f{m\xf9\"\x90\xb4\x88\x8a\xd2pk\x80\xee\xf3" +
-	"\xa5-h\x03I\xbbAEy\xf8\xa9C\xf7=\xd0f" +
-	"L\x07I\x9b\xac\xca\xf1X\x07\xe6]\x87\x00\xa0\x03C" +
-	"\xe2\x12t`\x90b\xd4\x81=\x88\xa3\xde\xdbj\xfe\xaf" +
-	"\xf0$\xca\x15\x04\xb9;\x86u a\x9d\xc7\xf9\x80{" +
-	"\x03\x06\xe2\xb6\xc3-\x1e+\x16\x8b]\x19\xf4\xca\x12!" +
-	"\x11\xb92\xad\xa5\xebT\xe5\x0e\x8fH\xad{\xe1`\xb4" +
-	"\xecE\xd3\xd9\x94\x83\x01\x900P^`Kx\xd2p" +
-	"L\xc7\x9e\xd9\x993\xe2\xeb\x0b\xb9\xab\x1b\xd6\xb1`:" +
-	"@\xa4C\xc6\xc8b\x095D\x9d\x9eB\xad\xbb\x13 " +
-	"r\x93\x8c\x91\x1e\x095I\xd2Q\x02\xd0\x96\x10Z\x97" +
-	"\x8c\x91e\x12\x06\xed\xf8z\xee\x82mH\x9a\x89D:" +
-	"j\xbbW-\xb4\xca\xe2\xdc\xae\xb8x\x1e\x9f\x92E\x93" +
-	".\xfb.\xd9$\x85\x8d\xee\x87\x1b\x10\x1b\xab?\x85q" +
-	"\xf1$\x05\xb3c\xdd\xc3\x82h\xd5'\x09\xdd0\x09[" +
-	"\xd0\xd3\x94h8\xb7]\x04\x8eG\xd6\xb9z\xd9\x0dr" +
-	"\x1b\xbbA\x0e\x19\x09YFc\x9d\\\x8a\x1c\xcb\xca+" +
-	"XN\x0e\x19?$\xceKr)|\xec\xa0<\x85\x1d" +
-	"\x94C\xc6\xd7\xb2\x8c\xbd\x8a\x84\x9a,\xeb(S\x93-" +
-	"w\xb2Kr\xc8\xf8'EF\xa3\x8b8\x8a\xa2\xa3\x02" +
-	"\xc0\x16(\x9dl\x81\x1226\x12g\x0bq|>\x1d" +
-	"}\x00l\xb3\xd2\xc66+!\xe3%\xe2\xbcI\x1c\xbf" +
-	"_G?\x00;\xac\xf4\xb2#J\xa8\xd7'\xa3Q\xe7" +
-	"\x93PSU]|.k|\x9d\xac\xc6\x172:\x88" +
-	"\xb3\x988\x81\x80\x8e\x01\x00\xd6\xed[\xc4\x96\xf8B\xc6" +
-	"F\xe2l!NM\x8d\x8e5\x04\xe3\xebe[}!" +
-	"\xe3\x00q^'Nm\xad\x8e\xb5\x00\xec\x90o5;" +
-	"\xec\x0b\x19\x8a_F\xa3\xd1/\xa16n\x9c\x8e\xe3\xa8" +
-	"k\xf6\xf73\xcd\x1f2\xba\x88\xb3\x8c8uu:\xd6" +
-	"\x01\xb0\x88\x7f\x05\x80\xd1C\xf4\x7f%z}\xbd\x8e\xf5" +
-	"\xd4'\xfa\x17\x01\x18\xb7\x12=F\xf4\x86\x06\x1d\x1b\xa8" +
-	"%\x15\xf2\xffF\xf4\x04\xd1\x83A\x1d\x83\x00,.\xe4" +
-	"\x07\x89\xee\x10\xbd\xb1Q\xc7Fj\x15\xfc\xfd\x00F\x86" +
-	"\xe8w\x12]\xd3t\xd4\x00X\xce\xdf\x0b`\xac#\xfa" +
-	"&\xa275\xe9\xd8\x04\xc0\xee\x16\xf2\x1b\x89\xbe\x85\xe8" +
-	"\x8c\xe9\xc8\xc8k\x7f\x1b\x80\xb1\x89\xe8\xf7\x11]\xd7u" +
-	"\xd4\xa9\xdd\x12\xb8[\x88\xfe\x7fDon\xd6\xb1\x19\x80" +
-	"=\xe0\x9f\x0b`\xdcG\xf4\x87\x89\xde\xd2\xa2c\x0b\x00" +
-	"\xdb-\xe8;\x89\xfe\x18\xd1\xc7\x8f\xd7q<\xb5\x8d\xfe" +
-	"\xd5\x00\xc6\xc3D\xdf\xe7\x97\x10\xaf\xd0\xf1\x0a\x00\xb6\xd7" +
-	"\xdf\x09`<F\xe4\x03$>\x01u\x9c\x00\xc0\xf6\x0b" +
-	"\xd8\x1f\x13\xfd\x18\xd1[g\xe9\xd8\x0a\xc0\x8e\x0a3\xdf" +
-	"$\xfa\xfbD\x9f8[\xc7\x89\x00\xec\x1d\xe1\xd61\xa2" +
-	"\x9f \xfa\xa4\x09:N\x02`\xc7\xfd\x16\x80\xf11\xd1" +
-	"O\x13\xfdJI\xc7+\xa9\x19\x15f\x9e \xfaE\xbf" +
-	"D\x0fj\"\x1d\x8d((\xe5o\xdf\xf1h\xe4\xe0\xbb" +
-	"\xffs\x08\"\x8a\x84\xf3\xa6\"eq6.\xc2\xfc<" +
-	"\x12\x09\xc7m%\xdc\x9fs\xb8\x1dN\xaf\x0a\x8bS\xa6" +
-	"\xc3c\xe1Anf\xc2\xe9\xfe\xd5<\xea\xd8\x80\xc3W" +
-	"\xcdI;fb^\"\x01rU\xed\xd7\x16\xb5\x7f\x88" +
-	"\xf9eEI\xbf\xc0\x08G\xb3\xc9l\xc2t\xe2ky" +
-	"\x11\xad\x04\xb5*my\xe1d{&\x80\x0b\xa8\xda9" +
-	"\xbb\x0a\xce\xb4\"\xceO0o\xe4l\xd2\xef\xf8\x06y" +
-	"XXW\xf2&\xc9\x93i+\x17N\xf7;f<E" +
-	"@V:\x19v\xda\x07yx\xa9\xe1\xc1\xd8\x90H\xa7" +
-	"\xd7d3\xd5pf\x15q\x9a\xa4\xfc\xe2\x82PX%" +
-	"\xb0A\x1eNe\x93\xfd\xdc\"\x98L:\x9er\xb8\x15" +
-	".\xaa\x09g\xb8\xb5*m%y,\xdc\x9f\x13\xa2\x85" +
-	"\x1e\x09\xb9\x07\xb2\xf8\xd8\x8e\x1d\xc2%\x05\xa1\xb0\xbf\x08" +
-	"\xe9\x89\xa1\xf8N\x10\xb87O\xc31\x95c\x1e\xf7\x0a" +
-	"\x0f\xf9\x18A\xfc.\xe6o&\x91p\xdc\xf6\xfdu8" +
-	"\xab\xac \xe7^\x8c<\xb1\xa9\x9e\x00\xc7*\xba\xd5\x98" +
-	"\xef*\x0a*\xa2*\xc6(\xbc\xa0\xa8\xbcR\xc4\x88n" +
-	"\x8cY\x0c\xcf\x15\xb4SA\xf8\xbc\xba\x85\xc6\xea\xb50" +
-	"\x18\x1aQ\x0b\xc2\x91\xeeX\x82\x03}\xa3Gu\xa4\xb7" +
-	"\x00E\x82J\xc9\x8fx*\x1c\x8f%xxZ6\x95" +
-	"\xb5y\xec\x9a\xb0\x9d1S6V\xa8O\xf5\xd9\x80\xbc" +
-	"\x8a\xfapQ\xfd\x94\xa2\xfaT\xd6\x96y\xb9\xfe\xd4\x8c" +
-	"\xac\xcdI\xb1\x9a\xb2G*\xee\xe5\x09\x0eA\xd3\xe6\xb1" +
-	"1\xea\xea\x8b\x82n\x92\xf5\x93hY\x1a2\x839;" +
-	"\x1e5\x13n\xb8,\xeed-\x0a\x97\x93\xa6\xca\x08V" +
-	"\x09\xd6\xd2\xfe\xd5\x1c\xd4\xa8s\x99\x0a\xeb*\x8a\xfa\xa8" +
-	"~*\xaeP\x95w'\x18u\xca\x1c\x14}Xw\xaa" +
-	"\x0fd\x9b\x97\x13\x8d\x9c\x0d\x1e\xc1\xa4\x911S#\x05" +
-	"\x05q\xa4\xe0|3:\xc8\xbbS\xa0\xf6y%\x05\xd5" +
-	"\xc8\x01\x96\x9a\x9f\xfeltM\x97i\x0f\x82j\xe4J" +
-	"\x0d\xd2\xc0|\xcf\xbf|\xda\x19\xe4V9B{\x8a\xaf" +
-	"s\x16\xce\x1f\xfe\x9b0m\xcf\xdf|\xc6\xcc\xda|Y" +
-	"\xda\x81\xa0\x99\xb8eX\xd1\x06A\xbe\xc5\xc6\x06\xc0\x1e" +
-	"\xb9\xf0\xf26\xb8\xd2\x0bR1\xd2_\xce\x0a\xa5\xb2\xc9" +
-	"\x85\xf3\x87\x9b\xc6T6ys\xda\x8arPc\x1e\xea" +
-	"\xc0\xfc\xf9=}7[&\x84\xa2N<\x9d\xc2q " +
-	"\xe18\xc0\xf6~\xd1\x15\xb9\x1a\x1bK-\x13\xa0\x80\xf5" +
-	"\xf4V\x8bE\xc7.\xf3\x84\x98\x1bD7yM\x1b\xc9" +
-	"i\x93\xa7\x03\xa0\xa4M\xa0\x1fY\xd3\xda\x00B1\xde" +
-	"\x9f\x1d\x08\xc6S\xab\xd2\xc1;L+\x15\xe2\x96\x95\xb6" +
-	"*\x9a\xfa\xd8\xe5;b3\x93\xe9\x1eu\xfa\x14#\xd5" +
-	"\xc8\xf9\x0e\xdd\x16\xb5\xd0%\xebb\xc2q\x97\x1f\xe8\xee" +
-	"Q\xb4\xfb{A\xd26\xd3\x84\xe3n\xec\xd0\xddri" +
-	"w\xcd\x05I\x1b\xa2\x09\xc7\xddI\xa0\xbbh\xd0\xf8j" +
-	"\x90\xb4\x954\xe1\xb8[\x09tWZZ\x84&\xa3n" +
-	"\x15K;6t\xf7\x8b\xda\x8d\x84w\xbd\x9a\x1fH\xff" +
-	"3\xb7\xecx\x1a0\xd5\x81\xed\x85\xc1\xa0C\xa4ma" +
-	"\xdaJg!\xe8\xc4S\xbc\x03\xf3n{-\x06$\xef" +
-	"\xfcY1\x1f\xb9\xeds!\x1a\xa1Q\x17\x09\x85MC" +
-	"\xb5\xa1\xbf,\xe0$\x85\x08\x12b\xf5\xbe\xdfu U" +
-	"uh\xee,\xa9\xda\xb0\xb6 W1\x86)\xa3\x8ea" +
-	"U\xcb\xc1\x1d\xef\xa6y\xfb\x7f9VqE\xc6\xb4u" +
-	"\xe4\xf4\x06!a\x04U\xc8TQ!\xee\xee\x18\xddU" +
-	" \xd3\xb0\x15$\xe6C\xaa\x11w3\x8a\xeeN[;" +
-	"O\xf9\xfcRE\xc9\xdd\xb8{6\xb2\xa7\xa8\x0e\x8eS" +
-	"\x8d\xb8kwt\xd7\xec\xdaQ:wXE\xc5\xdd," +
-	"\x97\xf6\xc2\xdaA:\xf7\xbc\x8a\xbe\xe1\xed-\xbak=" +
-	"\xed\xc9= i{U\xf4\xbb;p\xcf>mw'" +
-	"H\xdaV\x15\xd5\xe1=%\xba\xfbi\xedn\x9a\xba\xb3" +
-	"*\x06\x86\xb7\xed\xe8n\xf0\xb4x\xa7\xa8\xe5\xc2D\xee" +
-	"\xd9\xf6tx\xe6h\xb7\xfc\xdc]\xd6\xc8\xd9=\xef\xa6" +
-	"\x11\xdd<\xca\xdc\xee\xc0\x0d\xc5L\x0d\x0f\xf5\x1b\x8a\xab" +
-	"\xa2\xaa\xe3\xbd\xbbF\xea\xe5\xa1\x8a\xe9\xde[QE9" +
-	"\xd4J{Wz\x80`\xf4\xfb\xe0\xee\x0bF\xdb=]" +
-	"\x0e\xb1(\x87Zi=?\x02\xb1|\xcc\x17\x97\x98\xae" +
-	"p\xb5\x9bX1:\x8f\xb1\x9b*\xd3u\xb9\xadO\xd9" +
-	"\xde\xe0/\x01\x00\x00\xff\xff\xbe\xbc \xdb"
+const schema_db8274f9144abc7e = "x\xda\x9cY}\x94\x14\xd5\x95\xbf\xb7\xaa\xba{\xa6\xa7" +
+	"{z\x8a\xaa\xc1\x19\x06\xd3\x0d\x0b\xf2\xb1@\x98!\x9e" +
+	"\xc8l<\xf3\xe5\xc8\x0c\x07t\xba\x1b\xb2\x01\x85\xb35" +
+	"\xdd\x05\xd3\xd0]\xddTU#cP\xd0\x85\xdd\xb8+" +
+	"\xab\xa0\xc2Jb\x8c9\xa2\x98#\xae\xc7\x8d\xbb\xcb\xae" +
+	"$\x06?\xd0(\xd9\x83\xabQ\x13=\xe2*\xbb\xc6h" +
+	"V\x8dIV\x84\xd4\x9e\xfb\xba_w\xf5\x873\xba\x7f" +
+	"\xcd\xf4}\xf7\xdd\x8fw\x7f\xef\xd5\xfdX\xbc\xbe\xb1W" +
+	"\xe8\xf48*@\xf4c\x8f\xf7\xfc\x96??\xd4\xf1\xe8" +
+	"\xdb\xbb\xe4f\x04\x90|\x00\x8a\xee\xff\x08$\xe7\xf4\xb7" +
+	"\x9e\xde\xff\xca\xcf/\xda\x0drkqa\xc9\xb0\x7f>" +
+	"\x82\xe4\xb4]\xbf\xfb\xea\x8d\x1b\xde\xfcVyE\xe9\xf4" +
+	"\x9f\x05\xc9y\xf9=\xefI\xf5\x1b\x1f\xde\x02eY\xad" +
+	"l\xe1\xbd\xe0\xb1\xa7<\xbb\xfe\xf7\x16\x886#\x17\xf6" +
+	"I\xa3\x80\x80\xca\xf9\xc6\x1e@\xe7\xf1\xa9{\xf6\\\xf3" +
+	"\xdc\x1b{A\x9e\xc2w\xce`;\xef\xce}\xba\xf2\xf6" +
+	"'w\xef\x83\xe8\x94\xd2N\x8f\x7f\x1a\xed\x0c\xfai\xa7" +
+	"\xf5O}{\xd2\xbf\xbdw\x9f[\xf4B?\x13\xdd\xc9" +
+	"\x18f\x9a\xf7\x1f>}\xa0\xeb67\xc3\xea\x02\xc3\x1a" +
+	"\xc6p\xdfe\xbd\x97~\xfa\xe4\xfe;\\V\x8f\xfb_" +
+	"\x00\xc9\xb9=43\x7fL_\xb5\xdfe\xd4:\xff\x7f" +
+	"\x82\xe4\xfc\xfa\xa5\xff\x12vw?t\x10d?:\xd7" +
+	"?\xb6\\\xfd\xc4\xbe\xf1\x97\xe0\x11\x88\xa3\xcf\xffSe" +
+	"\xa5\x9f\xfe\x1b\xf6_\x03\xe8\xfc\xa9\xb9b\xff\xb4\x15\x7f" +
+	"\xf6}\x88\xb6\x96\xd4\xcfn\xea\"\xf5\x0b\x9bz\x00\xdf" +
+	"\x98\xb2\"\xf2\xb4_:T\xb6NY\xd9\xf4.\xa0\x12" +
+	"\xa5U\xe7\x95\xd7V\xbcv\xef\x87\xd9C.\xe3\xb64" +
+	"\x1d\x07\xc9\xd9}\xe0\xc1\xf9\xd3\x7fr\xf4\xbe\xb2qK" +
+	"\xa2MS(<\xdd\xbfY\xd7\xee\xdb\xba\xf9~\xb7\xc6" +
+	"\xa5MkI\xe3 \x93i?\xb7\xfe\xefBO\xbeu" +
+	"?\xc8~\xb1l>\xa0\x92j\xfa\x81\xb2\xa5\x89\xf83" +
+	"M\xcbP\x19\x0c\xf8\x00\x9c\xf9\xbf\x14\x14\xb3\xf5\xdc\xe1" +
+	"\x82\"\x0f\xb2\x03\x0e\xcc$q\x17\x07z\x00\xff\x90\xca" +
+	"9C_\x9a\xf2@\xd9\xc05\x01\xc2\x8f\xe7\xc7'\x8f" +
+	"\x9f\x0b\xc7\x1f,X^\xd8wia\xdf \xeds\xf6" +
+	"g\xfa\xd2w~:t\xc4}\xee\x81wAr\x9a\xde" +
+	"\xd9\xba\xee\xa0\x9e<\xe2rm]@ \xd7~|\xf1" +
+	"s\x7f|b\xf6\xd8C\xaeX*}\x81\xb3%\x91_" +
+	"\xb9M}oz\xdfU\x8f\xd4x\xa6\x07\xf6)\x19r" +
+	"GI\x05N(g\x98c\xeb\x16~y\xed\x81\x0e\xf1" +
+	"Q\x97\x81\xcaI&\xec\x14\x136;\xf0\xf0\x8d\x0f_" +
+	"\xb4\xeah\xd9\xbe%\xbf+\x98\xb1\xfd\xc9\x97\xbfv\xaf" +
+	"\xb9\xfeh\xe1\x02\x14\\{5\xb0\x89\\;\xc3\xb6\xf6" +
+	"?\x94_\xfb\xc1\xfeg\x8f\xba<\xf0\x04\xa7\xd1\xd6\xf1" +
+	"\xc7\xae]\xde\xf9\xb3\xfb~\xe4r\xfa\xfd\x00\x01\xfd\xbb" +
+	"\xde7\x8e\x9e\xfc\xea\x97\x8e\xbb\xa3v*\xc0`\xfa\x12" +
+	"\x93\xf9\xa3\xbf~\xb3\xe5\xf6M;\x9fp\xdf\x84O\x02" +
+	"~b\xc0 1\x1cy\xe7\xdb;6\x9ao?\x01Q" +
+	"\x05\xc5\xf3\x17\xfd\xd5[o\xc9\x1f\x9c,\\\xa5\xe0\x0b" +
+	"\xca\xc2 \xfd7/\xf8\x0f\x80\xce\xc3W\xa5\xaf\xff\xb7" +
+	"\x07\xcf\x9dp]\xed\x9f\x04cd\x9e\xfcq\xeb)O" +
+	"\xd3\xd3\xcf\xb8\x83}$\xc8\xae\xdb\xa3L\x89\xf4\xab-" +
+	"\xb7\x98o\xbe\xfe\xbc\xcb\x0a\xe5\xa5 \xe1\xf5UZ\xe7" +
+	"j\xa3~\x9c\xe6\xba\x19\"\xb1\x9d\x0f\x1eT<\xcd\x17" +
+	"\x00,\x096\x1f\xf0\x02:\xbf9x\xed\x81\xc3\xf3w" +
+	"\xfe\x0cd\xbfP\x11\xad\xbe\xb6\x83\xcap\x1b\xed\x19l" +
+	"\xdb\x08\xe8<\xfd\xcdUg\xe7\xce[\xf3\x82;\xec\xa9" +
+	"\xb6\x9f\x02*\x9962\xaa\xe1\xeb'\xa4\x85r\xf4E" +
+	"\xd7\xa1\xeei\xfb\x05H\xce\xf0\xd4/\x7f\xf7\x99\x1b," +
+	"\xd7\xc2\x92-m,\x0e\xda\xa1\x7f~d_\xa7\xf75" +
+	"\xd7\x11\xaci\x1b\xa5\x95\x86[\xfe\xd8;\xe3\xf4\xf7_" +
+	"\xaf\xc1\xd0`\xdb>ee\x1b{\x07\xdb\x96\xa12\xa3" +
+	"\x9d@4}\xc1\x9a\xb1\xab^\xed?\xe3\x8eJc;" +
+	"\x0b[\xb0\x9dl[w\xee\xab\xb7\xb5t\xdd{\xa6\xe2" +
+	"\xfa\xb4\x17\xae\x0fc8~\xc7\x95/o\x1f\x1f\xfb\xb5" +
+	"\xfb\x9e\xacngq]\xc7\x18\x86$u\xdf}\x7f\xd9" +
+	"\xfa\xbe\x0bL{\xdb\x99\x13\xc2s\x8f\\\xf8\xe07\xb7" +
+	"\xbf\xefF\xf0x\xfbG\x80\xcaul\xe7\x9d\xf2?\xee" +
+	":\xfd\xdf\xb1\x0fj\\\xb9\xab\xddT\xee!\xfb\x97\xdc" +
+	"\xd5~BP\xb6t\x90+3?\x9e\xf1\xe2;o\x7f" +
+	"\xfb\x03\xb7!k:\x98!Z\x07\x89{\xea\xa3\xa1[" +
+	";\xfe$\xff\xa1\x1b\xa27t,'\x86=\x8c\xe1\xc4" +
+	"o?\xf9\x9f?\x1c\x97~\xef:\xd4#\x1d\xfddi" +
+	"p<\xf3\xb7-\xff\xdew\xd6m\xe9\x1d\x1dd\xe9\x9d" +
+	"l\xe7\xde\x8f\xee>\xd7\xfc@\xfa\xac\xcb\xc7\xa3\x1d]" +
+	"\xb4\xf3\xad\xd5\xeb\xf7\xbf\xbf\xf0:\xf7\xca=\x1d\xec\x9d" +
+	"\xfb\x8fx\xeb\xf6\x8bN\xfd\xfe\x9c\xfb\xe8o\xea\xe8&" +
+	"s\xf6v\xf4\xc0%\x8e\x96\xcb-Jh9C\xc8u" +
+	"\xf7\xe5r\x8bR\x86ekFB\x9f5\x12\xd6L-" +
+	"c\x95\xd6\xc5\\wld \xae\x9b[S\x09}Q" +
+	"F\xdb6\x905\x0ck\xd6\x88\x16\xaa`\x13*\xd8R" +
+	"\xc9Y=#Z5\x03\xe9\xb1l\xcd\xb4\xf5\xe4\x95F" +
+	"\x0d\x83X\xcd\x10\xd3\xad|\xda\xb6 *\x89\x12\x80\x84" +
+	"\x00r0\x06\x10\x0d\x88\x18m\x13\xd0\xe1\x9c\x80\x06z" +
+	"@@\x0f\xa0[\x1b\xb7EK\xa7\xb6\xea\xf5\xb4q\x86" +
+	"tv\xe3\x0a}\xab\x9e.(\x14m\xcb\xad\xb0\x0b " +
+	"\xda bT\x150\x9c&.\x0c\x95\xaf& \x86\\" +
+	"J\x8b\x1e\x98zZ\xd7,}89\xa9\x07\x9c\x130" +
+	"\x89\x8d `c\x1da\xb9D\xd1\xceY\x05\x0f*\x84" +
+	"M+['\xa6je\x14\xcf|s*\x9d.\xecF" +
+	"\xab\xde\x09\xa5\x92\xb4\xea\xab\x8a\xd6\x15\xba}M\xd6\xdc" +
+	"\xdc\x97L\x9a\xbae\x01\x8c F\x1bJ\xaa\xe7\xf5\xcb" +
+	"\xf3\xc2\xd1\xabE\x8c\x8e\x09(#\xaa\x842Y\xef\x97" +
+	"\xf5p\xf4\xb0\x88\xd1\x1f\x0a\xb8\xc3(H\x88J(8" +
+	"\xebo\xbb;z\xec\xe7\x7f\xf3\x14D%\x01\xfbf!" +
+	"\x06\x00:\xf1Ft\x0c-\xa3G\xb2\x1b\"\x1e{L" +
+	"\x8f\x14wD\xe6n\xc8\x9a\x11}\x9b\x96\xc9\xa5\xf5\x05" +
+	"\x919v\"7gAdN>\x99\x9b3\x0f\x000" +
+	"\x00\x02\x06\x00wh\x05\xdb\xea(\xf8JQALp" +
+	",\xdbL\x19\x1b#\x1b\x1a\xb2f\x86\x14\x157U\xeb" +
+	"\xe8\\\xda\xb5h\xf1\xa2\xaeE\x9d\xdd]\x17\x93\xb29" +
+	"Wu-^\xdc\xd9\x9d\x1c\xbd\xa4\xbb\xbbs]\xf7%" +
+	"\x8b\xe7\xe0\xbc\xb2\xea\xc9\xaeGL\x0f\xb3\xd0\x7f\x16\x94" +
+	"\x12\xd9\xbcac\x03\x08\xd8P\x1b/\xab\x14pv\xc7" +
+	"\xbe@\xc0\xbd\xc5\xcb\x9c\xe4`\xe1\x0bu\xd0^\x0d\x08" +
+	"\xa9\xc2\x93t\xca\xb2uC7\xfb\xd8\xed\xa9w3L" +
+	"\x17\x9097\x84\x19?\"\x08\x88.\xbb\x90\xcb\x0e\x91" +
+	"pB\x92*z\x00J\xc92\xf2\x0f\xbc\xbcw\x1a\x08" +
+	"\xf2n\x1f\x96\xbf\xc3\xc8S6y\xdc\x04A\xde\xe2C" +
+	"\xa1\xf4\x81B\x9el\xc8\xfa\x8d \xc8\xeb|(\x96\xde" +
+	"Y\xe4/\xb2\x1c\x1d\x05A\x1e\xf6a9mG\x9ex" +
+	"\xca\x97.\x07A\xbe\xd8'\xa6\x92\xbd5n\xb8(\xc8" +
+	"\xafA/:Z\xc2Nm\xd5\x07\xb2\xe03\x0c\xab\x17" +
+	"\x1d\x1et\x00\xe8\xc5\x11\xac\xc4F\xde\xb0S\x19\x9d^" +
+	"\xb5\xc4\xe6\xcb\xf2\x99\x1c;J_\x152\xaa^5\xc6" +
+	"\x09\x98\xc3 \x08\x18\xac\xc5G9\x84\xe1\xbaOh\xf9" +
+	"\xcd\x18NZu\x15\xae-*\x9cK\x0a\x8b\xac &" +
+	"-l\x06\x1c\x11\x91\xe1\xaa\xb9V\xb1Y\xf0\xa6\xe6\xf1" +
+	"\xf7\x96\x1d5\xf2\x99\x81\x91\xd5\xb5\xf0\xab\xb0;\xd6\xa3" +
+	"Ox;&{h\x91\xc3\x19\x19\x96\x02\x0cK\xbc " +
+	"A\x9e\x85\xc9Q\xc2\xd2 a\x89\xd7\x03\xc8+&y" +
+	")\xc5\xbd\x93\xb0\xc4\xab+\xe4\xd9\x8a<\xbb\x0b\x04\xb9" +
+	"\x9dc\xa2h4\x8bnX+\xe0\xc2\x1d\xe5\xea\x0fh" +
+	"=\xe7\xd6\xba\x02\xcc\x19A\x1cN\xd6<'\x0d\x15/" +
+	"\x00\x85\xaf\xe6$\xeb]\xd2\x028)\xd4\xa1j\xd5\xfd" +
+	"\xe5s\xe5\xef%\xb6\x94\x8b4@l\x81I K&" +
+	"\x88\xb5\x9f\xf2\xf2w\xae\xce\xc7\xb52\x19\x98\xf4S\xce" +
+	"1X\xffCX\x05..\x0d\xbe\xf0\xeb\xbaR\xcf\xc4" +
+	"m\xcd\xb6\x16\xf5\x8f\xc7S\xd7r\xf4p\x19\x83\xf3\x01" +
+	"\xa2\xbd\"FW\xb8>i\xc3t\x80\x97\x89\x18\x1d\x11" +
+	"P\x16\x04\x15\x05\x00y%i\x1b\x121\xbaJ\xc0\x90" +
+	"\x95\xbaV\xe7\xcavd\xb4t:\x9b\xb0\xb8\x17\xe1\x0d" +
+	"\xa6\xae[5>M\xf4\xd6V\xbf\xcb.\xff3E\xf3" +
+	"'\xcdT,\xe2\xc2\x16^pT\x05\xb9\xf2\xd3_\x0f" +
+	"4\x9f76\xc8\x8f\x94\xd9\x82\xae2K\xc6\xee\x1ev" +
+	"\xc8zt\x1b\x97\xab,\x15\xbb\x94\xa5b8\x9e\x16E" +
+	"\x8co\x13\xcb\xa7\xac\xe4\xc5\xb5\xca\xb8\x18\x8e\xff\x90V" +
+	"\x1e\x17\xcbG\xad\x1c\x13g*\xc7\xc4p\xfccQ\xc4" +
+	"\x98$\xa0,\x8a*\x8aT1\x89\xfd\xcay1\x1c\xff" +
+	"\x9a$b|\x88V$IE\x89\xea\"\xa9_\x19\x94" +
+	"\xc2\xf1\x9d\xb4r3\xadx<*z\x00\x94\x9b\xa4." +
+	"\xe5&)\x1c\x7f\x9cV\x9e\xa7\x15\xafWE/\x80\xf2" +
+	"\xac\x14SNJ\xe1\x98G\xc4x\xc0#\xa0\xec\xf3\xa9" +
+	",\x11o\xf4\xf4+\x8d\x9ep\xbc\x97VV\xd0JC" +
+	"\x83\x8a\x0d\x00\xca\xb0g\xb9\xb2\xd2\x13\x8e\xef\xa4\x95\x9b" +
+	"i\xa5\xb1Q\xc5FR\xe3\x89){<\xe1\xf8c\xb4" +
+	"\xf2\x0c\xad\xf8\xfd*\xfa\x01\x94\xa7<\x9b\x94g=\xe1" +
+	"\xb8\xe4\x151\xde\xe2\x15PnjR\xb1\x09@\x09z" +
+	"G\x15\xd9\x1b\x8e\x0f\xd1\xca*Z\x09\x04TJb\x94" +
+	"\xa8w-@|\x84\xe8W\x13=\x18T1\x08\xa0\xac" +
+	"\xf1.\x07\x88\x7f\x83\xe8I\xa277\xab\xd8\x0c\xa0h" +
+	"\x8c\xff/\x88\x9e&z(\xa4b\x88\x8aB\xc6?F" +
+	"t\x9b\xe8--*\xb6\x00([\xbc\xa3\x00\xf1\x1c\xd1" +
+	"\xb7\x13]\x96U\x94\xa9X\xf2\xc6\x00\xe2\xdb\x88\xbe\x8b" +
+	"\xe8S\xa6\xa88\x05@\xb9\x81\xf1\xef$\xfa\xcdDW" +
+	"\x14\x15\x15\xf2\xda\xdb\x05\x10\xdfE\xf4[\x89\xae\xaa*" +
+	"\xaaTm2\xbd7\x13\xfd\xef\x89\xde\xda\xaab+\x95" +
+	"8\xden\x80\xf8\xadD\xff\x0e\xd1\xa7NUq*\x80" +
+	"r'\xa3\xdfN\xf4\xef\x11\xfd\x82\x0bT\xbc\x00@\xb9" +
+	"\xcb\xbb\x09 \xfe\x1d\xa2\x1f\xf6\x0a\x88m*\xb6\x01(" +
+	"\x87\xbc\xfd\x00\xf1\xef\x11\xf91boG\x15\xdb\x01\x94" +
+	"\xa3L\xed\xbf\x10\xfdE\xa2O[\xac\xe24\x00\xe5\x14" +
+	"3\xf3y\xa2\xbfB\xf4\x8eN\x15;\xa8Pgn\xbd" +
+	"H\xf4\xd3D\x9f\xde\xae\xe2t\x00\xe5u\xaf\x09\x10\x7f" +
+	"\x8d\xe8\xef\x10\xfdBA\xc5\x0b\x01\x943\xcc\xcc\xd3D" +
+	"?\xe7\x15\xe8\xd3\x90\xce&&\xc8u\x97\xa3\xd3G," +
+	"\x91\x94%EF\xc7m\xddb\xd9(\x914[OF" +
+	"\xc6t-\x17\xc9\x8en\xd2\x13\xb6\x05X\xbajv\xd6" +
+	"\xd6\xd2}\xe94\x88u\xa5/(J\xff\x05:\xab\x8a" +
+	"\x9c^\xa6#\x92\xc8g\xf2i\x8dR\x95\xa2\xb6\xb2*" +
+	"\xca|]\xeaDk\x11\x00W\xe8\xb3\xc6\xeb%\xd4s" +
+	"\x8bz\xfe\x15\x9d\xf8\xb8E\xf2m\xcf\x98\x1ea\xd6\x95" +
+	"\xbd\xc9\xe8\x99\xac9\x1e\xc9\x8e\xdaZ\xca Ef6" +
+	"\x13\xb1{\xc6\xf4\xc8\x95q\x97\x8e\x1d\xe9lvs>" +
+	"WO\xcf\xe2\xa2\x9e)\x82\xb3\xa2\xc0\x14\xf1\x912*" +
+	"\x0e\xf2\x99Q\xdd$5\xb9l\xca\xb0u3R\x14\x13" +
+	"\xc9\xe9\xe6\x86\xac\x99\xd1\x93\x91\xd1q\xc6ZHTP" +
+	"w\xa9,>\xcc\x13\x1f\xe1\xca\x02S\xc4[T\xe9:" +
+	"C\xf6M!\xe5\xee8\x95\xceTL\xba\xdc+<\xfa" +
+	"\x13\x1c\xe2\x0f\xd0\xb9\x9cX\")\xcb\xf3\xf9\xf4l0" +
+	"C\xba\xee\xd6\xe1\xd02\xe1\x09p\"\xd0mBg\xa8" +
+	"\xc8(1TL\x00\xbc\x10C^\xf9\xc4\x88\x1e\x9f\x10" +
+	"\x0c\x8f\x14\xa4\x13 <n\xd9Lb},\x8c\x85\xab" +
+	"\xb0\xc0\x1c\x19N\xa6u\xa0\xef\xf9g:\x12+\xa8\"" +
+	"F\xa9\xecG\xca\x88\xa4\x92i=27o\xe4-=" +
+	"9/b\xe54\xc3\xc2\x1a\xf1\xc6j\x0bP\xaf#>" +
+	"R\x14?\xb3(\xde\xc8[\xa2^)\xdfX\x98\xb7t" +
+	"\x12\xec3\xacj\xc11=\xadCH\xb3\xf4\xe4\x04\xb8" +
+	"z\xb7 \x9bx\xbd\xc4Z\x11\x86\xdc\xd8\xb8\x95Jh" +
+	"i~\\\xa6n\xe7M:.;K\xc8\x08\xd59\xac" +
+	"+G7\xe9\xe0K\xd8\x93 l\xa8\xc8\xea!\xfc\xd4" +
+	"\\\xa1:\xefN(aW8\xc8\x12\xc0ac5\x88" +
+	"\x96^I\x8c\x8fS\xb1S\xa2e\xe29\xcd\xa8fd" +
+	"\xc4j\xc6\x01-1\xa6\x0f\x1b\xe0[\xed\xe6d\xd4\xf8" +
+	"8`9Q\x1a\xcd'6\x0fi\xd6\x18\xf8\xe2\xe3\xe5" +
+	"dj\xe3\x80\xeb\x97\x93\xb5\xc7t\xb3RC\x8f\xa1o" +
+	"\xb3\x97\x0d\x94~\xa65\xcb\xf5\xd3\xc9iyK_\x95" +
+	"\xb5!\xa4\xa5\xaf(\x09\xda\xc1\xc8W\xd4\x14?\x8c<" +
+	"h$I~\xe5R\xd8\xc8g\x96\x0d\x94\x12L#\x9f" +
+	"\xb9<k&t\xf0%]\xd4\x8d\x03\x03#\xab/7" +
+	"5\x08'\xecT\xd6\xc0&\x10\xb0\x09\xb0g\x94eE" +
+	"\\bK9e\x02\xac\xa8\xb90\xd7\xbd\x82\xd5\x1e\xa2" +
+	"\x9e\xa6<\xb5\x85e\x9e\xf3\xba\x88O\x9e1\x1f\x00\x05" +
+	"\xb9\x9d\xfe\x88\xb2\xdc\x05\x10N\xea\xa3\xf9\x8d\xa1\x94\xb1" +
+	"!\x1b\xbaF3\x8d\xb0n\x9aY\xb3\xa6JIN\x9e" +
+	"=k\xb9\xdc\xf0\xc4\xbd$\x9e~N\\xV\x97\x0d" +
+	"\xd2\x84\xb5Ku\x07\x0ay\xda\x8b\xae~\x01\xef\xf6\"" +
+	"o\x1c\xcb{c \xc87Q\x8d\xc7\x07#\xc8g\x01" +
+	"\xf2u\xdd\xbc_\xc0;\xa8\xc8\xdb\xa2\xb2\xbe\x89\xf7\x0b" +
+	"x\x0f\x15y{_\x8e.\xe7\xfd\x02>\xaa@>\xe7" +
+	"\x91/\x8d\xb1~\x81\xb31\xfbu\xdd\xb4RY@\xa3" +
+	"\x17{\x0a\x85I/\x83\xc2\xb2\xac\x99\xcdC\xc8N\x19" +
+	"z/:<eg\xe5\xa3\xbb\xb8\xafi\x15T\xf6+" +
+	"\xebUL\x15A\xaa\xdbgq\xd5\x0a\xdc@\xa3n\x03" +
+	"\xc0]\x15n-\xf0\xd5kmU\xd5\xa2u\xa1\xf3E" +
+	"{\x09um\xfc\xac\x12\xb3\xd8p\xa8\xd7Ns\xbbP" +
+	"\xe4C\xb9<\xa0\xa0[\xe2\xd2\x0aa&\x91\xa0\xb4\x80" +
+	"A\x89\xcf\x0e\x91\xcfO\x94(N\x03A\x19D\x02\x13" +
+	"\x9fD!\x9f\xa0*K1\x06\x82\xd2\x89>\x14\xf8P" +
+	"\xb8<$Sf\xe3r\x10\x94\x0b\x91\x00\xc5\x07\xbd\xc8" +
+	"\x07\xbb\x8a\xcc\xf66\xa2\x0f%>\x10,O\xeb\xe4\xf3" +
+	"\x04\xb7\xdf\xf9\xd0S\x1a\xaa!\x1f{\xc8\xbfZ\x0b\x82" +
+	"\xfc\xa6\x0f\xbd|\x12\xea\x1a\x16\xbc\xd4\x0f\x82\xfc\xac\x0f" +
+	"}\xa5I\x0e\xf2\xb1\xa2|\xcc\x04A~\xd4\x87\x0d\xa5" +
+	"\x09/\xf2\x09\x86\xfc\x00\xc9\xbc\xc7\x87\x8d\xa5\xe1.\xf2" +
+	"\x19\x91|\xc7\xfc\xc2u\xf2\x97\x06\x90\xc8\xe7(\xf2u" +
+	"\xfd\xec:\x15\xda\"\xae\xd6u\xaf\xab\xa7\xc1Q\xce\x1b" +
+	"\xf3\xd5\x0d\x94\x0a\x84\xf4\xe2\x8e\xe2O\x12X|; " +
+	"\xcc\xb0\xe6\xa6\x88\xc4\x10\xa2\x97\xa7\xb7\x14\xea\x9a\xebS" +
+	"\xd5,\xaf\x0bU7d\x8a\x9aQ.O|\xab S" +
+	"\xf9^\xf1\xae_\xa1\xbb\xfb\xffj@\xf8>S`\xdd" +
+	"v\x99Ureb\xf0\x97=)Mx\xab<\xa9l" +
+	"\xa1\xb0\x07\x8a\x9e\xa7\xba\xb3\x9e\xeaV\xc3\x04\xed\x88\x0a" +
+	"Y\x93\xf5\xf4*\x8e\xe4\xff\x02\x00\x00\xff\xff\xffs\"" +
+	"N"
 
 func init() {
 	schemas.Register(schema_db8274f9144abc7e,
 		0x84e4b51ba5570071,
+		0x8526d6d896c688e0,
+		0x88e166675c857e18,
 		0x8ff15814cd06ecd7,
 		0x8ff88405c5bd0dec,
 		0x91dfcb778d8d16c0,
 		0x9285c4944dfb709f,
 		0x92a4f36c8d41b673,
 		0x933297e0a8a77222,
+		0x9596c4fb3d4044a6,
 		0x965465bd75220f94,
+		0x9aae3a8502e6d5eb,
+		0xa23b4c1a964c722b,
 		0xa504000ac6204c12,
 		0xa56ff1a4dc4cdcd8,
 		0xa6b9c11c2aac9785,
+		0xa76b7607195dee3a,
+		0xa7e3c40f8e5ecb74,
 		0xa8fc15721302db2a,
 		0xa9121e4800ff7069,
 		0xac531ffcc2cdbf05,
+		0xad48fb996c416d96,
 		0xad64659a5d76e80b,
 		0xae6825c3fecb35bf,
 		0xb25b411cec149334,
 		0xb5031b975a2f2d5d,
 		0xb95426b082b00c25,
+		0xb95e72a43cd7c47c,
 		0xb9c996f05a75ae42,
 		0xbea6ce314a7abc79,
+		0xc21e37cdb9df069e,
 		0xc3806a9410e187be,
 		0xc3e472677f9be8ad,
+		0xc7fcacbb7e6c5bb0,
 		0xc8c60b05d115f411,
 		0xccdde1728f71e904,
 		0xcdf011e3e3860026,
 		0xce802aa8977a9aee,
 		0xd2592928fa547bc6,
+		0xd451112d04c75608,
 		0xd47381c89e2f1649,
+		0xdc063192b2b7a561,
 		0xdda2e02140fe8f08,
-		0xe3ec490c3d4015bb,
 		0xe542d95b68592c1c,
 		0xe5a432109337fc5d,
 		0xeb68797cd74f95c2,
 		0xed1583a692140448,
+		0xed7c7bac1db2cb02,
 		0xf052e7e084b31199,
 		0xf09be4e8d421f422,
-		0xf95512d6a5f5e530,
+		0xf175231b9048f2c5,
+		0xf604c2f7eff9f3c7,
 		0xfa41cf108b6d790d,
 		0xfa6ca90efc9ff291,
 		0xfa7d2ded965e55e3,

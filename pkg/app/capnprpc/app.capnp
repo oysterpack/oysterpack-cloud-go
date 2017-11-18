@@ -13,21 +13,36 @@ interface App @0xf052e7e084b31199 {
 
     logLevel           @4 () -> (level :LogLevel);
 
-    registeredServices @5 () -> (serviceIds :List(UInt64));
+    serviceIds         @5 () -> (serviceIds :List(UInt64));
     service            @6 (id :UInt64) -> (service :Service);
 
-    kill               @7 () -> ();
+    rpcServiceIds      @7 () -> (serviceIds :List(UInt64));
+    rpcService         @8 (id :UInt64) -> (service :RPCService);
 
-    runtime            @8 () -> (runtime :Runtime);
+    kill               @9 () -> ();
+
+    runtime            @10 () -> (runtime :Runtime);
 }
 
 interface Service @0xb25b411cec149334 {
     id          @0 () -> (serviceId :UInt64);
-
     logLevel    @1 () -> (level :LogLevel);
-
     alive       @2 () -> (alive :Bool);
-    kill        @3 () -> ();
+}
+
+interface RPCService @0xa7e3c40f8e5ecb74 {
+    id              @0 () -> (serviceId :UInt64);
+
+    listenerAlive   @1 () -> (listenerAlive :Bool);
+    listenerAddress @2 () -> (address :NetworkAddress);
+
+    activeConns     @3 () -> (count :UInt32);
+    maxConns        @4 () -> (count :UInt32);
+}
+
+struct NetworkAddress @0x9aae3a8502e6d5eb {
+    network @0 :Text $Go.doc("name of the network (for example, 'tcp', 'udp')");
+    address @1 :Text $Go.doc("string form of address (for example, '192.0.2.1:25', ''[2001:db8::1]:80')");
 }
 
 enum LogLevel @0xce802aa8977a9aee {
