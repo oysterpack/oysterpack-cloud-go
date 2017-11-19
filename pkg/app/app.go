@@ -55,6 +55,8 @@ var (
 
 	services    = make(map[ServiceID]*Service)
 	rpcServices = make(map[ServiceID]*RPCService)
+
+	tags = make(map[string]struct{})
 )
 
 func submitCommand(f func()) error {
@@ -80,6 +82,26 @@ func Instance() InstanceID {
 // Release returns the application ReleaseID
 func Release() ReleaseID {
 	return releaseID
+}
+
+// Tags returns any tags the app was started with
+//
+// USE CASE: used to lookup tag specific configurations.
+// The application config is looked up via AppID/ReleaseID/[tags]. Tags can be used to tag a deployment or a specific instance.
+// When a service config is looked up (via ServiceID), it must be defined for either :
+// 	- AppID/ReleaseID/ServiceID
+//	- AppID/ReleaseID/ServiceID?tags=[tags]
+//
+//  - the service config that matches against the most tags will be chosen
+//	- if no service config with matching tags are found, then the release specific service config will be chosen : AppID/ReleaseID/ServiceID
+func Tags() []string {
+	appTags := make([]string, len(tags))
+	i := 0
+	for tag := range tags {
+		appTags[i] = tag
+		i++
+	}
+	return appTags
 }
 
 //
@@ -348,6 +370,16 @@ func Kill() {
 	app.Kill(nil)
 }
 
+// Dying returns a channel that is used to signal that the app has been killed and shutting down
+func Dying() <-chan struct{} {
+	return app.Dying()
+}
+
+// Dead returns a channel that signals the app has been shutdown
+func Dead() <-chan struct{} {
+	return app.Dead()
+}
+
 func init() {
 	var appIDVar uint64
 	flag.Uint64Var(&appIDVar, "app-id", 0, "AppID")
@@ -367,10 +399,14 @@ func init() {
 	var appRPCMaxConns uint
 	flag.UintVar(&appRPCMaxConns, "app-rpc-max-conns", 10, "The max number of concurrent app RPC client connections")
 
+	var tagsVar string
+	flag.StringVar(&tagsVar, "tags", "", "Comma delimited list of tags")
+
 	flag.Parse()
 
 	appID = AppID(appIDVar)
 	releaseID = ReleaseID(releaseIDVar)
+	initTags(tagsVar)
 
 	initZerolog(logLevelVar)
 	initServiceLogLevels(serviceLogLevelsVar)
@@ -379,8 +415,21 @@ func init() {
 	runRPCAppServer(appRPCPort, appRPCMaxConns)
 }
 
+func initTags(tagsFlag string) {
+	tagsFlag = strings.TrimSpace(tagsFlag)
+	if tagsFlag == "" {
+		return
+	}
+	for _, tag := range strings.Split(tagsFlag, ",") {
+		tag = strings.TrimSpace(tag)
+		if tag != "" {
+			tags[tag] = struct{}{}
+		}
+	}
+}
+
 func runRPCAppServer(appRPCPort uint, appRPCMaxConns uint) {
-	runTLSRPCAppServer(appRPCPort, appRPCPort, nil)
+	runTLSRPCAppServer(appRPCPort, appRPCMaxConns, nil)
 }
 
 func runTLSRPCAppServer(appRPCPort uint, appRPCMaxConns uint, tlsConfigProvider TLSConfigProvider) {
@@ -408,12 +457,17 @@ func initZerolog(logLevel string) {
 	stdlog.SetFlags(0)
 	stdlog.SetOutput(log.Logger)
 
-	logger = log.Logger.With().
+	loggerCtx := log.Logger.With().
 		Uint64("app", uint64(appID)).
 		Uint64("release", uint64(releaseID)).
-		Str("instance", string(appInstanceId)).
-		Logger().
-		Level(zerolog.InfoLevel)
+		Str("instance", string(appInstanceId))
+
+	appTags := Tags()
+	if len(appTags) > 0 {
+		loggerCtx = loggerCtx.Strs("tags", appTags)
+	}
+
+	logger = loggerCtx.Logger().Level(zerolog.InfoLevel)
 }
 
 func initServiceLogLevels(serviceLogLevelsFlag string) {
@@ -445,7 +499,7 @@ func runAppServer() {
 		APP_STARTED.Log(logger.Info()).Msg("started")
 
 		sigs := make(chan os.Signal, 1)
-		signal.Notify(sigs, syscall.SIGTERM)
+		signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 		for {
 			select {
 			case <-sigs:
