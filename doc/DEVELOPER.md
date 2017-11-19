@@ -21,7 +21,7 @@
 
 # How to run benchmarks
 
-    go test -bench=. -benchmem
+    go test -run=NONE -bench=. -benchmem
     
 the -benchmem flag will include memory allocation statistics in the report
 

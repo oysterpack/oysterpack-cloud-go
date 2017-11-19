@@ -50,13 +50,7 @@ func TestStartRPCService(t *testing.T) {
 		t.Errorf("There should be no connections : %d", rpcService.ActiveConns())
 	}
 
-	for {
-		if _, err := rpcService.ListenerAddress(); err == nil {
-			break
-		}
-		log.Logger.Warn().Msg("Waiting for listener to start up ...")
-		time.Sleep(time.Millisecond * 50)
-	}
+	<-rpcService.Started()
 	addr, err := rpcService.ListenerAddress()
 	if err != nil {
 		t.Fatal(err)
@@ -115,6 +109,7 @@ func TestStartRPCService(t *testing.T) {
 
 func TestRPCService_TLS(t *testing.T) {
 	app.Reset()
+	defer app.Reset()
 
 	// Given the app RPC service is registered with maxConns = 5
 	appRPCService := app.NewService(app.ServiceID(0xfef711bb74ee4e13))
@@ -124,7 +119,7 @@ func TestRPCService_TLS(t *testing.T) {
 		return net.Listen("tcp", "")
 	}
 
-	var tlsConfigProvider app.TLSConfigProvider = serverTLSConfig
+	var tlsConfigProvider app.TLSConfigProvider = tlsProvider.ServerTLSConfig
 
 	const maxConns = 5
 	rpcService, err := app.StartRPCService(appRPCService, listenerFactory, tlsConfigProvider, appRPCMainInterface(), maxConns)
@@ -168,4 +163,77 @@ func appRPCMainInterface() app.RPCMainInterface {
 	return func() (capnp.Client, error) {
 		return server.Client, nil
 	}
+}
+
+func BenchmarkRPCService(b *testing.B) {
+	app.Reset()
+	defer app.Reset()
+
+	ctx := context.Background()
+	idParams := func(params capnprpc.App_id_Params) error { return nil }
+
+	// Given the app RPC service is registered with maxConns = 5
+	appRPCService := app.NewService(app.ServiceID(1))
+	app.RegisterService(appRPCService)
+
+	var listenerFactory app.ListenerFactory = func() (net.Listener, error) {
+		return net.Listen("tcp", ":0")
+	}
+
+	const maxConns = 5
+	rpcService, err := app.StartRPCService(appRPCService, listenerFactory, nil, appRPCMainInterface(), maxConns)
+	if err != nil {
+		b.Fatal(err)
+	}
+	<-rpcService.Started()
+	addr, err := rpcService.ListenerAddress()
+	if err != nil {
+		b.Fatal(err)
+	}
+	appClient, _, err := appClientConn(addr)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	// BenchmarkRPCService/ID()_-_no_TLS-8                20000             91676 ns/op           18267 B/op         78 allocs/op
+	b.Run("ID() - no TLS", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			if result, err := appClient.Id(ctx, idParams).Struct(); err != nil {
+				b.Fatal(err)
+			} else {
+				result.AppId()
+			}
+		}
+	})
+
+	app.Reset()
+
+	appRPCService = app.NewService(app.ServiceID(0xfef711bb74ee4e13))
+	app.RegisterService(appRPCService)
+
+	var tlsConfigProvider app.TLSConfigProvider = tlsProvider.ServerTLSConfig
+	rpcService, err = app.StartRPCService(appRPCService, listenerFactory, tlsConfigProvider, appRPCMainInterface(), maxConns)
+	if err != nil {
+		b.Fatal(err)
+	}
+	<-rpcService.Started()
+	addr, err = rpcService.ListenerAddress()
+	if err != nil {
+		b.Fatal(err)
+	}
+	appClient, _, err = appTLSClientConn(addr)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	// BenchmarkRPCService/ID()_-_TLS-8                   10000            115054 ns/op           18266 B/op         78 allocs/op
+	b.Run("ID() - TLS", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			if result, err := appClient.Id(ctx, idParams).Struct(); err != nil {
+				b.Fatal(err)
+			} else {
+				result.AppId()
+			}
+		}
+	})
 }

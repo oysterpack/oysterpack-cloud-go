@@ -49,11 +49,3 @@ The CA directory structure will look like :
           |-client1.oysterpack.com.key        # client
           |-nats.oysterpack.com.key           # server
           |-oysterpack.key                    # ca
-          
-# How to decode a certificate
-
-Via the command line:
-
-    openssl x509 -in certificate.crt -text -noout
-
-There are also online tools : [Certificate Decoder](https://www.sslshopper.com/certificate-decoder.html)

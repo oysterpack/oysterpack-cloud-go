@@ -32,7 +32,15 @@ import (
 )
 
 const (
-	PKI_ROOT = "./testdata/.easypki/pki"
+	EASY_PKI_ROOT = "./testdata/.easypki/pki"
+	EASY_PKI_CA   = "app.dev.oysterpack.com"
+
+	TINY_CERT_PKI_ROOT = "./testdata/tinycert"
+)
+
+var (
+	tlsProvider TLSProvider = EasyPKITLS{}
+	//tlsProvider TLSProvider = TinyCertTLS{}
 )
 
 func appClientConn(addr net.Addr) (capnprpc.App, net.Conn, error) {
@@ -45,7 +53,7 @@ func appClientConn(addr net.Addr) (capnprpc.App, net.Conn, error) {
 }
 
 func appTLSClientConn(addr net.Addr) (capnprpc.App, net.Conn, error) {
-	tlsConfig, err := clientTLSConfig()
+	tlsConfig, err := tlsProvider.ClientTLSConfig()
 	if err != nil {
 		return capnprpc.App{}, nil, err
 	}
@@ -57,9 +65,18 @@ func appTLSClientConn(addr net.Addr) (capnprpc.App, net.Conn, error) {
 	return capnprpc.App{Client: rpcClient.Bootstrap(context.Background())}, clientConn, nil
 }
 
-func rootCA() (*x509.CertPool, error) {
+type TLSProvider interface {
+	RootCA() (*x509.CertPool, error)
+	ClientTLSConfig() (*tls.Config, error)
+	ServerTLSConfig() (*tls.Config, error)
+}
+
+type EasyPKITLS struct {
+}
+
+func (a EasyPKITLS) RootCA() (*x509.CertPool, error) {
 	pool := x509.NewCertPool()
-	caCert := PKI_ROOT + "/oysterpack/certs/oysterpack.crt"
+	caCert := fmt.Sprintf("%s/%[2]s/certs/%[2]s.crt", EASY_PKI_ROOT, EASY_PKI_CA)
 	rootPEM, err := ioutil.ReadFile(caCert)
 	if err != nil || rootPEM == nil {
 		return nil, err
@@ -71,17 +88,17 @@ func rootCA() (*x509.CertPool, error) {
 	return pool, nil
 }
 
-func clientTLSConfig() (*tls.Config, error) {
+func (a EasyPKITLS) ClientTLSConfig() (*tls.Config, error) {
 	const CERT_NAME = "client.dev.oysterpack.com"
 	certKeyPair, err := tls.LoadX509KeyPair(
-		fmt.Sprintf("%s/oysterpack/certs/%s.crt", PKI_ROOT, CERT_NAME),
-		fmt.Sprintf("%s/oysterpack/keys/%s.key", PKI_ROOT, CERT_NAME),
+		fmt.Sprintf("%s/%s/certs/%s.crt", EASY_PKI_ROOT, EASY_PKI_CA, CERT_NAME),
+		fmt.Sprintf("%s/%s/keys/%s.key", EASY_PKI_ROOT, EASY_PKI_CA, CERT_NAME),
 	)
 	if err != nil {
 		panic(err)
 	}
 
-	rootCAs, err := rootCA()
+	rootCAs, err := a.RootCA()
 	if err != nil {
 		return nil, err
 	}
@@ -97,13 +114,13 @@ func clientTLSConfig() (*tls.Config, error) {
 	return tlsConfig, nil
 }
 
-func serverTLSConfig() (*tls.Config, error) {
+func (a EasyPKITLS) ServerTLSConfig() (*tls.Config, error) {
 	const certName = "server.dev.oysterpack.com"
-	cert, err := ioutil.ReadFile(fmt.Sprintf("%s/oysterpack/certs/%s.crt", PKI_ROOT, certName))
+	cert, err := ioutil.ReadFile(fmt.Sprintf("%s/%s/certs/%s.crt", EASY_PKI_ROOT, EASY_PKI_CA, certName))
 	if err != nil {
 		return nil, err
 	}
-	key, err := ioutil.ReadFile(fmt.Sprintf("%s/oysterpack/keys/%s.key", PKI_ROOT, certName))
+	key, err := ioutil.ReadFile(fmt.Sprintf("%s/%s/keys/%s.key", EASY_PKI_ROOT, EASY_PKI_CA, certName))
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +129,7 @@ func serverTLSConfig() (*tls.Config, error) {
 		return nil, err
 	}
 
-	rootCAs, err := rootCA()
+	rootCAs, err := a.RootCA()
 	if err != nil {
 		return nil, err
 	}
@@ -137,28 +154,85 @@ func serverTLSConfig() (*tls.Config, error) {
 	return tlsConfig, nil
 }
 
-var localIP *net.IP
-
-// LocalIP returns the cached local IP
-func LocalIP() *net.IP {
-	if localIP != nil {
-		return localIP
-	}
-	localIP, _ := GetLocalIP()
-	return localIP
+type TinyCertTLS struct {
 }
 
-// GetLocalIP looks up the local IP and returns the first non-loopback IP
-func GetLocalIP() (*net.IP, error) {
-	addrs, err := net.InterfaceAddrs()
+func (a TinyCertTLS) ServerTLSConfig() (*tls.Config, error) {
+	const certName = "server.dev.oysterpack.com"
+	cert, err := ioutil.ReadFile(fmt.Sprintf("%s/%s.pem", TINY_CERT_PKI_ROOT, certName))
 	if err != nil {
 		return nil, err
 	}
-	for _, address := range addrs {
-		// check the address type and if it is not a loopback the display it
-		if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
-			return &ipnet.IP, nil
-		}
+	key, err := ioutil.ReadFile(fmt.Sprintf("%s/%s.key.pem", TINY_CERT_PKI_ROOT, certName))
+	if err != nil {
+		return nil, err
 	}
-	return nil, errors.New("unable to obtain non loopback local ip address")
+	certKeyPair, err := tls.X509KeyPair(cert, key)
+	if err != nil {
+		return nil, err
+	}
+
+	rootCAs, err := a.RootCA()
+	if err != nil {
+		return nil, err
+	}
+
+	tlsConfig := &tls.Config{
+		RootCAs: rootCAs,
+
+		MinVersion: tls.VersionTLS12,
+
+		// Reject any TLS certificate that cannot be validated
+		ClientAuth: tls.RequireAndVerifyClientCert,
+
+		// Ensure that we only use our "CA" to validate certificates
+		ClientCAs: rootCAs,
+		// Server cert
+		Certificates: []tls.Certificate{certKeyPair},
+
+		PreferServerCipherSuites: true,
+		//CipherSuites:             []uint16{tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384},
+	}
+	tlsConfig.BuildNameToCertificate()
+	return tlsConfig, nil
+}
+
+func (a TinyCertTLS) ClientTLSConfig() (*tls.Config, error) {
+	const CERT_NAME = "client.dev.oysterpack.com"
+	certKeyPair, err := tls.LoadX509KeyPair(
+		fmt.Sprintf("%s/%s.pem", TINY_CERT_PKI_ROOT, CERT_NAME),
+		fmt.Sprintf("%s/%s.key.pem", TINY_CERT_PKI_ROOT, CERT_NAME),
+	)
+	if err != nil {
+		panic(err)
+	}
+
+	rootCAs, err := a.RootCA()
+	if err != nil {
+		return nil, err
+	}
+
+	tlsConfig := &tls.Config{
+		MinVersion:   tls.VersionTLS12,
+		RootCAs:      rootCAs,
+		Certificates: []tls.Certificate{certKeyPair},
+
+		InsecureSkipVerify: true,
+	}
+	tlsConfig.BuildNameToCertificate()
+	return tlsConfig, nil
+}
+
+func (a TinyCertTLS) RootCA() (*x509.CertPool, error) {
+	pool := x509.NewCertPool()
+	caCert := TINY_CERT_PKI_ROOT + "/dev.oysterpack.com.cacert.pem"
+	rootPEM, err := ioutil.ReadFile(caCert)
+	if err != nil || rootPEM == nil {
+		return nil, err
+	}
+	ok := pool.AppendCertsFromPEM([]byte(rootPEM))
+	if !ok {
+		return nil, errors.New("rootCA() : failed to parse root certificate")
+	}
+	return pool, nil
 }
