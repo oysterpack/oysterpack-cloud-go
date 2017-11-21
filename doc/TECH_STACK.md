@@ -79,6 +79,9 @@
 ## Web UI
 - [Gowut (Go Web UI Toolkit)](https://github.com/icza/gowut)
 
+## HTTP API
+- [echo](https://echo.labstack.com/)
+
 ## Deployment
 - [deis](https://deis.com/)
 - [k8s](https://kubernetes.io/)

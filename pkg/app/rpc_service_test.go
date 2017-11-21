@@ -111,6 +111,8 @@ func TestRPCService_TLS(t *testing.T) {
 	app.Reset()
 	defer app.Reset()
 
+	var tlsProvider TLSProvider = EasyPKITLS{}
+
 	// Given the app RPC service is registered with maxConns = 5
 	appRPCService := app.NewService(app.ServiceID(0xfef711bb74ee4e13))
 	app.RegisterService(appRPCService)
@@ -139,12 +141,26 @@ func TestRPCService_TLS(t *testing.T) {
 	}
 
 	ctx := context.Background()
+
 	if result, err := appClient.Id(ctx, func(params capnprpc.App_id_Params) error {
 		return nil
 	}).Struct(); err != nil {
 		t.Error(err)
 	} else {
 		t.Logf("app id : %x", result.AppId())
+	}
+
+	if result, err := appClient.Instance(ctx, func(params capnprpc.App_instance_Params) error {
+		return nil
+	}).Struct(); err != nil {
+		t.Error(err)
+	} else {
+		if instanceId, err := result.InstanceId(); err != nil {
+			t.Error(err)
+		} else {
+			t.Logf("app instance id : %s", instanceId)
+		}
+
 	}
 
 	// When the conn is closed
@@ -154,7 +170,7 @@ func TestRPCService_TLS(t *testing.T) {
 	}).Struct(); err == nil {
 		t.Error("Client RPC call should have failed because the underlying connection has been closed.")
 	} else {
-		t.Logf("error after using client when the network connection is closed : %[1]T : %[1]v", err)
+		t.Logf("after the network connection is closed, the RPC client fails with the following error : %[1]T : %[1]v", err)
 	}
 }
 

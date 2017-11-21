@@ -24,11 +24,43 @@ import (
 
 	"crypto/tls"
 
+	"crypto/x509"
+
 	"github.com/rs/zerolog"
 	"gopkg.in/tomb.v2"
 	"zombiezen.com/go/capnproto2"
 	"zombiezen.com/go/capnproto2/rpc"
 )
+
+type RPCServiceSpec struct {
+	DomainID
+	AppID
+	ServiceID
+
+	RPCPort
+}
+
+func (a *RPCServiceSpec) CN() string {
+	return fmt.Sprintf("%x.%x.%x", a.ServiceID, a.AppID, a.DomainID)
+}
+
+func (a *RPCServiceSpec) NetworkAddr() string {
+	return fmt.Sprintf("%x_%x", a.DomainID, a.AppID)
+}
+
+type RPCPort uint
+
+type RPCServerSpec struct {
+	RPCServiceSpec
+	ClientCAs *x509.CertPool
+	Cert      tls.Certificate
+}
+
+type RPCClientSpec struct {
+	RPCServiceSpec
+	RootCAs *x509.CertPool
+	Cert    tls.Certificate
+}
 
 // StartRPCService creates and starts a new RPCService asynchronously.
 func StartRPCService(service *Service, listenerFactory ListenerFactory, tlsConfigProvider TLSConfigProvider, server RPCMainInterface, maxConns uint) (*RPCService, error) {
@@ -146,6 +178,7 @@ type listener struct {
 
 	m         sync.Mutex
 	l         net.Listener
+	addr      net.Addr
 	tlsConfig *tls.Config
 }
 
@@ -156,45 +189,48 @@ func (a *listener) get() net.Listener {
 	return l
 }
 
-func (a *listener) start() (listener net.Listener, err error) {
+func (a *listener) start() (net.Listener, error) {
 	a.m.Lock()
-	if a.l == nil {
+	defer a.m.Unlock()
+	if a.l == nil && a.addr == nil {
 		// starting for the first time
 		l, err := a.factory()
 		if err != nil {
-			err = NewListenerFactoryError(err)
+			return nil, NewListenerFactoryError(err)
 		}
 
 		if a.tlsConfigProvider != nil && a.tlsConfig == nil {
 			tlsConfig, err := a.tlsConfigProvider()
 			if err != nil {
-				err = NewTLSConfigError(err)
+				return nil, NewTLSConfigError(err)
 			}
 			a.tlsConfig = tlsConfig
 		}
 
 		if a.tlsConfig != nil {
-			listener = tls.NewListener(l, a.tlsConfig)
+			a.l = tls.NewListener(l, a.tlsConfig)
 		} else {
-			listener = l
+			a.l = l
 		}
 	} else {
 		// restarting using same address as before
-		addr := a.l.Addr()
 		if a.tlsConfig != nil {
-			if listener, err = tls.Listen(addr.Network(), addr.String(), a.tlsConfig); err != nil {
-				err = NewNetListenError(err)
+			if l, err := tls.Listen(a.addr.Network(), a.addr.String(), a.tlsConfig); err != nil {
+				return nil, NewNetListenError(err)
+			} else {
+				a.l = l
 			}
 		} else {
-			if listener, err = net.Listen(addr.Network(), addr.String()); err != nil {
-				err = NewNetListenError(err)
+			if l, err := net.Listen(a.addr.Network(), a.addr.String()); err != nil {
+				return nil, NewNetListenError(err)
+			} else {
+				a.l = l
 			}
 		}
-
 	}
-	a.l = listener
-	a.m.Unlock()
-	return
+
+	a.addr = a.l.Addr()
+	return a.l, nil
 }
 
 // RPCMainInterface provides the RPC server main interface
@@ -217,7 +253,11 @@ func (a *RPCService) start() {
 				select {
 				case <-a.Dying():
 				default:
-					a.restartListener()
+					if _, unrecoverable := a.listener.Err().(UnrecoverableError); unrecoverable {
+						a.Kill(a.listener.Err())
+					} else {
+						a.restartListener()
+					}
 				}
 			case f := <-a.CommandChan():
 				f()
@@ -264,6 +304,7 @@ func (a *RPCService) startListener() {
 		RPC_SERVICE_LISTENER_STARTED.Log(a.Logger().Info()).
 			Str("addr", fmt.Sprintf("%s://%s", addr.Network(), addr.String())).
 			Int("max-conns", a.MaxConns()).
+			Bool("tls", a.listener.tlsConfig != nil).
 			Msg("rpc listener started")
 		for {
 			select {

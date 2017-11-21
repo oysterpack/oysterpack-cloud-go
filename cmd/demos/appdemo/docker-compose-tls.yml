@@ -1,0 +1,24 @@
+version: "3.4"
+services:
+  server:
+    image: oysterpack/appdemo:0.1
+    deploy:
+      replicas: 2
+      restart_policy:
+        condition: on-failure
+    volumes:
+      - type: volume
+        source: pki
+        target: /pki
+        volume:
+          nocopy: true
+    networks:
+      - appdemo-net
+    command: -log-level DEBUG -app-id 0xd8e06a3d73a1d426 -release-id 2 -tags A,B,C -app-rpc-port 44228 -pki-root /pki -tls-cacert app.dev.oysterpack.com -tls-cert server.dev.oysterpack.com
+    ports:
+      - 44228:44228
+networks:
+  appdemo-net:
+volumes:
+  pki:
+    external: true

@@ -27,6 +27,7 @@ import (
 
 	"errors"
 
+	"github.com/oysterpack/oysterpack.go/pkg/app"
 	"github.com/oysterpack/oysterpack.go/pkg/app/capnprpc"
 	"zombiezen.com/go/capnproto2/rpc"
 )
@@ -53,7 +54,31 @@ func appClientConn(addr net.Addr) (capnprpc.App, net.Conn, error) {
 }
 
 func appTLSClientConn(addr net.Addr) (capnprpc.App, net.Conn, error) {
-	tlsConfig, err := tlsProvider.ClientTLSConfig()
+	return tlsProvider.AppTLSClientConn(addr)
+}
+
+type TLSProvider interface {
+	CACertPool() (*x509.CertPool, error)
+	ClientTLSConfig() (*tls.Config, error)
+	ServerTLSConfig() (*tls.Config, error)
+
+	AppTLSClientConn(addr net.Addr) (capnprpc.App, net.Conn, error)
+}
+
+type EaskyPKITLS_DomainAppService struct {
+	app.DomainID
+	app.AppID
+	app.ServiceID
+
+	CACerts []string
+}
+
+func (a EaskyPKITLS_DomainAppService) ServiceCN() string {
+	return fmt.Sprintf("%x.%x.%x", a.ServiceID, a.AppID, a.DomainID)
+}
+
+func (a EaskyPKITLS_DomainAppService) AppTLSClientConn(addr net.Addr) (capnprpc.App, net.Conn, error) {
+	tlsConfig, err := a.ClientTLSConfig()
 	if err != nil {
 		return capnprpc.App{}, nil, err
 	}
@@ -65,16 +90,117 @@ func appTLSClientConn(addr net.Addr) (capnprpc.App, net.Conn, error) {
 	return capnprpc.App{Client: rpcClient.Bootstrap(context.Background())}, clientConn, nil
 }
 
-type TLSProvider interface {
-	RootCA() (*x509.CertPool, error)
-	ClientTLSConfig() (*tls.Config, error)
-	ServerTLSConfig() (*tls.Config, error)
+func (a EaskyPKITLS_DomainAppService) CACertPool() (*x509.CertPool, error) {
+	pool := x509.NewCertPool()
+
+	for _, ca := range a.CACerts {
+		caCert := fmt.Sprintf("%s/%[2]s/certs/%[2]s.crt", EASY_PKI_ROOT, ca)
+		rootPEM, err := ioutil.ReadFile(caCert)
+		if err != nil || rootPEM == nil {
+			return nil, err
+		}
+		ok := pool.AppendCertsFromPEM([]byte(rootPEM))
+		if !ok {
+			return nil, errors.New("rootCA() : failed to parse root certificate")
+		}
+	}
+
+	//caCert := fmt.Sprintf("%s/%[2]s/certs/%[2]s.crt", EASY_PKI_ROOT, EASY_PKI_CA)
+	//rootPEM, err := ioutil.ReadFile(caCert)
+	//if err != nil || rootPEM == nil {
+	//	return nil, err
+	//}
+	//ok := pool.AppendCertsFromPEM([]byte(rootPEM))
+	//if !ok {
+	//	return nil, errors.New("rootCA() : failed to parse root certificate")
+	//}
+	return pool, nil
+}
+
+func (a EaskyPKITLS_DomainAppService) ClientTLSConfig() (*tls.Config, error) {
+	const CERT_NAME = "client.dev.oysterpack.com"
+	certKeyPair, err := tls.LoadX509KeyPair(
+		fmt.Sprintf("%s/%s/certs/%s.crt", EASY_PKI_ROOT, EASY_PKI_CA, CERT_NAME),
+		fmt.Sprintf("%s/%s/keys/%s.key", EASY_PKI_ROOT, EASY_PKI_CA, CERT_NAME),
+	)
+	if err != nil {
+		panic(err)
+	}
+
+	rootCAs, err := a.CACertPool()
+	if err != nil {
+		return nil, err
+	}
+
+	tlsConfig := &tls.Config{
+		MinVersion:   tls.VersionTLS12,
+		RootCAs:      rootCAs,
+		Certificates: []tls.Certificate{certKeyPair},
+
+		InsecureSkipVerify: false,
+		ServerName:         a.ServiceCN(),
+	}
+	tlsConfig.BuildNameToCertificate()
+	return tlsConfig, nil
+}
+
+func (a EaskyPKITLS_DomainAppService) ServerTLSConfig() (*tls.Config, error) {
+	var certName = a.ServiceCN() //"server.dev.oysterpack.com"
+	cert, err := ioutil.ReadFile(fmt.Sprintf("%s/%s/certs/%s.crt", EASY_PKI_ROOT, EASY_PKI_CA, certName))
+	if err != nil {
+		return nil, err
+	}
+	key, err := ioutil.ReadFile(fmt.Sprintf("%s/%s/keys/%s.key", EASY_PKI_ROOT, EASY_PKI_CA, certName))
+	if err != nil {
+		return nil, err
+	}
+	certKeyPair, err := tls.X509KeyPair(cert, key)
+	if err != nil {
+		return nil, err
+	}
+
+	rootCAs, err := a.CACertPool()
+	if err != nil {
+		return nil, err
+	}
+
+	tlsConfig := &tls.Config{
+		//RootCAs: rootCAs,
+
+		MinVersion: tls.VersionTLS12,
+
+		// Reject any TLS certificate that cannot be validated
+		ClientAuth: tls.RequireAndVerifyClientCert,
+
+		// Ensure that we only use our "CA" to validate certificates
+		ClientCAs: rootCAs,
+		// Server cert
+		Certificates: []tls.Certificate{certKeyPair},
+
+		PreferServerCipherSuites: true,
+		//CipherSuites:             []uint16{tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384},
+	}
+	tlsConfig.BuildNameToCertificate()
+	return tlsConfig, nil
 }
 
 type EasyPKITLS struct {
 }
 
-func (a EasyPKITLS) RootCA() (*x509.CertPool, error) {
+func (a EasyPKITLS) AppTLSClientConn(addr net.Addr) (capnprpc.App, net.Conn, error) {
+	tlsConfig, err := a.ClientTLSConfig()
+	if err != nil {
+		return capnprpc.App{}, nil, err
+	}
+	clientConn, err := tls.Dial(addr.Network(), addr.String(), tlsConfig)
+	if err != nil {
+		return capnprpc.App{}, nil, err
+	}
+	rpcClient := rpc.NewConn(rpc.StreamTransport(clientConn))
+	return capnprpc.App{Client: rpcClient.Bootstrap(context.Background())}, clientConn, nil
+}
+
+func (a EasyPKITLS) CACertPool() (*x509.CertPool, error) {
 	pool := x509.NewCertPool()
 	caCert := fmt.Sprintf("%s/%[2]s/certs/%[2]s.crt", EASY_PKI_ROOT, EASY_PKI_CA)
 	rootPEM, err := ioutil.ReadFile(caCert)
@@ -98,7 +224,7 @@ func (a EasyPKITLS) ClientTLSConfig() (*tls.Config, error) {
 		panic(err)
 	}
 
-	rootCAs, err := a.RootCA()
+	rootCAs, err := a.CACertPool()
 	if err != nil {
 		return nil, err
 	}
@@ -109,6 +235,7 @@ func (a EasyPKITLS) ClientTLSConfig() (*tls.Config, error) {
 		Certificates: []tls.Certificate{certKeyPair},
 
 		InsecureSkipVerify: false,
+		ServerName:         "server.dev.oysterpack.com",
 	}
 	tlsConfig.BuildNameToCertificate()
 	return tlsConfig, nil
@@ -129,13 +256,13 @@ func (a EasyPKITLS) ServerTLSConfig() (*tls.Config, error) {
 		return nil, err
 	}
 
-	rootCAs, err := a.RootCA()
+	rootCAs, err := a.CACertPool()
 	if err != nil {
 		return nil, err
 	}
 
 	tlsConfig := &tls.Config{
-		RootCAs: rootCAs,
+		//RootCAs: rootCAs,
 
 		MinVersion: tls.VersionTLS12,
 
@@ -157,6 +284,19 @@ func (a EasyPKITLS) ServerTLSConfig() (*tls.Config, error) {
 type TinyCertTLS struct {
 }
 
+func (a TinyCertTLS) AppTLSClientConn(addr net.Addr) (capnprpc.App, net.Conn, error) {
+	tlsConfig, err := a.ClientTLSConfig()
+	if err != nil {
+		return capnprpc.App{}, nil, err
+	}
+	clientConn, err := tls.Dial(addr.Network(), addr.String(), tlsConfig)
+	if err != nil {
+		return capnprpc.App{}, nil, err
+	}
+	rpcClient := rpc.NewConn(rpc.StreamTransport(clientConn))
+	return capnprpc.App{Client: rpcClient.Bootstrap(context.Background())}, clientConn, nil
+}
+
 func (a TinyCertTLS) ServerTLSConfig() (*tls.Config, error) {
 	const certName = "server.dev.oysterpack.com"
 	cert, err := ioutil.ReadFile(fmt.Sprintf("%s/%s.pem", TINY_CERT_PKI_ROOT, certName))
@@ -172,7 +312,7 @@ func (a TinyCertTLS) ServerTLSConfig() (*tls.Config, error) {
 		return nil, err
 	}
 
-	rootCAs, err := a.RootCA()
+	rootCAs, err := a.CACertPool()
 	if err != nil {
 		return nil, err
 	}
@@ -207,7 +347,7 @@ func (a TinyCertTLS) ClientTLSConfig() (*tls.Config, error) {
 		panic(err)
 	}
 
-	rootCAs, err := a.RootCA()
+	rootCAs, err := a.CACertPool()
 	if err != nil {
 		return nil, err
 	}
@@ -217,13 +357,14 @@ func (a TinyCertTLS) ClientTLSConfig() (*tls.Config, error) {
 		RootCAs:      rootCAs,
 		Certificates: []tls.Certificate{certKeyPair},
 
-		InsecureSkipVerify: true,
+		InsecureSkipVerify: false,
+		ServerName:         "server.dev.oysterpack.com",
 	}
 	tlsConfig.BuildNameToCertificate()
 	return tlsConfig, nil
 }
 
-func (a TinyCertTLS) RootCA() (*x509.CertPool, error) {
+func (a TinyCertTLS) CACertPool() (*x509.CertPool, error) {
 	pool := x509.NewCertPool()
 	caCert := TINY_CERT_PKI_ROOT + "/dev.oysterpack.com.cacert.pem"
 	rootPEM, err := ioutil.ReadFile(caCert)

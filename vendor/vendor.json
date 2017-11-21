@@ -190,8 +190,8 @@
 			"checksumSHA1": "FhkNPZgQF88h2bNTPWJUHv90WlA=",
 			"origin": "github.com/nats-io/gnatsd/vendor/golang.org/x/crypto/bcrypt",
 			"path": "golang.org/x/crypto/bcrypt",
-			"revision": "92c4481d1b853c7ca7b1648ae20f7867729c9a76",
-			"revisionTime": "2017-11-08T17:16:39Z"
+			"revision": "cde2aa6d2f3dc7e9216566f250c6674de842e2e7",
+			"revisionTime": "2017-11-17T19:31:58Z"
 		},
 		{
 			"checksumSHA1": "6hXImMhQL9OYPytdAGxNwxJ+JHc=",

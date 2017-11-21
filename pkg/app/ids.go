@@ -18,6 +18,9 @@ import (
 	"github.com/rs/zerolog"
 )
 
+// DomainID is unique ID assigned to a domain
+type DomainID uint64
+
 // AppID unique application ID
 type AppID uint64
 

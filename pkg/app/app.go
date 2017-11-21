@@ -32,6 +32,8 @@ import (
 	"fmt"
 	"net"
 
+	"crypto/tls"
+
 	"github.com/nats-io/nuid"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -176,7 +178,12 @@ func RegisterService(s *Service) error {
 			case <-app.Dying():
 				return nil
 			case <-s.Dying():
-				SERVICE_STOPPING.Log(s.Logger().Info()).Msg("stopping")
+				if err := s.Err(); err != nil {
+					SERVICE_STOPPING.Log(s.Logger().Error()).Err(err).Msg("stopping")
+				} else {
+					SERVICE_STOPPING.Log(s.Logger().Info()).Msg("stopping")
+				}
+
 				UnregisterService(s.id)
 				return nil
 			}
@@ -402,6 +409,15 @@ func init() {
 	var tagsVar string
 	flag.StringVar(&tagsVar, "tags", "", "Comma delimited list of tags")
 
+	var pkiDirVar string
+	flag.StringVar(&pkiDirVar, "pki-root", "", "PKI root directory - used to load certs for TLS")
+
+	var cacertVar string
+	flag.StringVar(&cacertVar, "tls-cacert", "", "CA cert base name")
+
+	var certVar string
+	flag.StringVar(&certVar, "tls-cert", "", "Server cert base name.")
+
 	flag.Parse()
 
 	appID = AppID(appIDVar)
@@ -412,7 +428,7 @@ func init() {
 	initServiceLogLevels(serviceLogLevelsVar)
 
 	runAppServer()
-	runRPCAppServer(appRPCPort, appRPCMaxConns)
+	runRPCAppServer(appRPCPort, appRPCMaxConns, pkiDirVar, cacertVar, certVar)
 }
 
 func initTags(tagsFlag string) {
@@ -428,8 +444,15 @@ func initTags(tagsFlag string) {
 	}
 }
 
-func runRPCAppServer(appRPCPort uint, appRPCMaxConns uint) {
-	runTLSRPCAppServer(appRPCPort, appRPCMaxConns, nil)
+func runRPCAppServer(appRPCPort uint, appRPCMaxConns uint, pkiDir string, cacert, cert string) {
+	Logger().Debug().
+		Str("pki-root", pkiDir).
+		Str("tls-cacert", cacert).
+		Str("tls-cert", cert).
+		Msg("")
+	runTLSRPCAppServer(appRPCPort, appRPCMaxConns, func() (*tls.Config, error) {
+		return ServerTLSConfig(pkiDir, cacert, cert)
+	})
 }
 
 func runTLSRPCAppServer(appRPCPort uint, appRPCMaxConns uint, tlsConfigProvider TLSConfigProvider) {
@@ -467,7 +490,12 @@ func initZerolog(logLevel string) {
 		loggerCtx = loggerCtx.Strs("tags", appTags)
 	}
 
-	logger = loggerCtx.Logger().Level(zerolog.InfoLevel)
+	if appLogLevel == zerolog.DebugLevel {
+		logger = loggerCtx.Logger().Level(zerolog.DebugLevel)
+	} else {
+		logger = loggerCtx.Logger().Level(zerolog.InfoLevel)
+	}
+
 }
 
 func initServiceLogLevels(serviceLogLevelsFlag string) {

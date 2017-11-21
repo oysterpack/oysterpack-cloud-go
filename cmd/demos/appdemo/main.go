@@ -16,6 +16,23 @@ package main
 
 import "github.com/oysterpack/oysterpack.go/pkg/app"
 
+// ./appdemo -app-id 0xd8e06a3d73a1d426 -release-id 2 -tags A,B,C -app-rpc-port 44228 -log-level DEBUG \
+// -pki-root /pki -tls-cacert app.dev.oysterpack.com -tls-cert server.dev.oysterpack.com
+//
+// # run the following docker command from the pki root directory to create a new appdemo that will start the app RPCService with TLS
+// docker run --name appdemo -p 44228:44228 -d -v `pwd`:/pki oysterpack/appdemo:0.1 -log-level DEBUG -app-id 0xd8e06a3d73a1d426
+// -release-id 2 -tags A,B,C -app-rpc-port 44228 -pki-root /pki -tls-cacert app.dev.oysterpack.com -tls-cert server.dev.oysterpack.com
+//
+// an even better way is to leverage docker volumes :
+//
+//	docker volume create pki
+//
+//  # then get volume location using
+//	docker volume inspect pki
+//
+// 	docker run --name appdemo -p 44228:44228 -d --mount source=pki,target=/pki oysterpack/appdemo:0.1 -log-level DEBUG \
+// 		   -app-id 0xd8e06a3d73a1d426 -release-id 2 -tags A,B,C -app-rpc-port 44228 \
+// 		   -pki-root /pki -tls-cacert app.dev.oysterpack.com -tls-cert server.dev.oysterpack.com
 func main() {
 	<-app.Dead()
 }

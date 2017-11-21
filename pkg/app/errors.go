@@ -58,6 +58,8 @@ type ListenerFactoryError struct {
 	*Err
 }
 
+func (a ListenerFactoryError) UnrecoverableError() {}
+
 func NewTLSConfigError(err error) ListenerFactoryError {
 	return ListenerFactoryError{
 		&Err{ErrorID: ErrorID(0xb67cbd821c0ab946), Err: err},
@@ -67,6 +69,8 @@ func NewTLSConfigError(err error) ListenerFactoryError {
 type TLSConfigError struct {
 	*Err
 }
+
+func (a TLSConfigError) UnrecoverableError() {}
 
 func NewNetListenError(err error) NetListenError {
 	return NetListenError{
@@ -78,6 +82,8 @@ type NetListenError struct {
 	*Err
 }
 
+func (a NetListenError) UnrecoverableError() {}
+
 func NewRPCServerFactoryError(err error) RPCServerFactoryError {
 	return RPCServerFactoryError{
 		&Err{ErrorID: ErrorID(0x954d1590f06ffee5), Err: err},
@@ -86,4 +92,23 @@ func NewRPCServerFactoryError(err error) RPCServerFactoryError {
 
 type RPCServerFactoryError struct {
 	*Err
+}
+
+func (a RPCServerFactoryError) UnrecoverableError() {}
+
+func NewRPCServicePKIError(err error) RPCServerFactoryError {
+	return RPCServerFactoryError{
+		&Err{ErrorID: ErrorID(0x9394e42b4cf30b1b), Err: err},
+	}
+}
+
+type RPCServicePKIError struct {
+	*Err
+}
+
+func (a RPCServicePKIError) UnrecoverableError() {}
+
+// UnrecoverableError is a marker interface for errors that cannot be recovered from
+type UnrecoverableError interface {
+	UnrecoverableError()
 }
