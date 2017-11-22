@@ -77,7 +77,12 @@ func Config(id ServiceID) (*capnp.Message, error) {
 		if err == os.ErrNotExist {
 			return nil, NewServiceConfigNotExistError(id)
 		}
-		return nil, NewConfigError(err)
+		switch err := err.(type) {
+		case *os.PathError:
+			return nil, NewServiceConfigNotExistError(id)
+		default:
+			return nil, NewConfigError(err)
+		}
 	}
 
 	msg, err := UnmarshalCapnpMessage(bytes.NewBuffer(c))

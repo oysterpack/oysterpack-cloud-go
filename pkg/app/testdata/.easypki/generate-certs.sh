@@ -25,6 +25,17 @@ easypki create --ca-name app.dev.oysterpack.com server.dev.oysterpack.com
 # app = d113a2e016e12f0f
 # domain = ed5cf026e8734361
 easypki create --ca-name app.dev.oysterpack.com fef711bb74ee4e13.d113a2e016e12f0f.ed5cf026e8734361
+# e49214fa20b35ba8 -> app RPCService
+easypki create --ca-name app.dev.oysterpack.com e49214fa20b35ba8.d113a2e016e12f0f.ed5cf026e8734361
 
 #  create a client certificate
 easypki create --ca-name app.dev.oysterpack.com --client client.dev.oysterpack.com
+
+
+# create an intermediate CA for the domain
+easypki create --ca-name oysterpack --intermediate ed5cf026e8734361
+# server cert
+easypki create --ca-name ed5cf026e8734361 e49214fa20b35ba8.d113a2e016e12f0f.ed5cf026e8734361
+# client cert
+easypki create --ca-name ed5cf026e8734361 --client client.dev.oysterpack.com
+

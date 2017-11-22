@@ -328,12 +328,21 @@ func (a *RPCService) stop() {
 	}
 
 	for _, conn := range a.conns {
-		if err := conn.Close(); err != nil {
-			RPC_CONN_CLOSE_ERR.Log(a.Logger().Warn()).Err(err).Msg("Error on rpc.Conn.Close()")
-		}
+		a.closeRPCConn(conn)
 	}
 
 	a.unregisterRPCService()
+}
+
+func (a *RPCService) closeRPCConn(conn *rpc.Conn) {
+	defer func() {
+		if p := recover(); p != nil {
+			RPC_CONN_CLOSE_ERR.Log(a.Logger().Warn()).Msgf("Panic on rpc.Conn.Close() : %v", p)
+		}
+	}()
+	if err := conn.Close(); err != nil {
+		RPC_CONN_CLOSE_ERR.Log(a.Logger().Warn()).Err(err).Msg("Error on rpc.Conn.Close()")
+	}
 }
 
 func (a *RPCService) registerConn(key uint64, conn *rpc.Conn) func() {

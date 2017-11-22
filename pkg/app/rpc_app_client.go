@@ -13,3 +13,7 @@
 // limitations under the License.
 
 package app
+
+const (
+	APP_RPC_SERVICE_CLIENT_ID = ServiceID(0xdb6c5b7c386221bc)
+)

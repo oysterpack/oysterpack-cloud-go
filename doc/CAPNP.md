@@ -22,3 +22,6 @@ installation
 ## Compile the capnp schemas and generate go code
 
     capnp compile -I$GOPATH/src/zombiezen.com/go/capnproto2/std -ogo *.capnp 
+    
+## BUGS
+- [server/server.go - panic close of closed channel](https://github.com/capnproto/go-capnproto2/issues/101)

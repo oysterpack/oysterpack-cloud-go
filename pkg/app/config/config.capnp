@@ -7,6 +7,7 @@ struct RPCServerSpec @0xfc13c8456771ca68 {
     rpcServiceSpec  @0 :RPCServiceSpec;
     serverCert      @1 :X509KeyPair;
     caCert          @2 :Data;
+    maxConns        @3 :UInt32;
 }
 
 struct RPCClientSpec @0xbec6688394d29776 {

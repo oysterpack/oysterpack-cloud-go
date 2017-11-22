@@ -42,15 +42,21 @@ var (
 
 	ErrServiceAlreadyRegistered = &Err{ErrorID: ErrorID(0xcfd879a478f9c733), Err: errors.New("Service already registered")}
 	ErrServiceNil               = &Err{ErrorID: ErrorID(0x9d95c5fac078b82c), Err: errors.New("Service is nil")}
-	ErrServiceIDZero            = &Err{ErrorID: ErrorID(0xd33c54b382368d97), Err: errors.New("ServiceID(0) is not allowed")}
+
+	ErrDomainIDZero  = &Err{ErrorID: ErrorID(0xb808d46722559577), Err: errors.New("DomainID(0) is not allowed")}
+	ErrAppIDZero     = &Err{ErrorID: ErrorID(0xd5f068b2636835bb), Err: errors.New("AppID(0) is not allowed")}
+	ErrServiceIDZero = &Err{ErrorID: ErrorID(0xd33c54b382368d97), Err: errors.New("ServiceID(0) is not allowed")}
 
 	ErrUnknownLogLevel = &Err{ErrorID(0x814a17666a94fe39), errors.New("Unknown log level")}
 
 	ErrListenerFactoryNil           = &Err{ErrorID: ErrorID(0xbded147157abdee4), Err: errors.New("ListenerFactory is nil")}
 	ErrRPCMainInterfaceNil          = &Err{ErrorID: ErrorID(0x9730bacf079fb410), Err: errors.New("RPCMainInterface is nil")}
-	ErrRPCServiceMaxConnsZero       = &Err{ErrorID: ErrorID(0xea3df278b2992429), Err: errors.New("The max numbe of connection must be > 0")}
+	ErrRPCPortZero                  = &Err{ErrorID: ErrorID(0x9580be146625218d), Err: errors.New("RPC port cannot be 0")}
+	ErrRPCServiceMaxConnsZero       = &Err{ErrorID: ErrorID(0xea3df278b2992429), Err: errors.New("The max number of connection must be > 0")}
 	ErrRPCServiceUnknownMessageType = &Err{ErrorID: ErrorID(0xdff7dbf6f092058e), Err: errors.New("Unknown message type")}
 	ErrRPCListenerNotStarted        = &Err{ErrorID: ErrorID(0xdb45f1d3176ecad3), Err: errors.New("RPC server listener is not started")}
+
+	ErrPEMParsing = &Err{ErrorID: ErrorID(0xa7b59b95250c2789), Err: errors.New("Failed to parse PEM encoded cert(s)")}
 )
 
 func NewListenerFactoryError(err error) ListenerFactoryError {
@@ -101,17 +107,29 @@ type RPCServerFactoryError struct {
 
 func (a RPCServerFactoryError) UnrecoverableError() {}
 
-func NewRPCServicePKIError(err error) RPCServerFactoryError {
-	return RPCServerFactoryError{
+func NewRPCServerSpecError(err error) RPCServerSpecError {
+	return RPCServerSpecError{
 		&Err{ErrorID: ErrorID(0x9394e42b4cf30b1b), Err: err},
 	}
 }
 
-type RPCServicePKIError struct {
+type RPCServerSpecError struct {
 	*Err
 }
 
-func (a RPCServicePKIError) UnrecoverableError() {}
+func (a RPCServerSpecError) UnrecoverableError() {}
+
+func NewRPCClientSpecError(err error) RPCClientSpecError {
+	return RPCClientSpecError{
+		&Err{ErrorID: ErrorID(0xebcb20d1b8ffd569), Err: err},
+	}
+}
+
+type RPCClientSpecError struct {
+	*Err
+}
+
+func (a RPCClientSpecError) UnrecoverableError() {}
 
 func NewConfigError(err error) ConfigError {
 	return ConfigError{

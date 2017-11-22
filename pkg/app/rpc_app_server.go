@@ -21,6 +21,7 @@ import (
 	"compress/zlib"
 
 	"github.com/oysterpack/oysterpack.go/pkg/app/capnprpc"
+	"github.com/oysterpack/oysterpack.go/pkg/app/config"
 	"github.com/rs/zerolog"
 	"zombiezen.com/go/capnproto2"
 )
@@ -30,7 +31,27 @@ const (
 )
 
 func runRPCAppServer() {
-	// TODO
+	msg, err := Config(APP_RPC_SERVICE_ID)
+	if err != nil {
+		switch err := err.(type) {
+		case ServiceConfigNotExistError:
+			return
+		default:
+			Logger().Fatal().Err(err).Msg("")
+		}
+	}
+	if msg == nil {
+		return
+	}
+	spec, err := config.ReadRootRPCServerSpec(msg)
+	if err != nil {
+		Logger().Fatal().Err(err).Msg("")
+	}
+	serverSpec, err := NewRPCServerSpec(spec)
+	if err != nil {
+		Logger().Fatal().Err(err).Msg("")
+	}
+	startRPCAppServer(serverSpec.ListenerFactory(), serverSpec.TLSConfigProvider(), uint(serverSpec.MaxConns))
 }
 
 func startRPCAppServer(listenerFactory ListenerFactory, tlsConfigProvider TLSConfigProvider, maxConns uint) (*RPCService, error) {
@@ -43,6 +64,7 @@ func startRPCAppServer(listenerFactory ListenerFactory, tlsConfigProvider TLSCon
 	rpcMainInterface := func() (capnp.Client, error) {
 		return server.Client, nil
 	}
+
 	return StartRPCService(rpcServer, listenerFactory, tlsConfigProvider, rpcMainInterface, maxConns)
 }
 

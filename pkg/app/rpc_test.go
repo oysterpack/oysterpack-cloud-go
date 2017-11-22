@@ -57,6 +57,14 @@ func appTLSClientConn(addr net.Addr) (capnprpc.App, net.Conn, error) {
 	return tlsProvider.AppTLSClientConn(addr)
 }
 
+func EasyPKICertFilePath(ca, cn string) string {
+	return fmt.Sprintf("%s/%s/certs/%s.crt", EASY_PKI_ROOT, ca, cn)
+}
+
+func EasyPKIKeyFilePath(ca, cn string) string {
+	return fmt.Sprintf("%s/%s/keys/%s.key", EASY_PKI_ROOT, ca, cn)
+}
+
 type TLSProvider interface {
 	CACertPool() (*x509.CertPool, error)
 	ClientTLSConfig() (*tls.Config, error)
@@ -65,7 +73,7 @@ type TLSProvider interface {
 	AppTLSClientConn(addr net.Addr) (capnprpc.App, net.Conn, error)
 }
 
-type EaskyPKITLS_DomainAppService struct {
+type EasyPKITLS_DomainAppService struct {
 	app.DomainID
 	app.AppID
 	app.ServiceID
@@ -73,11 +81,11 @@ type EaskyPKITLS_DomainAppService struct {
 	CACerts []string
 }
 
-func (a EaskyPKITLS_DomainAppService) ServiceCN() string {
+func (a EasyPKITLS_DomainAppService) ServiceCN() string {
 	return fmt.Sprintf("%x.%x.%x", a.ServiceID, a.AppID, a.DomainID)
 }
 
-func (a EaskyPKITLS_DomainAppService) AppTLSClientConn(addr net.Addr) (capnprpc.App, net.Conn, error) {
+func (a EasyPKITLS_DomainAppService) AppTLSClientConn(addr net.Addr) (capnprpc.App, net.Conn, error) {
 	tlsConfig, err := a.ClientTLSConfig()
 	if err != nil {
 		return capnprpc.App{}, nil, err
@@ -90,11 +98,11 @@ func (a EaskyPKITLS_DomainAppService) AppTLSClientConn(addr net.Addr) (capnprpc.
 	return capnprpc.App{Client: rpcClient.Bootstrap(context.Background())}, clientConn, nil
 }
 
-func (a EaskyPKITLS_DomainAppService) CACertPool() (*x509.CertPool, error) {
+func (a EasyPKITLS_DomainAppService) CACertPool() (*x509.CertPool, error) {
 	pool := x509.NewCertPool()
 
 	for _, ca := range a.CACerts {
-		caCert := fmt.Sprintf("%s/%[2]s/certs/%[2]s.crt", EASY_PKI_ROOT, ca)
+		caCert := a.CertFilePath(ca)
 		rootPEM, err := ioutil.ReadFile(caCert)
 		if err != nil || rootPEM == nil {
 			return nil, err
@@ -104,25 +112,12 @@ func (a EaskyPKITLS_DomainAppService) CACertPool() (*x509.CertPool, error) {
 			return nil, errors.New("rootCA() : failed to parse root certificate")
 		}
 	}
-
-	//caCert := fmt.Sprintf("%s/%[2]s/certs/%[2]s.crt", EASY_PKI_ROOT, EASY_PKI_CA)
-	//rootPEM, err := ioutil.ReadFile(caCert)
-	//if err != nil || rootPEM == nil {
-	//	return nil, err
-	//}
-	//ok := pool.AppendCertsFromPEM([]byte(rootPEM))
-	//if !ok {
-	//	return nil, errors.New("rootCA() : failed to parse root certificate")
-	//}
 	return pool, nil
 }
 
-func (a EaskyPKITLS_DomainAppService) ClientTLSConfig() (*tls.Config, error) {
+func (a EasyPKITLS_DomainAppService) ClientTLSConfig() (*tls.Config, error) {
 	const CERT_NAME = "client.dev.oysterpack.com"
-	certKeyPair, err := tls.LoadX509KeyPair(
-		fmt.Sprintf("%s/%s/certs/%s.crt", EASY_PKI_ROOT, EASY_PKI_CA, CERT_NAME),
-		fmt.Sprintf("%s/%s/keys/%s.key", EASY_PKI_ROOT, EASY_PKI_CA, CERT_NAME),
-	)
+	certKeyPair, err := tls.LoadX509KeyPair(a.CertFilePath(CERT_NAME), a.KeyFilePath(CERT_NAME))
 	if err != nil {
 		panic(err)
 	}
@@ -144,13 +139,21 @@ func (a EaskyPKITLS_DomainAppService) ClientTLSConfig() (*tls.Config, error) {
 	return tlsConfig, nil
 }
 
-func (a EaskyPKITLS_DomainAppService) ServerTLSConfig() (*tls.Config, error) {
-	var certName = a.ServiceCN() //"server.dev.oysterpack.com"
-	cert, err := ioutil.ReadFile(fmt.Sprintf("%s/%s/certs/%s.crt", EASY_PKI_ROOT, EASY_PKI_CA, certName))
+func (a EasyPKITLS_DomainAppService) CertFilePath(cn string) string {
+	return fmt.Sprintf("%s/%s/certs/%s.crt", EASY_PKI_ROOT, EASY_PKI_CA, cn)
+}
+
+func (a EasyPKITLS_DomainAppService) KeyFilePath(cn string) string {
+	return fmt.Sprintf("%s/%s/keys/%s.key", EASY_PKI_ROOT, EASY_PKI_CA, cn)
+}
+
+func (a EasyPKITLS_DomainAppService) ServerTLSConfig() (*tls.Config, error) {
+	var certName = a.ServiceCN()
+	cert, err := ioutil.ReadFile(a.CertFilePath(certName))
 	if err != nil {
 		return nil, err
 	}
-	key, err := ioutil.ReadFile(fmt.Sprintf("%s/%s/keys/%s.key", EASY_PKI_ROOT, EASY_PKI_CA, certName))
+	key, err := ioutil.ReadFile(a.KeyFilePath(certName))
 	if err != nil {
 		return nil, err
 	}
