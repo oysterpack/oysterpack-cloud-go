@@ -28,6 +28,11 @@ func (a *Err) Error() string {
 	return fmt.Sprintf("%x : %v", a.ErrorID, a.Err)
 }
 
+// UnrecoverableError is a marker interface for errors that cannot be recovered from
+type UnrecoverableError interface {
+	UnrecoverableError()
+}
+
 var (
 	ErrAppNotAlive = &Err{ErrorID: ErrorID(0xdf76e1927f240401), Err: errors.New("App is not alive")}
 
@@ -108,7 +113,26 @@ type RPCServicePKIError struct {
 
 func (a RPCServicePKIError) UnrecoverableError() {}
 
-// UnrecoverableError is a marker interface for errors that cannot be recovered from
-type UnrecoverableError interface {
-	UnrecoverableError()
+func NewConfigError(err error) ConfigError {
+	return ConfigError{
+		&Err{ErrorID: ErrorID(0xe75f1a73534f382d), Err: err},
+	}
+}
+
+type ConfigError struct {
+	*Err
+}
+
+func (a ConfigError) UnrecoverableError() {}
+
+func NewServiceConfigNotExistError(id ServiceID) ServiceConfigNotExistError {
+	return ServiceConfigNotExistError{
+		&Err{ErrorID: ErrorID(0x9394e42b4cf30b1b), Err: fmt.Errorf("Service config does not exist : %x", id)},
+		id,
+	}
+}
+
+type ServiceConfigNotExistError struct {
+	*Err
+	ServiceID
 }

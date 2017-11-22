@@ -24,43 +24,11 @@ import (
 
 	"crypto/tls"
 
-	"crypto/x509"
-
 	"github.com/rs/zerolog"
 	"gopkg.in/tomb.v2"
 	"zombiezen.com/go/capnproto2"
 	"zombiezen.com/go/capnproto2/rpc"
 )
-
-type RPCServiceSpec struct {
-	DomainID
-	AppID
-	ServiceID
-
-	RPCPort
-}
-
-func (a *RPCServiceSpec) CN() string {
-	return fmt.Sprintf("%x.%x.%x", a.ServiceID, a.AppID, a.DomainID)
-}
-
-func (a *RPCServiceSpec) NetworkAddr() string {
-	return fmt.Sprintf("%x_%x", a.DomainID, a.AppID)
-}
-
-type RPCPort uint
-
-type RPCServerSpec struct {
-	RPCServiceSpec
-	ClientCAs *x509.CertPool
-	Cert      tls.Certificate
-}
-
-type RPCClientSpec struct {
-	RPCServiceSpec
-	RootCAs *x509.CertPool
-	Cert    tls.Certificate
-}
 
 // StartRPCService creates and starts a new RPCService asynchronously.
 func StartRPCService(service *Service, listenerFactory ListenerFactory, tlsConfigProvider TLSConfigProvider, server RPCMainInterface, maxConns uint) (*RPCService, error) {

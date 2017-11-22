@@ -29,6 +29,10 @@ const (
 	APP_RPC_SERVICE_ID = ServiceID(0xe49214fa20b35ba8)
 )
 
+func runRPCAppServer() {
+	// TODO
+}
+
 func startRPCAppServer(listenerFactory ListenerFactory, tlsConfigProvider TLSConfigProvider, maxConns uint) (*RPCService, error) {
 	rpcServer := NewService(APP_RPC_SERVICE_ID)
 	if err := RegisterService(rpcServer); err != nil {

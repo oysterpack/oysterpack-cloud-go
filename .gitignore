@@ -19,5 +19,6 @@ vendor/*/
 
 /pkg/data/keyvalue/testdata/temp/*
 /pkg/app/testdata/.easypki/pki
+/pkg/app/testdata/Test*
 
 /capnproto/*

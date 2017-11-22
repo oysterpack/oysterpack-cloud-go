@@ -29,11 +29,6 @@ import (
 
 	"strconv"
 
-	"fmt"
-	"net"
-
-	"crypto/tls"
-
 	"github.com/nats-io/nuid"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -42,6 +37,7 @@ import (
 
 // app vars
 var (
+	domainID  DomainID
 	appID     AppID
 	releaseID ReleaseID
 
@@ -58,7 +54,7 @@ var (
 	services    = make(map[ServiceID]*Service)
 	rpcServices = make(map[ServiceID]*RPCService)
 
-	tags = make(map[string]struct{})
+	configDir string
 )
 
 func submitCommand(f func()) error {
@@ -68,6 +64,10 @@ func submitCommand(f func()) error {
 	case commandChan <- f:
 		return nil
 	}
+}
+
+func Domain() DomainID {
+	return domainID
 }
 
 // ID returns the AppID which is specified via a command line argument
@@ -84,26 +84,6 @@ func Instance() InstanceID {
 // Release returns the application ReleaseID
 func Release() ReleaseID {
 	return releaseID
-}
-
-// Tags returns any tags the app was started with
-//
-// USE CASE: used to lookup tag specific configurations.
-// The application config is looked up via AppID/ReleaseID/[tags]. Tags can be used to tag a deployment or a specific instance.
-// When a service config is looked up (via ServiceID), it must be defined for either :
-// 	- AppID/ReleaseID/ServiceID
-//	- AppID/ReleaseID/ServiceID?tags=[tags]
-//
-//  - the service config that matches against the most tags will be chosen
-//	- if no service config with matching tags are found, then the release specific service config will be chosen : AppID/ReleaseID/ServiceID
-func Tags() []string {
-	appTags := make([]string, len(tags))
-	i := 0
-	for tag := range tags {
-		appTags[i] = tag
-		i++
-	}
-	return appTags
 }
 
 //
@@ -388,6 +368,9 @@ func Dead() <-chan struct{} {
 }
 
 func init() {
+	var domainIDVar uint64
+	flag.Uint64Var(&domainIDVar, "domain-id", 0, "DomainID")
+
 	var appIDVar uint64
 	flag.Uint64Var(&appIDVar, "app-id", 0, "AppID")
 
@@ -400,72 +383,19 @@ func init() {
 	var serviceLogLevelsVar string
 	flag.StringVar(&serviceLogLevelsVar, "service-log-level", "", "ServiceID=LogLevel[,ServiceID=LogLevel]")
 
-	var appRPCPort uint
-	flag.UintVar(&appRPCPort, "app-rpc-port", 0, "If specified, then the app RPC server is started on the specified port")
-
-	var appRPCMaxConns uint
-	flag.UintVar(&appRPCMaxConns, "app-rpc-max-conns", 10, "The max number of concurrent app RPC client connections")
-
-	var tagsVar string
-	flag.StringVar(&tagsVar, "tags", "", "Comma delimited list of tags")
-
-	var pkiDirVar string
-	flag.StringVar(&pkiDirVar, "pki-root", "", "PKI root directory - used to load certs for TLS")
-
-	var cacertVar string
-	flag.StringVar(&cacertVar, "tls-cacert", "", "CA cert base name")
-
-	var certVar string
-	flag.StringVar(&certVar, "tls-cert", "", "Server cert base name.")
+	flag.StringVar(&configDir, "config-dir", "/run/secrets", "App config directory - default is Docker's secrets dir")
 
 	flag.Parse()
 
+	domainID = DomainID(domainID)
 	appID = AppID(appIDVar)
 	releaseID = ReleaseID(releaseIDVar)
-	initTags(tagsVar)
 
 	initZerolog(logLevelVar)
 	initServiceLogLevels(serviceLogLevelsVar)
 
 	runAppServer()
-	runRPCAppServer(appRPCPort, appRPCMaxConns, pkiDirVar, cacertVar, certVar)
-}
-
-func initTags(tagsFlag string) {
-	tagsFlag = strings.TrimSpace(tagsFlag)
-	if tagsFlag == "" {
-		return
-	}
-	for _, tag := range strings.Split(tagsFlag, ",") {
-		tag = strings.TrimSpace(tag)
-		if tag != "" {
-			tags[tag] = struct{}{}
-		}
-	}
-}
-
-func runRPCAppServer(appRPCPort uint, appRPCMaxConns uint, pkiDir string, cacert, cert string) {
-	Logger().Debug().
-		Str("pki-root", pkiDir).
-		Str("tls-cacert", cacert).
-		Str("tls-cert", cert).
-		Msg("")
-	runTLSRPCAppServer(appRPCPort, appRPCMaxConns, func() (*tls.Config, error) {
-		return ServerTLSConfig(pkiDir, cacert, cert)
-	})
-}
-
-func runTLSRPCAppServer(appRPCPort uint, appRPCMaxConns uint, tlsConfigProvider TLSConfigProvider) {
-	if appRPCPort != 0 {
-		listenerFactory := func() (net.Listener, error) {
-			return net.Listen("tcp", fmt.Sprintf(":%d", appRPCPort))
-		}
-
-		if _, err := startRPCAppServer(listenerFactory, tlsConfigProvider, appRPCMaxConns); err != nil {
-			APP_RPC_START_ERR.Log(Logger().Error()).Err(err).Msg("Failed to start app RPC server")
-			app.Kill(err)
-		}
-	}
+	runRPCAppServer()
 }
 
 func initZerolog(logLevel string) {
@@ -481,21 +411,15 @@ func initZerolog(logLevel string) {
 	stdlog.SetOutput(log.Logger)
 
 	loggerCtx := log.Logger.With().
+		Uint64("domain", uint64(domainID)).
 		Uint64("app", uint64(appID)).
 		Uint64("release", uint64(releaseID)).
 		Str("instance", string(appInstanceId))
-
-	appTags := Tags()
-	if len(appTags) > 0 {
-		loggerCtx = loggerCtx.Strs("tags", appTags)
-	}
-
 	if appLogLevel == zerolog.DebugLevel {
 		logger = loggerCtx.Logger().Level(zerolog.DebugLevel)
 	} else {
 		logger = loggerCtx.Logger().Level(zerolog.InfoLevel)
 	}
-
 }
 
 func initServiceLogLevels(serviceLogLevelsFlag string) {
