@@ -16,54 +16,71 @@ package main
 
 import (
 	"context"
-	"fmt"
 
-	"crypto/tls"
+	"time"
 
 	"github.com/oysterpack/oysterpack.go/pkg/app"
 	"github.com/oysterpack/oysterpack.go/pkg/app/capnprpc"
-	"zombiezen.com/go/capnproto2/rpc"
 )
 
 func main() {
-	defer func() {
-		app.Kill()
-		<-app.Dead()
-	}()
 
-	const (
-		//host = "192.168.99.101"
-		host = ""
-		port = 44228
-	)
+	go TestRPCAppClient()
 
-	tlsConfig, err := app.ClientTLSConfig(
-		"/home/alfio/go/src/github.com/oysterpack/oysterpack.go/pkg/app/testdata/.easypki/pki",
-		"app.dev.oysterpack.com",
-		"client.dev.oysterpack.com",
-	)
-	if err != nil {
-		app.Logger().Fatal().Err(err).Msg("Failed to load TLSConfig")
-	}
-	conn, err := tls.Dial("tcp", fmt.Sprintf("%s:%d", host, port), tlsConfig)
+	<-app.Dead()
+}
 
-	//conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", host, port))
-
-	if err != nil {
-		app.Logger().Fatal().Err(err).Msg("Failed to connect to RPC server")
-	}
-
-	rpcClient := rpc.NewConn(rpc.StreamTransport(conn))
-
+func TestRPCAppClient() {
 	ctx := context.Background()
-	appClient := capnprpc.App{Client: rpcClient.Bootstrap(ctx)}
+	idParams := func(params capnprpc.App_id_Params) error { return nil }
 
-	if result, err := appClient.Id(ctx, func(params capnprpc.App_id_Params) error {
-		return nil
-	}).Struct(); err != nil {
-		app.Logger().Error().Err(err).Msg("Failed to make RPC Id() call")
-	} else {
-		app.Logger().Info().Msgf("app id : %x", result.AppId())
+	connect := func() (*capnprpc.App, error) {
+		const APP_RPC_SERVICE_CLIENT_ID = app.ServiceID(0xdb6c5b7c386221bc)
+		return app.NewAppClient(APP_RPC_SERVICE_CLIENT_ID)
+		//return app.NewAppClientForAddr(APP_RPC_SERVICE_CLIENT_ID, "") // for local testing
 	}
 
+	appClient, err := connect()
+	if err != nil {
+		app.Logger().Error().Err(err).Msg("Failed to create App RPCService client")
+	} else {
+		app.Logger().Info().Msg("App RPCService client is connected")
+
+		if result, err := appClient.Id(ctx, idParams).Struct(); err != nil {
+			app.Logger().Error().Err(err).Msg("RPC App.Id() error")
+		} else {
+			app.Logger().Info().Msgf("app id : %x", result.AppId())
+		}
+	}
+
+	ticker := time.NewTicker(time.Second * 5)
+	for {
+		select {
+		case <-app.Dying():
+			return
+		case <-ticker.C:
+			if appClient == nil {
+				appClient, err = connect()
+				if err != nil {
+					app.Logger().Error().Err(err).Msg("Failed to create App RPCService client")
+				} else {
+					app.Logger().Info().Msg("App RPCService client is connected")
+				}
+			} else {
+				if result, err := appClient.Id(ctx, idParams).Struct(); err != nil {
+					app.Logger().Error().Err(err).Msg("RPC App.Id() error")
+
+					appClient, err = connect()
+					if err != nil {
+						app.Logger().Error().Err(err).Msg("Failed to create App RPCService client")
+					} else {
+						app.Logger().Info().Msg("App RPCService client is connected")
+					}
+				} else {
+					app.Logger().Info().Msgf("app id : %x", result.AppId())
+				}
+			}
+
+		}
+	}
 }

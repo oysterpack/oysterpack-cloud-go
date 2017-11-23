@@ -14,6 +14,55 @@
 
 package app
 
-const (
-	APP_RPC_SERVICE_CLIENT_ID = ServiceID(0xdb6c5b7c386221bc)
+import (
+	"context"
+
+	"github.com/oysterpack/oysterpack.go/pkg/app/capnprpc"
+	"github.com/oysterpack/oysterpack.go/pkg/app/config"
 )
+
+func NewAppClient(serviceId ServiceID) (*capnprpc.App, error) {
+	cfg, err := Config(serviceId)
+	if err != nil {
+		return nil, err
+	}
+
+	spec, err := config.ReadRootRPCClientSpec(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	rpcClientSpec, err := NewRPCClientSpec(spec)
+	if err != nil {
+		return nil, err
+	}
+
+	conn, err := rpcClientSpec.Conn()
+	if err != nil {
+		return nil, err
+	}
+	return &capnprpc.App{Client: conn.Bootstrap(context.Background())}, nil
+}
+
+func NewAppClientForAddr(serviceId ServiceID, networkAddr string) (*capnprpc.App, error) {
+	cfg, err := Config(serviceId)
+	if err != nil {
+		return nil, err
+	}
+
+	spec, err := config.ReadRootRPCClientSpec(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	rpcClientSpec, err := NewRPCClientSpec(spec)
+	if err != nil {
+		return nil, err
+	}
+
+	conn, err := rpcClientSpec.ConnForAddr(networkAddr)
+	if err != nil {
+		return nil, err
+	}
+	return &capnprpc.App{Client: conn.Bootstrap(context.Background())}, nil
+}

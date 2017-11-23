@@ -64,11 +64,11 @@ func (a *RPCServiceSpec) CN() string {
 // NetworkAddr returns the service network address, which is used by the client to connect to the service.
 // The network address uses the following naming convention :
 //
-//		fmt.Sprintf("%x-%x", a.DomainID, a.AppID)
+//		fmt.Sprintf("%x_%x", a.DomainID, a.AppID)
 //
 //		e.g. ed5cf026e8734361-d113a2e016e12f0f
 func (a *RPCServiceSpec) NetworkAddr() string {
-	return fmt.Sprintf("%x-%x", a.DomainID, a.AppID)
+	return fmt.Sprintf("%x_%x", a.DomainID, a.AppID)
 }
 
 func (a *RPCServiceSpec) ToCapnp(s *capnp.Segment) (config.RPCServiceSpec, error) {
@@ -319,8 +319,25 @@ func (a *RPCClientSpec) TLSConfig() *tls.Config {
 	return tlsConfig
 }
 
+// Conn returns an RPC conn using the service's standard network address - see NetworkAddr()
 func (a *RPCClientSpec) Conn() (*rpc.Conn, error) {
-	addr := fmt.Sprintf("%s:%d", a.NetworkAddr(), a.RPCPort)
+	networkAddr := a.NetworkAddr()
+	Logger().Debug().
+		Uint64("service", uint64(a.ServiceID)).
+		Str("NetworkAddr", networkAddr).
+		Msg("RPCClientSpec")
+	addr := fmt.Sprintf("%s:%d", networkAddr, a.RPCPort)
+	clientConn, err := tls.Dial("tcp", addr, a.TLSConfig())
+	if err != nil {
+		return nil, err
+	}
+	return rpc.NewConn(rpc.StreamTransport(clientConn)), nil
+}
+
+// ConnForAddr returns an RPC conn using the specified network address
+// This mainly intended for testing purposes to connect locally
+func (a *RPCClientSpec) ConnForAddr(networkAddr string) (*rpc.Conn, error) {
+	addr := fmt.Sprintf("%s:%d", networkAddr, a.RPCPort)
 	clientConn, err := tls.Dial("tcp", addr, a.TLSConfig())
 	if err != nil {
 		return nil, err

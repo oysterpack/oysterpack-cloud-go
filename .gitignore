@@ -22,3 +22,8 @@ vendor/*/
 /pkg/app/testdata/Test*
 
 /capnproto/*
+
+/cmd/demos/appclient/appclient
+/cmd/demos/appclient/testdata/run/secrets/
+/cmd/demos/appdemo/testdata/run/secrets/
+/cmd/demos/appdemo/appdemo

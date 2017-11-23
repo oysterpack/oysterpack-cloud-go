@@ -119,6 +119,8 @@ func TestMarshallingUnmarshallingConfig(t *testing.T) {
 		PORT = app.RPCPort(44222)
 
 		CLIENT_CN = "client.dev.oysterpack.com"
+
+		APP_RPC_SERVICE_CLIENT_ID = app.ServiceID(0xdb6c5b7c386221bc)
 	)
 
 	configDir := "testdata/TestMarshallingUnmarshallingConfig"
@@ -173,7 +175,7 @@ func TestMarshallingUnmarshallingConfig(t *testing.T) {
 		if _, err = app.NewRPCClientSpec(rpcClientSpec(t, seg, rpcServiceSpec(t, seg, DOMAIN_ID, APP_ID, app.APP_RPC_SERVICE_ID, PORT), CLIENT_CN)); err != nil {
 			t.Fatal(err)
 		}
-		clientSpecConfigFile, err := os.Create(fmt.Sprintf("%s/0x%x", configDir, app.APP_RPC_SERVICE_CLIENT_ID))
+		clientSpecConfigFile, err := os.Create(fmt.Sprintf("%s/0x%x", configDir, APP_RPC_SERVICE_CLIENT_ID))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -184,7 +186,7 @@ func TestMarshallingUnmarshallingConfig(t *testing.T) {
 	})
 
 	t.Run("Unmarshall app RPCService Client Spec", func(t *testing.T) {
-		clientSpecConfigFile, err := os.Open(fmt.Sprintf("%s/0x%x", configDir, app.APP_RPC_SERVICE_CLIENT_ID))
+		clientSpecConfigFile, err := os.Open(fmt.Sprintf("%s/0x%x", configDir, APP_RPC_SERVICE_CLIENT_ID))
 		msg, err := app.UnmarshalCapnpMessage(clientSpecConfigFile)
 		clientSpecConfigFile.Close()
 		if err != nil {
@@ -243,7 +245,7 @@ func TestMarshallingUnmarshallingConfig(t *testing.T) {
 		}
 
 		// Given an RPCClientSpec for the app RPCService
-		clientSpecConfigFile, err := os.Open(fmt.Sprintf("%s/0x%x", configDir, app.APP_RPC_SERVICE_CLIENT_ID))
+		clientSpecConfigFile, err := os.Open(fmt.Sprintf("%s/0x%x", configDir, APP_RPC_SERVICE_CLIENT_ID))
 		msg, err = app.UnmarshalCapnpMessage(clientSpecConfigFile)
 		clientSpecConfigFile.Close()
 		if err != nil {
@@ -255,17 +257,20 @@ func TestMarshallingUnmarshallingConfig(t *testing.T) {
 		}
 
 		clientSpecConfig, err := app.NewRPCClientSpec(clientSpec)
+		//if err != nil {
+		//	t.Fatal(err)
+		//}
+		//
+		//// Then we are able to connect to the RPC server
+		//addr := fmt.Sprintf(":%d", clientSpecConfig.RPCPort)
+		//clientConn, err := tls.Dial("tcp", addr, clientSpecConfig.TLSConfig())
+		//if err != nil {
+		//	t.Fatal(err)
+		//}
+		rpcConn, err := clientSpecConfig.ConnForAddr("") //rpc.NewConn(rpc.StreamTransport(clientConn))
 		if err != nil {
 			t.Fatal(err)
 		}
-
-		// Then we are able to connect to the RPC server
-		addr := fmt.Sprintf(":%d", clientSpecConfig.RPCPort)
-		clientConn, err := tls.Dial("tcp", addr, clientSpecConfig.TLSConfig())
-		if err != nil {
-			t.Fatal(err)
-		}
-		rpcConn := rpc.NewConn(rpc.StreamTransport(clientConn))
 		appClient := capnprpc.App{Client: rpcConn.Bootstrap(context.Background())}
 		if result, err := appClient.Id(context.Background(), func(params capnprpc.App_id_Params) error {
 			return nil
