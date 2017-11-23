@@ -31,6 +31,14 @@ import (
 )
 
 // StartRPCService creates and starts a new RPCService asynchronously.
+//
+// errors:
+//	- validation errors
+//		- ErrServiceNil
+//		- ErrServiceNotAlive
+//		- ErrListenerFactoryNil
+//		- ErrRPCMainInterfaceNil
+//		- ErrRPCServiceMaxConnsZero
 func StartRPCService(service *Service, listenerFactory ListenerFactory, tlsConfigProvider TLSConfigProvider, server RPCMainInterface, maxConns uint) (*RPCService, error) {
 	if service == nil {
 		return nil, ErrServiceNil
@@ -71,6 +79,7 @@ func StartRPCService(service *Service, listenerFactory ListenerFactory, tlsConfi
 // It abstracts away how the listener is created and what network address it listens on.
 type ListenerFactory func() (net.Listener, error)
 
+// TLSConfigProvider provides a tls.Config
 type TLSConfigProvider func() (*tls.Config, error)
 
 // RPCService provides the infrastructure to run a capnp RPC based server.

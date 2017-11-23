@@ -27,7 +27,14 @@
 //	   register itself with the app.Application service.
 //  6. Graceful application shutdown : when the application is killed, all registered services will be killed. The application will wait
 //     until all services are dead before exiting.
-//  7. All key components will be assigned a unique numeric id (uint64) for tracking purposes.
+//     - The following OS signals will trigger graceful application shutdown : SIGINT, SIGTERM, SIGQUIT
+//  7. All key components will be assigned a unique numeric id (uint64) for tracking and traceability purposes.
+//	   - DomainID
+//	   - AppID
+//	   - ReleaseID - app release id
+//	   - ServiceID
+//	   - ErrorID
+//	   - LogEventID
 //
 // 	   Most systems prefer instead to define a symbolic global namespace , but this would have some important disadvantages:
 //		1. Programmers often feel the need to change symbolic names and organization in order to make their code cleaner,
@@ -36,6 +43,10 @@
 //         system with many different binaries.
 //		3. Fully-qualified type names may be large and waste space when transmitted on the wire.
 //
-// HANDLED OS SIGNALS
-// 	- SIGTERM - kills the application, i.e., triggers normal shutdown
+//	8. Config is typesafe and secure.
+// 	   - Each service will define its config via capnp. The config will be self contained.
+//	   - Configurations will be encrypted.
+//	   - Docker secrets (https://docs.docker.com/engine/swarm/secrets/) will be supported
+//	9. RPC network communication will be secured via mutual TLS
+//     - capnp RPC will be supported
 package app

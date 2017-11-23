@@ -40,6 +40,7 @@ type ErrorID uint64
 // LogEventID
 type LogEventID uint64
 
+// Log sets the log event id for a new log event
 func (a LogEventID) Log(event *zerolog.Event) *zerolog.Event {
 	return event.Uint64("event", uint64(a))
 }

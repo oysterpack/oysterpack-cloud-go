@@ -30,6 +30,7 @@ const (
 	APP_RPC_SERVICE_ID = ServiceID(0xe49214fa20b35ba8)
 )
 
+// if the app RPC server fails to start, then this is considered a fatal error, which will terminate the process.
 func runRPCAppServer() {
 	msg, err := Config(APP_RPC_SERVICE_ID)
 	if err != nil {
@@ -37,7 +38,7 @@ func runRPCAppServer() {
 		case ServiceConfigNotExistError:
 			return
 		default:
-			Logger().Fatal().Err(err).Msg("")
+			APP_RPC_START_ERR.Log(Logger().Fatal()).Err(err).Msg("")
 		}
 	}
 	if msg == nil {
@@ -45,11 +46,13 @@ func runRPCAppServer() {
 	}
 	spec, err := config.ReadRootRPCServerSpec(msg)
 	if err != nil {
-		Logger().Fatal().Err(err).Msg("")
+		APP_RPC_START_ERR.Log(Logger().Fatal()).Err(err).Msg("")
+		return
 	}
 	serverSpec, err := NewRPCServerSpec(spec)
 	if err != nil {
-		Logger().Fatal().Err(err).Msg("")
+		APP_RPC_START_ERR.Log(Logger().Fatal()).Err(err).Msg("")
+		return
 	}
 	startRPCAppServer(serverSpec.ListenerFactory(), serverSpec.TLSConfigProvider(), uint(serverSpec.MaxConns))
 }
@@ -57,7 +60,7 @@ func runRPCAppServer() {
 func startRPCAppServer(listenerFactory ListenerFactory, tlsConfigProvider TLSConfigProvider, maxConns uint) (*RPCService, error) {
 	rpcServer := NewService(APP_RPC_SERVICE_ID)
 	if err := RegisterService(rpcServer); err != nil {
-		Logger().Fatal().Err(err).Msg("Failed to register app RPC server")
+		APP_RPC_START_ERR.Log(Logger().Fatal()).Err(err).Msg("Failed to register app RPC server")
 	}
 
 	server := capnprpc.App_ServerToClient(NewAppServer())
@@ -73,7 +76,8 @@ func NewAppServer() capnprpc.App_Server {
 }
 
 type rpcAppServer struct {
-	rpcRuntimeServer
+	runtimeServer rpcRuntimeServer
+	configsServer rpcConfigsServer
 }
 
 func (a rpcAppServer) Id(call capnprpc.App_id) error {
@@ -161,9 +165,15 @@ func (a rpcAppServer) Kill(call capnprpc.App_kill) error {
 }
 
 func (a rpcAppServer) Runtime(call capnprpc.App_runtime) error {
-	return call.Results.SetRuntime(capnprpc.Runtime_ServerToClient(a))
+	return call.Results.SetRuntime(capnprpc.Runtime_ServerToClient(a.runtimeServer))
 }
 
+func (a rpcAppServer) Configs(call capnprpc.App_configs) error {
+	return call.Results.SetConfigs(capnprpc.Configs_ServerToClient(a.configsServer))
+}
+
+// CapnprpcLogLevel2zerologLevel capnproc.LogLevel -> zerolog.Level
+// error : ErrUnknownLogLevel
 func CapnprpcLogLevel2zerologLevel(logLevel capnprpc.LogLevel) (zerolog.Level, error) {
 	switch logLevel {
 	case capnprpc.LogLevel_debug:
@@ -179,6 +189,8 @@ func CapnprpcLogLevel2zerologLevel(logLevel capnprpc.LogLevel) (zerolog.Level, e
 	}
 }
 
+// ZerologLevel2capnprpcLogLevel zerolog.Level -> capnprpc.LogLevel
+// error : ErrUnknownLogLevel
 func ZerologLevel2capnprpcLogLevel(logLevel zerolog.Level) (capnprpc.LogLevel, error) {
 	switch logLevel {
 	case zerolog.DebugLevel:
@@ -401,5 +413,32 @@ func (a rpcRPCServiceServer) MaxConns(call capnprpc.RPCService_maxConns) error {
 		return err
 	}
 	call.Results.SetCount(uint32(service.MaxConns()))
+	return nil
+}
+
+type rpcConfigsServer struct{}
+
+func (a rpcConfigsServer) ConfigDir(call capnprpc.Configs_configDir) error {
+	call.Results.SetConfigDir(ConfigDir())
+	return nil
+}
+
+func (a rpcConfigsServer) ConfigDirExists(call capnprpc.Configs_configDirExists) error {
+	call.Results.SetExists(ConfigDirExists())
+	return nil
+}
+
+func (a rpcConfigsServer) ServiceIds(call capnprpc.Configs_serviceIds) error {
+	serviceIds, err := ConfigServiceIDs()
+	if err != nil {
+		return err
+	}
+
+	serviceIdsResults, err := capnp.NewUInt64List(call.Results.Segment(), int32(len(serviceIds)))
+	for i, id := range serviceIds {
+		serviceIdsResults.Set(i, uint64(id))
+	}
+
+	call.Results.SetServiceIds(serviceIdsResults)
 	return nil
 }

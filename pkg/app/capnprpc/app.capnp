@@ -22,6 +22,8 @@ interface App @0xf052e7e084b31199 {
     kill               @9 () -> ();
 
     runtime            @10 () -> (runtime :Runtime);
+
+    configs            @11 () -> (configs :Configs);
 }
 
 interface Service @0xb25b411cec149334 {
@@ -106,4 +108,10 @@ struct MemStats @0xcdf011e3e3860026 {
     }
 
     bySize          @29 :List(BySize);
+}
+
+interface Configs @0xa391f67e209a873d {
+    configDir       @0 () -> (configDir :Text);
+    configDirExists @1 () -> (exists :Bool);
+    serviceIds      @2 () -> (serviceIds :List(UInt64));
 }

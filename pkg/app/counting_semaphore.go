@@ -14,8 +14,7 @@
 
 package app
 
-type CountingSemaphore chan struct{}
-
+// NewCountingSemaphore returns a new CountingSemaphore with specified resource count
 func NewCountingSemaphore(tokenCount uint) CountingSemaphore {
 	if tokenCount == 0 {
 		tokenCount = 1
@@ -27,6 +26,9 @@ func NewCountingSemaphore(tokenCount uint) CountingSemaphore {
 	}
 	return c
 }
+
+// CountingSemaphore which allow an arbitrary resource count
+type CountingSemaphore chan struct{}
 
 // ReturnToken returns a token back
 func (a CountingSemaphore) ReturnToken() {

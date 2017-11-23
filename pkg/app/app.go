@@ -105,6 +105,8 @@ func LogLevel() zerolog.Level {
 	return appLogLevel
 }
 
+// ServiceLogLevel returns the service log level.
+// The service log level will use the application log level unless it is overridden via the -service-log-level command line flag
 func ServiceLogLevel(id ServiceID) zerolog.Level {
 	logLevel, ok := serviceLogLevels[id]
 	if ok {

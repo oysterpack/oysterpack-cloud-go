@@ -30,6 +30,8 @@ import (
 	"zombiezen.com/go/capnproto2"
 )
 
+// ConfigServiceIDs returns the list of ServiceID(s) for which configs exist
+// The ServiceID is used as the config id.
 func ConfigServiceIDs() ([]ServiceID, error) {
 	dir, err := os.Open(configDir)
 	if err != nil {
@@ -63,6 +65,40 @@ func ConfigServiceIDs() ([]ServiceID, error) {
 	return serviceIds, nil
 }
 
+// ServiceConfigID is used to convert the ServiceID into the config id. The config id will be the ServiceID in HEX format.
+func ServiceConfigID(id ServiceID) string {
+	return fmt.Sprintf("0x%x", id)
+}
+
+// ServiceConfigExists returns true if a config exists for the specified ServiceID
+func ServiceConfigExists(id ServiceID) bool {
+	f, err := os.Open(serviceConfigPath(id))
+	if err != nil {
+		return false
+	}
+	f.Close()
+	return true
+}
+
+// ConfigDir returns the config dir path
+func ConfigDir() string {
+	return configDir
+}
+
+// ConfigDirExists returns true if the config dir exists
+func ConfigDirExists() bool {
+	dir, err := os.Open(configDir)
+	if err != nil {
+		return false
+	}
+	dir.Close()
+	return true
+}
+
+func serviceConfigPath(id ServiceID) string {
+	return fmt.Sprintf("%s/%s", configDir, ServiceConfigID(id))
+}
+
 // Config returns the config message for the specified ServiceID.
 // The config is expected to exist at {configDir}/{ServiceID}, where the ServiceID is specified in HEX format, e.g.,
 //
@@ -72,7 +108,7 @@ func ConfigServiceIDs() ([]ServiceID, error) {
 //	- ServiceConfigNotExistError
 //	- ConfigError - for unmarshalling errors
 func Config(id ServiceID) (*capnp.Message, error) {
-	c, err := ioutil.ReadFile(fmt.Sprintf("%s/0x%x", configDir, id))
+	c, err := ioutil.ReadFile(serviceConfigPath(id))
 	if err != nil {
 		if err == os.ErrNotExist {
 			return nil, NewServiceConfigNotExistError(id)
@@ -92,6 +128,8 @@ func Config(id ServiceID) (*capnp.Message, error) {
 	return msg, err
 }
 
+// MarshalCapnpMessage marshals the capnp message to the writer.
+// The message will be compressed using zlib.
 func MarshalCapnpMessage(msg *capnp.Message, out io.Writer) error {
 	compressor := zlib.NewWriter(out)
 	encoder := capnp.NewPackedEncoder(compressor)
@@ -102,6 +140,8 @@ func MarshalCapnpMessage(msg *capnp.Message, out io.Writer) error {
 	return nil
 }
 
+// UnmarshalCapnpMessage unmarshals the capnp message using the specified reader.
+// The message should have have marshalled via MarshalCapnpMessage(), i.e., it must be zlib compressed.
 func UnmarshalCapnpMessage(in io.Reader) (*capnp.Message, error) {
 	decompressor, _ := zlib.NewReader(in)
 	decoder := capnp.NewPackedDecoder(decompressor)

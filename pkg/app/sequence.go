@@ -16,11 +16,18 @@ package app
 
 import "sync"
 
+// NewSequence creates a new Sequence using n as the current sequence value.
+func NewSequence(n uint64) *Sequence {
+	return &Sequence{n: n}
+}
+
+// Sequence is used to get an incrementing sequence number
 type Sequence struct {
 	m sync.Mutex
 	n uint64
 }
 
+// Next returns the next sequence value
 func (a *Sequence) Next() uint64 {
 	a.m.Lock()
 	a.n++
@@ -29,6 +36,7 @@ func (a *Sequence) Next() uint64 {
 	return n
 }
 
+// Value returns the current sequence value
 func (a *Sequence) Value() uint64 {
 	a.m.Lock()
 	n := a.n

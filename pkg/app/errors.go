@@ -19,6 +19,7 @@ import (
 	"fmt"
 )
 
+// Err maps an ErrorID to an error
 type Err struct {
 	ErrorID ErrorID
 	Err     error
@@ -28,11 +29,12 @@ func (a *Err) Error() string {
 	return fmt.Sprintf("%x : %v", a.ErrorID, a.Err)
 }
 
-// UnrecoverableError is a marker interface for errors that cannot be recovered from
+// UnrecoverableError is a marker interface for errors that cannot be recovered from automatically, i.e., manual intervention is required
 type UnrecoverableError interface {
 	UnrecoverableError()
 }
 
+// Errors
 var (
 	ErrAppNotAlive = &Err{ErrorID: ErrorID(0xdf76e1927f240401), Err: errors.New("App is not alive")}
 
@@ -59,90 +61,107 @@ var (
 	ErrPEMParsing = &Err{ErrorID: ErrorID(0xa7b59b95250c2789), Err: errors.New("Failed to parse PEM encoded cert(s)")}
 )
 
+// NewListenerFactoryError wraps the specified error as a ListenerFactoryError
 func NewListenerFactoryError(err error) ListenerFactoryError {
 	return ListenerFactoryError{
 		&Err{ErrorID: ErrorID(0x828e2024b2a12526), Err: err},
 	}
 }
 
+// ListenerFactoryError for ListenerFactory related errors
 type ListenerFactoryError struct {
 	*Err
 }
 
+// UnrecoverableError - if we can't start a listener, then that is something we cannot recover from automatically.
 func (a ListenerFactoryError) UnrecoverableError() {}
 
+// NewTLSConfigError wraps the specified error as a ListenerFactoryError
 func NewTLSConfigError(err error) ListenerFactoryError {
 	return ListenerFactoryError{
 		&Err{ErrorID: ErrorID(0xb67cbd821c0ab946), Err: err},
 	}
 }
 
+// TLSConfigError for TLS configuration related issues
 type TLSConfigError struct {
 	*Err
 }
 
+// UnrecoverableError required manual intervention to resolve the misconfiguration
 func (a TLSConfigError) UnrecoverableError() {}
 
+// NewNetListenError wraps the specified error as a NetListenError
 func NewNetListenError(err error) NetListenError {
 	return NetListenError{
 		&Err{ErrorID: ErrorID(0xa1dcc954855732fc), Err: err},
 	}
 }
 
+// NetListenError indicates there was an error when trying to start a network listener
 type NetListenError struct {
 	*Err
 }
 
 func (a NetListenError) UnrecoverableError() {}
 
+// NewRPCServerFactoryError wraps an error as an RPCServerFactoryError
 func NewRPCServerFactoryError(err error) RPCServerFactoryError {
 	return RPCServerFactoryError{
 		&Err{ErrorID: ErrorID(0x954d1590f06ffee5), Err: err},
 	}
 }
 
+// RPCServerFactoryError indicates an error trying to create an RPC server
 type RPCServerFactoryError struct {
 	*Err
 }
 
 func (a RPCServerFactoryError) UnrecoverableError() {}
 
+// NewRPCServerSpecError wraps the error as an RPCServerSpecError
 func NewRPCServerSpecError(err error) RPCServerSpecError {
 	return RPCServerSpecError{
 		&Err{ErrorID: ErrorID(0x9394e42b4cf30b1b), Err: err},
 	}
 }
 
+// RPCServerSpecError indicates the RPCServerSpec is invalid
 type RPCServerSpecError struct {
 	*Err
 }
 
 func (a RPCServerSpecError) UnrecoverableError() {}
 
+// NewRPCClientSpecError wraps the error as an RPCClientSpecError
 func NewRPCClientSpecError(err error) RPCClientSpecError {
 	return RPCClientSpecError{
 		&Err{ErrorID: ErrorID(0xebcb20d1b8ffd569), Err: err},
 	}
 }
 
+// RPCClientSpecError indicates the RPCClientSpec is invalid
 type RPCClientSpecError struct {
 	*Err
 }
 
 func (a RPCClientSpecError) UnrecoverableError() {}
 
+// NewConfigError wraps an error as a ConfigError
 func NewConfigError(err error) ConfigError {
 	return ConfigError{
 		&Err{ErrorID: ErrorID(0xe75f1a73534f382d), Err: err},
 	}
 }
 
+// ConfigError indicates there was an error while trying to load a config
 type ConfigError struct {
 	*Err
 }
 
 func (a ConfigError) UnrecoverableError() {}
 
+// NewServiceConfigNotExistError creates a ServiceConfigNotExistError for the specified service id
 func NewServiceConfigNotExistError(id ServiceID) ServiceConfigNotExistError {
 	return ServiceConfigNotExistError{
 		&Err{ErrorID: ErrorID(0x9394e42b4cf30b1b), Err: fmt.Errorf("Service config does not exist : %x", id)},
@@ -150,6 +169,7 @@ func NewServiceConfigNotExistError(id ServiceID) ServiceConfigNotExistError {
 	}
 }
 
+// ServiceConfigNotExistError indicates no config exists for the associated ServiceID
 type ServiceConfigNotExistError struct {
 	*Err
 	ServiceID
