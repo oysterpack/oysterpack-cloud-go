@@ -174,3 +174,13 @@ type ServiceConfigNotExistError struct {
 	*Err
 	ServiceID
 }
+
+// NewMetricsServiceError wraps the error as a MetricsServiceError
+func NewMetricsServiceError(err error) MetricsServiceError {
+	return MetricsServiceError{&Err{ErrorID: ErrorID(0xc24ac892db47da9f), Err: err}}
+}
+
+// MetricsServiceError indicates an error occurred with in the MetricsHttpReporter
+type MetricsServiceError struct {
+	*Err
+}

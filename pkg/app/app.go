@@ -398,6 +398,7 @@ func init() {
 
 	runAppServer()
 	runRPCAppServer()
+	startMetricsHttpReporter()
 }
 
 func initZerolog(logLevel string) {

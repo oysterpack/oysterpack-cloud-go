@@ -6,3 +6,6 @@
 2. prometheus -config.file <prometheus.yml>
 
    **NOTE**: run prometheus outside of the workspace because by default prometheus will create its data directory in the current working directory.
+
+# Prometheus - Docker Swarm integration - Service Discovery
+https://github.com/ContainerSolutions/prometheus-swarm-discovery

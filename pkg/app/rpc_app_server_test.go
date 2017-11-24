@@ -116,6 +116,7 @@ func TestRPCAppServer_NetworkErrors(t *testing.T) {
 
 func TestRPCAppServer(t *testing.T) {
 	Reset()
+	defer Reset()
 
 	listenerFactory := func() (net.Listener, error) {
 		return net.Listen("tcp", ":0")

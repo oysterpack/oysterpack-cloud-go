@@ -28,3 +28,7 @@ struct X509KeyPair @0xf4dd73213f6e70a6 {
     key     @0 :Data $Go.doc("PEM file format");
     cert    @1 :Data $Go.doc("PEM file format");
 }
+
+struct MetricsServiceSpec @0xb9780f65d5146efb {
+    httpPort    @0 :UInt16;
+}
