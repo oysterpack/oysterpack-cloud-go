@@ -14,6 +14,8 @@
 
 package app
 
+import "sync"
+
 // NewServiceCommandChannel creates a new ServiceCommandChannel with the specified channel buffer size.
 func NewServiceCommandChannel(service *Service, chanSize uint16) (*ServiceCommandChannel, error) {
 	if service == nil {
@@ -92,13 +94,23 @@ func NewCommandServer(service *Service, chanSize uint16, name string, init func(
 	}, nil
 }
 
+// CommandServer will execute commands in a background goroutine serially.
+// Think of the command server as a command event loop.
+// The CommandServer can be supplied with optional Init and Destroy funcs.
 type CommandServer struct {
 	*ServiceCommandChannel
 
+	// OPTIONAL - used for logging purposes
 	Name string
 
-	Init    func()
+	// OPTIONAL - invoked before the any commands are run
+	Init func()
+	// OPTIONAL - invoked when the service has been killed
 	Destroy func()
+
+	// used to ensure that only 1 command event will be started
+	running   bool
+	startLock sync.Mutex
 }
 
 // Start starts the server's main goroutine, i.e., the command event loop.
@@ -112,10 +124,16 @@ type CommandServer struct {
 // NOTE: the SERVICE_STOPPING and SERVICE_STOPPED log events are logged by the app
 //
 // errors:
-// - ErrServiceNotAlive
+// - ErrServiceNotAlive - if trying to start after the service has been killed
 func (a *CommandServer) Start() error {
 	if !a.Alive() {
 		return ErrServiceNotAlive
+	}
+
+	a.startLock.Lock()
+	defer a.startLock.Unlock()
+	if a.running {
+		return nil
 	}
 	a.Go(func() error {
 		a.starting()
@@ -136,6 +154,7 @@ func (a *CommandServer) Start() error {
 			}
 		}
 	})
+	a.running = true
 	return nil
 }
 

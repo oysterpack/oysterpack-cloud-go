@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/oysterpack/oysterpack.go/pkg/app"
-	"github.com/oysterpack/oysterpack.go/pkg/app/capnprpc"
 )
 
 func main() {
@@ -32,9 +31,8 @@ func main() {
 
 func TestRPCAppClient() {
 	ctx := context.Background()
-	idParams := func(params capnprpc.App_id_Params) error { return nil }
 
-	connect := func() (*capnprpc.App, error) {
+	connect := func() (*app.AppRPCClient, error) {
 		const APP_RPC_SERVICE_CLIENT_ID = app.ServiceID(0xdb6c5b7c386221bc)
 		return app.NewAppClient(APP_RPC_SERVICE_CLIENT_ID)
 		//return app.NewAppClientForAddr(APP_RPC_SERVICE_CLIENT_ID, "") // for local testing
@@ -46,10 +44,21 @@ func TestRPCAppClient() {
 	} else {
 		app.Logger().Info().Msg("App RPCService client is connected")
 
-		if result, err := appClient.Id(ctx, idParams).Struct(); err != nil {
+		if result, err := appClient.Id(ctx).Struct(); err != nil {
 			app.Logger().Error().Err(err).Msg("RPC App.Id() error")
 		} else {
 			app.Logger().Info().Msgf("app id : %x", result.AppId())
+		}
+	}
+
+	reconnect := func() {
+		app.Logger().Error().Err(err).Msg("RPC App.Id() error")
+
+		appClient, err = connect()
+		if err != nil {
+			app.Logger().Error().Err(err).Msg("Failed to create App RPCService client")
+		} else {
+			app.Logger().Info().Msg("App RPCService client is connected")
 		}
 	}
 
@@ -67,20 +76,24 @@ func TestRPCAppClient() {
 					app.Logger().Info().Msg("App RPCService client is connected")
 				}
 			} else {
-				if result, err := appClient.Id(ctx, idParams).Struct(); err != nil {
-					app.Logger().Error().Err(err).Msg("RPC App.Id() error")
+				idPromise := appClient.Id(ctx)
+				instancePromise := appClient.Instance(ctx)
 
-					appClient, err = connect()
-					if err != nil {
-						app.Logger().Error().Err(err).Msg("Failed to create App RPCService client")
-					} else {
-						app.Logger().Info().Msg("App RPCService client is connected")
-					}
+				if result, err := idPromise.Struct(); err != nil {
+					reconnect()
 				} else {
-					app.Logger().Info().Msgf("app id : %x", result.AppId())
+					appId := result.AppId()
+					if result, err := instancePromise.Struct(); err != nil {
+						reconnect()
+					} else {
+						if instanceID, err := result.InstanceId(); err != nil {
+							reconnect()
+						} else {
+							app.Logger().Info().Msgf("app id : %x, instance id: %s", appId, instanceID)
+						}
+					}
 				}
 			}
-
 		}
 	}
 }

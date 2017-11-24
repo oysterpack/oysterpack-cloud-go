@@ -75,15 +75,15 @@ func ID() AppID {
 	return appID
 }
 
+// Release returns the application ReleaseID
+func Release() ReleaseID {
+	return releaseID
+}
+
 // InstanceID returns a new unique instance id each time the app is started, i.e., when the process is started.
 // The instance id remains for the lifetime of the process
 func Instance() InstanceID {
 	return appInstanceId
-}
-
-// Release returns the application ReleaseID
-func Release() ReleaseID {
-	return releaseID
 }
 
 //
@@ -184,6 +184,46 @@ func RegisterService(s *Service) error {
 	}
 }
 
+// UnregisterService will unregister the service for the specified ServiceID
+//
+// errors:
+//	- ErrAppNotAlive
+//  - ErrServiceNotRegistered
+func UnregisterService(id ServiceID) error {
+	c := make(chan error, 1)
+	if err := submitCommand(func() {
+		service, exists := services[id]
+		if !exists {
+			c <- ErrServiceNotRegistered
+			return
+		}
+
+		// log an event when the service is dead
+		app.Go(func() error {
+			select {
+			case <-app.Dying():
+				return nil
+			case <-service.Dead():
+				logServiceDeath(service)
+				return nil
+			}
+		})
+
+		delete(services, id)
+		SERVICE_UNREGISTERED.Log(service.Logger().Info()).Msg("unregistered")
+		c <- nil
+	}); err != nil {
+		return err
+	}
+
+	select {
+	case <-app.Dying():
+		return ErrAppNotAlive
+	case err := <-c:
+		return err
+	}
+}
+
 func logServiceDeath(service *Service) {
 	logEvent := SERVICE_STOPPED.Log(service.Logger().Info())
 	if err := service.Err(); err != nil {
@@ -216,6 +256,30 @@ func ServiceIDs() ([]ServiceID, error) {
 		return nil, ErrAppNotAlive
 	case ids := <-c:
 		return ids, nil
+	}
+}
+
+// GetService will lookup the service for the specified ServiceID
+//
+// errors:
+//	- ErrAppNotAlive
+func GetService(id ServiceID) (*Service, error) {
+	c := make(chan *Service, 1)
+
+	if err := submitCommand(func() {
+		c <- services[id]
+	}); err != nil {
+		return nil, err
+	}
+
+	select {
+	case <-app.Dying():
+		return nil, ErrAppNotAlive
+	case svc := <-c:
+		if svc == nil {
+			return nil, ErrServiceNotRegistered
+		}
+		return svc, nil
 	}
 }
 
@@ -262,70 +326,6 @@ func GetRPCService(id ServiceID) (*RPCService, error) {
 		}
 		c <- service
 	})
-
-	select {
-	case <-app.Dying():
-		return nil, ErrAppNotAlive
-	case svc := <-c:
-		if svc == nil {
-			return nil, ErrServiceNotRegistered
-		}
-		return svc, nil
-	}
-}
-
-// UnregisterService will unregister the service for the specified ServiceID
-//
-// errors:
-//	- ErrAppNotAlive
-//  - ErrServiceNotRegistered
-func UnregisterService(id ServiceID) error {
-	c := make(chan error, 1)
-	if err := submitCommand(func() {
-		service, exists := services[id]
-		if !exists {
-			c <- ErrServiceNotRegistered
-			return
-		}
-
-		// log an event when the service is dead
-		app.Go(func() error {
-			select {
-			case <-app.Dying():
-				return nil
-			case <-service.Dead():
-				logServiceDeath(service)
-				return nil
-			}
-		})
-
-		delete(services, id)
-		SERVICE_UNREGISTERED.Log(service.Logger().Info()).Msg("unregistered")
-		c <- nil
-	}); err != nil {
-		return err
-	}
-
-	select {
-	case <-app.Dying():
-		return ErrAppNotAlive
-	case err := <-c:
-		return err
-	}
-}
-
-// GetService will lookup the service for the specified ServiceID
-//
-// errors:
-//	- ErrAppNotAlive
-func GetService(id ServiceID) (*Service, error) {
-	c := make(chan *Service, 1)
-
-	if err := submitCommand(func() {
-		c <- services[id]
-	}); err != nil {
-		return nil, err
-	}
 
 	select {
 	case <-app.Dying():
