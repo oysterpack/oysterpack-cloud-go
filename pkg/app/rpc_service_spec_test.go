@@ -111,6 +111,7 @@ func TestNewRPCServerSpec(t *testing.T) {
 
 func TestMarshallingUnmarshallingConfig(t *testing.T) {
 	app.Reset()
+	defer app.Reset()
 
 	const (
 		APP_ID    = app.AppID(0xd113a2e016e12f0f)

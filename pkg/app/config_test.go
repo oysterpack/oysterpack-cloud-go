@@ -175,5 +175,4 @@ func TestConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 	checkConfig(spec)
-
 }

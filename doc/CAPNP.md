@@ -25,3 +25,6 @@ installation
     
 ## BUGS
 - [server/server.go - panic close of closed channel](https://github.com/capnproto/go-capnproto2/issues/101)
+
+## Benchmarks
+- [Benchmark and comparison of RPC solutions](http://szelei.me/rpc-benchmark-part1/)

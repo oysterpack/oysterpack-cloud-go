@@ -430,12 +430,12 @@ type MetricsServiceSpec struct{ capnp.Struct }
 const MetricsServiceSpec_TypeID = 0xb9780f65d5146efb
 
 func NewMetricsServiceSpec(s *capnp.Segment) (MetricsServiceSpec, error) {
-	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
 	return MetricsServiceSpec{st}, err
 }
 
 func NewRootMetricsServiceSpec(s *capnp.Segment) (MetricsServiceSpec, error) {
-	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
 	return MetricsServiceSpec{st}, err
 }
 
@@ -457,12 +457,37 @@ func (s MetricsServiceSpec) SetHttpPort(v uint16) {
 	s.Struct.SetUint16(0, v)
 }
 
+func (s MetricsServiceSpec) MetricSpecs() (MetricSpecs, error) {
+	p, err := s.Struct.Ptr(0)
+	return MetricSpecs{Struct: p.Struct()}, err
+}
+
+func (s MetricsServiceSpec) HasMetricSpecs() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s MetricsServiceSpec) SetMetricSpecs(v MetricSpecs) error {
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+}
+
+// NewMetricSpecs sets the metricSpecs field to a newly
+// allocated MetricSpecs struct, preferring placement in s's segment.
+func (s MetricsServiceSpec) NewMetricSpecs() (MetricSpecs, error) {
+	ss, err := NewMetricSpecs(s.Struct.Segment())
+	if err != nil {
+		return MetricSpecs{}, err
+	}
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	return ss, err
+}
+
 // MetricsServiceSpec_List is a list of MetricsServiceSpec.
 type MetricsServiceSpec_List struct{ capnp.List }
 
 // NewMetricsServiceSpec creates a new list of MetricsServiceSpec.
 func NewMetricsServiceSpec_List(s *capnp.Segment, sz int32) (MetricsServiceSpec_List, error) {
-	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
 	return MetricsServiceSpec_List{l}, err
 }
 
@@ -487,51 +512,923 @@ func (p MetricsServiceSpec_Promise) Struct() (MetricsServiceSpec, error) {
 	return MetricsServiceSpec{s}, err
 }
 
-const schema_db8274f9144abc7e = "x\xda\xac\x92AH\x14m\x1c\xc6\x9f\xe7}\xc7o\x15" +
-	"vq\x87\xd9\xc3w\xd3:\xa5PX!\x94\x10\x9b\xac" +
-	"\x1e\xb4\x84}\x15A:D\xc38\xbaC\xbb\xb3\xe3\xec" +
-	"\xa4\xabD\x94\x15T\xe0!\x0a:F\x97\xa0CD\x97" +
-	"@\xc8nFx\x0c\xea`t\xa9\x83\x87nQ\x87(" +
-	"\x98\x98Y\x1d\xb7-(\xa2\xdb\xcc;\xcf\xfc\xdf\xdf\xf3" +
-	"\x7f\x9e\xbek<.\x0e\xb6-H@\xedk\xfb/\xfc" +
-	"\xf8A[\xff\xbc\xff\xfd\x13\xa8\x0c\xb5\xf0\xc2\xd3\xd1\xdc" +
-	"\x97`\xf9\x0d\xb4\x14`\xdc\xe3;\xe3!\xa3\xa7\x07\xdc" +
-	"\x02\xc3\xafn\xee\x95\xddY_\x8d\xb4\xfcQ{\xf8\xaa" +
-	"\x104n\x8aH\xbc\"\xf2`8\x7f\xe7\xe5\xed\xcb\xa5" +
-	"\xe7\xcf\xa0g\x9a\xb4m2R<\x16\x9b\xc6Z\xac]" +
-	"\x15\x8f\xc0\xf0\xbe\xe7\xe6\xf7\xd4\xde~j\xd1\xc6\x8aK" +
-	"r\xc3X\x89\xff\xba.\x17\xc0\xb0\xb417;\xfc\xc2" +
-	"\xf8\xd6\x02\xd1\x18\xdc\xafm\x1a\x831\xfb1m\x0bG" +
-	"B\xab\xea\xce8\xb3\x07,az\xae70^,L" +
-	"\xd8\xfe\xbcc\xd9\x13)\xcf\xb6\x8a\xa4\xcaJ\x0d\xd0\x08" +
-	"\xe8\xe6(\xa0\xceH\xaa\xb2\xa0N\xe6\x18\x1d:\x87\x00" +
-	"5-\xa9<A]\x88\x1c\x05\xa0W\xc6\x01U\x96T" +
-	"uA]\xa6s\x94\x80~\xae\x17P\x9e\xa4:/\x18" +
-	"NW+\xa6\xe3\x8e\x0c\x01`\x07\x04;\xc0.\xd3\xf3" +
-	"F\xa6w\xde\xc2Z\x83c\x04L\xce:\xbd\xaa\x1f0" +
-	"\x05\xc1\x14\x98\x90\xcb\x98|\xcc\x0e|\xc7\xaa\xed\xd0{" +
-	"\xb6\x85\x88^K\xe83\x11}ZR\xfd/\x18\x96\x82" +
-	"\xc0+V\xfd \xba\xbeu^\xb2\x89B\xd9\xb1\xdd`" +
-	"\xc2\x93\x8dE\xa4\x93Q\xc3K\x80\x1a\x92T\xc5\xa6E" +
-	"\x8c\x9d\x02\xd4II5\xd5\xb4\x88\xc9\x01}\xb2K\xd5" +
-	"%\xd5\x15\xc1\xd0\xf7\xac\x98\x0f\xf9\x06!\xb3\xbb\xe5\x02" +
-	"\x99\x8d \xe2;\x0b6\xa4\x1f0\xbb\x1b{\xe3s\xde" +
-	"2\x0b\xb6\x1f(\x8d\"<}\xeb\xaeZ{}c\x1d" +
-	"J\x13\x1c\xcc\x91i@\xe7rX\x1c\x1e\xeb\x9eq\xca" +
-	"6\xbbg\xaa~\xc5\x8c-f \x98\xf9\xc9\xe2T\x7f" +
-	"\xdf\xd1\x13\xf6b\xd1t|\xc4\xcbjO\x1c\xf6\xec\xd5" +
-	"{\xba\x127;\x16'{\x9b\xdc\xa4\xce\xda\x8b\x7f\x0b" +
-	"\xd2i\xfd;\x17\xdb\x95\xb5\xfd$\xa8\xa6\xc6.\xfd\xaa" +
-	"\xb1QP%I\x154\x0557\xb0\xdbX\xca\xed\xc2" +
-	"F\x8d\x09$\xd5\xc5?\xcb\xae\x16c\xfc&\xbb\xc4E" +
-	"\xc5\xac\x17\xaa\xae[\x8b\x9c\xb5C\xb0\x1d\xfc\x1e\x00\x00" +
-	"\xff\xff\x0eR\x1d\xa1"
+func (p MetricsServiceSpec_Promise) MetricSpecs() MetricSpecs_Promise {
+	return MetricSpecs_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+}
+
+type MetricSpecs struct{ capnp.Struct }
+
+// MetricSpecs_TypeID is the unique identifier for the type MetricSpecs.
+const MetricSpecs_TypeID = 0x88542dcd70c6048b
+
+func NewMetricSpecs(s *capnp.Segment) (MetricSpecs, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 6})
+	return MetricSpecs{st}, err
+}
+
+func NewRootMetricSpecs(s *capnp.Segment) (MetricSpecs, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 6})
+	return MetricSpecs{st}, err
+}
+
+func ReadRootMetricSpecs(msg *capnp.Message) (MetricSpecs, error) {
+	root, err := msg.RootPtr()
+	return MetricSpecs{root.Struct()}, err
+}
+
+func (s MetricSpecs) String() string {
+	str, _ := text.Marshal(0x88542dcd70c6048b, s.Struct)
+	return str
+}
+
+func (s MetricSpecs) CounterSpecs() (CounterMetricSpec_List, error) {
+	p, err := s.Struct.Ptr(0)
+	return CounterMetricSpec_List{List: p.List()}, err
+}
+
+func (s MetricSpecs) HasCounterSpecs() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s MetricSpecs) SetCounterSpecs(v CounterMetricSpec_List) error {
+	return s.Struct.SetPtr(0, v.List.ToPtr())
+}
+
+// NewCounterSpecs sets the counterSpecs field to a newly
+// allocated CounterMetricSpec_List, preferring placement in s's segment.
+func (s MetricSpecs) NewCounterSpecs(n int32) (CounterMetricSpec_List, error) {
+	l, err := NewCounterMetricSpec_List(s.Struct.Segment(), n)
+	if err != nil {
+		return CounterMetricSpec_List{}, err
+	}
+	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	return l, err
+}
+
+func (s MetricSpecs) CounterVectorSpecs() (CounterVectorMetricSpec_List, error) {
+	p, err := s.Struct.Ptr(1)
+	return CounterVectorMetricSpec_List{List: p.List()}, err
+}
+
+func (s MetricSpecs) HasCounterVectorSpecs() bool {
+	p, err := s.Struct.Ptr(1)
+	return p.IsValid() || err != nil
+}
+
+func (s MetricSpecs) SetCounterVectorSpecs(v CounterVectorMetricSpec_List) error {
+	return s.Struct.SetPtr(1, v.List.ToPtr())
+}
+
+// NewCounterVectorSpecs sets the counterVectorSpecs field to a newly
+// allocated CounterVectorMetricSpec_List, preferring placement in s's segment.
+func (s MetricSpecs) NewCounterVectorSpecs(n int32) (CounterVectorMetricSpec_List, error) {
+	l, err := NewCounterVectorMetricSpec_List(s.Struct.Segment(), n)
+	if err != nil {
+		return CounterVectorMetricSpec_List{}, err
+	}
+	err = s.Struct.SetPtr(1, l.List.ToPtr())
+	return l, err
+}
+
+func (s MetricSpecs) GaugeSpecs() (GaugeMetricSpec_List, error) {
+	p, err := s.Struct.Ptr(2)
+	return GaugeMetricSpec_List{List: p.List()}, err
+}
+
+func (s MetricSpecs) HasGaugeSpecs() bool {
+	p, err := s.Struct.Ptr(2)
+	return p.IsValid() || err != nil
+}
+
+func (s MetricSpecs) SetGaugeSpecs(v GaugeMetricSpec_List) error {
+	return s.Struct.SetPtr(2, v.List.ToPtr())
+}
+
+// NewGaugeSpecs sets the gaugeSpecs field to a newly
+// allocated GaugeMetricSpec_List, preferring placement in s's segment.
+func (s MetricSpecs) NewGaugeSpecs(n int32) (GaugeMetricSpec_List, error) {
+	l, err := NewGaugeMetricSpec_List(s.Struct.Segment(), n)
+	if err != nil {
+		return GaugeMetricSpec_List{}, err
+	}
+	err = s.Struct.SetPtr(2, l.List.ToPtr())
+	return l, err
+}
+
+func (s MetricSpecs) GaugeVectorSpecs() (GaugeVectorMetricSpec_List, error) {
+	p, err := s.Struct.Ptr(3)
+	return GaugeVectorMetricSpec_List{List: p.List()}, err
+}
+
+func (s MetricSpecs) HasGaugeVectorSpecs() bool {
+	p, err := s.Struct.Ptr(3)
+	return p.IsValid() || err != nil
+}
+
+func (s MetricSpecs) SetGaugeVectorSpecs(v GaugeVectorMetricSpec_List) error {
+	return s.Struct.SetPtr(3, v.List.ToPtr())
+}
+
+// NewGaugeVectorSpecs sets the gaugeVectorSpecs field to a newly
+// allocated GaugeVectorMetricSpec_List, preferring placement in s's segment.
+func (s MetricSpecs) NewGaugeVectorSpecs(n int32) (GaugeVectorMetricSpec_List, error) {
+	l, err := NewGaugeVectorMetricSpec_List(s.Struct.Segment(), n)
+	if err != nil {
+		return GaugeVectorMetricSpec_List{}, err
+	}
+	err = s.Struct.SetPtr(3, l.List.ToPtr())
+	return l, err
+}
+
+func (s MetricSpecs) HistogramSpecs() (HistogramMetricSpec_List, error) {
+	p, err := s.Struct.Ptr(4)
+	return HistogramMetricSpec_List{List: p.List()}, err
+}
+
+func (s MetricSpecs) HasHistogramSpecs() bool {
+	p, err := s.Struct.Ptr(4)
+	return p.IsValid() || err != nil
+}
+
+func (s MetricSpecs) SetHistogramSpecs(v HistogramMetricSpec_List) error {
+	return s.Struct.SetPtr(4, v.List.ToPtr())
+}
+
+// NewHistogramSpecs sets the histogramSpecs field to a newly
+// allocated HistogramMetricSpec_List, preferring placement in s's segment.
+func (s MetricSpecs) NewHistogramSpecs(n int32) (HistogramMetricSpec_List, error) {
+	l, err := NewHistogramMetricSpec_List(s.Struct.Segment(), n)
+	if err != nil {
+		return HistogramMetricSpec_List{}, err
+	}
+	err = s.Struct.SetPtr(4, l.List.ToPtr())
+	return l, err
+}
+
+func (s MetricSpecs) HistogramVectorSpecs() (HistogramVectorMetricSpec_List, error) {
+	p, err := s.Struct.Ptr(5)
+	return HistogramVectorMetricSpec_List{List: p.List()}, err
+}
+
+func (s MetricSpecs) HasHistogramVectorSpecs() bool {
+	p, err := s.Struct.Ptr(5)
+	return p.IsValid() || err != nil
+}
+
+func (s MetricSpecs) SetHistogramVectorSpecs(v HistogramVectorMetricSpec_List) error {
+	return s.Struct.SetPtr(5, v.List.ToPtr())
+}
+
+// NewHistogramVectorSpecs sets the histogramVectorSpecs field to a newly
+// allocated HistogramVectorMetricSpec_List, preferring placement in s's segment.
+func (s MetricSpecs) NewHistogramVectorSpecs(n int32) (HistogramVectorMetricSpec_List, error) {
+	l, err := NewHistogramVectorMetricSpec_List(s.Struct.Segment(), n)
+	if err != nil {
+		return HistogramVectorMetricSpec_List{}, err
+	}
+	err = s.Struct.SetPtr(5, l.List.ToPtr())
+	return l, err
+}
+
+// MetricSpecs_List is a list of MetricSpecs.
+type MetricSpecs_List struct{ capnp.List }
+
+// NewMetricSpecs creates a new list of MetricSpecs.
+func NewMetricSpecs_List(s *capnp.Segment, sz int32) (MetricSpecs_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 6}, sz)
+	return MetricSpecs_List{l}, err
+}
+
+func (s MetricSpecs_List) At(i int) MetricSpecs { return MetricSpecs{s.List.Struct(i)} }
+
+func (s MetricSpecs_List) Set(i int, v MetricSpecs) error { return s.List.SetStruct(i, v.Struct) }
+
+func (s MetricSpecs_List) String() string {
+	str, _ := text.MarshalList(0x88542dcd70c6048b, s.List)
+	return str
+}
+
+// MetricSpecs_Promise is a wrapper for a MetricSpecs promised by a client call.
+type MetricSpecs_Promise struct{ *capnp.Pipeline }
+
+func (p MetricSpecs_Promise) Struct() (MetricSpecs, error) {
+	s, err := p.Pipeline.Struct()
+	return MetricSpecs{s}, err
+}
+
+type CounterMetricSpec struct{ capnp.Struct }
+
+// CounterMetricSpec_TypeID is the unique identifier for the type CounterMetricSpec.
+const CounterMetricSpec_TypeID = 0xfe237f35c45ecc97
+
+func NewCounterMetricSpec(s *capnp.Segment) (CounterMetricSpec, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 1})
+	return CounterMetricSpec{st}, err
+}
+
+func NewRootCounterMetricSpec(s *capnp.Segment) (CounterMetricSpec, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 1})
+	return CounterMetricSpec{st}, err
+}
+
+func ReadRootCounterMetricSpec(msg *capnp.Message) (CounterMetricSpec, error) {
+	root, err := msg.RootPtr()
+	return CounterMetricSpec{root.Struct()}, err
+}
+
+func (s CounterMetricSpec) String() string {
+	str, _ := text.Marshal(0xfe237f35c45ecc97, s.Struct)
+	return str
+}
+
+func (s CounterMetricSpec) ServiceId() uint64 {
+	return s.Struct.Uint64(0)
+}
+
+func (s CounterMetricSpec) SetServiceId(v uint64) {
+	s.Struct.SetUint64(0, v)
+}
+
+func (s CounterMetricSpec) MetricId() uint64 {
+	return s.Struct.Uint64(8)
+}
+
+func (s CounterMetricSpec) SetMetricId(v uint64) {
+	s.Struct.SetUint64(8, v)
+}
+
+func (s CounterMetricSpec) Help() (string, error) {
+	p, err := s.Struct.Ptr(0)
+	return p.Text(), err
+}
+
+func (s CounterMetricSpec) HasHelp() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s CounterMetricSpec) HelpBytes() ([]byte, error) {
+	p, err := s.Struct.Ptr(0)
+	return p.TextBytes(), err
+}
+
+func (s CounterMetricSpec) SetHelp(v string) error {
+	return s.Struct.SetText(0, v)
+}
+
+// CounterMetricSpec_List is a list of CounterMetricSpec.
+type CounterMetricSpec_List struct{ capnp.List }
+
+// NewCounterMetricSpec creates a new list of CounterMetricSpec.
+func NewCounterMetricSpec_List(s *capnp.Segment, sz int32) (CounterMetricSpec_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 16, PointerCount: 1}, sz)
+	return CounterMetricSpec_List{l}, err
+}
+
+func (s CounterMetricSpec_List) At(i int) CounterMetricSpec {
+	return CounterMetricSpec{s.List.Struct(i)}
+}
+
+func (s CounterMetricSpec_List) Set(i int, v CounterMetricSpec) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s CounterMetricSpec_List) String() string {
+	str, _ := text.MarshalList(0xfe237f35c45ecc97, s.List)
+	return str
+}
+
+// CounterMetricSpec_Promise is a wrapper for a CounterMetricSpec promised by a client call.
+type CounterMetricSpec_Promise struct{ *capnp.Pipeline }
+
+func (p CounterMetricSpec_Promise) Struct() (CounterMetricSpec, error) {
+	s, err := p.Pipeline.Struct()
+	return CounterMetricSpec{s}, err
+}
+
+type CounterVectorMetricSpec struct{ capnp.Struct }
+
+// CounterVectorMetricSpec_TypeID is the unique identifier for the type CounterVectorMetricSpec.
+const CounterVectorMetricSpec_TypeID = 0xdb34d9fcc1dffa24
+
+func NewCounterVectorMetricSpec(s *capnp.Segment) (CounterVectorMetricSpec, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
+	return CounterVectorMetricSpec{st}, err
+}
+
+func NewRootCounterVectorMetricSpec(s *capnp.Segment) (CounterVectorMetricSpec, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
+	return CounterVectorMetricSpec{st}, err
+}
+
+func ReadRootCounterVectorMetricSpec(msg *capnp.Message) (CounterVectorMetricSpec, error) {
+	root, err := msg.RootPtr()
+	return CounterVectorMetricSpec{root.Struct()}, err
+}
+
+func (s CounterVectorMetricSpec) String() string {
+	str, _ := text.Marshal(0xdb34d9fcc1dffa24, s.Struct)
+	return str
+}
+
+func (s CounterVectorMetricSpec) MetricSpec() (CounterMetricSpec, error) {
+	p, err := s.Struct.Ptr(0)
+	return CounterMetricSpec{Struct: p.Struct()}, err
+}
+
+func (s CounterVectorMetricSpec) HasMetricSpec() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s CounterVectorMetricSpec) SetMetricSpec(v CounterMetricSpec) error {
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+}
+
+// NewMetricSpec sets the metricSpec field to a newly
+// allocated CounterMetricSpec struct, preferring placement in s's segment.
+func (s CounterVectorMetricSpec) NewMetricSpec() (CounterMetricSpec, error) {
+	ss, err := NewCounterMetricSpec(s.Struct.Segment())
+	if err != nil {
+		return CounterMetricSpec{}, err
+	}
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	return ss, err
+}
+
+func (s CounterVectorMetricSpec) LabelNames() (capnp.TextList, error) {
+	p, err := s.Struct.Ptr(1)
+	return capnp.TextList{List: p.List()}, err
+}
+
+func (s CounterVectorMetricSpec) HasLabelNames() bool {
+	p, err := s.Struct.Ptr(1)
+	return p.IsValid() || err != nil
+}
+
+func (s CounterVectorMetricSpec) SetLabelNames(v capnp.TextList) error {
+	return s.Struct.SetPtr(1, v.List.ToPtr())
+}
+
+// NewLabelNames sets the labelNames field to a newly
+// allocated capnp.TextList, preferring placement in s's segment.
+func (s CounterVectorMetricSpec) NewLabelNames(n int32) (capnp.TextList, error) {
+	l, err := capnp.NewTextList(s.Struct.Segment(), n)
+	if err != nil {
+		return capnp.TextList{}, err
+	}
+	err = s.Struct.SetPtr(1, l.List.ToPtr())
+	return l, err
+}
+
+// CounterVectorMetricSpec_List is a list of CounterVectorMetricSpec.
+type CounterVectorMetricSpec_List struct{ capnp.List }
+
+// NewCounterVectorMetricSpec creates a new list of CounterVectorMetricSpec.
+func NewCounterVectorMetricSpec_List(s *capnp.Segment, sz int32) (CounterVectorMetricSpec_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2}, sz)
+	return CounterVectorMetricSpec_List{l}, err
+}
+
+func (s CounterVectorMetricSpec_List) At(i int) CounterVectorMetricSpec {
+	return CounterVectorMetricSpec{s.List.Struct(i)}
+}
+
+func (s CounterVectorMetricSpec_List) Set(i int, v CounterVectorMetricSpec) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s CounterVectorMetricSpec_List) String() string {
+	str, _ := text.MarshalList(0xdb34d9fcc1dffa24, s.List)
+	return str
+}
+
+// CounterVectorMetricSpec_Promise is a wrapper for a CounterVectorMetricSpec promised by a client call.
+type CounterVectorMetricSpec_Promise struct{ *capnp.Pipeline }
+
+func (p CounterVectorMetricSpec_Promise) Struct() (CounterVectorMetricSpec, error) {
+	s, err := p.Pipeline.Struct()
+	return CounterVectorMetricSpec{s}, err
+}
+
+func (p CounterVectorMetricSpec_Promise) MetricSpec() CounterMetricSpec_Promise {
+	return CounterMetricSpec_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+}
+
+type GaugeMetricSpec struct{ capnp.Struct }
+
+// GaugeMetricSpec_TypeID is the unique identifier for the type GaugeMetricSpec.
+const GaugeMetricSpec_TypeID = 0xeebf043f542943d3
+
+func NewGaugeMetricSpec(s *capnp.Segment) (GaugeMetricSpec, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 1})
+	return GaugeMetricSpec{st}, err
+}
+
+func NewRootGaugeMetricSpec(s *capnp.Segment) (GaugeMetricSpec, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 1})
+	return GaugeMetricSpec{st}, err
+}
+
+func ReadRootGaugeMetricSpec(msg *capnp.Message) (GaugeMetricSpec, error) {
+	root, err := msg.RootPtr()
+	return GaugeMetricSpec{root.Struct()}, err
+}
+
+func (s GaugeMetricSpec) String() string {
+	str, _ := text.Marshal(0xeebf043f542943d3, s.Struct)
+	return str
+}
+
+func (s GaugeMetricSpec) ServiceId() uint64 {
+	return s.Struct.Uint64(0)
+}
+
+func (s GaugeMetricSpec) SetServiceId(v uint64) {
+	s.Struct.SetUint64(0, v)
+}
+
+func (s GaugeMetricSpec) MetricId() uint64 {
+	return s.Struct.Uint64(8)
+}
+
+func (s GaugeMetricSpec) SetMetricId(v uint64) {
+	s.Struct.SetUint64(8, v)
+}
+
+func (s GaugeMetricSpec) Help() (string, error) {
+	p, err := s.Struct.Ptr(0)
+	return p.Text(), err
+}
+
+func (s GaugeMetricSpec) HasHelp() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s GaugeMetricSpec) HelpBytes() ([]byte, error) {
+	p, err := s.Struct.Ptr(0)
+	return p.TextBytes(), err
+}
+
+func (s GaugeMetricSpec) SetHelp(v string) error {
+	return s.Struct.SetText(0, v)
+}
+
+// GaugeMetricSpec_List is a list of GaugeMetricSpec.
+type GaugeMetricSpec_List struct{ capnp.List }
+
+// NewGaugeMetricSpec creates a new list of GaugeMetricSpec.
+func NewGaugeMetricSpec_List(s *capnp.Segment, sz int32) (GaugeMetricSpec_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 16, PointerCount: 1}, sz)
+	return GaugeMetricSpec_List{l}, err
+}
+
+func (s GaugeMetricSpec_List) At(i int) GaugeMetricSpec { return GaugeMetricSpec{s.List.Struct(i)} }
+
+func (s GaugeMetricSpec_List) Set(i int, v GaugeMetricSpec) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s GaugeMetricSpec_List) String() string {
+	str, _ := text.MarshalList(0xeebf043f542943d3, s.List)
+	return str
+}
+
+// GaugeMetricSpec_Promise is a wrapper for a GaugeMetricSpec promised by a client call.
+type GaugeMetricSpec_Promise struct{ *capnp.Pipeline }
+
+func (p GaugeMetricSpec_Promise) Struct() (GaugeMetricSpec, error) {
+	s, err := p.Pipeline.Struct()
+	return GaugeMetricSpec{s}, err
+}
+
+type GaugeVectorMetricSpec struct{ capnp.Struct }
+
+// GaugeVectorMetricSpec_TypeID is the unique identifier for the type GaugeVectorMetricSpec.
+const GaugeVectorMetricSpec_TypeID = 0xa2274ad761e6a999
+
+func NewGaugeVectorMetricSpec(s *capnp.Segment) (GaugeVectorMetricSpec, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
+	return GaugeVectorMetricSpec{st}, err
+}
+
+func NewRootGaugeVectorMetricSpec(s *capnp.Segment) (GaugeVectorMetricSpec, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
+	return GaugeVectorMetricSpec{st}, err
+}
+
+func ReadRootGaugeVectorMetricSpec(msg *capnp.Message) (GaugeVectorMetricSpec, error) {
+	root, err := msg.RootPtr()
+	return GaugeVectorMetricSpec{root.Struct()}, err
+}
+
+func (s GaugeVectorMetricSpec) String() string {
+	str, _ := text.Marshal(0xa2274ad761e6a999, s.Struct)
+	return str
+}
+
+func (s GaugeVectorMetricSpec) MetricSpec() (GaugeMetricSpec, error) {
+	p, err := s.Struct.Ptr(0)
+	return GaugeMetricSpec{Struct: p.Struct()}, err
+}
+
+func (s GaugeVectorMetricSpec) HasMetricSpec() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s GaugeVectorMetricSpec) SetMetricSpec(v GaugeMetricSpec) error {
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+}
+
+// NewMetricSpec sets the metricSpec field to a newly
+// allocated GaugeMetricSpec struct, preferring placement in s's segment.
+func (s GaugeVectorMetricSpec) NewMetricSpec() (GaugeMetricSpec, error) {
+	ss, err := NewGaugeMetricSpec(s.Struct.Segment())
+	if err != nil {
+		return GaugeMetricSpec{}, err
+	}
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	return ss, err
+}
+
+func (s GaugeVectorMetricSpec) LabelNames() (capnp.TextList, error) {
+	p, err := s.Struct.Ptr(1)
+	return capnp.TextList{List: p.List()}, err
+}
+
+func (s GaugeVectorMetricSpec) HasLabelNames() bool {
+	p, err := s.Struct.Ptr(1)
+	return p.IsValid() || err != nil
+}
+
+func (s GaugeVectorMetricSpec) SetLabelNames(v capnp.TextList) error {
+	return s.Struct.SetPtr(1, v.List.ToPtr())
+}
+
+// NewLabelNames sets the labelNames field to a newly
+// allocated capnp.TextList, preferring placement in s's segment.
+func (s GaugeVectorMetricSpec) NewLabelNames(n int32) (capnp.TextList, error) {
+	l, err := capnp.NewTextList(s.Struct.Segment(), n)
+	if err != nil {
+		return capnp.TextList{}, err
+	}
+	err = s.Struct.SetPtr(1, l.List.ToPtr())
+	return l, err
+}
+
+// GaugeVectorMetricSpec_List is a list of GaugeVectorMetricSpec.
+type GaugeVectorMetricSpec_List struct{ capnp.List }
+
+// NewGaugeVectorMetricSpec creates a new list of GaugeVectorMetricSpec.
+func NewGaugeVectorMetricSpec_List(s *capnp.Segment, sz int32) (GaugeVectorMetricSpec_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2}, sz)
+	return GaugeVectorMetricSpec_List{l}, err
+}
+
+func (s GaugeVectorMetricSpec_List) At(i int) GaugeVectorMetricSpec {
+	return GaugeVectorMetricSpec{s.List.Struct(i)}
+}
+
+func (s GaugeVectorMetricSpec_List) Set(i int, v GaugeVectorMetricSpec) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s GaugeVectorMetricSpec_List) String() string {
+	str, _ := text.MarshalList(0xa2274ad761e6a999, s.List)
+	return str
+}
+
+// GaugeVectorMetricSpec_Promise is a wrapper for a GaugeVectorMetricSpec promised by a client call.
+type GaugeVectorMetricSpec_Promise struct{ *capnp.Pipeline }
+
+func (p GaugeVectorMetricSpec_Promise) Struct() (GaugeVectorMetricSpec, error) {
+	s, err := p.Pipeline.Struct()
+	return GaugeVectorMetricSpec{s}, err
+}
+
+func (p GaugeVectorMetricSpec_Promise) MetricSpec() GaugeMetricSpec_Promise {
+	return GaugeMetricSpec_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+}
+
+type HistogramMetricSpec struct{ capnp.Struct }
+
+// HistogramMetricSpec_TypeID is the unique identifier for the type HistogramMetricSpec.
+const HistogramMetricSpec_TypeID = 0x8e79552fdf96a8a7
+
+func NewHistogramMetricSpec(s *capnp.Segment) (HistogramMetricSpec, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 2})
+	return HistogramMetricSpec{st}, err
+}
+
+func NewRootHistogramMetricSpec(s *capnp.Segment) (HistogramMetricSpec, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 2})
+	return HistogramMetricSpec{st}, err
+}
+
+func ReadRootHistogramMetricSpec(msg *capnp.Message) (HistogramMetricSpec, error) {
+	root, err := msg.RootPtr()
+	return HistogramMetricSpec{root.Struct()}, err
+}
+
+func (s HistogramMetricSpec) String() string {
+	str, _ := text.Marshal(0x8e79552fdf96a8a7, s.Struct)
+	return str
+}
+
+func (s HistogramMetricSpec) ServiceId() uint64 {
+	return s.Struct.Uint64(0)
+}
+
+func (s HistogramMetricSpec) SetServiceId(v uint64) {
+	s.Struct.SetUint64(0, v)
+}
+
+func (s HistogramMetricSpec) MetricId() uint64 {
+	return s.Struct.Uint64(8)
+}
+
+func (s HistogramMetricSpec) SetMetricId(v uint64) {
+	s.Struct.SetUint64(8, v)
+}
+
+func (s HistogramMetricSpec) Help() (string, error) {
+	p, err := s.Struct.Ptr(0)
+	return p.Text(), err
+}
+
+func (s HistogramMetricSpec) HasHelp() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s HistogramMetricSpec) HelpBytes() ([]byte, error) {
+	p, err := s.Struct.Ptr(0)
+	return p.TextBytes(), err
+}
+
+func (s HistogramMetricSpec) SetHelp(v string) error {
+	return s.Struct.SetText(0, v)
+}
+
+func (s HistogramMetricSpec) Buckets() (capnp.Float64List, error) {
+	p, err := s.Struct.Ptr(1)
+	return capnp.Float64List{List: p.List()}, err
+}
+
+func (s HistogramMetricSpec) HasBuckets() bool {
+	p, err := s.Struct.Ptr(1)
+	return p.IsValid() || err != nil
+}
+
+func (s HistogramMetricSpec) SetBuckets(v capnp.Float64List) error {
+	return s.Struct.SetPtr(1, v.List.ToPtr())
+}
+
+// NewBuckets sets the buckets field to a newly
+// allocated capnp.Float64List, preferring placement in s's segment.
+func (s HistogramMetricSpec) NewBuckets(n int32) (capnp.Float64List, error) {
+	l, err := capnp.NewFloat64List(s.Struct.Segment(), n)
+	if err != nil {
+		return capnp.Float64List{}, err
+	}
+	err = s.Struct.SetPtr(1, l.List.ToPtr())
+	return l, err
+}
+
+// HistogramMetricSpec_List is a list of HistogramMetricSpec.
+type HistogramMetricSpec_List struct{ capnp.List }
+
+// NewHistogramMetricSpec creates a new list of HistogramMetricSpec.
+func NewHistogramMetricSpec_List(s *capnp.Segment, sz int32) (HistogramMetricSpec_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 16, PointerCount: 2}, sz)
+	return HistogramMetricSpec_List{l}, err
+}
+
+func (s HistogramMetricSpec_List) At(i int) HistogramMetricSpec {
+	return HistogramMetricSpec{s.List.Struct(i)}
+}
+
+func (s HistogramMetricSpec_List) Set(i int, v HistogramMetricSpec) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s HistogramMetricSpec_List) String() string {
+	str, _ := text.MarshalList(0x8e79552fdf96a8a7, s.List)
+	return str
+}
+
+// HistogramMetricSpec_Promise is a wrapper for a HistogramMetricSpec promised by a client call.
+type HistogramMetricSpec_Promise struct{ *capnp.Pipeline }
+
+func (p HistogramMetricSpec_Promise) Struct() (HistogramMetricSpec, error) {
+	s, err := p.Pipeline.Struct()
+	return HistogramMetricSpec{s}, err
+}
+
+type HistogramVectorMetricSpec struct{ capnp.Struct }
+
+// HistogramVectorMetricSpec_TypeID is the unique identifier for the type HistogramVectorMetricSpec.
+const HistogramVectorMetricSpec_TypeID = 0x8527f1eb82ceeb98
+
+func NewHistogramVectorMetricSpec(s *capnp.Segment) (HistogramVectorMetricSpec, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
+	return HistogramVectorMetricSpec{st}, err
+}
+
+func NewRootHistogramVectorMetricSpec(s *capnp.Segment) (HistogramVectorMetricSpec, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
+	return HistogramVectorMetricSpec{st}, err
+}
+
+func ReadRootHistogramVectorMetricSpec(msg *capnp.Message) (HistogramVectorMetricSpec, error) {
+	root, err := msg.RootPtr()
+	return HistogramVectorMetricSpec{root.Struct()}, err
+}
+
+func (s HistogramVectorMetricSpec) String() string {
+	str, _ := text.Marshal(0x8527f1eb82ceeb98, s.Struct)
+	return str
+}
+
+func (s HistogramVectorMetricSpec) MetricSpec() (HistogramMetricSpec, error) {
+	p, err := s.Struct.Ptr(0)
+	return HistogramMetricSpec{Struct: p.Struct()}, err
+}
+
+func (s HistogramVectorMetricSpec) HasMetricSpec() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s HistogramVectorMetricSpec) SetMetricSpec(v HistogramMetricSpec) error {
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+}
+
+// NewMetricSpec sets the metricSpec field to a newly
+// allocated HistogramMetricSpec struct, preferring placement in s's segment.
+func (s HistogramVectorMetricSpec) NewMetricSpec() (HistogramMetricSpec, error) {
+	ss, err := NewHistogramMetricSpec(s.Struct.Segment())
+	if err != nil {
+		return HistogramMetricSpec{}, err
+	}
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	return ss, err
+}
+
+func (s HistogramVectorMetricSpec) LabelNames() (capnp.TextList, error) {
+	p, err := s.Struct.Ptr(1)
+	return capnp.TextList{List: p.List()}, err
+}
+
+func (s HistogramVectorMetricSpec) HasLabelNames() bool {
+	p, err := s.Struct.Ptr(1)
+	return p.IsValid() || err != nil
+}
+
+func (s HistogramVectorMetricSpec) SetLabelNames(v capnp.TextList) error {
+	return s.Struct.SetPtr(1, v.List.ToPtr())
+}
+
+// NewLabelNames sets the labelNames field to a newly
+// allocated capnp.TextList, preferring placement in s's segment.
+func (s HistogramVectorMetricSpec) NewLabelNames(n int32) (capnp.TextList, error) {
+	l, err := capnp.NewTextList(s.Struct.Segment(), n)
+	if err != nil {
+		return capnp.TextList{}, err
+	}
+	err = s.Struct.SetPtr(1, l.List.ToPtr())
+	return l, err
+}
+
+// HistogramVectorMetricSpec_List is a list of HistogramVectorMetricSpec.
+type HistogramVectorMetricSpec_List struct{ capnp.List }
+
+// NewHistogramVectorMetricSpec creates a new list of HistogramVectorMetricSpec.
+func NewHistogramVectorMetricSpec_List(s *capnp.Segment, sz int32) (HistogramVectorMetricSpec_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2}, sz)
+	return HistogramVectorMetricSpec_List{l}, err
+}
+
+func (s HistogramVectorMetricSpec_List) At(i int) HistogramVectorMetricSpec {
+	return HistogramVectorMetricSpec{s.List.Struct(i)}
+}
+
+func (s HistogramVectorMetricSpec_List) Set(i int, v HistogramVectorMetricSpec) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s HistogramVectorMetricSpec_List) String() string {
+	str, _ := text.MarshalList(0x8527f1eb82ceeb98, s.List)
+	return str
+}
+
+// HistogramVectorMetricSpec_Promise is a wrapper for a HistogramVectorMetricSpec promised by a client call.
+type HistogramVectorMetricSpec_Promise struct{ *capnp.Pipeline }
+
+func (p HistogramVectorMetricSpec_Promise) Struct() (HistogramVectorMetricSpec, error) {
+	s, err := p.Pipeline.Struct()
+	return HistogramVectorMetricSpec{s}, err
+}
+
+func (p HistogramVectorMetricSpec_Promise) MetricSpec() HistogramMetricSpec_Promise {
+	return HistogramMetricSpec_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+}
+
+const schema_db8274f9144abc7e = "x\xda\xdcV]h\x1c\xd5\x17?\xe7\xde\xd9\xddl\xb2" +
+	"\xf9g\x87\xd9\x87\xbfR\xc8\xd6\x0f\xda\x06Z\x1bm\xa1" +
+	"\x0d\x96\xa8\xdbb\x13\x1b\xd9\x9bmj)X\x9cLn" +
+	"\xb3c\xf7c2;\xa9I\x11\xabUA\xeb\xc7\x8bb" +
+	"[_\x04\x1f\xb4\x8aP\x0aE\x10\xfc@\xb1\xb5\x94V" +
+	"\xfc\xa0\x8a-RT\xaa\xd5\xa2\xa0\xe8\x83\xb58rf" +
+	"gg\xa6\x93\x05\xad\xf6A|\x1bn~{\xee\xef\xfc" +
+	"~\xbfsn\x96\xbe\xc7ob\xfd\x89\xd3\x09\x00\xb1:" +
+	"\x91t\xf7\x9c{\x7f\xe7\xb9\x1f\x17<\x0cj7\xba\xf7" +
+	"\xbd>\x9c\xfb\xd5\xd9y\x0a\x12,\x05p\xc3\x096\x80" +
+	"\xda\x19\xfa\xd4\xbe`\xf7\x00\xba\x8f)\x87\xad\xe3\x8b\xd7" +
+	"?\x12\x03'\x091\xc6\x8fj:\xa7\x9f\xdd\xc9\xef@" +
+	"@\xf7\xc5}\xcf\x9c\xbenl\xf6I\x10\xdd\xc8\xe2\xa5" +
+	"\x17':Q[\x95\xa0\x1f\xaeL|\x03\xe8\xee}\xe9" +
+	"k\xfd\xd3\xe1\x05\xcf\xb7\xe3\xa1'\xafDm\xca\xbb\xa5" +
+	"\x9a$\x1e?\x9dS\x0e\xfd\xb2\xf8\xabW\xa9\xb4\x12\xa2" +
+	"\x15\x8fi\xf2K\xed{\x0f\xfbm\x92\x0a\xffV\xcb\x9d" +
+	"\x90=3\xaf\x116Z\x19\xa9\xf2\xa1\x14C\xed\xc3\x14" +
+	"\xa1\x8f\xa7\xa8\xf2\xb6\xdd\x1f=\xfd`\xf9\xf0\x9b1\x1a" +
+	"\xd4\x97\xd6\xdfqR[\xd5\xe1Q\xee\xd8\x0f\xe8^s" +
+	"\xfe\xf4\xdb\x17>[v\xaa\x1deL\xf7\xa1\xa6\xa6\x09" +
+	"\xdc\x9d\xa6\xc2\x1f\x17\x16\xad\x1fT\xde\xfa!\xae\x06\xd1" +
+	"\xd0\x1eH\x7f\xa7=\xe1\x81\x1fMS\xe5\x17\xac\xda\xe0" +
+	"\xfc\xc6\xe7?\xb7\xa9\xac\xc9\xce\xa3\xdaT\xa7\xa7E'" +
+	"\x15.\x1f\x9d\x9a\\sD\xbb\x10\xef\xcf\xa3|E\xd7" +
+	"I\xed\xda.\xfa\x9a\xdfEb\xec>\xb6\xf9\xdd\xe5;" +
+	"\xae\xfe\xbd-\x0b\xcc\x9c\xd7\xba3\xf4\x95\xce\xec\x87\x15" +
+	"\xaeQ\xafm1'\x97\x18\\\xb7j\xd6\xc0Z\xb3\xe1" +
+	"\xd4'm\xbd\xbaA\x1aN\xdd\x1e\x91\x8e=h\x1a%" +
+	"K\x1aED\xd1\xc1\x15\x00\x05\x01\xd4E\x9b\x00\xc4B" +
+	"\x8eb\x19C\x151\x87t\xd8O\x87K9\x8au\x0c" +
+	"\xdd\xaatl\xfa%pi`6\xcc\x09 f\x01\xdd" +
+	"\x8a>.+\xb7\xebU\xe0\xb2\x81\xff\x03,r\xc4\x0c" +
+	"0\xfa\x0c(1\x8f\xd2\x88_H\x1a\x0d\x00b\xf1\xff" +
+	"\x80\xc5\xde\xbb\x01\xc4\x1e\x8e\xe2`\x84\xc5\x81g\x01\xc4" +
+	"A\x8e\xe2\x03\x86*c9d\x00\xeaq\xa2v\x8c\xa3" +
+	"8\xcbP\xe5<\x87\x1c@=\xb3\x0b@\x9c\xe5XR" +
+	"\x90\xa1\xaa(9TH \xdc\x0e0\x8a\x1cK\xf3\xe8" +
+	"8\x91\xc8a\x82D\xc6\x97\x01J\xf3\xe8|\x052\"" +
+	"9]s\xa4]\x82\x1eb\xd6j!\x1b\x8a\x0f\xe87" +
+	"\xe3\xe16\xa0'h\xc9\x92<\x8a\x0e\xd2\xe5\xa3'\xf5" +
+	"\xe9IY\xb2$\\\x84\x0ab\x15Em\x90\x066+" +
+	"\x920!8\x981\x1f\\\xf6-\x85\xc1j\xe9b\xaa" +
+	"QO\xa2H\xf4\xdd/\xc5Z\x0b\xb6H\xd0Z\xdb\xe8" +
+	"\x84\x865\xfd\xca\x06~\xe9\xa3\x00\xe2.\x8e\xa2\x12\xf1" +
+	"\xcb\x1c\x06\x10e\x8e\xc2a\x88\xbe]S}\xeaT\xaf" +
+	"\xd8\xe7;\xcb\xb1\xe9\xd7\x81[\x00\xc4+\x1c\xc5\x11\x86" +
+	"nC\xda\xdbLC\x0e\x01N`\x1a\x18\xa6\xa1\x95\xb9" +
+	"\xa1\x09\x00h\x9d\xf5\x94e\xc5\x12\x0a2w\xf3S\xcf" +
+	"\x897>\xd9u\x08\x84\xc2\xf0\xe6\x85\x147\xe8\xc7w" +
+	"\xd0]++V\xde\xb2\xeb\xc9m\xe6\x84l\xe4\xcd\xda" +
+	"\x96\xba]\xd5\x1d\xb3^\xcb\xeb\xe3\xf5i'\xef\x94\xcd" +
+	"F\xbeY{I~D\xafM\xe8N\xdd\x9e\x9dO\xb7" +
+	"Pd3\x80;\xc6\xa7\x8d\xad\xd2\x09\xb4\xea\x8a%\xb9" +
+	"\xa9\xd0\xad\xbem\xfe`\x91F\xfc\x1f\x0fV4\x1b\x97" +
+	"6X\xa3\xc5B\xa9)b)\xe5\x0fx\xc4\xaa\xe1v" +
+	"V]\x0f &8\x0a+2ZU2\xb5\xc2Q\xcc" +
+	"\x90U\x99\xa6U\xd3}\x00\xc2\xe2(\xeee\xe8N\xd4" +
+	"\xab\xbaY\x1bZ\x1d\xb1\xa5W\xb7\xac\xa1\xd0\xb86f" +
+	"\xf6Xu\xdb\xc1\x140L\xcd\x11\xb2\xa9^\xa3\xc5\x9e" +
+	"\x92\x16Sq8T1\x10q\xdc\x17\xf1F\x86n\xd9" +
+	"q\xacb\xddv\x88R\xeb\x8e@\xd8\x14\xa5>\x1b\xbe" +
+	"\x83\xbe\xb2s\xd4+TLYs\x02\x133\xc1\xf5k" +
+	"\xb6\xd3\xbb\xcbQ\x14#\xe2\x8d\x90\x89\xeb8\x8a\x8d\x11" +
+	"\xf1\xc6\x06\xd4\xb1^1\xc3Q<\xc4\xd0\xb5-\xc3\xeb" +
+	"\x09\x06\x9b]a6|\x04[$\xbc;\x0b\x12\xb8\xed" +
+	"`6|C\x9a\x7f\x1e4\xf4\x82\xb4\x9d6y\xcfy" +
+	"yWq\xa7[\\3\x92\xdfbV$\xe6\x9b9'" +
+	"\x09\xba\x81a\xf7\x1c\x99\x0b\xfe\xea\x8a$\xb6\xe72<" +
+	"\x05\xd1\x0dyi\x89\xf5\x06(F$\xa2\xfah;\xd5" +
+	"\x87C\xd5[\xdbe\xac\x8fD\x7f\x9c\xa3\xd8\xf3o[" +
+	"$\xb1\x867._\xba\xf269[\xd4M\x1b\xe2\x11" +
+	"\xbfJ]\xd4\x1b\xe4\xa9\xd5n\xb35?O\xa9\xadr" +
+	"\xf6\xefF\xa1\xc7\xb8\x1c9\xbah\xd1H;\x18\x95\xc8" +
+	"\x9e\xd9\xden\xcfl\x0a\x9f\x84`T\xa6\x06\xc2=\x83" +
+	"\xfe\x0b>M\xee:\x1c\xc5\xfd\x7fmz\x1a\x1e\x8d?" +
+	"\x99\x9e\xa0\x8b\xaa>S\xa8\xd7j\x0d\xea\xac\x03\x18v" +
+	"\xcc\xe9\xcc\x9f\x90\xd8\xbfI\xff\xadH\xfe\x11\x00\x00\xff" +
+	"\xff:+\x1f\x92"
 
 func init() {
 	schemas.Register(schema_db8274f9144abc7e,
+		0x8527f1eb82ceeb98,
+		0x88542dcd70c6048b,
+		0x8e79552fdf96a8a7,
+		0xa2274ad761e6a999,
 		0xb6e32df5c504ebf2,
 		0xb9780f65d5146efb,
 		0xbec6688394d29776,
+		0xdb34d9fcc1dffa24,
+		0xeebf043f542943d3,
 		0xf4dd73213f6e70a6,
-		0xfc13c8456771ca68)
+		0xfc13c8456771ca68,
+		0xfe237f35c45ecc97)
 }

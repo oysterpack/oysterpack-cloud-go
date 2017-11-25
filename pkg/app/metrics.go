@@ -16,17 +16,11 @@ package app
 
 import (
 	"os"
+
 	"sync"
-
-	"fmt"
-	"net/http"
-
-	"context"
-	"time"
 
 	"github.com/oysterpack/oysterpack.go/pkg/app/config"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 const (
@@ -34,11 +28,22 @@ const (
 	DEFAULT_METRICS_HTTP_PORT uint16 = 4444
 )
 
+// metrics
 var (
-	metricsMutex sync.RWMutex
+	metricsServiceMutex        sync.Mutex
+	metricsServiceBootstrapped = false
 
-	// Registry is the global registry
-	registry = NewMetricsRegistry(true)
+	// global metrics registry
+	metricsRegistry = NewMetricsRegistry(true)
+
+	counters       = make(map[ServiceID]map[MetricID]*CounterMetric)
+	counterVectors = make(map[ServiceID]map[MetricID]*CounterVectorMetric)
+
+	gauges       = make(map[ServiceID]map[MetricID]*GaugeMetric)
+	gaugeVectors = make(map[ServiceID]map[MetricID]*GaugeVectorMetric)
+
+	histograms       = make(map[ServiceID]map[MetricID]*HistogramMetric)
+	histogramVectors = make(map[ServiceID]map[MetricID]*HistogramVectorMetric)
 )
 
 // NewRegistry creates a new registry.
@@ -54,122 +59,305 @@ func NewMetricsRegistry(collectProcessMetrics bool) *prometheus.Registry {
 	return registry
 }
 
-func MetricsRegistry() *prometheus.Registry {
-	metricsMutex.RLock()
-	defer metricsMutex.RUnlock()
-	return registry
+type MetricSpec struct {
+	ServiceID
+	MetricID
+	Help string
 }
 
-// ResetMetricsRegistry creates a new registry.
-// The main use case is for unit testing.
-func ResetMetricsRegistry() {
-	metricsMutex.Lock()
-	defer metricsMutex.Unlock()
-	registry = NewMetricsRegistry(true)
+type MetricVectorSpec struct {
+	MetricSpec
+	DynamicLabels []string
 }
 
-// if the metrics HTTP server fails to start, then this is considered a fatal error, which will terminate the process.
-func startMetricsHttpReporter() {
-	svc := NewService(METRICS_SERVICE_ID)
-	if err := RegisterService(svc); err != nil {
-		METRICS_HTTP_REPORTER_START_ERROR.Log(Logger().Fatal()).Err(err).Msg("")
-	}
-	metricsService := &metricsHttpReporter{
-		Service: svc,
-		port:    metricsReporterHttpPort(),
-	}
-
-	if err := metricsService.start(); err != nil {
-		METRICS_HTTP_REPORTER_START_ERROR.Log(Logger().Fatal()).Err(err).Msg("")
-	}
-}
-
-func metricsReporterHttpPort() uint16 {
-	cfg, err := Config(METRICS_SERVICE_ID)
+func NewCounterMetricSpec(spec config.CounterMetricSpec) (CounterMetricSpec, error) {
+	help, err := spec.Help()
 	if err != nil {
-		switch err := err.(type) {
-		case ServiceConfigNotExistError:
-			return DEFAULT_METRICS_HTTP_PORT
-		default:
-			METRICS_HTTP_REPORTER_CONFIG_ERROR.Log(Logger().Fatal()).Err(err).Msg("")
+		return CounterMetricSpec{}, err
+	}
+	return CounterMetricSpec{
+		ServiceID: ServiceID(spec.ServiceId()),
+		MetricID:  MetricID(spec.MetricId()),
+		Help:      help,
+	}, nil
+}
+
+type CounterMetricSpec MetricSpec
+
+func (a CounterMetricSpec) CounterOpts() prometheus.CounterOpts {
+	return prometheus.CounterOpts{
+		Name:        a.MetricID.Hex(),
+		Help:        a.Help,
+		ConstLabels: a.ServiceID.MetricSpecLabels(),
+	}
+}
+
+func NewCounterVectorMetricSpec(spec config.CounterVectorMetricSpec) (*CounterVectorMetricSpec, error) {
+	counterSpec, err := spec.MetricSpec()
+	if err != nil {
+		return nil, err
+	}
+	counterMetricSpec, err := NewCounterMetricSpec(counterSpec)
+	if err != nil {
+		return nil, err
+	}
+	labelNamesList, err := spec.LabelNames()
+	if err != nil {
+		return nil, err
+	}
+	labels := make([]string, labelNamesList.Len())
+	for i := 0; i < len(labels); i++ {
+		labels[i], err = labelNamesList.At(i)
+		if err != nil {
+			METRICS_SERVICE_CONFIG_ERROR.Log(Logger().Fatal()).Err(err).Msgf("Failed to read CounterVectorMetricSpec.LabelNames[%d] field", i)
 		}
 	}
-	metricsServiceConfig, err := config.ReadRootMetricsServiceSpec(cfg)
+	return &CounterVectorMetricSpec{MetricSpec: MetricSpec(counterMetricSpec), DynamicLabels: labels}, nil
+}
+
+type CounterVectorMetricSpec MetricVectorSpec
+
+func (a CounterVectorMetricSpec) CounterOpts() prometheus.CounterOpts {
+	return prometheus.CounterOpts{
+		Name:        a.MetricID.Hex(),
+		Help:        a.Help,
+		ConstLabels: a.ServiceID.MetricSpecLabels(),
+	}
+}
+
+func NewGaugeMetricSpec(spec config.GaugeMetricSpec) (GaugeMetricSpec, error) {
+	help, err := spec.Help()
 	if err != nil {
-		METRICS_HTTP_REPORTER_CONFIG_ERROR.Log(Logger().Fatal()).Err(err).Msg("")
+		return GaugeMetricSpec{}, err
 	}
-	if metricsServiceConfig.HttpPort() == 0 {
-		return DEFAULT_METRICS_HTTP_PORT
-	}
-	return metricsServiceConfig.HttpPort()
+	return GaugeMetricSpec{
+		ServiceID: ServiceID(spec.ServiceId()),
+		MetricID:  MetricID(spec.MetricId()),
+		Help:      help,
+	}, nil
 }
 
-// metricsHttpReporter is used to expose metrics to Prometheus via HTTP
-type metricsHttpReporter struct {
-	sync.Mutex
-	*Service
-	httpServer *http.Server
-	port       uint16
+type GaugeMetricSpec MetricSpec
+
+func (a GaugeMetricSpec) GaugeOpts() prometheus.GaugeOpts {
+	return prometheus.GaugeOpts{
+		Name:        a.MetricID.Hex(),
+		Help:        a.Help,
+		ConstLabels: a.ServiceID.MetricSpecLabels(),
+	}
 }
 
-func (a *metricsHttpReporter) start() error {
-	if !a.Alive() {
-		return ErrServiceNotAlive
+func NewGaugeVectorMetricSpec(spec config.GaugeVectorMetricSpec) (*GaugeVectorMetricSpec, error) {
+	gaugeSpec, err := spec.MetricSpec()
+	if err != nil {
+		return nil, err
 	}
-	a.Lock()
-	defer a.Unlock()
-	if a.httpServer != nil {
-		return nil
+	gaugeMetricSpec, err := NewGaugeMetricSpec(gaugeSpec)
+	if err != nil {
+		return nil, err
 	}
-	a.startHttpServer()
-	a.httpServer.RegisterOnShutdown(func() {
-		if a.Alive() {
-			METRICS_HTTP_REPORTER_SHUTDOWN_WHILE_SERVICE_RUNNING.Log(a.Logger().Error()).Msg("Metrics HTTP server shutdown, but service is still alive.")
-			a.Lock()
-			defer a.Unlock()
-			a.httpServer.Close()
-			a.startHttpServer()
+	labelNamesList, err := spec.LabelNames()
+	if err != nil {
+		return nil, err
+	}
+	labels := make([]string, labelNamesList.Len())
+	for i := 0; i < len(labels); i++ {
+		labels[i], err = labelNamesList.At(i)
+		if err != nil {
+			METRICS_SERVICE_CONFIG_ERROR.Log(Logger().Fatal()).Err(err).Msgf("Failed to read GaugeVectorMetricSpec.LabelNames[%d] field", i)
 		}
-	})
-	a.Go(func() error {
-		<-a.Dying()
-		a.stop()
-		return nil
-	})
-	return nil
-}
-
-func (a *metricsHttpReporter) startHttpServer() {
-	metricsHandler := promhttp.HandlerFor(
-		MetricsRegistry(),
-		promhttp.HandlerOpts{
-			ErrorLog:      a,
-			ErrorHandling: promhttp.ContinueOnError,
-		},
-	)
-	http.Handle("/metrics", metricsHandler)
-	a.httpServer = &http.Server{
-		Addr: fmt.Sprintf(":%d", a.port),
 	}
-	go a.httpServer.ListenAndServe()
-	a.Logger().Info().Str("addr", a.httpServer.Addr).Msg("Metrics HTTP server started")
+	return &GaugeVectorMetricSpec{MetricSpec: MetricSpec(gaugeMetricSpec), DynamicLabels: labels}, nil
 }
 
-func (a *metricsHttpReporter) stop() {
-	a.Lock()
-	defer a.Unlock()
-	background := context.Background()
-	shutdownContext, cancel := context.WithTimeout(background, time.Second*10)
-	defer cancel()
-	if err := a.httpServer.Shutdown(shutdownContext); err != nil {
-		METRICS_HTTP_REPORTER_SHUTDOWN_ERROR.Log(a.Logger().Warn()).Err(NewMetricsServiceError(err)).Msg("Error during HTTP server shutdown.")
-		a.httpServer.Close()
+type GaugeVectorMetricSpec MetricVectorSpec
+
+func (a GaugeVectorMetricSpec) GaugeOpts() prometheus.GaugeOpts {
+	return prometheus.GaugeOpts{
+		Name:        a.MetricID.Hex(),
+		Help:        a.Help,
+		ConstLabels: a.ServiceID.MetricSpecLabels(),
 	}
-	a.httpServer = nil
 }
 
-// Println implements promhttp.Logger interface.
-// It is used to log any errors reported by the prometheus http handler
-func (a *metricsHttpReporter) Println(v ...interface{}) {
-	a.Logger().Error().Msg(fmt.Sprint(v))
+func NewHistogramMetricSpec(spec config.HistogramMetricSpec) (HistogramMetricSpec, error) {
+	metricSpec := func() (MetricSpec, error) {
+		help, err := spec.Help()
+		if err != nil {
+			return MetricSpec{}, err
+		}
+		return MetricSpec{
+			ServiceID: ServiceID(spec.ServiceId()),
+			MetricID:  MetricID(spec.MetricId()),
+			Help:      help,
+		}, nil
+	}
+
+	bucketList, err := spec.Buckets()
+	if err != nil {
+		return HistogramMetricSpec{}, err
+	}
+
+	buckets := make([]float64, bucketList.Len())
+	for i := 0; i < len(buckets); i++ {
+		buckets[i] = bucketList.At(i)
+	}
+	histogramMetricSpec, err := metricSpec()
+	if err != nil {
+		return HistogramMetricSpec{}, err
+	}
+	return HistogramMetricSpec{
+		MetricSpec: histogramMetricSpec,
+		Buckets:    buckets,
+	}, nil
+}
+
+type HistogramMetricSpec struct {
+	MetricSpec
+	Buckets []float64
+}
+
+func (a HistogramMetricSpec) HistogramOpts() prometheus.HistogramOpts {
+	return prometheus.HistogramOpts{
+		Name:        a.MetricID.Hex(),
+		Help:        a.Help,
+		ConstLabels: a.ServiceID.MetricSpecLabels(),
+		Buckets:     a.Buckets,
+	}
+}
+
+func NewHistogramVectorMetricSpec(spec config.HistogramVectorMetricSpec) (*HistogramVectorMetricSpec, error) {
+	histogramMetricSpec, err := spec.MetricSpec()
+	if err != nil {
+		return nil, err
+	}
+	metricSpec, err := NewHistogramMetricSpec(histogramMetricSpec)
+	if err != nil {
+		return nil, err
+	}
+	labelNamesList, err := spec.LabelNames()
+	if err != nil {
+		return nil, err
+	}
+	labels := make([]string, labelNamesList.Len())
+	return &HistogramVectorMetricSpec{
+		MetricVectorSpec: &MetricVectorSpec{metricSpec.MetricSpec, labels},
+		Buckets:          metricSpec.Buckets,
+	}, nil
+}
+
+type HistogramVectorMetricSpec struct {
+	*MetricVectorSpec
+	Buckets []float64
+}
+
+func (a HistogramVectorMetricSpec) HistogramOpts() prometheus.HistogramOpts {
+	return prometheus.HistogramOpts{
+		Name:        a.MetricID.Hex(),
+		Help:        a.Help,
+		ConstLabels: a.ServiceID.MetricSpecLabels(),
+		Buckets:     a.Buckets,
+	}
+}
+
+type CounterMetric struct {
+	*CounterMetricSpec
+	prometheus.Counter
+}
+
+func (a *CounterMetric) Register() {
+	metrics := counters[a.ServiceID]
+	if metrics == nil {
+		metrics = make(map[MetricID]*CounterMetric)
+		counters[a.ServiceID] = metrics
+	}
+	if _, exists := metrics[a.MetricID]; !exists {
+		metricsRegistry.MustRegister(a.Counter)
+		metrics[a.MetricID] = a
+	}
+}
+
+type CounterVectorMetric struct {
+	*CounterVectorMetricSpec
+	*prometheus.CounterVec
+}
+
+func (a *CounterVectorMetric) Register() {
+	metrics := counterVectors[a.ServiceID]
+	if metrics == nil {
+		metrics = make(map[MetricID]*CounterVectorMetric)
+		counterVectors[a.ServiceID] = metrics
+	}
+	if _, exists := metrics[a.MetricID]; !exists {
+		metricsRegistry.MustRegister(a.CounterVec)
+		metrics[a.MetricID] = a
+	}
+}
+
+type GaugeMetric struct {
+	*GaugeMetricSpec
+	prometheus.Gauge
+}
+
+func (a *GaugeMetric) Register() {
+	metrics := gauges[a.ServiceID]
+	if metrics == nil {
+		metrics = make(map[MetricID]*GaugeMetric)
+		gauges[a.ServiceID] = metrics
+	}
+	if _, exists := metrics[a.MetricID]; !exists {
+		metricsRegistry.MustRegister(a.Gauge)
+		metrics[a.MetricID] = a
+	}
+}
+
+type GaugeVectorMetric struct {
+	*GaugeVectorMetricSpec
+	*prometheus.GaugeVec
+}
+
+func (a *GaugeVectorMetric) Register() {
+	metrics := gaugeVectors[a.ServiceID]
+	if metrics == nil {
+		metrics = make(map[MetricID]*GaugeVectorMetric)
+		gaugeVectors[a.ServiceID] = metrics
+	}
+	if _, exists := metrics[a.MetricID]; !exists {
+		metricsRegistry.MustRegister(a.GaugeVec)
+		metrics[a.MetricID] = a
+	}
+}
+
+type HistogramMetric struct {
+	*HistogramMetricSpec
+	prometheus.Histogram
+}
+
+func (a *HistogramMetric) Register() {
+	metrics := histograms[a.ServiceID]
+	if metrics == nil {
+		metrics = make(map[MetricID]*HistogramMetric)
+		histograms[a.ServiceID] = metrics
+	}
+	if _, exists := metrics[a.MetricID]; !exists {
+		metricsRegistry.MustRegister(a.Histogram)
+		metrics[a.MetricID] = a
+	}
+}
+
+type HistogramVectorMetric struct {
+	*HistogramVectorMetricSpec
+	*prometheus.HistogramVec
+}
+
+func (a *HistogramVectorMetric) Register() {
+	metrics := histogramVectors[a.ServiceID]
+	if metrics == nil {
+		metrics = make(map[MetricID]*HistogramVectorMetric)
+		histogramVectors[a.ServiceID] = metrics
+	}
+	if _, exists := metrics[a.MetricID]; !exists {
+		metricsRegistry.MustRegister(a.HistogramVec)
+		metrics[a.MetricID] = a
+	}
 }

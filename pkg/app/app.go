@@ -338,17 +338,6 @@ func GetRPCService(id ServiceID) (*RPCService, error) {
 	}
 }
 
-// Reset is exposed only for testing purposes.
-// Reset will kill the app, and then restart the app server.
-func Reset() {
-	app.Kill(nil)
-	app.Wait()
-
-	app = tomb.Tomb{}
-	runAppServer()
-	APP_RESET.Log(logger.Info()).Msg("reset")
-}
-
 // Alive returns true if the app is still alive
 func Alive() bool {
 	return app.Alive()

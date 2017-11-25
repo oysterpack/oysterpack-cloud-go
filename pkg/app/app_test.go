@@ -150,8 +150,19 @@ func TestRegisterService(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(ids) != 0 {
-		t.Errorf("There should not be any services registered.")
+	t.Logf("service ids : %v", ids)
+	if len(ids) == 0 {
+		t.Errorf("expected the metrics service to be automatically registered")
+	}
+	initialServiceCount := len(ids)
+	metricsService, err := app.GetService(app.METRICS_SERVICE_ID)
+	if err != nil {
+		t.Error(err)
+	} else {
+		if !metricsService.Alive() {
+			t.Error("Metrics service should be alive")
+		}
+		t.Logf("Metrics Service : %s", metricsService.ID().Hex())
 	}
 
 	// When a service is registered
@@ -165,12 +176,20 @@ func TestRegisterService(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if len(ids) != 1 {
-		t.Errorf("There should only be 1 service registered at this point")
+	if len(ids) != initialServiceCount+1 {
+		t.Errorf("Service count is wrong : %d != %d", len(ids), initialServiceCount+1)
 	}
-	if ids[0] != service.ID() {
+	serviceIDFound := false
+	for _, id := range ids {
+		if id == service.ID() {
+			serviceIDFound = true
+			break
+		}
+	}
+	if !serviceIDFound {
 		t.Errorf("Returned service id does not match : %v", ids)
 	}
+
 	// And the service can be retrieved
 	if service2, err := app.GetService(service.ID()); err != nil {
 		t.Error(err)
@@ -195,13 +214,13 @@ func TestRegisterService(t *testing.T) {
 		}
 	}
 
-	// And no ServiceIDs should be returned
+	// And no ServiceIDs should be returned except for the app default provided services - Metrics service
 	ids, err = app.ServiceIDs()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(ids) != 0 {
-		t.Errorf("There should not be any services registered.")
+	if len(ids) != initialServiceCount {
+		t.Errorf("Service count does not match : %d != %d", len(ids), initialServiceCount)
 	}
 
 	// When an attempt to register a service that is already registered is made
@@ -240,13 +259,13 @@ func TestGetService(t *testing.T) {
 
 	// When the app is reset, it is effectively restarted
 	app.Reset()
-	// And no ServiceIDs should be returned
+	// And no ServiceIDs should be returned except for the app default provided services - Metrics service
 	ids, err := app.ServiceIDs()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(ids) != 0 {
-		t.Errorf("There should not be any services registered.")
+	if len(ids) != 1 || ids[0] != app.METRICS_SERVICE_ID {
+		t.Errorf("There should only be app infrastructure services registered")
 	}
 }
 

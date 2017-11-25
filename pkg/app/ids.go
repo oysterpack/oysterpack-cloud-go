@@ -15,14 +15,21 @@
 package app
 
 import (
+	"fmt"
+
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/rs/zerolog"
 )
 
 // DomainID is unique ID assigned to a domain
 type DomainID uint64
 
+func (a DomainID) Hex() string { return hex(uint64(a)) }
+
 // AppID unique application ID
 type AppID uint64
+
+func (a AppID) Hex() string { return hex(uint64(a)) }
 
 // InstanceID is the unique id for an app instance. There may be multiple instances, i.e., processes,  of an app running.
 // The instance id is used to differentiate the different app instances. For examples, logs and metrics will contain the instance id.
@@ -31,11 +38,25 @@ type InstanceID string
 // ReleaseID is a unique ID assigned to an application release
 type ReleaseID uint64
 
+func (a ReleaseID) Hex() string { return hex(uint64(a)) }
+
 // ServiceID unique service ID
 type ServiceID uint64
 
+func (a ServiceID) Hex() string { return hex(uint64(a)) }
+
+func (a ServiceID) MetricSpecLabels() prometheus.Labels {
+	return prometheus.Labels{
+		"domain": Domain().Hex(),
+		"app":    ID().Hex(),
+		"svc":    a.Hex(),
+	}
+}
+
 // ErrorID unique error id
 type ErrorID uint64
+
+func (a ErrorID) Hex() string { return hex(uint64(a)) }
 
 // LogEventID
 type LogEventID uint64
@@ -45,8 +66,16 @@ func (a LogEventID) Log(event *zerolog.Event) *zerolog.Event {
 	return event.Uint64("event", uint64(a))
 }
 
+func (a LogEventID) Hex() string { return hex(uint64(a)) }
+
 // MetricID unique error id
 type MetricID uint64
 
+func (a MetricID) Hex() string { return hex(uint64(a)) }
+
 // HealthCheckID unique healthcheck id
 type HealthCheckID uint64
+
+func (a HealthCheckID) Hex() string { return hex(uint64(a)) }
+
+func hex(id uint64) string { return fmt.Sprintf("%x", id) }
