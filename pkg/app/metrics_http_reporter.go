@@ -111,10 +111,9 @@ func (a *metricsHttpReporter) start() error {
 
 // config errors are treated as fatal errors
 func (a *metricsHttpReporter) bootstrap() {
-	metricsServiceMutex.Lock()
-	defer metricsServiceMutex.Unlock()
-
 	registerMetricsHandler := func() {
+		metricsServiceMutex.Lock()
+		defer metricsServiceMutex.Unlock()
 		if metricsServiceBootstrapped {
 			// registering the handler again using to the same /metrics endpoint would cause http.Handle() to panic
 			return
@@ -130,64 +129,64 @@ func (a *metricsHttpReporter) bootstrap() {
 		metricsServiceBootstrapped = true
 	}
 
-	toCounterMetricSpec := func(spec config.CounterMetricSpec) CounterMetricSpec {
-		counterSpec, err := NewCounterMetricSpec(spec)
-		if err != nil {
-			METRICS_SERVICE_CONFIG_ERROR.Log(Logger().Fatal()).Err(err).
-				Uint64("svc", spec.ServiceId()).
-				Uint64("metric", spec.MetricId()).
-				Msg("Failed to read Help field")
-		}
-		return counterSpec
-	}
-
-	toCounterVectorMetricSpec := func(spec config.CounterVectorMetricSpec) *CounterVectorMetricSpec {
-		counterSpec, err := NewCounterVectorMetricSpec(spec)
-		if err != nil {
-			METRICS_SERVICE_CONFIG_ERROR.Log(Logger().Fatal()).Err(err).Msg("Failed to read CounterVectorMetricSpec.MetricSpec field")
-		}
-		return counterSpec
-	}
-
-	toGaugeMetricSpec := func(spec config.GaugeMetricSpec) GaugeMetricSpec {
-		gaugeSpec, err := NewGaugeMetricSpec(spec)
-		if err != nil {
-			METRICS_SERVICE_CONFIG_ERROR.Log(Logger().Fatal()).Err(err).
-				Uint64("svc", spec.ServiceId()).
-				Uint64("metric", spec.MetricId()).
-				Msg("Failed to read Help field")
-		}
-		return gaugeSpec
-	}
-
-	toGaugeVectorMetricSpec := func(spec config.GaugeVectorMetricSpec) *GaugeVectorMetricSpec {
-		gaugeSpec, err := NewGaugeVectorMetricSpec(spec)
-		if err != nil {
-			METRICS_SERVICE_CONFIG_ERROR.Log(Logger().Fatal()).Err(err).Msg("Failed to read GaugeVectorMetricSpec.MetricSpec field")
-		}
-		return gaugeSpec
-	}
-
-	toHistogramMetricSpec := func(spec config.HistogramMetricSpec) HistogramMetricSpec {
-		histogramSpec, err := NewHistogramMetricSpec(spec)
-		if err != nil {
-			METRICS_SERVICE_CONFIG_ERROR.Log(Logger().Fatal()).Err(err).
-				Uint64("svc", spec.ServiceId()).
-				Uint64("metric", spec.MetricId()).
-				Msg("")
-		}
-		return histogramSpec
-	}
-
-	toHistogramVectorMetricSpec := func(spec config.HistogramVectorMetricSpec) *HistogramVectorMetricSpec {
-		histogramMetricSpec, err := NewHistogramVectorMetricSpec(spec)
-		if err != nil {
-			METRICS_SERVICE_CONFIG_ERROR.Log(Logger().Fatal()).Err(err).Msg("")
-		}
-		return histogramMetricSpec
-	}
-
 	registerMetrics := func() {
+		toCounterMetricSpec := func(spec config.CounterMetricSpec) CounterMetricSpec {
+			counterSpec, err := NewCounterMetricSpec(spec)
+			if err != nil {
+				METRICS_SERVICE_CONFIG_ERROR.Log(Logger().Fatal()).Err(err).
+					Uint64("svc", spec.ServiceId()).
+					Uint64("metric", spec.MetricId()).
+					Msg("Failed to read Help field")
+			}
+			return counterSpec
+		}
+
+		toCounterVectorMetricSpec := func(spec config.CounterVectorMetricSpec) *CounterVectorMetricSpec {
+			counterSpec, err := NewCounterVectorMetricSpec(spec)
+			if err != nil {
+				METRICS_SERVICE_CONFIG_ERROR.Log(Logger().Fatal()).Err(err).Msg("Failed to read CounterVectorMetricSpec.MetricSpec field")
+			}
+			return counterSpec
+		}
+
+		toGaugeMetricSpec := func(spec config.GaugeMetricSpec) GaugeMetricSpec {
+			gaugeSpec, err := NewGaugeMetricSpec(spec)
+			if err != nil {
+				METRICS_SERVICE_CONFIG_ERROR.Log(Logger().Fatal()).Err(err).
+					Uint64("svc", spec.ServiceId()).
+					Uint64("metric", spec.MetricId()).
+					Msg("Failed to read Help field")
+			}
+			return gaugeSpec
+		}
+
+		toGaugeVectorMetricSpec := func(spec config.GaugeVectorMetricSpec) *GaugeVectorMetricSpec {
+			gaugeSpec, err := NewGaugeVectorMetricSpec(spec)
+			if err != nil {
+				METRICS_SERVICE_CONFIG_ERROR.Log(Logger().Fatal()).Err(err).Msg("Failed to read GaugeVectorMetricSpec.MetricSpec field")
+			}
+			return gaugeSpec
+		}
+
+		toHistogramMetricSpec := func(spec config.HistogramMetricSpec) HistogramMetricSpec {
+			histogramSpec, err := NewHistogramMetricSpec(spec)
+			if err != nil {
+				METRICS_SERVICE_CONFIG_ERROR.Log(Logger().Fatal()).Err(err).
+					Uint64("svc", spec.ServiceId()).
+					Uint64("metric", spec.MetricId()).
+					Msg("")
+			}
+			return histogramSpec
+		}
+
+		toHistogramVectorMetricSpec := func(spec config.HistogramVectorMetricSpec) *HistogramVectorMetricSpec {
+			histogramMetricSpec, err := NewHistogramVectorMetricSpec(spec)
+			if err != nil {
+				METRICS_SERVICE_CONFIG_ERROR.Log(Logger().Fatal()).Err(err).Msg("")
+			}
+			return histogramMetricSpec
+		}
+
 		spec := MetricsServiceSpec()
 		metricSpecs, err := spec.MetricSpecs()
 		if err != nil {
@@ -201,7 +200,7 @@ func (a *metricsHttpReporter) bootstrap() {
 		for i := 0; i < counterSpecs.Len(); i++ {
 			metricSpec := toCounterMetricSpec(counterSpecs.At(i))
 			metric := &CounterMetric{&metricSpec, prometheus.NewCounter(metricSpec.CounterOpts())}
-			metric.Register()
+			metric.register()
 		}
 
 		counterVectorSpecs, err := metricSpecs.CounterVectorSpecs()
@@ -211,7 +210,7 @@ func (a *metricsHttpReporter) bootstrap() {
 		for i := 0; i < counterVectorSpecs.Len(); i++ {
 			metricSpec := toCounterVectorMetricSpec(counterVectorSpecs.At(i))
 			metric := &CounterVectorMetric{metricSpec, prometheus.NewCounterVec(metricSpec.CounterOpts(), metricSpec.DynamicLabels)}
-			metric.Register()
+			metric.register()
 		}
 
 		gaugeSpecs, err := metricSpecs.GaugeSpecs()
@@ -221,7 +220,7 @@ func (a *metricsHttpReporter) bootstrap() {
 		for i := 0; i < gaugeSpecs.Len(); i++ {
 			metricSpec := toGaugeMetricSpec(gaugeSpecs.At(i))
 			metric := &GaugeMetric{&metricSpec, prometheus.NewGauge(metricSpec.GaugeOpts())}
-			metric.Register()
+			metric.register()
 		}
 
 		gaugeVectorSpecs, err := metricSpecs.GaugeVectorSpecs()
@@ -231,7 +230,7 @@ func (a *metricsHttpReporter) bootstrap() {
 		for i := 0; i < gaugeVectorSpecs.Len(); i++ {
 			metricSpec := toGaugeVectorMetricSpec(gaugeVectorSpecs.At(i))
 			metric := &GaugeVectorMetric{metricSpec, prometheus.NewGaugeVec(metricSpec.GaugeOpts(), metricSpec.DynamicLabels)}
-			metric.Register()
+			metric.register()
 		}
 
 		histogramSpecs, err := metricSpecs.HistogramSpecs()
@@ -241,7 +240,7 @@ func (a *metricsHttpReporter) bootstrap() {
 		for i := 0; i < histogramSpecs.Len(); i++ {
 			metricSpec := toHistogramMetricSpec(histogramSpecs.At(i))
 			metric := &HistogramMetric{&metricSpec, prometheus.NewHistogram(metricSpec.HistogramOpts())}
-			metric.Register()
+			metric.register()
 		}
 
 		histogramVectorSpecs, err := metricSpecs.HistogramVectorSpecs()

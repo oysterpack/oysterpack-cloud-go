@@ -25,7 +25,21 @@ func Reset() {
 	app = tomb.Tomb{}
 	runAppServer()
 	runRPCAppServer()
-	metricsRegistry = NewMetricsRegistry(true)
+
+	resetMetrics()
 	startMetricsHttpReporter()
+
 	APP_RESET.Log(logger.Info()).Msg("reset")
+}
+
+func resetMetrics() {
+	metricsServiceMutex.Lock()
+	defer metricsServiceMutex.Unlock()
+	metricsRegistry = NewMetricsRegistry(true)
+	counters = make(map[ServiceID]map[MetricID]*CounterMetric)
+	counterVectors = make(map[ServiceID]map[MetricID]*CounterVectorMetric)
+	gauges = make(map[ServiceID]map[MetricID]*GaugeMetric)
+	gaugeVectors = make(map[ServiceID]map[MetricID]*GaugeVectorMetric)
+	histograms = make(map[ServiceID]map[MetricID]*HistogramMetric)
+	histogramVectors = make(map[ServiceID]map[MetricID]*HistogramVectorMetric)
 }

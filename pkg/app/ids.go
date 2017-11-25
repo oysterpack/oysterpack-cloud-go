@@ -73,6 +73,11 @@ type MetricID uint64
 
 func (a MetricID) Hex() string { return hex(uint64(a)) }
 
+// Name returns the metric formatted name for Prometheus. The name must match the regex : [a-zA-Z_:][a-zA-Z0-9_:]*
+func (a MetricID) PrometheusName(serviceId ServiceID) string {
+	return fmt.Sprintf("op:%x:%x", serviceId, a)
+}
+
 // HealthCheckID unique healthcheck id
 type HealthCheckID uint64
 
