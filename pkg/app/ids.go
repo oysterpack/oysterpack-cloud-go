@@ -17,7 +17,6 @@ package app
 import (
 	"fmt"
 
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/rs/zerolog"
 )
 
@@ -45,14 +44,6 @@ type ServiceID uint64
 
 func (a ServiceID) Hex() string { return hex(uint64(a)) }
 
-func (a ServiceID) MetricSpecLabels() prometheus.Labels {
-	return prometheus.Labels{
-		"domain": Domain().Hex(),
-		"app":    ID().Hex(),
-		"svc":    a.Hex(),
-	}
-}
-
 // ErrorID unique error id
 type ErrorID uint64
 
@@ -75,7 +66,7 @@ func (a MetricID) Hex() string { return hex(uint64(a)) }
 
 // Name returns the metric formatted name for Prometheus. The name must match the regex : [a-zA-Z_:][a-zA-Z0-9_:]*
 func (a MetricID) PrometheusName(serviceId ServiceID) string {
-	return fmt.Sprintf("op:%x:%x", serviceId, a)
+	return fmt.Sprintf("op_%x_%x", serviceId, a)
 }
 
 // HealthCheckID unique healthcheck id

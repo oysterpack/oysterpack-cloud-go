@@ -35,7 +35,7 @@ func Reset() {
 func resetMetrics() {
 	metricsServiceMutex.Lock()
 	defer metricsServiceMutex.Unlock()
-	metricsRegistry = NewMetricsRegistry(true)
+	metricsRegistry = newMetricsRegistry(true)
 	counters = make(map[ServiceID]map[MetricID]*CounterMetric)
 	counterVectors = make(map[ServiceID]map[MetricID]*CounterVectorMetric)
 	gauges = make(map[ServiceID]map[MetricID]*GaugeMetric)
