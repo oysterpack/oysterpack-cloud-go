@@ -15,7 +15,7 @@
 package app
 
 // Histogram looks up a registered HistogramMetric
-func Histogram(serviceId ServiceID, metricID MetricID) *HistogramMetric {
+func (a AppMetricRegistry) Histogram(serviceId ServiceID, metricID MetricID) *HistogramMetric {
 	metrics := histograms[serviceId]
 	if metrics == nil {
 		return nil
@@ -24,7 +24,7 @@ func Histogram(serviceId ServiceID, metricID MetricID) *HistogramMetric {
 }
 
 // HistogramVector looks up a registered HistogramVectorMetric
-func HistogramVector(serviceId ServiceID, metricID MetricID) *HistogramVectorMetric {
+func (a AppMetricRegistry) HistogramVector(serviceId ServiceID, metricID MetricID) *HistogramVectorMetric {
 	metrics := histogramVectors[serviceId]
 	if metrics == nil {
 		return nil
@@ -33,7 +33,7 @@ func HistogramVector(serviceId ServiceID, metricID MetricID) *HistogramVectorMet
 }
 
 // HistogramMetricIds returns all histogram metric ids for the specified service
-func HistogramMetricIds(serviceId ServiceID) []MetricID {
+func (a AppMetricRegistry) HistogramMetricIds(serviceId ServiceID) []MetricID {
 	metrics := histograms[serviceId]
 	metricIds := make([]MetricID, len(metrics))
 	i := 0
@@ -45,7 +45,7 @@ func HistogramMetricIds(serviceId ServiceID) []MetricID {
 }
 
 // HistogramVectorMetricIds returns all histogram vector metric ids for the specified service
-func HistogramVectorMetricIds(serviceId ServiceID) []MetricID {
+func (a AppMetricRegistry) HistogramVectorMetricIds(serviceId ServiceID) []MetricID {
 	metrics := histogramVectors[serviceId]
 	metricIds := make([]MetricID, len(metrics))
 	i := 0
@@ -57,7 +57,7 @@ func HistogramVectorMetricIds(serviceId ServiceID) []MetricID {
 }
 
 // HistogramMetricsByService returns all gauge metric ids grouped by service
-func HistogramMetricsByService() map[ServiceID][]MetricID {
+func (a AppMetricRegistry) HistogramMetricsByService() map[ServiceID][]MetricID {
 	m := map[ServiceID][]MetricID{}
 	i := 0
 	for serviceId, metrics := range histograms {
@@ -73,7 +73,7 @@ func HistogramMetricsByService() map[ServiceID][]MetricID {
 }
 
 // HistogramVectorMetricsByService returns all gauge vector metric ids grouped by service
-func HistogramVectorMetricsByService() map[ServiceID][]MetricID {
+func (a AppMetricRegistry) HistogramVectorMetricsByService() map[ServiceID][]MetricID {
 	m := map[ServiceID][]MetricID{}
 	i := 0
 	for serviceId, metrics := range histogramVectors {

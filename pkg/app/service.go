@@ -23,7 +23,7 @@ func NewService(id ServiceID) *Service {
 	if id == 0 {
 		panic(ErrServiceIDZero)
 	}
-	logLevel := ServiceLogLevel(id)
+	logLevel := Services.LogLevel(id)
 	return &Service{id: id, logger: Logger().With().Uint64("svc", uint64(id)).Logger().Level(logLevel), logLevel: logLevel}
 }
 

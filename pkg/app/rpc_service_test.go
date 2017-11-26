@@ -31,7 +31,7 @@ func TestStartRPCService(t *testing.T) {
 
 	// Given the app RPC service is registered with maxConns = 5
 	appRPCService := app.NewService(app.ServiceID(0xfef711bb74ee4e13))
-	app.RegisterService(appRPCService)
+	app.Services.Register(appRPCService)
 
 	var listenerFactory app.ListenerFactory = func() (net.Listener, error) {
 		return net.Listen("tcp", ":0")
@@ -115,7 +115,7 @@ func TestRPCService_TLS(t *testing.T) {
 
 	// Given the app RPC service is registered with maxConns = 5
 	appRPCService := app.NewService(app.ServiceID(0xfef711bb74ee4e13))
-	app.RegisterService(appRPCService)
+	app.Services.Register(appRPCService)
 
 	var listenerFactory app.ListenerFactory = func() (net.Listener, error) {
 		return net.Listen("tcp", "")
@@ -190,7 +190,7 @@ func BenchmarkRPCService(b *testing.B) {
 
 	// Given the app RPC service is registered with maxConns = 5
 	appRPCService := app.NewService(app.ServiceID(1))
-	app.RegisterService(appRPCService)
+	app.Services.Register(appRPCService)
 
 	var listenerFactory app.ListenerFactory = func() (net.Listener, error) {
 		return net.Listen("tcp", ":0")
@@ -225,7 +225,7 @@ func BenchmarkRPCService(b *testing.B) {
 	app.Reset()
 
 	appRPCService = app.NewService(app.ServiceID(0xfef711bb74ee4e13))
-	app.RegisterService(appRPCService)
+	app.Services.Register(appRPCService)
 
 	var tlsConfigProvider app.TLSConfigProvider = tlsProvider.ServerTLSConfig
 	rpcService, err = app.StartRPCService(appRPCService, listenerFactory, tlsConfigProvider, appRPCMainInterface(), maxConns)

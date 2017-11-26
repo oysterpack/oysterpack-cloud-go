@@ -32,7 +32,7 @@ const (
 
 // if the app RPC server fails to start, then this is considered a fatal error, which will terminate the process.
 func runRPCAppServer() {
-	msg, err := Config(APP_RPC_SERVICE_ID)
+	msg, err := Configs.Config(APP_RPC_SERVICE_ID)
 	if err != nil {
 		switch err := err.(type) {
 		case ServiceConfigNotExistError:
@@ -59,7 +59,7 @@ func runRPCAppServer() {
 
 func startRPCAppServer(listenerFactory ListenerFactory, tlsConfigProvider TLSConfigProvider, maxConns uint) (*RPCService, error) {
 	rpcServer := NewService(APP_RPC_SERVICE_ID)
-	if err := RegisterService(rpcServer); err != nil {
+	if err := Services.Register(rpcServer); err != nil {
 		APP_RPC_START_ERR.Log(Logger().Fatal()).Err(err).Msg("Failed to register app RPC server")
 	}
 
@@ -109,7 +109,7 @@ func (a rpcAppServer) LogLevel(call capnprpc.App_logLevel) error {
 }
 
 func (a rpcAppServer) ServiceIds(call capnprpc.App_serviceIds) error {
-	ids, err := ServiceIDs()
+	ids, err := Services.ServiceIDs()
 	if err != nil {
 		return err
 	}
@@ -126,7 +126,7 @@ func (a rpcAppServer) ServiceIds(call capnprpc.App_serviceIds) error {
 }
 
 func (a rpcAppServer) Service(call capnprpc.App_service) error {
-	service, err := GetService(ServiceID(call.Params.Id()))
+	service, err := Services.Service(ServiceID(call.Params.Id()))
 	if err != nil {
 		return err
 	}
@@ -135,7 +135,7 @@ func (a rpcAppServer) Service(call capnprpc.App_service) error {
 }
 
 func (a rpcAppServer) RpcServiceIds(call capnprpc.App_rpcServiceIds) error {
-	ids, err := RPCServiceIDs()
+	ids, err := RPC.ServiceIDs()
 	if err != nil {
 		return err
 	}
@@ -152,7 +152,7 @@ func (a rpcAppServer) RpcServiceIds(call capnprpc.App_rpcServiceIds) error {
 }
 
 func (a rpcAppServer) RpcService(call capnprpc.App_rpcService) error {
-	service, err := GetRPCService(ServiceID(call.Params.Id()))
+	service, err := RPC.Service(ServiceID(call.Params.Id()))
 	if err != nil {
 		return err
 	}
@@ -216,7 +216,7 @@ func (a rpcServiceServer) Id(call capnprpc.Service_id) error {
 }
 
 func (a rpcServiceServer) LogLevel(call capnprpc.Service_logLevel) error {
-	service, err := GetService(a.ServiceID)
+	service, err := Services.Service(a.ServiceID)
 	if err != nil {
 		return err
 	}
@@ -229,7 +229,7 @@ func (a rpcServiceServer) LogLevel(call capnprpc.Service_logLevel) error {
 }
 
 func (a rpcServiceServer) Alive(call capnprpc.Service_alive) error {
-	service, err := GetService(a.ServiceID)
+	service, err := Services.Service(a.ServiceID)
 	if err != nil {
 		if err == ErrServiceNotRegistered {
 			call.Results.SetAlive(false)
@@ -359,7 +359,7 @@ func (a rpcRPCServiceServer) Id(call capnprpc.RPCService_id) error {
 }
 
 func (a rpcRPCServiceServer) ListenerAlive(call capnprpc.RPCService_listenerAlive) error {
-	service, err := GetRPCService(a.ServiceID)
+	service, err := RPC.Service(a.ServiceID)
 	if err != nil {
 		if err == ErrServiceNotRegistered {
 			call.Results.SetListenerAlive(false)
@@ -380,7 +380,7 @@ func (a rpcRPCServiceServer) ListenerAddress(call capnprpc.RPCService_listenerAd
 }
 
 func (a rpcRPCServiceServer) listenerAddress(s *capnp.Segment) (*capnprpc.NetworkAddress, error) {
-	service, err := GetRPCService(a.ServiceID)
+	service, err := RPC.Service(a.ServiceID)
 	if err != nil {
 		return nil, err
 	}
@@ -399,7 +399,7 @@ func (a rpcRPCServiceServer) listenerAddress(s *capnp.Segment) (*capnprpc.Networ
 }
 
 func (a rpcRPCServiceServer) ActiveConns(call capnprpc.RPCService_activeConns) error {
-	service, err := GetRPCService(a.ServiceID)
+	service, err := RPC.Service(a.ServiceID)
 	if err != nil {
 		return err
 	}
@@ -408,7 +408,7 @@ func (a rpcRPCServiceServer) ActiveConns(call capnprpc.RPCService_activeConns) e
 }
 
 func (a rpcRPCServiceServer) MaxConns(call capnprpc.RPCService_maxConns) error {
-	service, err := GetRPCService(a.ServiceID)
+	service, err := RPC.Service(a.ServiceID)
 	if err != nil {
 		return err
 	}
@@ -419,17 +419,17 @@ func (a rpcRPCServiceServer) MaxConns(call capnprpc.RPCService_maxConns) error {
 type rpcConfigsServer struct{}
 
 func (a rpcConfigsServer) ConfigDir(call capnprpc.Configs_configDir) error {
-	call.Results.SetConfigDir(ConfigDir())
+	call.Results.SetConfigDir(Configs.ConfigDir())
 	return nil
 }
 
 func (a rpcConfigsServer) ConfigDirExists(call capnprpc.Configs_configDirExists) error {
-	call.Results.SetExists(ConfigDirExists())
+	call.Results.SetExists(Configs.ConfigDirExists())
 	return nil
 }
 
 func (a rpcConfigsServer) ServiceIds(call capnprpc.Configs_serviceIds) error {
-	serviceIds, err := ConfigServiceIDs()
+	serviceIds, err := Configs.ConfigServiceIDs()
 	if err != nil {
 		return err
 	}

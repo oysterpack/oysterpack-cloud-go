@@ -30,9 +30,12 @@ import (
 	"zombiezen.com/go/capnproto2"
 )
 
+// AppConfig is used to group together config related functions
+type AppConfig struct{}
+
 // ConfigServiceIDs returns the list of ServiceID(s) for which configs exist
 // The ServiceID is used as the config id.
-func ConfigServiceIDs() ([]ServiceID, error) {
+func (a AppConfig) ConfigServiceIDs() ([]ServiceID, error) {
 	dir, err := os.Open(configDir)
 	if err != nil {
 		if err == os.ErrNotExist {
@@ -66,13 +69,13 @@ func ConfigServiceIDs() ([]ServiceID, error) {
 }
 
 // ServiceConfigID is used to convert the ServiceID into the config id. The config id will be the ServiceID in HEX format.
-func ServiceConfigID(id ServiceID) string {
+func (a AppConfig) ServiceConfigID(id ServiceID) string {
 	return fmt.Sprintf("0x%x", id)
 }
 
 // ServiceConfigExists returns true if a config exists for the specified ServiceID
-func ServiceConfigExists(id ServiceID) bool {
-	f, err := os.Open(serviceConfigPath(id))
+func (a AppConfig) ServiceConfigExists(id ServiceID) bool {
+	f, err := os.Open(a.ServiceConfigPath(id))
 	if err != nil {
 		return false
 	}
@@ -81,12 +84,12 @@ func ServiceConfigExists(id ServiceID) bool {
 }
 
 // ConfigDir returns the config dir path
-func ConfigDir() string {
+func (a AppConfig) ConfigDir() string {
 	return configDir
 }
 
 // ConfigDirExists returns true if the config dir exists
-func ConfigDirExists() bool {
+func (a AppConfig) ConfigDirExists() bool {
 	dir, err := os.Open(configDir)
 	if err != nil {
 		return false
@@ -95,8 +98,9 @@ func ConfigDirExists() bool {
 	return true
 }
 
-func serviceConfigPath(id ServiceID) string {
-	return fmt.Sprintf("%s/%s", configDir, ServiceConfigID(id))
+// ServiceConfigPath returns the service config file path
+func (a AppConfig) ServiceConfigPath(id ServiceID) string {
+	return fmt.Sprintf("%s/%s", configDir, a.ServiceConfigID(id))
 }
 
 // Config returns the config message for the specified ServiceID.
@@ -107,8 +111,8 @@ func serviceConfigPath(id ServiceID) string {
 // errors:
 //	- ServiceConfigNotExistError
 //	- ConfigError - for unmarshalling errors
-func Config(id ServiceID) (*capnp.Message, error) {
-	c, err := ioutil.ReadFile(serviceConfigPath(id))
+func (a AppConfig) Config(id ServiceID) (*capnp.Message, error) {
+	c, err := ioutil.ReadFile(a.ServiceConfigPath(id))
 	if err != nil {
 		if err == os.ErrNotExist {
 			return nil, NewServiceConfigNotExistError(id)

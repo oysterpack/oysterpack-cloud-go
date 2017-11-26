@@ -57,6 +57,18 @@ var (
 	configDir string
 )
 
+// app framework
+var (
+	Services       AppServices
+	RPC            AppRPCServices
+	Configs        AppConfig
+	MetricRegistry AppMetricRegistry
+)
+
+type AppServices struct{}
+
+type AppRPCServices struct{}
+
 func submitCommand(f func()) error {
 	select {
 	case <-app.Dying():
@@ -105,9 +117,9 @@ func LogLevel() zerolog.Level {
 	return appLogLevel
 }
 
-// ServiceLogLevel returns the service log level.
+// LogLevel returns the service log level.
 // The service log level will use the application log level unless it is overridden via the -service-log-level command line flag
-func ServiceLogLevel(id ServiceID) zerolog.Level {
+func (a AppServices) LogLevel(id ServiceID) zerolog.Level {
 	logLevel, ok := serviceLogLevels[id]
 	if ok {
 		return logLevel
@@ -130,12 +142,12 @@ func zerologLevel(logLevel string) zerolog.Level {
 	}
 }
 
-// RegisterService will register the service with the app.
+// Register will register the service with the app.
 //
 // errors:
 //	- ErrAppNotAlive
 //	- ErrServiceAlreadyRegistered
-func RegisterService(s *Service) error {
+func (a AppServices) Register(s *Service) error {
 	if s == nil {
 		return ErrServiceNil
 	}
@@ -166,7 +178,7 @@ func RegisterService(s *Service) error {
 					SERVICE_STOPPING.Log(s.Logger().Info()).Msg("stopping")
 				}
 
-				UnregisterService(s.id)
+				a.Unregister(s.id)
 				return nil
 			}
 		})
@@ -184,12 +196,12 @@ func RegisterService(s *Service) error {
 	}
 }
 
-// UnregisterService will unregister the service for the specified ServiceID
+// Unregister will unregister the service for the specified ServiceID
 //
 // errors:
 //	- ErrAppNotAlive
 //  - ErrServiceNotRegistered
-func UnregisterService(id ServiceID) error {
+func (a AppServices) Unregister(id ServiceID) error {
 	c := make(chan error, 1)
 	if err := submitCommand(func() {
 		service, exists := services[id]
@@ -236,7 +248,7 @@ func logServiceDeath(service *Service) {
 //
 // errors:
 //	- ErrAppNotAlive
-func ServiceIDs() ([]ServiceID, error) {
+func (a AppServices) ServiceIDs() ([]ServiceID, error) {
 	c := make(chan []ServiceID, 1)
 
 	if err := submitCommand(func() {
@@ -259,11 +271,11 @@ func ServiceIDs() ([]ServiceID, error) {
 	}
 }
 
-// GetService will lookup the service for the specified ServiceID
+// Service will lookup the service for the specified ServiceID
 //
 // errors:
 //	- ErrAppNotAlive
-func GetService(id ServiceID) (*Service, error) {
+func (a AppServices) Service(id ServiceID) (*Service, error) {
 	c := make(chan *Service, 1)
 
 	if err := submitCommand(func() {
@@ -283,11 +295,11 @@ func GetService(id ServiceID) (*Service, error) {
 	}
 }
 
-// RPCServiceIDs returns ServiceID(s) for registered RPCService(s)
+// ServiceIDs returns ServiceID(s) for registered RPCService(s)
 //
 // errors:
 //	- ErrAppNotAlive
-func RPCServiceIDs() ([]ServiceID, error) {
+func (a AppRPCServices) ServiceIDs() ([]ServiceID, error) {
 	c := make(chan []ServiceID, 1)
 
 	if err := submitCommand(func() {
@@ -310,12 +322,12 @@ func RPCServiceIDs() ([]ServiceID, error) {
 	}
 }
 
-// GetRPCService returns the registered *RPCService
+// Get returns the registered *RPCService
 //
 // errors :
 // - ErrAppNotAlive
 // - ErrServiceNotRegistered
-func GetRPCService(id ServiceID) (*RPCService, error) {
+func (a AppRPCServices) Service(id ServiceID) (*RPCService, error) {
 	c := make(chan *RPCService, 1)
 
 	submitCommand(func() {

@@ -15,7 +15,7 @@
 package app
 
 // Counter looks up the registered metric.
-func Counter(serviceId ServiceID, metricID MetricID) *CounterMetric {
+func (a AppMetricRegistry) Counter(serviceId ServiceID, metricID MetricID) *CounterMetric {
 	metrics := counters[serviceId]
 	if metrics == nil {
 		return nil
@@ -24,7 +24,7 @@ func Counter(serviceId ServiceID, metricID MetricID) *CounterMetric {
 }
 
 // CounterVec looks up the registered metric.
-func CounterVector(serviceId ServiceID, metricID MetricID) *CounterVectorMetric {
+func (a AppMetricRegistry) CounterVector(serviceId ServiceID, metricID MetricID) *CounterVectorMetric {
 	metrics := counterVectors[serviceId]
 	if metrics == nil {
 		return nil
@@ -33,7 +33,7 @@ func CounterVector(serviceId ServiceID, metricID MetricID) *CounterVectorMetric 
 }
 
 // CounterMetricIds returns the registered metric ids for the specified service id
-func CounterMetricIds(serviceId ServiceID) []MetricID {
+func (a AppMetricRegistry) CounterMetricIds(serviceId ServiceID) []MetricID {
 	metrics := counters[serviceId]
 	metricIds := make([]MetricID, len(metrics))
 	i := 0
@@ -45,7 +45,7 @@ func CounterMetricIds(serviceId ServiceID) []MetricID {
 }
 
 // CounterVectorMetricIds returns the registered metric ids for the specified service id
-func CounterVectorMetricIds(serviceId ServiceID) []MetricID {
+func (a AppMetricRegistry) CounterVectorMetricIds(serviceId ServiceID) []MetricID {
 	metrics := counterVectors[serviceId]
 	metricIds := make([]MetricID, len(metrics))
 	i := 0
@@ -57,7 +57,7 @@ func CounterVectorMetricIds(serviceId ServiceID) []MetricID {
 }
 
 // CounterMetricsIdsPerService returns all counter metric ids grouped by service
-func CounterMetricsIdsPerService() map[ServiceID][]MetricID {
+func (a AppMetricRegistry) CounterMetricsIdsPerService() map[ServiceID][]MetricID {
 	m := map[ServiceID][]MetricID{}
 	i := 0
 	for serviceId, metrics := range counters {
@@ -73,7 +73,7 @@ func CounterMetricsIdsPerService() map[ServiceID][]MetricID {
 }
 
 // CounterMetricsIdsPerService returns all counter metric ids grouped by service
-func CounterVectorMetricsIdsPerService() map[ServiceID][]MetricID {
+func (a AppMetricRegistry) CounterVectorMetricsIdsPerService() map[ServiceID][]MetricID {
 	m := map[ServiceID][]MetricID{}
 	i := 0
 	for serviceId, metrics := range counterVectors {

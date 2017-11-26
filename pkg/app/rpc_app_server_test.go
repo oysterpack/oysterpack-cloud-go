@@ -209,7 +209,7 @@ func TestRPCAppServer(t *testing.T) {
 
 	t.Run("Service() - for registered service", func(t *testing.T) {
 		service := NewService(ServiceID(999))
-		RegisterService(service)
+		Services.Register(service)
 		remoteService := appClient.Service(ctx, func(params capnprpc.App_service_Params) error {
 			params.SetId(uint64(service.ID()))
 			return nil
@@ -277,7 +277,7 @@ func TestRPCAppServer(t *testing.T) {
 
 		// When the service is registered
 		service1000 := NewService(ServiceID(SERVICE_ID))
-		if err := RegisterService(service1000); err != nil {
+		if err := Services.Register(service1000); err != nil {
 			t.Fatal(err)
 		}
 
@@ -327,7 +327,7 @@ func TestRPCAppServer(t *testing.T) {
 
 		// Given a registered service
 		service1000 := NewService(SERVICE_ID)
-		if err := RegisterService(service1000); err != nil {
+		if err := Services.Register(service1000); err != nil {
 			t.Fatal(err)
 		}
 	})
@@ -591,7 +591,7 @@ func TestRPCAppServer(t *testing.T) {
 						t.Error(err)
 					} else {
 						t.Logf("max conns = %d", result.Count())
-						if rpcService, err := GetRPCService(ServiceID(serviceIds.At(i))); err != nil {
+						if rpcService, err := RPC.Service(ServiceID(serviceIds.At(i))); err != nil {
 							t.Error(err)
 						} else {
 							if rpcService.MaxConns() != int(result.Count()) {
@@ -607,7 +607,7 @@ func TestRPCAppServer(t *testing.T) {
 						t.Error(err)
 					} else {
 						t.Logf("active conns = %d", result.Count())
-						if rpcService, err := GetRPCService(ServiceID(serviceIds.At(i))); err != nil {
+						if rpcService, err := RPC.Service(ServiceID(serviceIds.At(i))); err != nil {
 							t.Error(err)
 						} else {
 							if rpcService.ActiveConns() != int(result.Count()) {
@@ -621,7 +621,7 @@ func TestRPCAppServer(t *testing.T) {
 	})
 
 	t.Run("Listener Too Many Conns", func(t *testing.T) {
-		rpcService, err := GetRPCService(APP_RPC_SERVICE_ID)
+		rpcService, err := RPC.Service(APP_RPC_SERVICE_ID)
 		if err != nil {
 			t.Fatal(err)
 		}

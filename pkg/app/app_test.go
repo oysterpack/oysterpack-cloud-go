@@ -75,7 +75,7 @@ func TestApp(t *testing.T) {
 
 	// When a nil service is registered
 	// Then app.RegisterService should return app.ErrServiceNil
-	if err := app.RegisterService(nil); err == nil {
+	if err := app.Services.Register(nil); err == nil {
 		t.Error("registering a nill service is not allowed")
 	} else if err != app.ErrServiceNil {
 		t.Errorf("Wrong error type was returned : %T", err)
@@ -85,7 +85,7 @@ func TestApp(t *testing.T) {
 	service.Kill(nil)
 	// When a killed service is registered
 	// Then app.RegisterService should return app.ErrServiceNil
-	if err := app.RegisterService(service); err == nil {
+	if err := app.Services.Register(service); err == nil {
 		t.Error("registering a dead service is not allowed")
 	} else if err != app.ErrServiceNotAlive {
 		t.Errorf("Wrong error type was returned : %T", err)
@@ -103,7 +103,7 @@ func TestApp(t *testing.T) {
 
 	// When a service is registered
 	// Then app.RegisterService should return app.ErrAppNotAlive
-	if err := app.RegisterService(service); err == nil {
+	if err := app.Services.Register(service); err == nil {
 		t.Error("registering a dead service is not allowed")
 	} else if err != app.ErrAppNotAlive {
 		t.Errorf("Wrong error type was returned : %[1]T : %[1]v", err)
@@ -111,17 +111,17 @@ func TestApp(t *testing.T) {
 
 	// When the app is dead
 	// Then all app functions should fail and return ErrAppNotAlive
-	if _, err := app.ServiceIDs(); err == nil {
+	if _, err := app.Services.ServiceIDs(); err == nil {
 		t.Error("should have failed because app is dead")
 	} else if err != app.ErrAppNotAlive {
 		t.Errorf("Wrong error ttype was returned : %T", err)
 	}
-	if err := app.UnregisterService(service.ID()); err == nil {
+	if err := app.Services.Unregister(service.ID()); err == nil {
 		t.Error("should have failed because app is dead")
 	} else if err != app.ErrAppNotAlive {
 		t.Errorf("Wrong error ttype was returned : %T", err)
 	}
-	if _, err := app.GetService(service.ID()); err == nil {
+	if _, err := app.Services.Service(service.ID()); err == nil {
 		t.Error("should have failed because app is dead")
 	} else {
 		t.Log(err.Error())
@@ -146,7 +146,7 @@ func TestRegisterService(t *testing.T) {
 	app.Reset()
 
 	// Then there should be no registered services
-	ids, err := app.ServiceIDs()
+	ids, err := app.Services.ServiceIDs()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -155,7 +155,7 @@ func TestRegisterService(t *testing.T) {
 		t.Errorf("expected the metrics service to be automatically registered")
 	}
 	initialServiceCount := len(ids)
-	metricsService, err := app.GetService(app.METRICS_SERVICE_ID)
+	metricsService, err := app.Services.Service(app.METRICS_SERVICE_ID)
 	if err != nil {
 		t.Error(err)
 	} else {
@@ -167,12 +167,12 @@ func TestRegisterService(t *testing.T) {
 
 	// When a service is registered
 	service := app.NewService(app.ServiceID(1))
-	if err = app.RegisterService(service); err != nil {
+	if err = app.Services.Register(service); err != nil {
 		t.Fatal(err)
 	}
 
 	// Then the service id should be returned
-	ids, err = app.ServiceIDs()
+	ids, err = app.Services.ServiceIDs()
 	if err != nil {
 		t.Error(err)
 	}
@@ -191,7 +191,7 @@ func TestRegisterService(t *testing.T) {
 	}
 
 	// And the service can be retrieved
-	if service2, err := app.GetService(service.ID()); err != nil {
+	if service2, err := app.Services.Service(service.ID()); err != nil {
 		t.Error(err)
 	} else if service2.ID() != service.ID() {
 		t.Errorf("wrong service was returned : %v", service2.ID())
@@ -201,13 +201,13 @@ func TestRegisterService(t *testing.T) {
 	service.Kill(nil)
 	service.Wait()
 	// Then the app will automatically unregister the service
-	if service2, err := app.GetService(service.ID()); err != nil {
+	if service2, err := app.Services.Service(service.ID()); err != nil {
 		if err != app.ErrServiceNotRegistered {
 			t.Error(err)
 		}
 	} else if service2 != nil {
 		time.Sleep(time.Millisecond * 20)
-		if service2, err = app.GetService(service.ID()); err != nil {
+		if service2, err = app.Services.Service(service.ID()); err != nil {
 			t.Error(err)
 		} else if service2 != nil {
 			t.Error("service should have been unregistered by now")
@@ -215,7 +215,7 @@ func TestRegisterService(t *testing.T) {
 	}
 
 	// And no ServiceIDs should be returned except for the app default provided services - Metrics service
-	ids, err = app.ServiceIDs()
+	ids, err = app.Services.ServiceIDs()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -227,10 +227,10 @@ func TestRegisterService(t *testing.T) {
 	// Then service registration should fail with app.ErrServiceAlreadyRegistered
 	app.Reset()
 	service = app.NewService(app.ServiceID(1))
-	if err := app.RegisterService(service); err != nil {
+	if err := app.Services.Register(service); err != nil {
 		t.Error(err)
 	}
-	if err := app.RegisterService(service); err == nil {
+	if err := app.Services.Register(service); err == nil {
 		t.Error(err)
 	} else if err != app.ErrServiceAlreadyRegistered {
 		t.Errorf("the wrong error type was returned : %T", err)
@@ -244,12 +244,12 @@ func TestGetService(t *testing.T) {
 
 	// When a service is registered
 	service := app.NewService(app.ServiceID(1))
-	if err := app.RegisterService(service); err != nil {
+	if err := app.Services.Register(service); err != nil {
 		t.Fatal(err)
 	}
 
 	//Then the service can be retrieved
-	service2, err := app.GetService(service.ID())
+	service2, err := app.Services.Service(service.ID())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -260,7 +260,7 @@ func TestGetService(t *testing.T) {
 	// When the app is reset, it is effectively restarted
 	app.Reset()
 	// And no ServiceIDs should be returned except for the app default provided services - Metrics service
-	ids, err := app.ServiceIDs()
+	ids, err := app.Services.ServiceIDs()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -273,7 +273,7 @@ func TestServiceDiedWithError(t *testing.T) {
 	app.Reset()
 
 	service := app.NewService(app.ServiceID(1))
-	if err := app.RegisterService(service); err != nil {
+	if err := app.Services.Register(service); err != nil {
 		t.Fatal(err)
 	}
 
@@ -393,7 +393,7 @@ func BenchmarkService(b *testing.B) {
 	foo := FooService{Service: app.NewService(FooServiceID)}
 	foo.startServer()
 
-	if err := app.RegisterService(foo.Service); err != nil {
+	if err := app.Services.Register(foo.Service); err != nil {
 		b.Fatal(err)
 	}
 	b.ResetTimer()

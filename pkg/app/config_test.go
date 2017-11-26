@@ -36,7 +36,7 @@ func TestConfigServiceIDs(t *testing.T) {
 	os.RemoveAll(configDir)
 
 	// When config service ids are looked up
-	if _, err := ConfigServiceIDs(); err == nil {
+	if _, err := Configs.ConfigServiceIDs(); err == nil {
 		t.Errorf("An error should have been returned when the config dir does not exist")
 	} else {
 		// Then a ConfigError should be returned
@@ -54,7 +54,7 @@ func TestConfigServiceIDs(t *testing.T) {
 	}
 
 	// When the config dir is empty
-	if serviceIds, err := ConfigServiceIDs(); err != nil {
+	if serviceIds, err := Configs.ConfigServiceIDs(); err != nil {
 		t.Error(err)
 	} else {
 		// Then no service ids should be returned
@@ -71,7 +71,7 @@ func TestConfigServiceIDs(t *testing.T) {
 	for i := 10; i < 20; i++ {
 		ioutil.WriteFile(fmt.Sprintf("%s/%d", configDir, uint64(APP_RPC_SERVICE_ID)+uint64(i)), []byte{}, 0444)
 	}
-	if serviceIds, err := ConfigServiceIDs(); err != nil {
+	if serviceIds, err := Configs.ConfigServiceIDs(); err != nil {
 		t.Error(err)
 	} else {
 		// Then the service ids should be returned
@@ -156,7 +156,7 @@ func TestConfig(t *testing.T) {
 	configFile.Close()
 
 	// When service ids are looked up
-	if serviceIds, err := ConfigServiceIDs(); err != nil {
+	if serviceIds, err := Configs.ConfigServiceIDs(); err != nil {
 		t.Error(err)
 	} else {
 		// Then the service ids should be returned
@@ -166,7 +166,7 @@ func TestConfig(t *testing.T) {
 		}
 	}
 
-	appRPCServiceSpec, err := Config(APP_RPC_SERVICE_ID)
+	appRPCServiceSpec, err := Configs.Config(APP_RPC_SERVICE_ID)
 	if err != nil {
 		t.Fatal(err)
 	}

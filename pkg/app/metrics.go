@@ -49,6 +49,8 @@ var (
 	histogramVectors = make(map[ServiceID]map[MetricID]*HistogramVectorMetric)
 )
 
+type AppMetricRegistry struct{}
+
 // NewRegistry creates a new registry.
 // If collectProcessMetrics = true, then the prometheus GoCollector and ProcessCollectors are registered.
 func newMetricsRegistry(collectProcessMetrics bool) *prometheus.Registry {

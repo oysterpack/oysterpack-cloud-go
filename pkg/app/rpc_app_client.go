@@ -27,7 +27,7 @@ import (
 // NOTE: when the app is clustered, the RPC client will connect to any instance in the cluster
 // It will connect using the following network address : {DomainID}_{AppID}
 func NewAppClient(serviceId ServiceID) (*AppRPCClient, error) {
-	cfg, err := Config(serviceId)
+	cfg, err := Configs.Config(serviceId)
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +51,7 @@ func NewAppClient(serviceId ServiceID) (*AppRPCClient, error) {
 
 // NewAppClientForAddr works the same as NewAppClient, except that it enables connecting to a specific app instance by network address
 func NewAppClientForAddr(serviceId ServiceID, networkAddr string) (*AppRPCClient, error) {
-	cfg, err := Config(serviceId)
+	cfg, err := Configs.Config(serviceId)
 	if err != nil {
 		return nil, err
 	}

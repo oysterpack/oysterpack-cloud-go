@@ -32,6 +32,11 @@ func Reset() {
 	APP_RESET.Log(logger.Info()).Msg("reset")
 }
 
+func ResetWithConfigDir(configDirPath string) {
+	configDir = configDirPath
+	Reset()
+}
+
 func resetMetrics() {
 	metricsServiceMutex.Lock()
 	defer metricsServiceMutex.Unlock()

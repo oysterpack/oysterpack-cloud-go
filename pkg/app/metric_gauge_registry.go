@@ -15,7 +15,7 @@
 package app
 
 // Gauge looks up the registered metric.
-func Gauge(serviceId ServiceID, metricID MetricID) *GaugeMetric {
+func (a AppMetricRegistry) Gauge(serviceId ServiceID, metricID MetricID) *GaugeMetric {
 	metrics := gauges[serviceId]
 	if metrics == nil {
 		return nil
@@ -24,7 +24,7 @@ func Gauge(serviceId ServiceID, metricID MetricID) *GaugeMetric {
 }
 
 // GaugeVector looks up the registered metric.
-func GaugeVector(serviceId ServiceID, metricID MetricID) *GaugeVectorMetric {
+func (a AppMetricRegistry) GaugeVector(serviceId ServiceID, metricID MetricID) *GaugeVectorMetric {
 	metrics := gaugeVectors[serviceId]
 	if metrics == nil {
 		return nil
@@ -33,7 +33,7 @@ func GaugeVector(serviceId ServiceID, metricID MetricID) *GaugeVectorMetric {
 }
 
 // GaugeMetricIds returns all gauge metric ids registered for the service
-func GaugeMetricIds(serviceId ServiceID) []MetricID {
+func (a AppMetricRegistry) GaugeMetricIds(serviceId ServiceID) []MetricID {
 	metrics := gauges[serviceId]
 	metricIds := make([]MetricID, len(metrics))
 	i := 0
@@ -45,7 +45,7 @@ func GaugeMetricIds(serviceId ServiceID) []MetricID {
 }
 
 // GaugeVectorMetricIds returns all gauge vector metric ids registered for the service
-func GaugeVectorMetricIds(serviceId ServiceID) []MetricID {
+func (a AppMetricRegistry) GaugeVectorMetricIds(serviceId ServiceID) []MetricID {
 	metrics := gaugeVectors[serviceId]
 	metricIds := make([]MetricID, len(metrics))
 	i := 0
@@ -57,7 +57,7 @@ func GaugeVectorMetricIds(serviceId ServiceID) []MetricID {
 }
 
 // GaugeMetricsByService returns all gauge metric ids grouped by service
-func GaugeMetricsByService() map[ServiceID][]MetricID {
+func (a AppMetricRegistry) GaugeMetricsByService() map[ServiceID][]MetricID {
 	m := map[ServiceID][]MetricID{}
 	i := 0
 	for serviceId, metrics := range gauges {
@@ -73,7 +73,7 @@ func GaugeMetricsByService() map[ServiceID][]MetricID {
 }
 
 // GaugeVectorMetricsByService returns all gauge vector metric ids grouped by service
-func GaugeVectorMetricsByService() map[ServiceID][]MetricID {
+func (a AppMetricRegistry) GaugeVectorMetricsByService() map[ServiceID][]MetricID {
 	m := map[ServiceID][]MetricID{}
 	i := 0
 	for serviceId, metrics := range gaugeVectors {

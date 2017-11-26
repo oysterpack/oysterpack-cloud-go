@@ -53,48 +53,48 @@ func TestMetricsService(t *testing.T) {
 	)
 
 	t.Run("No Metrics Registered", func(t *testing.T) {
-		if Counter(SERVICE_ID_1, METRIC_ID_COUNTER) != nil {
+		if MetricRegistry.Counter(SERVICE_ID_1, METRIC_ID_COUNTER) != nil {
 			t.Error("No metric should be registered")
 		}
-		if Counter(SERVICE_ID_1, METRIC_ID_COUNTER_VEC) != nil {
+		if MetricRegistry.Counter(SERVICE_ID_1, METRIC_ID_COUNTER_VEC) != nil {
 			t.Error("No metric should be registered")
 		}
-		if Counter(SERVICE_ID_1, METRIC_ID_GAUGE) != nil {
+		if MetricRegistry.Counter(SERVICE_ID_1, METRIC_ID_GAUGE) != nil {
 			t.Error("No metric should be registered")
 		}
-		if Counter(SERVICE_ID_1, METRIC_ID_GAUGE_VEC) != nil {
+		if MetricRegistry.Counter(SERVICE_ID_1, METRIC_ID_GAUGE_VEC) != nil {
 			t.Error("No metric should be registered")
 		}
-		if Counter(SERVICE_ID_1, METRIC_ID_HISTOGRAM) != nil {
+		if MetricRegistry.Counter(SERVICE_ID_1, METRIC_ID_HISTOGRAM) != nil {
 			t.Error("No metric should be registered")
 		}
-		if Counter(SERVICE_ID_1, METRIC_ID_HISTOGRAM_VEC) != nil {
+		if MetricRegistry.Counter(SERVICE_ID_1, METRIC_ID_HISTOGRAM_VEC) != nil {
 			t.Error("No metric should be registered")
 		}
 
-		if len(CounterMetricIds(SERVICE_ID_1)) > 0 {
+		if len(MetricRegistry.CounterMetricIds(SERVICE_ID_1)) > 0 {
 			t.Error("No metric should be registered")
 		}
-		if len(CounterVectorMetricIds(SERVICE_ID_1)) > 0 {
+		if len(MetricRegistry.CounterVectorMetricIds(SERVICE_ID_1)) > 0 {
 			t.Error("No metric should be registered")
 		}
-		if len(GaugeMetricIds(SERVICE_ID_1)) > 0 {
+		if len(MetricRegistry.GaugeMetricIds(SERVICE_ID_1)) > 0 {
 			t.Error("No metric should be registered")
 		}
-		if len(GaugeVectorMetricIds(SERVICE_ID_1)) > 0 {
+		if len(MetricRegistry.GaugeVectorMetricIds(SERVICE_ID_1)) > 0 {
 			t.Error("No metric should be registered")
 		}
-		if len(HistogramMetricIds(SERVICE_ID_1)) > 0 {
+		if len(MetricRegistry.HistogramMetricIds(SERVICE_ID_1)) > 0 {
 			t.Error("No metric should be registered")
 		}
-		if len(HistogramVectorMetricIds(SERVICE_ID_1)) > 0 {
+		if len(MetricRegistry.HistogramVectorMetricIds(SERVICE_ID_1)) > 0 {
 			t.Error("No metric should be registered")
 		}
 	})
 
 	t.Run("1 service with 1 metric for each metric type", func(t *testing.T) {
 		service := NewService(SERVICE_ID_1)
-		RegisterService(service)
+		Services.Register(service)
 
 		msg, s, err := capnp.NewMessage(capnp.SingleSegment(nil))
 		if err != nil {
@@ -247,64 +247,64 @@ func TestMetricsService(t *testing.T) {
 		setHistogramSpecs()
 		setHistogramVectorSpecs()
 
-		configFile, err := os.Create(serviceConfigPath(METRICS_SERVICE_ID))
+		configFile, err := os.Create(Configs.ServiceConfigPath(METRICS_SERVICE_ID))
 		MarshalCapnpMessage(msg, configFile)
 		configFile.Close()
 
 		Reset()
 
-		if metric := Counter(SERVICE_ID_1, METRIC_ID_COUNTER); metric == nil {
+		if metric := MetricRegistry.Counter(SERVICE_ID_1, METRIC_ID_COUNTER); metric == nil {
 			t.Error("Metric should have been registered")
 		} else {
 			t.Logf("ServiceID = %v, MetricID = %q, Help = %q", metric.ServiceID.Hex(), metric.PrometheusName(metric.ServiceID), metric.Help)
 		}
-		if len(CounterMetricIds(SERVICE_ID_1)) != 1 {
-			t.Errorf("1 Metric should have been registered : %v", CounterMetricIds(SERVICE_ID_1))
+		if len(MetricRegistry.CounterMetricIds(SERVICE_ID_1)) != 1 {
+			t.Errorf("1 Metric should have been registered : %v", MetricRegistry.CounterMetricIds(SERVICE_ID_1))
 		}
 
-		if metric := CounterVector(SERVICE_ID_1, METRIC_ID_COUNTER_VEC); metric == nil {
+		if metric := MetricRegistry.CounterVector(SERVICE_ID_1, METRIC_ID_COUNTER_VEC); metric == nil {
 			t.Error("Metric should have been registered")
 		} else {
 			t.Logf("ServiceID = %v, MetricID = %q, Help = %q", metric.ServiceID.Hex(), metric.MetricID.PrometheusName(metric.ServiceID), metric.Help)
 		}
-		if len(CounterVectorMetricIds(SERVICE_ID_1)) != 1 {
-			t.Errorf("1 Metric should have been registered : %v", CounterVectorMetricIds(SERVICE_ID_1))
+		if len(MetricRegistry.CounterVectorMetricIds(SERVICE_ID_1)) != 1 {
+			t.Errorf("1 Metric should have been registered : %v", MetricRegistry.CounterVectorMetricIds(SERVICE_ID_1))
 		}
 
-		if metric := Gauge(SERVICE_ID_1, METRIC_ID_GAUGE); metric == nil {
+		if metric := MetricRegistry.Gauge(SERVICE_ID_1, METRIC_ID_GAUGE); metric == nil {
 			t.Error("Metric should have been registered")
 		} else {
 			t.Logf("ServiceID = %v, MetricID = %q, Help = %q", metric.ServiceID.Hex(), metric.PrometheusName(metric.ServiceID), metric.Help)
 		}
-		if len(GaugeMetricIds(SERVICE_ID_1)) != 1 {
-			t.Errorf("1 Metric should have been registered : %v", GaugeMetricIds(SERVICE_ID_1))
+		if len(MetricRegistry.GaugeMetricIds(SERVICE_ID_1)) != 1 {
+			t.Errorf("1 Metric should have been registered : %v", MetricRegistry.GaugeMetricIds(SERVICE_ID_1))
 		}
 
-		if metric := GaugeVector(SERVICE_ID_1, METRIC_ID_GAUGE_VEC); metric == nil {
+		if metric := MetricRegistry.GaugeVector(SERVICE_ID_1, METRIC_ID_GAUGE_VEC); metric == nil {
 			t.Error("Metric should have been registered")
 		} else {
 			t.Logf("ServiceID = %v, MetricID = %q, Help = %q", metric.ServiceID.Hex(), metric.MetricID.PrometheusName(metric.ServiceID), metric.Help)
 		}
-		if len(GaugeVectorMetricIds(SERVICE_ID_1)) != 1 {
-			t.Errorf("1 Metric should have been registered : %v", GaugeVectorMetricsByService())
+		if len(MetricRegistry.GaugeVectorMetricIds(SERVICE_ID_1)) != 1 {
+			t.Errorf("1 Metric should have been registered : %v", MetricRegistry.GaugeVectorMetricsByService())
 		}
 
-		if metric := Histogram(SERVICE_ID_1, METRIC_ID_HISTOGRAM); metric == nil {
+		if metric := MetricRegistry.Histogram(SERVICE_ID_1, METRIC_ID_HISTOGRAM); metric == nil {
 			t.Error("Metric should have been registered")
 		} else {
 			t.Logf("ServiceID = %v, MetricID = %q, Help = %q", metric.ServiceID.Hex(), metric.MetricID.PrometheusName(metric.ServiceID), metric.Help)
 		}
-		if len(HistogramMetricIds(SERVICE_ID_1)) != 1 {
-			t.Errorf("1 Metric should have been registered : %v", HistogramMetricIds(SERVICE_ID_1))
+		if len(MetricRegistry.HistogramMetricIds(SERVICE_ID_1)) != 1 {
+			t.Errorf("1 Metric should have been registered : %v", MetricRegistry.HistogramMetricIds(SERVICE_ID_1))
 		}
 
-		if metric := HistogramVector(SERVICE_ID_1, METRIC_ID_HISTOGRAM_VEC); metric == nil {
+		if metric := MetricRegistry.HistogramVector(SERVICE_ID_1, METRIC_ID_HISTOGRAM_VEC); metric == nil {
 			t.Error("Metric should have been registered")
 		} else {
 			t.Logf("ServiceID = %v, MetricID = %q, Help = %q", metric.ServiceID.Hex(), metric.MetricID.PrometheusName(metric.ServiceID), metric.Help)
 		}
-		if len(HistogramVectorMetricIds(SERVICE_ID_1)) != 1 {
-			t.Errorf("1 Metric should have been registered : %v", HistogramVectorMetricIds(SERVICE_ID_1))
+		if len(MetricRegistry.HistogramVectorMetricIds(SERVICE_ID_1)) != 1 {
+			t.Errorf("1 Metric should have been registered : %v", MetricRegistry.HistogramVectorMetricIds(SERVICE_ID_1))
 		}
 	})
 

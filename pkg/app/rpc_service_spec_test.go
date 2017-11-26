@@ -60,7 +60,7 @@ func TestNewRPCServerSpec(t *testing.T) {
 
 	// Then the RPC server can be started
 	appRPCService := app.NewService(app.APP_RPC_SERVICE_ID)
-	app.RegisterService(appRPCService)
+	app.Services.Register(appRPCService)
 
 	server := capnprpc.App_ServerToClient(app.NewAppServer())
 	rpcMainInterface := func() (capnp.Client, error) {
@@ -224,7 +224,7 @@ func TestMarshallingUnmarshallingConfig(t *testing.T) {
 
 		// Then the RPC server can be started
 		appRPCService := app.NewService(app.APP_RPC_SERVICE_ID)
-		app.RegisterService(appRPCService)
+		app.Services.Register(appRPCService)
 
 		server := capnprpc.App_ServerToClient(app.NewAppServer())
 		rpcMainInterface := func() (capnp.Client, error) {
