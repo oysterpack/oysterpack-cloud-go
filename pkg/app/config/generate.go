@@ -12,19 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package actor
-
-// InboxMessageHandler returns a Receive function that forwards any messages received to the specified channel.
-// When the actor is dying, then the inbox is closed.
-func InboxMessageHandler(inbox chan *Envelope) Receive {
-	return func(ctx *MessageContext) error {
-		for {
-			select {
-			case inbox <- ctx.Message:
-			case <-ctx.Dying():
-				close(inbox)
-				return nil
-			}
-		}
-	}
-}
+//go:generate capnp compile -I$GOPATH/src/zombiezen.com/go/capnproto2/std -ogo rpc.capnp
+//go:generate capnp compile -I$GOPATH/src/zombiezen.com/go/capnproto2/std -ogo metrics.capnp
+//go:generate capnp compile -I$GOPATH/src/zombiezen.com/go/capnproto2/std -ogo healthchecks.capnp
+package config

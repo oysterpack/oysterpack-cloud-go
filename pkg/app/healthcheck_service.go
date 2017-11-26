@@ -12,16 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package actor2
+package app
 
-import "time"
-
-type Stats struct {
-	restarts        int
-	lastRestartTime time.Time
-}
-
-type ChannelMetrics struct {
-	Capacity int
-	Len      int
+type Healthchecks struct {
+	*ServiceCommandChannel
 }

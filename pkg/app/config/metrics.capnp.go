@@ -8,422 +8,6 @@ import (
 	schemas "zombiezen.com/go/capnproto2/schemas"
 )
 
-type RPCServerSpec struct{ capnp.Struct }
-
-// RPCServerSpec_TypeID is the unique identifier for the type RPCServerSpec.
-const RPCServerSpec_TypeID = 0xfc13c8456771ca68
-
-func NewRPCServerSpec(s *capnp.Segment) (RPCServerSpec, error) {
-	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 3})
-	return RPCServerSpec{st}, err
-}
-
-func NewRootRPCServerSpec(s *capnp.Segment) (RPCServerSpec, error) {
-	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 3})
-	return RPCServerSpec{st}, err
-}
-
-func ReadRootRPCServerSpec(msg *capnp.Message) (RPCServerSpec, error) {
-	root, err := msg.RootPtr()
-	return RPCServerSpec{root.Struct()}, err
-}
-
-func (s RPCServerSpec) String() string {
-	str, _ := text.Marshal(0xfc13c8456771ca68, s.Struct)
-	return str
-}
-
-func (s RPCServerSpec) RpcServiceSpec() (RPCServiceSpec, error) {
-	p, err := s.Struct.Ptr(0)
-	return RPCServiceSpec{Struct: p.Struct()}, err
-}
-
-func (s RPCServerSpec) HasRpcServiceSpec() bool {
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
-}
-
-func (s RPCServerSpec) SetRpcServiceSpec(v RPCServiceSpec) error {
-	return s.Struct.SetPtr(0, v.Struct.ToPtr())
-}
-
-// NewRpcServiceSpec sets the rpcServiceSpec field to a newly
-// allocated RPCServiceSpec struct, preferring placement in s's segment.
-func (s RPCServerSpec) NewRpcServiceSpec() (RPCServiceSpec, error) {
-	ss, err := NewRPCServiceSpec(s.Struct.Segment())
-	if err != nil {
-		return RPCServiceSpec{}, err
-	}
-	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
-	return ss, err
-}
-
-func (s RPCServerSpec) ServerCert() (X509KeyPair, error) {
-	p, err := s.Struct.Ptr(1)
-	return X509KeyPair{Struct: p.Struct()}, err
-}
-
-func (s RPCServerSpec) HasServerCert() bool {
-	p, err := s.Struct.Ptr(1)
-	return p.IsValid() || err != nil
-}
-
-func (s RPCServerSpec) SetServerCert(v X509KeyPair) error {
-	return s.Struct.SetPtr(1, v.Struct.ToPtr())
-}
-
-// NewServerCert sets the serverCert field to a newly
-// allocated X509KeyPair struct, preferring placement in s's segment.
-func (s RPCServerSpec) NewServerCert() (X509KeyPair, error) {
-	ss, err := NewX509KeyPair(s.Struct.Segment())
-	if err != nil {
-		return X509KeyPair{}, err
-	}
-	err = s.Struct.SetPtr(1, ss.Struct.ToPtr())
-	return ss, err
-}
-
-func (s RPCServerSpec) CaCert() ([]byte, error) {
-	p, err := s.Struct.Ptr(2)
-	return []byte(p.Data()), err
-}
-
-func (s RPCServerSpec) HasCaCert() bool {
-	p, err := s.Struct.Ptr(2)
-	return p.IsValid() || err != nil
-}
-
-func (s RPCServerSpec) SetCaCert(v []byte) error {
-	return s.Struct.SetData(2, v)
-}
-
-func (s RPCServerSpec) MaxConns() uint32 {
-	return s.Struct.Uint32(0)
-}
-
-func (s RPCServerSpec) SetMaxConns(v uint32) {
-	s.Struct.SetUint32(0, v)
-}
-
-// RPCServerSpec_List is a list of RPCServerSpec.
-type RPCServerSpec_List struct{ capnp.List }
-
-// NewRPCServerSpec creates a new list of RPCServerSpec.
-func NewRPCServerSpec_List(s *capnp.Segment, sz int32) (RPCServerSpec_List, error) {
-	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 3}, sz)
-	return RPCServerSpec_List{l}, err
-}
-
-func (s RPCServerSpec_List) At(i int) RPCServerSpec { return RPCServerSpec{s.List.Struct(i)} }
-
-func (s RPCServerSpec_List) Set(i int, v RPCServerSpec) error { return s.List.SetStruct(i, v.Struct) }
-
-func (s RPCServerSpec_List) String() string {
-	str, _ := text.MarshalList(0xfc13c8456771ca68, s.List)
-	return str
-}
-
-// RPCServerSpec_Promise is a wrapper for a RPCServerSpec promised by a client call.
-type RPCServerSpec_Promise struct{ *capnp.Pipeline }
-
-func (p RPCServerSpec_Promise) Struct() (RPCServerSpec, error) {
-	s, err := p.Pipeline.Struct()
-	return RPCServerSpec{s}, err
-}
-
-func (p RPCServerSpec_Promise) RpcServiceSpec() RPCServiceSpec_Promise {
-	return RPCServiceSpec_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
-}
-
-func (p RPCServerSpec_Promise) ServerCert() X509KeyPair_Promise {
-	return X509KeyPair_Promise{Pipeline: p.Pipeline.GetPipeline(1)}
-}
-
-type RPCClientSpec struct{ capnp.Struct }
-
-// RPCClientSpec_TypeID is the unique identifier for the type RPCClientSpec.
-const RPCClientSpec_TypeID = 0xbec6688394d29776
-
-func NewRPCClientSpec(s *capnp.Segment) (RPCClientSpec, error) {
-	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 3})
-	return RPCClientSpec{st}, err
-}
-
-func NewRootRPCClientSpec(s *capnp.Segment) (RPCClientSpec, error) {
-	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 3})
-	return RPCClientSpec{st}, err
-}
-
-func ReadRootRPCClientSpec(msg *capnp.Message) (RPCClientSpec, error) {
-	root, err := msg.RootPtr()
-	return RPCClientSpec{root.Struct()}, err
-}
-
-func (s RPCClientSpec) String() string {
-	str, _ := text.Marshal(0xbec6688394d29776, s.Struct)
-	return str
-}
-
-func (s RPCClientSpec) RpcServiceSpec() (RPCServiceSpec, error) {
-	p, err := s.Struct.Ptr(0)
-	return RPCServiceSpec{Struct: p.Struct()}, err
-}
-
-func (s RPCClientSpec) HasRpcServiceSpec() bool {
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
-}
-
-func (s RPCClientSpec) SetRpcServiceSpec(v RPCServiceSpec) error {
-	return s.Struct.SetPtr(0, v.Struct.ToPtr())
-}
-
-// NewRpcServiceSpec sets the rpcServiceSpec field to a newly
-// allocated RPCServiceSpec struct, preferring placement in s's segment.
-func (s RPCClientSpec) NewRpcServiceSpec() (RPCServiceSpec, error) {
-	ss, err := NewRPCServiceSpec(s.Struct.Segment())
-	if err != nil {
-		return RPCServiceSpec{}, err
-	}
-	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
-	return ss, err
-}
-
-func (s RPCClientSpec) ClientCert() (X509KeyPair, error) {
-	p, err := s.Struct.Ptr(1)
-	return X509KeyPair{Struct: p.Struct()}, err
-}
-
-func (s RPCClientSpec) HasClientCert() bool {
-	p, err := s.Struct.Ptr(1)
-	return p.IsValid() || err != nil
-}
-
-func (s RPCClientSpec) SetClientCert(v X509KeyPair) error {
-	return s.Struct.SetPtr(1, v.Struct.ToPtr())
-}
-
-// NewClientCert sets the clientCert field to a newly
-// allocated X509KeyPair struct, preferring placement in s's segment.
-func (s RPCClientSpec) NewClientCert() (X509KeyPair, error) {
-	ss, err := NewX509KeyPair(s.Struct.Segment())
-	if err != nil {
-		return X509KeyPair{}, err
-	}
-	err = s.Struct.SetPtr(1, ss.Struct.ToPtr())
-	return ss, err
-}
-
-func (s RPCClientSpec) CaCert() ([]byte, error) {
-	p, err := s.Struct.Ptr(2)
-	return []byte(p.Data()), err
-}
-
-func (s RPCClientSpec) HasCaCert() bool {
-	p, err := s.Struct.Ptr(2)
-	return p.IsValid() || err != nil
-}
-
-func (s RPCClientSpec) SetCaCert(v []byte) error {
-	return s.Struct.SetData(2, v)
-}
-
-// RPCClientSpec_List is a list of RPCClientSpec.
-type RPCClientSpec_List struct{ capnp.List }
-
-// NewRPCClientSpec creates a new list of RPCClientSpec.
-func NewRPCClientSpec_List(s *capnp.Segment, sz int32) (RPCClientSpec_List, error) {
-	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 3}, sz)
-	return RPCClientSpec_List{l}, err
-}
-
-func (s RPCClientSpec_List) At(i int) RPCClientSpec { return RPCClientSpec{s.List.Struct(i)} }
-
-func (s RPCClientSpec_List) Set(i int, v RPCClientSpec) error { return s.List.SetStruct(i, v.Struct) }
-
-func (s RPCClientSpec_List) String() string {
-	str, _ := text.MarshalList(0xbec6688394d29776, s.List)
-	return str
-}
-
-// RPCClientSpec_Promise is a wrapper for a RPCClientSpec promised by a client call.
-type RPCClientSpec_Promise struct{ *capnp.Pipeline }
-
-func (p RPCClientSpec_Promise) Struct() (RPCClientSpec, error) {
-	s, err := p.Pipeline.Struct()
-	return RPCClientSpec{s}, err
-}
-
-func (p RPCClientSpec_Promise) RpcServiceSpec() RPCServiceSpec_Promise {
-	return RPCServiceSpec_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
-}
-
-func (p RPCClientSpec_Promise) ClientCert() X509KeyPair_Promise {
-	return X509KeyPair_Promise{Pipeline: p.Pipeline.GetPipeline(1)}
-}
-
-type RPCServiceSpec struct{ capnp.Struct }
-
-// RPCServiceSpec_TypeID is the unique identifier for the type RPCServiceSpec.
-const RPCServiceSpec_TypeID = 0xb6e32df5c504ebf2
-
-func NewRPCServiceSpec(s *capnp.Segment) (RPCServiceSpec, error) {
-	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 32, PointerCount: 0})
-	return RPCServiceSpec{st}, err
-}
-
-func NewRootRPCServiceSpec(s *capnp.Segment) (RPCServiceSpec, error) {
-	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 32, PointerCount: 0})
-	return RPCServiceSpec{st}, err
-}
-
-func ReadRootRPCServiceSpec(msg *capnp.Message) (RPCServiceSpec, error) {
-	root, err := msg.RootPtr()
-	return RPCServiceSpec{root.Struct()}, err
-}
-
-func (s RPCServiceSpec) String() string {
-	str, _ := text.Marshal(0xb6e32df5c504ebf2, s.Struct)
-	return str
-}
-
-func (s RPCServiceSpec) DomainID() uint64 {
-	return s.Struct.Uint64(0)
-}
-
-func (s RPCServiceSpec) SetDomainID(v uint64) {
-	s.Struct.SetUint64(0, v)
-}
-
-func (s RPCServiceSpec) AppId() uint64 {
-	return s.Struct.Uint64(8)
-}
-
-func (s RPCServiceSpec) SetAppId(v uint64) {
-	s.Struct.SetUint64(8, v)
-}
-
-func (s RPCServiceSpec) ServiceId() uint64 {
-	return s.Struct.Uint64(16)
-}
-
-func (s RPCServiceSpec) SetServiceId(v uint64) {
-	s.Struct.SetUint64(16, v)
-}
-
-func (s RPCServiceSpec) Port() uint16 {
-	return s.Struct.Uint16(24)
-}
-
-func (s RPCServiceSpec) SetPort(v uint16) {
-	s.Struct.SetUint16(24, v)
-}
-
-// RPCServiceSpec_List is a list of RPCServiceSpec.
-type RPCServiceSpec_List struct{ capnp.List }
-
-// NewRPCServiceSpec creates a new list of RPCServiceSpec.
-func NewRPCServiceSpec_List(s *capnp.Segment, sz int32) (RPCServiceSpec_List, error) {
-	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 32, PointerCount: 0}, sz)
-	return RPCServiceSpec_List{l}, err
-}
-
-func (s RPCServiceSpec_List) At(i int) RPCServiceSpec { return RPCServiceSpec{s.List.Struct(i)} }
-
-func (s RPCServiceSpec_List) Set(i int, v RPCServiceSpec) error { return s.List.SetStruct(i, v.Struct) }
-
-func (s RPCServiceSpec_List) String() string {
-	str, _ := text.MarshalList(0xb6e32df5c504ebf2, s.List)
-	return str
-}
-
-// RPCServiceSpec_Promise is a wrapper for a RPCServiceSpec promised by a client call.
-type RPCServiceSpec_Promise struct{ *capnp.Pipeline }
-
-func (p RPCServiceSpec_Promise) Struct() (RPCServiceSpec, error) {
-	s, err := p.Pipeline.Struct()
-	return RPCServiceSpec{s}, err
-}
-
-type X509KeyPair struct{ capnp.Struct }
-
-// X509KeyPair_TypeID is the unique identifier for the type X509KeyPair.
-const X509KeyPair_TypeID = 0xf4dd73213f6e70a6
-
-func NewX509KeyPair(s *capnp.Segment) (X509KeyPair, error) {
-	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
-	return X509KeyPair{st}, err
-}
-
-func NewRootX509KeyPair(s *capnp.Segment) (X509KeyPair, error) {
-	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
-	return X509KeyPair{st}, err
-}
-
-func ReadRootX509KeyPair(msg *capnp.Message) (X509KeyPair, error) {
-	root, err := msg.RootPtr()
-	return X509KeyPair{root.Struct()}, err
-}
-
-func (s X509KeyPair) String() string {
-	str, _ := text.Marshal(0xf4dd73213f6e70a6, s.Struct)
-	return str
-}
-
-func (s X509KeyPair) Key() ([]byte, error) {
-	p, err := s.Struct.Ptr(0)
-	return []byte(p.Data()), err
-}
-
-func (s X509KeyPair) HasKey() bool {
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
-}
-
-func (s X509KeyPair) SetKey(v []byte) error {
-	return s.Struct.SetData(0, v)
-}
-
-func (s X509KeyPair) Cert() ([]byte, error) {
-	p, err := s.Struct.Ptr(1)
-	return []byte(p.Data()), err
-}
-
-func (s X509KeyPair) HasCert() bool {
-	p, err := s.Struct.Ptr(1)
-	return p.IsValid() || err != nil
-}
-
-func (s X509KeyPair) SetCert(v []byte) error {
-	return s.Struct.SetData(1, v)
-}
-
-// X509KeyPair_List is a list of X509KeyPair.
-type X509KeyPair_List struct{ capnp.List }
-
-// NewX509KeyPair creates a new list of X509KeyPair.
-func NewX509KeyPair_List(s *capnp.Segment, sz int32) (X509KeyPair_List, error) {
-	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2}, sz)
-	return X509KeyPair_List{l}, err
-}
-
-func (s X509KeyPair_List) At(i int) X509KeyPair { return X509KeyPair{s.List.Struct(i)} }
-
-func (s X509KeyPair_List) Set(i int, v X509KeyPair) error { return s.List.SetStruct(i, v.Struct) }
-
-func (s X509KeyPair_List) String() string {
-	str, _ := text.MarshalList(0xf4dd73213f6e70a6, s.List)
-	return str
-}
-
-// X509KeyPair_Promise is a wrapper for a X509KeyPair promised by a client call.
-type X509KeyPair_Promise struct{ *capnp.Pipeline }
-
-func (p X509KeyPair_Promise) Struct() (X509KeyPair, error) {
-	s, err := p.Pipeline.Struct()
-	return X509KeyPair{s}, err
-}
-
 type MetricsServiceSpec struct{ capnp.Struct }
 
 // MetricsServiceSpec_TypeID is the unique identifier for the type MetricsServiceSpec.
@@ -1337,85 +921,62 @@ func (p HistogramVectorMetricSpec_Promise) MetricSpec() HistogramMetricSpec_Prom
 	return HistogramMetricSpec_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
-const schema_db8274f9144abc7e = "x\xda\xdcV]h\x1c\xd5\x17?\xe7\xde\xd9\xddl\xb2" +
-	"\xf9g\x87\xd9\x87\xbfR\xc8\xd6\x0f\xda\x06Z\x1bm\xa1" +
-	"\x0d\x96\xa8\xdbb\x13\x1b\xd9\x9bmj)X\x9cLn" +
-	"\xb3c\xf7c2;\xa9I\x11\xabUA\xeb\xc7\x8bb" +
-	"[_\x04\x1f\xb4\x8aP\x0aE\x10\xfc@\xb1\xb5\x94V" +
-	"\xfc\xa0\x8a-RT\xaa\xd5\xa2\xa0\xe8\x83\xb58rf" +
-	"gg\xa6\x93\x05\xad\xf6A|\x1bn~{\xee\xef\xfc" +
-	"~\xbfsn\x96\xbe\xc7ob\xfd\x89\xd3\x09\x00\xb1:" +
-	"\x91t\xf7\x9c{\x7f\xe7\xb9\x1f\x17<\x0cj7\xba\xf7" +
-	"\xbd>\x9c\xfb\xd5\xd9y\x0a\x12,\x05p\xc3\x096\x80" +
-	"\xda\x19\xfa\xd4\xbe`\xf7\x00\xba\x8f)\x87\xad\xe3\x8b\xd7" +
-	"?\x12\x03'\x091\xc6\x8fj:\xa7\x9f\xdd\xc9\xef@" +
-	"@\xf7\xc5}\xcf\x9c\xbenl\xf6I\x10\xdd\xc8\xe2\xa5" +
-	"\x17':Q[\x95\xa0\x1f\xaeL|\x03\xe8\xee}\xe9" +
-	"k\xfd\xd3\xe1\x05\xcf\xb7\xe3\xa1'\xafDm\xca\xbb\xa5" +
-	"\x9a$\x1e?\x9dS\x0e\xfd\xb2\xf8\xabW\xa9\xb4\x12\xa2" +
-	"\x15\x8fi\xf2K\xed{\x0f\xfbm\x92\x0a\xffV\xcb\x9d" +
-	"\x90=3\xaf\x116Z\x19\xa9\xf2\xa1\x14C\xed\xc3\x14" +
-	"\xa1\x8f\xa7\xa8\xf2\xb6\xdd\x1f=\xfd`\xf9\xf0\x9b1\x1a" +
-	"\xd4\x97\xd6\xdfqR[\xd5\xe1Q\xee\xd8\x0f\xe8^s" +
-	"\xfe\xf4\xdb\x17>[v\xaa\x1deL\xf7\xa1\xa6\xa6\x09" +
-	"\xdc\x9d\xa6\xc2\x1f\x17\x16\xad\x1fT\xde\xfa!\xae\x06\xd1" +
-	"\xd0\x1eH\x7f\xa7=\xe1\x81\x1fMS\xe5\x17\xac\xda\xe0" +
-	"\xfc\xc6\xe7?\xb7\xa9\xac\xc9\xce\xa3\xdaT\xa7\xa7E'" +
-	"\x15.\x1f\x9d\x9a\\sD\xbb\x10\xef\xcf\xa3|E\xd7" +
-	"I\xed\xda.\xfa\x9a\xdfEb\xec>\xb6\xf9\xdd\xe5;" +
-	"\xae\xfe\xbd-\x0b\xcc\x9c\xd7\xba3\xf4\x95\xce\xec\x87\x15" +
-	"\xaeQ\xafm1'\x97\x18\\\xb7j\xd6\xc0Z\xb3\xe1" +
-	"\xd4'm\xbd\xbaA\x1aN\xdd\x1e\x91\x8e=h\x1a%" +
-	"K\x1aED\xd1\xc1\x15\x00\x05\x01\xd4E\x9b\x00\xc4B" +
-	"\x8eb\x19C\x151\x87t\xd8O\x87K9\x8au\x0c" +
-	"\xdd\xaatl\xfa%pi`6\xcc\x09 f\x01\xdd" +
-	"\x8a>.+\xb7\xebU\xe0\xb2\x81\xff\x03,r\xc4\x0c" +
-	"0\xfa\x0c(1\x8f\xd2\x88_H\x1a\x0d\x00b\xf1\xff" +
-	"\x80\xc5\xde\xbb\x01\xc4\x1e\x8e\xe2`\x84\xc5\x81g\x01\xc4" +
-	"A\x8e\xe2\x03\x86*c9d\x00\xeaq\xa2v\x8c\xa3" +
-	"8\xcbP\xe5<\x87\x1c@=\xb3\x0b@\x9c\xe5XR" +
-	"\x90\xa1\xaa(9TH \xdc\x0e0\x8a\x1cK\xf3\xe8" +
-	"8\x91\xc8a\x82D\xc6\x97\x01J\xf3\xe8|\x052\"" +
-	"9]s\xa4]\x82\x1eb\xd6j!\x1b\x8a\x0f\xe87" +
-	"\xe3\xe16\xa0'h\xc9\x92<\x8a\x0e\xd2\xe5\xa3'\xf5" +
-	"\xe9IY\xb2$\\\x84\x0ab\x15Em\x90\x066+" +
-	"\x920!8\x981\x1f\\\xf6-\x85\xc1j\xe9b\xaa" +
-	"QO\xa2H\xf4\xdd/\xc5Z\x0b\xb6H\xd0Z\xdb\xe8" +
-	"\x84\x865\xfd\xca\x06~\xe9\xa3\x00\xe2.\x8e\xa2\x12\xf1" +
-	"\xcb\x1c\x06\x10e\x8e\xc2a\x88\xbe]S}\xeaT\xaf" +
-	"\xd8\xe7;\xcb\xb1\xe9\xd7\x81[\x00\xc4+\x1c\xc5\x11\x86" +
-	"nC\xda\xdbLC\x0e\x01N`\x1a\x18\xa6\xa1\x95\xb9" +
-	"\xa1\x09\x00h\x9d\xf5\x94e\xc5\x12\x0a2w\xf3S\xcf" +
-	"\x897>\xd9u\x08\x84\xc2\xf0\xe6\x85\x147\xe8\xc7w" +
-	"\xd0]++V\xde\xb2\xeb\xc9m\xe6\x84l\xe4\xcd\xda" +
-	"\x96\xba]\xd5\x1d\xb3^\xcb\xeb\xe3\xf5i'\xef\x94\xcd" +
-	"F\xbeY{I~D\xafM\xe8N\xdd\x9e\x9dO\xb7" +
-	"Pd3\x80;\xc6\xa7\x8d\xad\xd2\x09\xb4\xea\x8a%\xb9" +
-	"\xa9\xd0\xad\xbem\xfe`\x91F\xfc\x1f\x0fV4\x1b\x97" +
-	"6X\xa3\xc5B\xa9)b)\xe5\x0fx\xc4\xaa\xe1v" +
-	"V]\x0f &8\x0a+2ZU2\xb5\xc2Q\xcc" +
-	"\x90U\x99\xa6U\xd3}\x00\xc2\xe2(\xeee\xe8N\xd4" +
-	"\xab\xbaY\x1bZ\x1d\xb1\xa5W\xb7\xac\xa1\xd0\xb86f" +
-	"\xf6Xu\xdb\xc1\x140L\xcd\x11\xb2\xa9^\xa3\xc5\x9e" +
-	"\x92\x16Sq8T1\x10q\xdc\x17\xf1F\x86n\xd9" +
-	"q\xacb\xddv\x88R\xeb\x8e@\xd8\x14\xa5>\x1b\xbe" +
-	"\x83\xbe\xb2s\xd4+TLYs\x02\x133\xc1\xf5k" +
-	"\xb6\xd3\xbb\xcbQ\x14#\xe2\x8d\x90\x89\xeb8\x8a\x8d\x11" +
-	"\xf1\xc6\x06\xd4\xb1^1\xc3Q<\xc4\xd0\xb5-\xc3\xeb" +
-	"\x09\x06\x9b]a6|\x04[$\xbc;\x0b\x12\xb8\xed" +
-	"`6|C\x9a\x7f\x1e4\xf4\x82\xb4\x9d6y\xcfy" +
-	"yWq\xa7[\\3\x92\xdfbV$\xe6\x9b9'" +
-	"\x09\xba\x81a\xf7\x1c\x99\x0b\xfe\xea\x8a$\xb6\xe72<" +
-	"\x05\xd1\x0dyi\x89\xf5\x06(F$\xa2\xfah;\xd5" +
-	"\x87C\xd5[\xdbe\xac\x8fD\x7f\x9c\xa3\xd8\xf3o[" +
-	"$\xb1\x867._\xba\xf269[\xd4M\x1b\xe2\x11" +
-	"\xbfJ]\xd4\x1b\xe4\xa9\xd5n\xb35?O\xa9\xadr" +
-	"\xf6\xefF\xa1\xc7\xb8\x1c9\xbah\xd1H;\x18\x95\xc8" +
-	"\x9e\xd9\xden\xcfl\x0a\x9f\x84`T\xa6\x06\xc2=\x83" +
-	"\xfe\x0b>M\xee:\x1c\xc5\xfd\x7fmz\x1a\x1e\x8d?" +
-	"\x99\x9e\xa0\x8b\xaa>S\xa8\xd7j\x0d\xea\xac\x03\x18v" +
-	"\xcc\xe9\xcc\x9f\x90\xd8\xbfI\xff\xadH\xfe\x11\x00\x00\xff" +
-	"\xff:+\x1f\x92"
+const schema_db8274f9144abc7e = "x\xda\xdc\x94_\x88\xdcT\x14\xc6\xcfwo2\xd9\xea" +
+	"\xba;1\xf3\xa0P\xd8\xa9\x7fh\xb7\xd0\xda\xb1[(" +
+	"\xa2\xd4\xb6\x8a\xed\xd2\x95\xbdMw\x15\x1f\x8a\xd9\xecu" +
+	"':3I\x93l\xb5\x82.\x14\x04\xad\x7f^\x04\xdd" +
+	"\x8a \x0ab\x15K\x19\xe8\x8b`\x91\x8a\x8a\x0f\xad\x88" +
+	"\xa2\"}\xe8\x93Z(\x08\xfa\xe6\x1f\x8c\xdcL\x9a\xa4" +
+	"a\x05\xa5/\xd2\xb7\xcb\x99/g~\xf7|\xdf\xb9\x9b" +
+	"^gw\xb3\x96\xbe\xa4\x11\x89\x09\xbd\x96,_\xfc\xe2" +
+	"\xf0\xc5_\xd6>C\xe6\x08\x92\xa7?\x9cl\xfc\x16\x1f" +
+	">G:3\x886\xdf\xcav\xc0\xda\xa2\x8eV\x8b=" +
+	"NH\x9e\xd7>\x0b\xcen\xd8\xf7lE\\S\x8a\xb7" +
+	"\xd9WV?\xfd\xec8{\x00\x84\xe4\x9dc\xaf\x9c\xbf" +
+	"m\xe6\xd0K$F\xc0\xaa\xad\x9f\xd2\xae\x87\xf5\xa2\xa6" +
+	">|N\xfb\x89\x90\x1c}\xf7G\xe7\xbb\xc9\xb5o\xad" +
+	"\xc4\xd1\xd7o\x82uZW\xe2S\xba\xe2\xf8\xa3\xd7\xf8" +
+	"F\x8e>\xf1\x81j]VC\xa9[\xb5k`mO" +
+	"\x99\xee\xaa)\xf5-\xbf\x9f?\xfd\xe7\xf7\x13\xe7Vj" +
+	"\xfdf\xedvX\xfdT|<\x15\x7f\xbds|\xdf6" +
+	"\xed\xa3\x9f\xab\xd4\xaa\xb5\xb5\xc6\xf8\xd5\xda`\xa8\xd3\xb8" +
+	"q\x82\x90\xbczf\xff'[\x96n\xfek%\xf1f" +
+	"}\x88\xc12\x87\x94\xfa\xba\xa1\x13\xb45\xe9\xca8\xf4" +
+	"\xdch\xa3\xe6:A/\xb8c\x97\x17\xc5\xfeB\xe8t" +
+	"g\xa5\x1b\xfb\xe1T\xfa\xab\x1dH\x97\xa6\x011\xc45" +
+	"\"\x0dD\xe6\xf8CDb\x1d\x87\x98`0\x81\x06T" +
+	"\xb1\xa5\x8a\x9b8\xc4\x1e\x86\xac\xb1\x1d\x10\x97.\xea\xc5" +
+	"\xe0\x09\xa8\x13\x92\x8e3';\xf7;]\xe22\xc2\x08" +
+	"a\x9a\x03\xc3\xc4\xd41gb\x03\xa6\x02\x02\x91\xa2\xb8" +
+	"!\xa78\xfa(\x91X\xe6\x10'K\x14\xfd\xd7\x88\xc4" +
+	"I\x0e\xf1%\x83\xc9X\x03\x8c\xc8<\xab\xd0\xcep\x88" +
+	"\x0b\x0c&\xe7\x0dp\"\xf3\x87#D\xe2\x02\x87\xad\x81" +
+	"\xc1\xd4\xb4\x064\"\x0bx\x92h/8\xec\xd5\xaa\xac" +
+	"\xeb\x0d\xe8D\xd6\x8dx\x8f\xc8^\xad\xea[\xc1\x90\xb8" +
+	"\xfeb/\x96\xa1M\xa3\x81t\xf3+\xd4\x8b\xf1\x13\xd2" +
+	"\xcbd\xbaY\xa4\x03\xb5\x03\xc9\xcb\xea<\x06\x99z\xc1" +
+	"Y\\\x90v \xe92U\xee\x7fY5+]\x0c:" +
+	"\xba\x11Q!\xceC\x9b\x89\xdb\x99\xa5\xb4\xadk_\x8e" +
+	"Z\xf6\xa4\xacD\xe6\xbe]\xb9Z\xbe\x96\x99\xfe\x92O" +
+	"\xbc\x92\x9d\xdc0\xb8\xca\xafz\xee\x97\xb3\x97H<\xcc" +
+	"!:%\xbf\xbcI\"\xd1\xe6\x101\x032\xbb\x0e\xac" +
+	"7\x0f\x8c\x89c\x99\xb3\x1c\x03\xbf\xfa;\x88\xc4\xfb\x1c" +
+	"\xe2s\x86$\x92\xe1A\xcf\x95\xbb\x09\xf3XE\x0c\xab" +
+	"r\xa0\xdd\xf3Dt\xa96\xda\x96\x9d@h`\xc9\xfe" +
+	"\x97\xdf\x10\xa7\xbe=\xf2)\x09\x8da\xfb:\x157j" +
+	"\xe1c$\xbbd'h\x06\xa1_;\xe8\xcd\xcb\xa8\xe9" +
+	"\xf5\x1e\xf1\xc3\xae\x13{~\xaf\xe9\xcc\xf9\x8bq3n" +
+	"{Qs\xd0{cs\xca\xe9\xcd;\xb1\x1f\x1eZ\xa3" +
+	"\xfeEEv\x98\xb04\xb7\xe8>&\xe3|V\xd7V" +
+	"\x92\x9cM\xe8\xbe\xcc\xb7b\xb3\x8c@\xbaW\xb8Y\xe5" +
+	"p\xfc\xdb\xcd\xe2\xe5\xcd\x8a\xec\xc1(\xd35\xaf\xee\xf9" +
+	"dA\x93\xc3\xcce0w2$\xed8\x0e\xa6\xfd0" +
+	"V\xc30\x88\xc1\xa0\x12\xa0\xa1\xe2S/^\xe8\x8c\xb0" +
+	"B\xb13\xdb\x90b.c\xe9\xb6_\xe1\\\xca\x8b\xf8" +
+	"\x1f_\x9c\xd4\xa7\x0a\xc9pNr\xafJ\xf1=\x1cb" +
+	"\xbaD2\xa5\x06\xb5\x87C<X\xa4xf\xbd93" +
+	"&^\xe0\x10\xcb\xff\xb7\xc0\xfe\x83\x07\x95\xf7\xfe\xea\xba" +
+	"\xf3\xdf\x01\x00\x00\xff\xff\xcb\x1a(6"
 
 func init() {
 	schemas.Register(schema_db8274f9144abc7e,
@@ -1423,12 +984,8 @@ func init() {
 		0x88542dcd70c6048b,
 		0x8e79552fdf96a8a7,
 		0xa2274ad761e6a999,
-		0xb6e32df5c504ebf2,
 		0xb9780f65d5146efb,
-		0xbec6688394d29776,
 		0xdb34d9fcc1dffa24,
 		0xeebf043f542943d3,
-		0xf4dd73213f6e70a6,
-		0xfc13c8456771ca68,
 		0xfe237f35c45ecc97)
 }

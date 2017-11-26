@@ -12,16 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package actor
-
-// EmptyMessage implements the Message interface
-// It used to for sending messages that act as signals and require no message body.
-type EmptyMessage struct{}
-
-func (a EmptyMessage) UnmarshalBinary(data []byte) error {
-	return nil
-}
-
-func (a EmptyMessage) MarshalBinary() (data []byte, err error) {
-	return []byte{}, nil
-}
+//go:generate capnp compile -I$GOPATH/src/zombiezen.com/go/capnproto2/std -ogo app.capnp
+package capnprpc
