@@ -14,7 +14,11 @@
 
 package app
 
-import "time"
+import (
+	"time"
+
+	"github.com/oysterpack/oysterpack.go/pkg/app/config"
+)
 
 // healthcheck constants
 const (
@@ -24,10 +28,6 @@ const (
 
 	HEALTHCHECK_METRIC_ID              = MetricID(0x844d7830332bffd3)
 	HEALTHCHECK_RUN_DURATION_METRIC_ID = MetricID(0xcd4260d6e89ad9c6)
-)
-
-var (
-	healthchecks = make(map[HealthCheckID]*registeredHealthCheck)
 )
 
 // HealthcheckSpec maps a healthcheck to a metric gauge vector.
@@ -72,4 +72,34 @@ type HealthCheckResult struct {
 
 	// how long it took to run the health check
 	time.Duration
+}
+
+type HealthCheckService struct {
+	*CommandServer
+	healthchecks map[HealthCheckID]*registeredHealthCheck
+}
+
+func (a *HealthCheckService) init() {
+	cfg, err := Configs.Config(HEALTHCHECK_SERVICE_ID)
+	if err != nil {
+		CONFIG_LOADING_ERR.Log(a.Logger().Fatal()).Err(err).Msg("")
+	}
+	if cfg == nil {
+		return
+	}
+	serviceSpec, err := config.ReadRootHealthCheckServiceSpec(cfg)
+	if err != nil {
+		CONFIG_LOADING_ERR.Log(a.Logger().Fatal()).Err(err).Msg("config.ReadRootHealthCheckServiceSpec() failed")
+	}
+
+	a.healthchecks = make(map[HealthCheckID]*registeredHealthCheck)
+	healthcheckSpecs, err := serviceSpec.HealthCheckSpecs()
+	if err != nil {
+		CONFIG_LOADING_ERR.Log(a.Logger().Fatal()).Err(err).Msg("Failed on HealthCheckSpecs")
+	}
+	if healthcheckSpecs.Len() == 0 {
+		ZERO_HEALTHCHECKS.Log(a.Logger().Warn()).Msg("No health checks")
+		return
+	}
+	// TODO
 }

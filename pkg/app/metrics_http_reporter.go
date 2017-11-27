@@ -47,21 +47,19 @@ func startMetricsHttpReporter() {
 func MetricsServiceSpec() config.MetricsServiceSpec {
 	cfg, err := Configs.Config(METRICS_SERVICE_ID)
 	if err != nil {
-		switch err := err.(type) {
-		case ServiceConfigNotExistError:
-			_, s, capnpErr := capnp.NewMessage(capnp.SingleSegment(nil))
-			if capnpErr != nil {
-				CAPNP_ERR.Log(Logger().Fatal()).Err(err).Msg("MetricsServiceSpec() - capnp.NewMessage(capnp.SingleSegment(nil)) failed ")
-			}
-			spec, capnpErr := config.NewRootMetricsServiceSpec(s)
-			if capnpErr != nil {
-				CAPNP_ERR.Log(Logger().Fatal()).Err(err).Msg("MetricsServiceSpec() - config.NewRootMetricsServiceSpec(s) failed ")
-			}
-			spec.SetHttpPort(DEFAULT_METRICS_HTTP_PORT)
-			return spec
-		default:
-			METRICS_SERVICE_CONFIG_ERROR.Log(Logger().Fatal()).Err(err).Msg("")
+		METRICS_SERVICE_CONFIG_ERROR.Log(Logger().Fatal()).Err(err).Msg("")
+	}
+	if cfg == nil {
+		_, s, capnpErr := capnp.NewMessage(capnp.SingleSegment(nil))
+		if capnpErr != nil {
+			CAPNP_ERR.Log(Logger().Fatal()).Err(err).Msg("MetricsServiceSpec() - capnp.NewMessage(capnp.SingleSegment(nil)) failed ")
 		}
+		spec, capnpErr := config.NewRootMetricsServiceSpec(s)
+		if capnpErr != nil {
+			CAPNP_ERR.Log(Logger().Fatal()).Err(err).Msg("MetricsServiceSpec() - config.NewRootMetricsServiceSpec(s) failed ")
+		}
+		spec.SetHttpPort(DEFAULT_METRICS_HTTP_PORT)
+		return spec
 	}
 	metricsServiceConfig, err := config.ReadRootMetricsServiceSpec(cfg)
 	if err != nil {

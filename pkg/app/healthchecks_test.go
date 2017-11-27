@@ -13,7 +13,3 @@
 // limitations under the License.
 
 package app
-
-type Healthchecks struct {
-	*ServiceCommandChannel
-}

@@ -8,56 +8,136 @@ import (
 	schemas "zombiezen.com/go/capnproto2/schemas"
 )
 
-type HealthcheckSpec struct{ capnp.Struct }
+type HealthCheckServiceSpec struct{ capnp.Struct }
 
-// HealthcheckSpec_TypeID is the unique identifier for the type HealthcheckSpec.
-const HealthcheckSpec_TypeID = 0xe65df7cace0dd1c2
+// HealthCheckServiceSpec_TypeID is the unique identifier for the type HealthCheckServiceSpec.
+const HealthCheckServiceSpec_TypeID = 0xf61f7c33b286f52f
 
-func NewHealthcheckSpec(s *capnp.Segment) (HealthcheckSpec, error) {
-	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 1})
-	return HealthcheckSpec{st}, err
+func NewHealthCheckServiceSpec(s *capnp.Segment) (HealthCheckServiceSpec, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
+	return HealthCheckServiceSpec{st}, err
 }
 
-func NewRootHealthcheckSpec(s *capnp.Segment) (HealthcheckSpec, error) {
-	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 1})
-	return HealthcheckSpec{st}, err
+func NewRootHealthCheckServiceSpec(s *capnp.Segment) (HealthCheckServiceSpec, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
+	return HealthCheckServiceSpec{st}, err
 }
 
-func ReadRootHealthcheckSpec(msg *capnp.Message) (HealthcheckSpec, error) {
+func ReadRootHealthCheckServiceSpec(msg *capnp.Message) (HealthCheckServiceSpec, error) {
 	root, err := msg.RootPtr()
-	return HealthcheckSpec{root.Struct()}, err
+	return HealthCheckServiceSpec{root.Struct()}, err
 }
 
-func (s HealthcheckSpec) String() string {
-	str, _ := text.Marshal(0xe65df7cace0dd1c2, s.Struct)
+func (s HealthCheckServiceSpec) String() string {
+	str, _ := text.Marshal(0xf61f7c33b286f52f, s.Struct)
 	return str
 }
 
-func (s HealthcheckSpec) HealthCheckID() uint64 {
-	return s.Struct.Uint64(0)
-}
-
-func (s HealthcheckSpec) SetHealthCheckID(v uint64) {
-	s.Struct.SetUint64(0, v)
-}
-
-func (s HealthcheckSpec) MetricSpec() (GaugeMetricSpec, error) {
+func (s HealthCheckServiceSpec) HealthCheckSpecs() (HealthCheckSpec_List, error) {
 	p, err := s.Struct.Ptr(0)
-	return GaugeMetricSpec{Struct: p.Struct()}, err
+	return HealthCheckSpec_List{List: p.List()}, err
 }
 
-func (s HealthcheckSpec) HasMetricSpec() bool {
+func (s HealthCheckServiceSpec) HasHealthCheckSpecs() bool {
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
 
-func (s HealthcheckSpec) SetMetricSpec(v GaugeMetricSpec) error {
+func (s HealthCheckServiceSpec) SetHealthCheckSpecs(v HealthCheckSpec_List) error {
+	return s.Struct.SetPtr(0, v.List.ToPtr())
+}
+
+// NewHealthCheckSpecs sets the healthCheckSpecs field to a newly
+// allocated HealthCheckSpec_List, preferring placement in s's segment.
+func (s HealthCheckServiceSpec) NewHealthCheckSpecs(n int32) (HealthCheckSpec_List, error) {
+	l, err := NewHealthCheckSpec_List(s.Struct.Segment(), n)
+	if err != nil {
+		return HealthCheckSpec_List{}, err
+	}
+	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	return l, err
+}
+
+// HealthCheckServiceSpec_List is a list of HealthCheckServiceSpec.
+type HealthCheckServiceSpec_List struct{ capnp.List }
+
+// NewHealthCheckServiceSpec creates a new list of HealthCheckServiceSpec.
+func NewHealthCheckServiceSpec_List(s *capnp.Segment, sz int32) (HealthCheckServiceSpec_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
+	return HealthCheckServiceSpec_List{l}, err
+}
+
+func (s HealthCheckServiceSpec_List) At(i int) HealthCheckServiceSpec {
+	return HealthCheckServiceSpec{s.List.Struct(i)}
+}
+
+func (s HealthCheckServiceSpec_List) Set(i int, v HealthCheckServiceSpec) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s HealthCheckServiceSpec_List) String() string {
+	str, _ := text.MarshalList(0xf61f7c33b286f52f, s.List)
+	return str
+}
+
+// HealthCheckServiceSpec_Promise is a wrapper for a HealthCheckServiceSpec promised by a client call.
+type HealthCheckServiceSpec_Promise struct{ *capnp.Pipeline }
+
+func (p HealthCheckServiceSpec_Promise) Struct() (HealthCheckServiceSpec, error) {
+	s, err := p.Pipeline.Struct()
+	return HealthCheckServiceSpec{s}, err
+}
+
+type HealthCheckSpec struct{ capnp.Struct }
+
+// HealthCheckSpec_TypeID is the unique identifier for the type HealthCheckSpec.
+const HealthCheckSpec_TypeID = 0xe65df7cace0dd1c2
+
+func NewHealthCheckSpec(s *capnp.Segment) (HealthCheckSpec, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 1})
+	return HealthCheckSpec{st}, err
+}
+
+func NewRootHealthCheckSpec(s *capnp.Segment) (HealthCheckSpec, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 1})
+	return HealthCheckSpec{st}, err
+}
+
+func ReadRootHealthCheckSpec(msg *capnp.Message) (HealthCheckSpec, error) {
+	root, err := msg.RootPtr()
+	return HealthCheckSpec{root.Struct()}, err
+}
+
+func (s HealthCheckSpec) String() string {
+	str, _ := text.Marshal(0xe65df7cace0dd1c2, s.Struct)
+	return str
+}
+
+func (s HealthCheckSpec) HealthCheckID() uint64 {
+	return s.Struct.Uint64(0)
+}
+
+func (s HealthCheckSpec) SetHealthCheckID(v uint64) {
+	s.Struct.SetUint64(0, v)
+}
+
+func (s HealthCheckSpec) MetricSpec() (GaugeMetricSpec, error) {
+	p, err := s.Struct.Ptr(0)
+	return GaugeMetricSpec{Struct: p.Struct()}, err
+}
+
+func (s HealthCheckSpec) HasMetricSpec() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s HealthCheckSpec) SetMetricSpec(v GaugeMetricSpec) error {
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewMetricSpec sets the metricSpec field to a newly
 // allocated GaugeMetricSpec struct, preferring placement in s's segment.
-func (s HealthcheckSpec) NewMetricSpec() (GaugeMetricSpec, error) {
+func (s HealthCheckSpec) NewMetricSpec() (GaugeMetricSpec, error) {
 	ss, err := NewGaugeMetricSpec(s.Struct.Segment())
 	if err != nil {
 		return GaugeMetricSpec{}, err
@@ -66,64 +146,70 @@ func (s HealthcheckSpec) NewMetricSpec() (GaugeMetricSpec, error) {
 	return ss, err
 }
 
-func (s HealthcheckSpec) RunTimeIntervalSeconds() uint16 {
+func (s HealthCheckSpec) RunTimeIntervalSeconds() uint16 {
 	return s.Struct.Uint16(8)
 }
 
-func (s HealthcheckSpec) SetRunTimeIntervalSeconds(v uint16) {
+func (s HealthCheckSpec) SetRunTimeIntervalSeconds(v uint16) {
 	s.Struct.SetUint16(8, v)
 }
 
-// HealthcheckSpec_List is a list of HealthcheckSpec.
-type HealthcheckSpec_List struct{ capnp.List }
+// HealthCheckSpec_List is a list of HealthCheckSpec.
+type HealthCheckSpec_List struct{ capnp.List }
 
-// NewHealthcheckSpec creates a new list of HealthcheckSpec.
-func NewHealthcheckSpec_List(s *capnp.Segment, sz int32) (HealthcheckSpec_List, error) {
+// NewHealthCheckSpec creates a new list of HealthCheckSpec.
+func NewHealthCheckSpec_List(s *capnp.Segment, sz int32) (HealthCheckSpec_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 16, PointerCount: 1}, sz)
-	return HealthcheckSpec_List{l}, err
+	return HealthCheckSpec_List{l}, err
 }
 
-func (s HealthcheckSpec_List) At(i int) HealthcheckSpec { return HealthcheckSpec{s.List.Struct(i)} }
+func (s HealthCheckSpec_List) At(i int) HealthCheckSpec { return HealthCheckSpec{s.List.Struct(i)} }
 
-func (s HealthcheckSpec_List) Set(i int, v HealthcheckSpec) error {
+func (s HealthCheckSpec_List) Set(i int, v HealthCheckSpec) error {
 	return s.List.SetStruct(i, v.Struct)
 }
 
-func (s HealthcheckSpec_List) String() string {
+func (s HealthCheckSpec_List) String() string {
 	str, _ := text.MarshalList(0xe65df7cace0dd1c2, s.List)
 	return str
 }
 
-// HealthcheckSpec_Promise is a wrapper for a HealthcheckSpec promised by a client call.
-type HealthcheckSpec_Promise struct{ *capnp.Pipeline }
+// HealthCheckSpec_Promise is a wrapper for a HealthCheckSpec promised by a client call.
+type HealthCheckSpec_Promise struct{ *capnp.Pipeline }
 
-func (p HealthcheckSpec_Promise) Struct() (HealthcheckSpec, error) {
+func (p HealthCheckSpec_Promise) Struct() (HealthCheckSpec, error) {
 	s, err := p.Pipeline.Struct()
-	return HealthcheckSpec{s}, err
+	return HealthCheckSpec{s}, err
 }
 
-func (p HealthcheckSpec_Promise) MetricSpec() GaugeMetricSpec_Promise {
+func (p HealthCheckSpec_Promise) MetricSpec() GaugeMetricSpec_Promise {
 	return GaugeMetricSpec_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
-const schema_e42204a141ec4e6f = "x\xda,\xcd\xb1J\xc3P\x1c\x85\xf1s\xeeM\x0c\x05" +
-	"\x85\x84trQ\xdc\\\x04qs\xa9\xd2\x0a\x06\xb4\xf4" +
-	"\x92\x16\xaa\xe0\x10n\xff\x90\x926\x0di\xf4I|\x01" +
-	"\x9f\xc0\xddEp\x11\x1c\x04\xf1\x15\xc4I\\\x1d\xaf\x14" +
-	"\xba}\xfc\x96/\xbc?Q\x87\xfe\xab\x02\xcc\xae\xbf\xe1" +
-	"^>\xb6\xde\xdf\xfen\xbeab*\xb7\xe8\xff\x9c>" +
-	"x{_\xf0\x19\x00G\x09\xb7\x19_\xad2\x1e\xf1\x11" +
-	"}\x97K6kr\x9bk\xb1\xc5\xf2\xc0fUY\x1d" +
-	"\x9f\xafMl\x91VZ\xec\x804\x9b\xda\x03<\x02\xd1" +
-	"Y\x0d\x98\x9e\xa6\x19(\x92m\xae\xec\xf2\x1a0\x17\x9a" +
-	"f\xac\x18)\xafM\x05D\xa3'\xc0\x8c5\xcdDq" +
-	"\xfd\xe9\xe6\xd8\x11[$=\xb6\xa0\xd8\x02\xdd\\\x9az" +
-	"j\xd3\x0aZ,C\xf7\xd9\xdd\x1fv\xbc\xe7_\x80\x0c" +
-	"AW\xdf\x96\xc3\xe9\\\x12\x96\x8d\xd4w\xd9,\xed\x88" +
-	"]\x94\x93%\x03(\x06\xe0\x7f\x00\x00\x00\xff\xff\x81B" +
-	"@9"
+const schema_e42204a141ec4e6f = "x\xdat\x90\xbfJ+A\x1c\x85\xcf\x99\xd9\xdc\x10\xb8" +
+	"\xb9\xec\xb2\xa9n\x13\x10\x9b\x80(\x92JA\xa2$\x82" +
+	"\x01\x0d\x197B\x10,\xc2d`C\x92\xcd\xb2\xf9S" +
+	"\xd9Xh\xe1[\xf8\x04\x82\xa5\x08\x82\xa5\x85 \xbe\x82" +
+	"X\x89\x9dZ\xael\x90(\x82\xdd\xf0q`\xbe\xefg" +
+	"_\xad\x8b\xe5T^\x02j>\xf5'\xbe\xb9\xcf\xde\xdd" +
+	"\xbe\x1f<A\xb9\x14\xf1\xa0\xf6\xbcqf\xcd=\"\xc5" +
+	"4P\x1c\xf3?\xdd\xe3\xe4\xe9\x1e\xf1\x1c\x8c\x97^O" +
+	".\x8a\x87\xf978.\x7f\x8e\x0bb\x97\xee\x9aH\xc6" +
+	"+\xa2\x84Z\xec\x9bVo\xe4k_\x1a\xdd\x1d.\xea" +
+	"V\x18\x84\xab[SV\xf6\x8d\xeez\xa14\xbaN\xaa" +
+	"\xbf\xd2\x02,\x02\xcef\x04\xa8\x8a\xa4\xaa\x0b\x929&" +
+	"lg\x1fP\xdb\x92\xaa)\xe8\x08+G\x018{\x97" +
+	"\x80jJ\xaa\xb6\xe0\xe7?e\x1fy\xa3\xbb\xd5\x0a3" +
+	"\x10\xcc\x80q\xdf\x8c\xa2\x8e\xf6BH\xa3i\xc7\x0f\xe5" +
+	"B\xa3d]\xbf\x00\xa4\x0d\xc6\xd18ht\xfa\xa6\xca" +
+	"`d\xa2I\xab\xe7\x95\x8c\x1e\x04\xed!\xd3\x10L\x83" +
+	"3\x7f\xeb\x17\x7f\x13M:\xdax\xa1\xe14\xc3\x9ae" +
+	"dO\x01eK\xaa\x85ov\x9c&\x1b=\x04\xf8\x0f" +
+	"\xacK\xd2\xfe\xba>\x98\xc0\x8f\x00\x00\x00\xff\xffc\xb4" +
+	"m\x1d"
 
 func init() {
 	schemas.Register(schema_e42204a141ec4e6f,
-		0xe65df7cace0dd1c2)
+		0xe65df7cace0dd1c2,
+		0xf61f7c33b286f52f)
 }

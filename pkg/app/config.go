@@ -108,18 +108,19 @@ func (a AppConfig) ServiceConfigPath(id ServiceID) string {
 //
 //	/run/secrets/0xe49214fa20b35ba8
 //
+// If no config exists for the specified service, then nil is returned.
+//
 // errors:
-//	- ServiceConfigNotExistError
-//	- ConfigError - for unmarshalling errors
+//	- ConfigError
 func (a AppConfig) Config(id ServiceID) (*capnp.Message, error) {
 	c, err := ioutil.ReadFile(a.ServiceConfigPath(id))
 	if err != nil {
 		if err == os.ErrNotExist {
-			return nil, NewServiceConfigNotExistError(id)
+			return nil, nil
 		}
 		switch err := err.(type) {
 		case *os.PathError:
-			return nil, NewServiceConfigNotExistError(id)
+			return nil, nil
 		default:
 			return nil, NewConfigError(err)
 		}

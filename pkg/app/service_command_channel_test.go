@@ -82,7 +82,6 @@ func BenchmarkCommandServer(b *testing.B) {
 	}
 
 	foo := &FooCommandService{CommandServer: commandServer}
-	foo.Start()
 	foo.Foo()
 
 	//BenchmarkCommandServer/Foo_-_chan_buf_size_=_0-8                 3000000               772 ns/op               0 B/op          0 allocs/op

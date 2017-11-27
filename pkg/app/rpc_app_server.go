@@ -34,12 +34,7 @@ const (
 func runRPCAppServer() {
 	msg, err := Configs.Config(APP_RPC_SERVICE_ID)
 	if err != nil {
-		switch err := err.(type) {
-		case ServiceConfigNotExistError:
-			return
-		default:
-			APP_RPC_START_ERR.Log(Logger().Fatal()).Err(err).Msg("")
-		}
+		APP_RPC_START_ERR.Log(Logger().Fatal()).Err(err).Msg("")
 	}
 	if msg == nil {
 		return

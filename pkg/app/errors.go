@@ -161,20 +161,6 @@ type ConfigError struct {
 
 func (a ConfigError) UnrecoverableError() {}
 
-// NewServiceConfigNotExistError creates a ServiceConfigNotExistError for the specified service id
-func NewServiceConfigNotExistError(id ServiceID) ServiceConfigNotExistError {
-	return ServiceConfigNotExistError{
-		&Err{ErrorID: ErrorID(0x9394e42b4cf30b1b), Err: fmt.Errorf("Service config does not exist : %x", id)},
-		id,
-	}
-}
-
-// ServiceConfigNotExistError indicates no config exists for the associated ServiceID
-type ServiceConfigNotExistError struct {
-	*Err
-	ServiceID
-}
-
 // NewMetricsServiceError wraps the error as a MetricsServiceError
 func NewMetricsServiceError(err error) MetricsServiceError {
 	return MetricsServiceError{&Err{ErrorID: ErrorID(0xc24ac892db47da9f), Err: err}}
