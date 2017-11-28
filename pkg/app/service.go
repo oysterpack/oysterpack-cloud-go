@@ -19,6 +19,8 @@ import (
 	"gopkg.in/tomb.v2"
 )
 
+// NewService is the service factory method.
+// ServiceID must not be zero, i.e., a zero ServiceID will trigger a panic.
 func NewService(id ServiceID) *Service {
 	if id == 0 {
 		panic(ErrServiceIDZero)
@@ -27,6 +29,8 @@ func NewService(id ServiceID) *Service {
 	return &Service{id: id, logger: Logger().With().Uint64("svc", uint64(id)).Logger().Level(logLevel), logLevel: logLevel}
 }
 
+// Service represents an application service.
+// The service lifecycle is controlled by its Tomb.
 type Service struct {
 	tomb.Tomb
 
@@ -36,14 +40,17 @@ type Service struct {
 	logger   zerolog.Logger
 }
 
+// ServiceID is the unique service id
 func (a *Service) ID() ServiceID {
 	return a.id
 }
 
+// Logger is the service logger
 func (a *Service) Logger() zerolog.Logger {
 	return a.logger
 }
 
+// LogLevel is the service log level
 func (a *Service) LogLevel() zerolog.Level {
 	return a.logLevel
 }

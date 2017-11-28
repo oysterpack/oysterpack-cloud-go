@@ -28,6 +28,7 @@ func Reset() {
 
 	resetMetrics()
 	startMetricsHttpReporter()
+	healthchecks.init()
 
 	APP_RESET.Log(logger.Info()).Msg("reset")
 }

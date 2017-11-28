@@ -31,7 +31,7 @@ import (
 func startMetricsHttpReporter() {
 	svc := NewService(METRICS_SERVICE_ID)
 	if err := Services.Register(svc); err != nil {
-		METRICS_HTTP_REPORTER_START_ERROR.Log(Logger().Fatal()).Err(err).Msg("")
+		METRICS_HTTP_REPORTER_START_ERROR.Log(Logger().Panic()).Err(err).Msg("")
 	}
 
 	metricsService := &metricsHttpReporter{
@@ -40,30 +40,30 @@ func startMetricsHttpReporter() {
 	}
 
 	if err := metricsService.start(); err != nil {
-		METRICS_HTTP_REPORTER_START_ERROR.Log(Logger().Fatal()).Err(err).Msg("")
+		METRICS_HTTP_REPORTER_START_ERROR.Log(Logger().Panic()).Err(err).Msg("")
 	}
 }
 
 func MetricsServiceSpec() config.MetricsServiceSpec {
 	cfg, err := Configs.Config(METRICS_SERVICE_ID)
 	if err != nil {
-		METRICS_SERVICE_CONFIG_ERROR.Log(Logger().Fatal()).Err(err).Msg("")
+		METRICS_SERVICE_CONFIG_ERROR.Log(Logger().Panic()).Err(err).Msg("")
 	}
 	if cfg == nil {
 		_, s, capnpErr := capnp.NewMessage(capnp.SingleSegment(nil))
 		if capnpErr != nil {
-			CAPNP_ERR.Log(Logger().Fatal()).Err(err).Msg("MetricsServiceSpec() - capnp.NewMessage(capnp.SingleSegment(nil)) failed ")
+			CAPNP_ERR.Log(Logger().Panic()).Err(err).Msg("MetricsServiceSpec() - capnp.NewMessage(capnp.SingleSegment(nil)) failed ")
 		}
 		spec, capnpErr := config.NewRootMetricsServiceSpec(s)
 		if capnpErr != nil {
-			CAPNP_ERR.Log(Logger().Fatal()).Err(err).Msg("MetricsServiceSpec() - config.NewRootMetricsServiceSpec(s) failed ")
+			CAPNP_ERR.Log(Logger().Panic()).Err(err).Msg("MetricsServiceSpec() - config.NewRootMetricsServiceSpec(s) failed ")
 		}
 		spec.SetHttpPort(DEFAULT_METRICS_HTTP_PORT)
 		return spec
 	}
 	metricsServiceConfig, err := config.ReadRootMetricsServiceSpec(cfg)
 	if err != nil {
-		METRICS_SERVICE_CONFIG_ERROR.Log(Logger().Fatal()).Err(err).Msg("")
+		METRICS_SERVICE_CONFIG_ERROR.Log(Logger().Panic()).Err(err).Msg("")
 	}
 	if metricsServiceConfig.HttpPort() == 0 {
 		metricsServiceConfig.SetHttpPort(DEFAULT_METRICS_HTTP_PORT)
@@ -131,7 +131,7 @@ func (a *metricsHttpReporter) bootstrap() {
 		toCounterMetricSpec := func(spec config.CounterMetricSpec) CounterMetricSpec {
 			counterSpec, err := NewCounterMetricSpec(spec)
 			if err != nil {
-				METRICS_SERVICE_CONFIG_ERROR.Log(Logger().Fatal()).Err(err).
+				METRICS_SERVICE_CONFIG_ERROR.Log(Logger().Panic()).Err(err).
 					Uint64("svc", spec.ServiceId()).
 					Uint64("metric", spec.MetricId()).
 					Msg("Failed to read Help field")
@@ -142,7 +142,7 @@ func (a *metricsHttpReporter) bootstrap() {
 		toCounterVectorMetricSpec := func(spec config.CounterVectorMetricSpec) *CounterVectorMetricSpec {
 			counterSpec, err := NewCounterVectorMetricSpec(spec)
 			if err != nil {
-				METRICS_SERVICE_CONFIG_ERROR.Log(Logger().Fatal()).Err(err).Msg("Failed to read CounterVectorMetricSpec.MetricSpec field")
+				METRICS_SERVICE_CONFIG_ERROR.Log(Logger().Panic()).Err(err).Msg("Failed to read CounterVectorMetricSpec.MetricSpec field")
 			}
 			return counterSpec
 		}
@@ -150,7 +150,7 @@ func (a *metricsHttpReporter) bootstrap() {
 		toGaugeMetricSpec := func(spec config.GaugeMetricSpec) GaugeMetricSpec {
 			gaugeSpec, err := NewGaugeMetricSpec(spec)
 			if err != nil {
-				METRICS_SERVICE_CONFIG_ERROR.Log(Logger().Fatal()).Err(err).
+				METRICS_SERVICE_CONFIG_ERROR.Log(Logger().Panic()).Err(err).
 					Uint64("svc", spec.ServiceId()).
 					Uint64("metric", spec.MetricId()).
 					Msg("Failed to read Help field")
@@ -161,7 +161,7 @@ func (a *metricsHttpReporter) bootstrap() {
 		toGaugeVectorMetricSpec := func(spec config.GaugeVectorMetricSpec) *GaugeVectorMetricSpec {
 			gaugeSpec, err := NewGaugeVectorMetricSpec(spec)
 			if err != nil {
-				METRICS_SERVICE_CONFIG_ERROR.Log(Logger().Fatal()).Err(err).Msg("Failed to read GaugeVectorMetricSpec.MetricSpec field")
+				METRICS_SERVICE_CONFIG_ERROR.Log(Logger().Panic()).Err(err).Msg("Failed to read GaugeVectorMetricSpec.MetricSpec field")
 			}
 			return gaugeSpec
 		}
@@ -169,7 +169,7 @@ func (a *metricsHttpReporter) bootstrap() {
 		toHistogramMetricSpec := func(spec config.HistogramMetricSpec) HistogramMetricSpec {
 			histogramSpec, err := NewHistogramMetricSpec(spec)
 			if err != nil {
-				METRICS_SERVICE_CONFIG_ERROR.Log(Logger().Fatal()).Err(err).
+				METRICS_SERVICE_CONFIG_ERROR.Log(Logger().Panic()).Err(err).
 					Uint64("svc", spec.ServiceId()).
 					Uint64("metric", spec.MetricId()).
 					Msg("")
@@ -180,7 +180,7 @@ func (a *metricsHttpReporter) bootstrap() {
 		toHistogramVectorMetricSpec := func(spec config.HistogramVectorMetricSpec) *HistogramVectorMetricSpec {
 			histogramMetricSpec, err := NewHistogramVectorMetricSpec(spec)
 			if err != nil {
-				METRICS_SERVICE_CONFIG_ERROR.Log(Logger().Fatal()).Err(err).Msg("")
+				METRICS_SERVICE_CONFIG_ERROR.Log(Logger().Panic()).Err(err).Msg("")
 			}
 			return histogramMetricSpec
 		}
@@ -188,12 +188,12 @@ func (a *metricsHttpReporter) bootstrap() {
 		spec := MetricsServiceSpec()
 		metricSpecs, err := spec.MetricSpecs()
 		if err != nil {
-			METRICS_SERVICE_CONFIG_ERROR.Log(Logger().Fatal()).Err(err).Msg("")
+			METRICS_SERVICE_CONFIG_ERROR.Log(Logger().Panic()).Err(err).Msg("")
 		}
 
 		counterSpecs, err := metricSpecs.CounterSpecs()
 		if err != nil {
-			METRICS_SERVICE_CONFIG_ERROR.Log(Logger().Fatal()).Err(err).Msg("")
+			METRICS_SERVICE_CONFIG_ERROR.Log(Logger().Panic()).Err(err).Msg("")
 		}
 		for i := 0; i < counterSpecs.Len(); i++ {
 			metricSpec := toCounterMetricSpec(counterSpecs.At(i))
@@ -203,7 +203,7 @@ func (a *metricsHttpReporter) bootstrap() {
 
 		counterVectorSpecs, err := metricSpecs.CounterVectorSpecs()
 		if err != nil {
-			METRICS_SERVICE_CONFIG_ERROR.Log(Logger().Fatal()).Err(err).Msg("")
+			METRICS_SERVICE_CONFIG_ERROR.Log(Logger().Panic()).Err(err).Msg("")
 		}
 		for i := 0; i < counterVectorSpecs.Len(); i++ {
 			metricSpec := toCounterVectorMetricSpec(counterVectorSpecs.At(i))
@@ -213,7 +213,7 @@ func (a *metricsHttpReporter) bootstrap() {
 
 		gaugeSpecs, err := metricSpecs.GaugeSpecs()
 		if err != nil {
-			METRICS_SERVICE_CONFIG_ERROR.Log(Logger().Fatal()).Err(err).Msg("")
+			METRICS_SERVICE_CONFIG_ERROR.Log(Logger().Panic()).Err(err).Msg("")
 		}
 		for i := 0; i < gaugeSpecs.Len(); i++ {
 			metricSpec := toGaugeMetricSpec(gaugeSpecs.At(i))
@@ -223,7 +223,7 @@ func (a *metricsHttpReporter) bootstrap() {
 
 		gaugeVectorSpecs, err := metricSpecs.GaugeVectorSpecs()
 		if err != nil {
-			METRICS_SERVICE_CONFIG_ERROR.Log(Logger().Fatal()).Err(err).Msg("")
+			METRICS_SERVICE_CONFIG_ERROR.Log(Logger().Panic()).Err(err).Msg("")
 		}
 		for i := 0; i < gaugeVectorSpecs.Len(); i++ {
 			metricSpec := toGaugeVectorMetricSpec(gaugeVectorSpecs.At(i))
@@ -233,7 +233,7 @@ func (a *metricsHttpReporter) bootstrap() {
 
 		histogramSpecs, err := metricSpecs.HistogramSpecs()
 		if err != nil {
-			METRICS_SERVICE_CONFIG_ERROR.Log(Logger().Fatal()).Err(err).Msg("")
+			METRICS_SERVICE_CONFIG_ERROR.Log(Logger().Panic()).Err(err).Msg("")
 		}
 		for i := 0; i < histogramSpecs.Len(); i++ {
 			metricSpec := toHistogramMetricSpec(histogramSpecs.At(i))
@@ -243,7 +243,7 @@ func (a *metricsHttpReporter) bootstrap() {
 
 		histogramVectorSpecs, err := metricSpecs.HistogramVectorSpecs()
 		if err != nil {
-			METRICS_SERVICE_CONFIG_ERROR.Log(Logger().Fatal()).Err(err).Msg("")
+			METRICS_SERVICE_CONFIG_ERROR.Log(Logger().Panic()).Err(err).Msg("")
 		}
 		for i := 0; i < histogramVectorSpecs.Len(); i++ {
 			metricSpec := toHistogramVectorMetricSpec(histogramVectorSpecs.At(i))

@@ -79,7 +79,7 @@ func (a *ServiceCommandChannel) Submit(f func()) error {
 }
 
 // NewCommandServer creates a new CommandServer and returns it
-func NewCommandServer(service *Service, chanSize uint16, name string, init func(), destroy func()) (*CommandServer, error) {
+func NewCommandServer(service *Service, chanSize uint16, name string, init func() error, destroy func()) (*CommandServer, error) {
 	serviceCommandChannel, err := NewServiceCommandChannel(service, chanSize)
 	if err != nil {
 		return nil, err
@@ -103,8 +103,8 @@ type CommandServer struct {
 	// OPTIONAL - used for logging purposes
 	Name string
 
-	// OPTIONAL - invoked before the any commands are run
-	Init func()
+	// OPTIONAL - invoked before any commands are run
+	Init func() error
 	// OPTIONAL - invoked when the service has been killed
 	Destroy func()
 }
@@ -129,7 +129,9 @@ func (a *CommandServer) start() error {
 	a.Go(func() error {
 		a.starting()
 		if a.Init != nil {
-			a.Init()
+			if err := a.Init(); err != nil {
+				return err
+			}
 		}
 		a.started()
 

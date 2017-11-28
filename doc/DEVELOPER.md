@@ -76,5 +76,8 @@ Execute the following commands from this directory:
 
     sudo cp 60-idea.conf /etc/sysctl.d/
     sudo service procps start
+    
+# go generate
+https://blog.carlmjohnson.net/post/2016-11-27-how-to-use-go-generate/
 
 

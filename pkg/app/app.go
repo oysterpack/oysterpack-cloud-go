@@ -35,6 +35,13 @@ import (
 	"gopkg.in/tomb.v2"
 )
 
+var (
+	INFRASTRUCTURE_SERVICE_IDS = []ServiceID{
+		METRICS_SERVICE_ID,
+		HEALTHCHECK_SERVICE_ID,
+	}
+)
+
 // app vars
 var (
 	domainID  DomainID
@@ -400,6 +407,7 @@ func init() {
 	runAppServer()
 	runRPCAppServer()
 	startMetricsHttpReporter()
+	healthchecks.init()
 }
 
 func initZerolog(logLevel string) {

@@ -52,6 +52,15 @@ func TestMetricsService(t *testing.T) {
 		METRIC_ID_HISTOGRAM_VEC
 	)
 
+	t.Run("HealthCheck gauges are registered", func(t *testing.T) {
+		if MetricRegistry.GaugeVector(HEALTHCHECK_SERVICE_ID, HEALTHCHECK_METRIC_ID) == nil {
+			t.Error("HealthCheck gauge vector is missing")
+		}
+		if MetricRegistry.GaugeVector(HEALTHCHECK_SERVICE_ID, HEALTHCHECK_RUN_DURATION_METRIC_ID) == nil {
+			t.Error("HealthCheck run duration gauge vector is missing")
+		}
+	})
+
 	t.Run("No Metrics Registered", func(t *testing.T) {
 		if MetricRegistry.Counter(SERVICE_ID_1, METRIC_ID_COUNTER) != nil {
 			t.Error("No metric should be registered")

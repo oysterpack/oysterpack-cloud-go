@@ -34,19 +34,19 @@ const (
 func runRPCAppServer() {
 	msg, err := Configs.Config(APP_RPC_SERVICE_ID)
 	if err != nil {
-		APP_RPC_START_ERR.Log(Logger().Fatal()).Err(err).Msg("")
+		APP_RPC_START_ERR.Log(Logger().Panic()).Err(err).Msg("")
 	}
 	if msg == nil {
 		return
 	}
 	spec, err := config.ReadRootRPCServerSpec(msg)
 	if err != nil {
-		APP_RPC_START_ERR.Log(Logger().Fatal()).Err(err).Msg("")
+		APP_RPC_START_ERR.Log(Logger().Panic()).Err(err).Msg("")
 		return
 	}
 	serverSpec, err := NewRPCServerSpec(spec)
 	if err != nil {
-		APP_RPC_START_ERR.Log(Logger().Fatal()).Err(err).Msg("")
+		APP_RPC_START_ERR.Log(Logger().Panic()).Err(err).Msg("")
 		return
 	}
 	startRPCAppServer(serverSpec.ListenerFactory(), serverSpec.TLSConfigProvider(), uint(serverSpec.MaxConns))
@@ -55,7 +55,7 @@ func runRPCAppServer() {
 func startRPCAppServer(listenerFactory ListenerFactory, tlsConfigProvider TLSConfigProvider, maxConns uint) (*RPCService, error) {
 	rpcServer := NewService(APP_RPC_SERVICE_ID)
 	if err := Services.Register(rpcServer); err != nil {
-		APP_RPC_START_ERR.Log(Logger().Fatal()).Err(err).Msg("Failed to register app RPC server")
+		APP_RPC_START_ERR.Log(Logger().Panic()).Err(err).Msg("Failed to register app RPC server")
 	}
 
 	server := capnprpc.App_ServerToClient(NewAppServer())

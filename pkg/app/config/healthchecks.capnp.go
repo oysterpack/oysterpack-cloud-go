@@ -94,12 +94,12 @@ type HealthCheckSpec struct{ capnp.Struct }
 const HealthCheckSpec_TypeID = 0xe65df7cace0dd1c2
 
 func NewHealthCheckSpec(s *capnp.Segment) (HealthCheckSpec, error) {
-	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 1})
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 0})
 	return HealthCheckSpec{st}, err
 }
 
 func NewRootHealthCheckSpec(s *capnp.Segment) (HealthCheckSpec, error) {
-	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 1})
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 0})
 	return HealthCheckSpec{st}, err
 }
 
@@ -121,37 +121,20 @@ func (s HealthCheckSpec) SetHealthCheckID(v uint64) {
 	s.Struct.SetUint64(0, v)
 }
 
-func (s HealthCheckSpec) MetricSpec() (GaugeMetricSpec, error) {
-	p, err := s.Struct.Ptr(0)
-	return GaugeMetricSpec{Struct: p.Struct()}, err
-}
-
-func (s HealthCheckSpec) HasMetricSpec() bool {
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
-}
-
-func (s HealthCheckSpec) SetMetricSpec(v GaugeMetricSpec) error {
-	return s.Struct.SetPtr(0, v.Struct.ToPtr())
-}
-
-// NewMetricSpec sets the metricSpec field to a newly
-// allocated GaugeMetricSpec struct, preferring placement in s's segment.
-func (s HealthCheckSpec) NewMetricSpec() (GaugeMetricSpec, error) {
-	ss, err := NewGaugeMetricSpec(s.Struct.Segment())
-	if err != nil {
-		return GaugeMetricSpec{}, err
-	}
-	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
-	return ss, err
-}
-
-func (s HealthCheckSpec) RunTimeIntervalSeconds() uint16 {
+func (s HealthCheckSpec) RunIntervalSeconds() uint16 {
 	return s.Struct.Uint16(8)
 }
 
-func (s HealthCheckSpec) SetRunTimeIntervalSeconds(v uint16) {
+func (s HealthCheckSpec) SetRunIntervalSeconds(v uint16) {
 	s.Struct.SetUint16(8, v)
+}
+
+func (s HealthCheckSpec) TimeoutSeconds() uint8 {
+	return s.Struct.Uint8(10)
+}
+
+func (s HealthCheckSpec) SetTimeoutSeconds(v uint8) {
+	s.Struct.SetUint8(10, v)
 }
 
 // HealthCheckSpec_List is a list of HealthCheckSpec.
@@ -159,7 +142,7 @@ type HealthCheckSpec_List struct{ capnp.List }
 
 // NewHealthCheckSpec creates a new list of HealthCheckSpec.
 func NewHealthCheckSpec_List(s *capnp.Segment, sz int32) (HealthCheckSpec_List, error) {
-	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 16, PointerCount: 1}, sz)
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 16, PointerCount: 0}, sz)
 	return HealthCheckSpec_List{l}, err
 }
 
@@ -182,31 +165,31 @@ func (p HealthCheckSpec_Promise) Struct() (HealthCheckSpec, error) {
 	return HealthCheckSpec{s}, err
 }
 
-func (p HealthCheckSpec_Promise) MetricSpec() GaugeMetricSpec_Promise {
-	return GaugeMetricSpec_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
-}
-
-const schema_e42204a141ec4e6f = "x\xdat\x90\xbfJ+A\x1c\x85\xcf\x99\xd9\xdc\x10\xb8" +
-	"\xb9\xec\xb2\xa9n\x13\x10\x9b\x80(\x92JA\xa2$\x82" +
-	"\x01\x0d\x197B\x10,\xc2d`C\x92\xcd\xb2\xf9S" +
-	"\xd9Xh\xe1[\xf8\x04\x82\xa5\x08\x82\xa5\x85 \xbe\x82" +
-	"X\x89\x9dZ\xael\x90(\x82\xdd\xf0q`\xbe\xefg" +
-	"_\xad\x8b\xe5T^\x02j>\xf5'\xbe\xb9\xcf\xde\xdd" +
-	"\xbe\x1f<A\xb9\x14\xf1\xa0\xf6\xbcqf\xcd=\"\xc5" +
-	"4P\x1c\xf3?\xdd\xe3\xe4\xe9\x1e\xf1\x1c\x8c\x97^O" +
-	".\x8a\x87\xf978.\x7f\x8e\x0bb\x97\xee\x9aH\xc6" +
-	"+\xa2\x84Z\xec\x9bVo\xe4k_\x1a\xdd\x1d.\xea" +
-	"V\x18\x84\xab[SV\xf6\x8d\xeez\xa14\xbaN\xaa" +
-	"\xbf\xd2\x02,\x02\xcef\x04\xa8\x8a\xa4\xaa\x0b\x929&" +
-	"lg\x1fP\xdb\x92\xaa)\xe8\x08+G\x018{\x97" +
-	"\x80jJ\xaa\xb6\xe0\xe7?e\x1fy\xa3\xbb\xd5\x0a3" +
-	"\x10\xcc\x80q\xdf\x8c\xa2\x8e\xf6BH\xa3i\xc7\x0f\xe5" +
-	"B\xa3d]\xbf\x00\xa4\x0d\xc6\xd18ht\xfa\xa6\xca" +
-	"`d\xa2I\xab\xe7\x95\x8c\x1e\x04\xed!\xd3\x10L\x83" +
-	"3\x7f\xeb\x17\x7f\x13M:\xdax\xa1\xe14\xc3\x9ae" +
-	"dO\x01eK\xaa\x85ov\x9c&\x1b=\x04\xf8\x0f" +
-	"\xacK\xd2\xfe\xba>\x98\xc0\x8f\x00\x00\x00\xff\xffc\xb4" +
-	"m\x1d"
+const schema_e42204a141ec4e6f = "x\xdat\x911k\x14A\x1c\xc5\xdf\xfb\xcf\xdc\x1d\x09" +
+	"\x89\xdc\xb2\xa9D\xb9El\x04\x8d\x84kD\x90\x18\x12" +
+	"!\x11Nn<,\x15\x96qd\xc3\x9d\xbb\xcb\xde\\" +
+	"\x14\xb1\x14\x8b\x80\xa0\xd8\xd9\x88\x9f@\xb0\xb7P\xb4\xb1" +
+	"\x10m\xfc\x04be\xab\x96#{\x9c9\x11\xd3>\xde" +
+	"\xfc\x1e\xf3\xfb\xb7\xdf\\\x94\xb5F!\x809\xd6h\x86" +
+	"\xb7\x9f\x97?~\xf8u\xfd\x1bLL\x09\xc5\x95\xef\x1b" +
+	"/\xf4\x89\xaf\xd0-\xa0{\x9cG\x19\x9fa\x0b\x88O" +
+	"\xf1%\x18\xce\xfex\xf8\xaa{\xbf\xf3\x13Q\xccy\xb7" +
+	"Q7\xba\x17\xe4*c#u\xb9'\xeb8\x172\x97" +
+	"\x8e|f3\xe5\xecp\xbcj\xd32/\xcfoO\xb3" +
+	"\xcd\xcc\xd9\xe1\xa0T\xce\xf6I\xb3\xa44\xa0\x09D\x97" +
+	"*\xc0l)\x9a\xbe0\xa2^a\x1d\xf6\x9eE\xd7:" +
+	"\xe6\x81\xa2y,\x8cdq\x85\x02D\x8f\xeeEO:" +
+	"\xe6\x9d\xa2\xf9$\x9cMmf\xe88;\xdc\xd9\xe2\x02" +
+	"\x84\x0b`\xa8&\xf9N\xee]\xc5\xbdt4p\xb6\xc8" +
+	"\xd5\xcd\xb1\xd1\x94p\xe3\xe9s\xf3\xfa\xcb\xfe{\x18-" +
+	"\xdcH\xc8%`\x8d\x8b\x0c\xdb\xc5\x9d\xa4\xb8\xe5\x9d\xca" +
+	"\x13_$\xd5$O|\xe6\x92?_qv\x08\xb2\x05" +
+	"a\x0b\x0c~\xf7\xb6+&~\x80\xf5\x1a\xfd_\xf2\xc9" +
+	"\x19\xf92C/\xbd\x9b\xd4/t\x0dNG\x85\xff\x97" +
+	"<\x1b\\\x05\xd9\x84\xb0\x09\x1e(\xd4\x87(t\xd5\xde" +
+	"\xaeu\x83\xd2qjR\x1f\x98\\\xde\x07L[\xd1\x9c" +
+	"\xfe\xcb\x0e\xa7\xd6\x9d\x1d\x03<\x02\xf6\x15\xd9\x9e\xdf\x1f" +
+	"\xac\xc3\xdf\x01\x00\x00\xff\xff?g\x95\xc9"
 
 func init() {
 	schemas.Register(schema_e42204a141ec4e6f,

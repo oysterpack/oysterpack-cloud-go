@@ -264,8 +264,23 @@ func TestGetService(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(ids) != 1 || ids[0] != app.METRICS_SERVICE_ID {
+	if len(ids) != len(app.INFRASTRUCTURE_SERVICE_IDS) {
 		t.Errorf("There should only be app infrastructure services registered")
+	} else {
+		svc, err := app.Services.Service(app.METRICS_SERVICE_ID)
+		if err != nil {
+			t.Error(err)
+		}
+		if svc == nil {
+			t.Error("MetricsService should always be available")
+		}
+		svc, err = app.Services.Service(app.HEALTHCHECK_SERVICE_ID)
+		if err != nil {
+			t.Error(err)
+		}
+		if svc == nil {
+			t.Error("HealthCheck service should always be available")
+		}
 	}
 }
 
