@@ -112,10 +112,6 @@ func (a *metricsHttpReporter) bootstrap() {
 	registerMetricsHandler := func() {
 		metricsServiceMutex.Lock()
 		defer metricsServiceMutex.Unlock()
-		if metricsServiceBootstrapped {
-			// registering the handler again using to the same /metrics endpoint would cause http.Handle() to panic
-			return
-		}
 		metricsHandler := promhttp.HandlerFor(
 			metricsRegistry,
 			promhttp.HandlerOpts{
@@ -124,7 +120,6 @@ func (a *metricsHttpReporter) bootstrap() {
 			},
 		)
 		http.Handle("/metrics", metricsHandler)
-		metricsServiceBootstrapped = true
 	}
 
 	registerMetrics := func() {
@@ -248,11 +243,11 @@ func (a *metricsHttpReporter) bootstrap() {
 		for i := 0; i < histogramVectorSpecs.Len(); i++ {
 			metricSpec := toHistogramVectorMetricSpec(histogramVectorSpecs.At(i))
 			metric := &HistogramVectorMetric{metricSpec, prometheus.NewHistogramVec(metricSpec.HistogramOpts(), metricSpec.DynamicLabels)}
-			metric.Register()
+			metric.register()
 		}
 	}
 
-	registerMetricsHandler()
+	registerMetricsHandlerOnce.Do(registerMetricsHandler)
 	registerMetrics()
 }
 

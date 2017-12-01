@@ -15,4 +15,6 @@
 7. Logging config
     - app log level
     - service log level
+8. Think about how to manage developer documentation, e.g.
+    - https://developer.apple.com/documentation
    

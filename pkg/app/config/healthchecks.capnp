@@ -5,6 +5,7 @@ $Go.import("github.com/oysterpack/oysterpack.go/pkg/app/config");
 
 struct HealthCheckServiceSpec @0xf61f7c33b286f52f {
     healthCheckSpecs        @0 :List(HealthCheckSpec);
+    commandServerChanSize   @1 :UInt8;
 }
 
 struct HealthCheckSpec @0xe65df7cace0dd1c2 {

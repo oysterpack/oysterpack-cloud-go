@@ -24,17 +24,17 @@ import (
 )
 
 func TestMetricsService(t *testing.T) {
-	previousConfigDir := configDir
-	configDir = "testdata/TestMetricsService"
+	previousConfigDir := Configs.ConfigDir()
+	Configs.SetConfigDir("testdata/TestMetricsService")
 
 	// clean the config dir
-	os.RemoveAll(configDir)
-	os.MkdirAll(configDir, 0755)
+	os.RemoveAll(Configs.ConfigDir())
+	os.MkdirAll(Configs.ConfigDir(), 0755)
 
 	// Reset the app
 	Reset()
 	defer func() {
-		configDir = previousConfigDir
+		Configs.SetConfigDir(previousConfigDir)
 		Reset()
 	}()
 

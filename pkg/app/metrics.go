@@ -34,7 +34,7 @@ const (
 // metrics
 var (
 	metricsServiceMutex        sync.Mutex
-	metricsServiceBootstrapped = false
+	registerMetricsHandlerOnce sync.Once
 
 	// global metrics registry
 	metricsRegistry = newMetricsRegistry(true)

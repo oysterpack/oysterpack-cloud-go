@@ -265,7 +265,7 @@ func TestGetService(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(ids) != len(app.INFRASTRUCTURE_SERVICE_IDS) {
-		t.Errorf("There should only be app infrastructure services registered")
+		t.Errorf("There should only be app infrastructure services registered : %v != %v", len(ids), len(app.INFRASTRUCTURE_SERVICE_IDS))
 	} else {
 		svc, err := app.Services.Service(app.METRICS_SERVICE_ID)
 		if err != nil {

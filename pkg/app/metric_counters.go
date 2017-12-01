@@ -83,6 +83,7 @@ type CounterMetric struct {
 	prometheus.Counter
 }
 
+// critical section that must be synchronized via metricsServiceMutex
 func (a *CounterMetric) register() {
 	metrics := counters[a.ServiceID]
 	if metrics == nil {
@@ -102,6 +103,7 @@ type CounterVectorMetric struct {
 	*prometheus.CounterVec
 }
 
+// critical section that must be synchronized via metricsServiceMutex
 func (a *CounterVectorMetric) register() {
 	metrics := counterVectors[a.ServiceID]
 	if metrics == nil {

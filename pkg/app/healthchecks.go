@@ -17,10 +17,12 @@ package app
 import (
 	"time"
 
-	"sync"
+	"fmt"
 
 	"github.com/oysterpack/oysterpack.go/pkg/app/config"
 	"github.com/prometheus/client_golang/prometheus"
+	"gopkg.in/tomb.v2"
+	"zombiezen.com/go/capnproto2"
 )
 
 // healthcheck constants
@@ -30,41 +32,12 @@ const (
 	HEALTHCHECK_METRIC_LABEL           = "healthcheck" // the label value will be the HealthCheckID in hex format
 	HEALTHCHECK_METRIC_ID              = MetricID(0x844d7830332bffd3)
 	HEALTHCHECK_RUN_DURATION_METRIC_ID = MetricID(0xcd4260d6e89ad9c6)
+
+	DEFAULT_HEALTHCHECK_RUN_INTERVAL = 5 * time.Minute
+	DEFAULT_HEALTHCHECK_RUN_TIMEOUT  = 5 * time.Second
 )
 
-var (
-	healthchecks = &healthcheckService{}
-)
-
-func registerHealthCheckGauges() {
-	metricsServiceMutex.Lock()
-	defer metricsServiceMutex.Unlock()
-	metricSpecs := []*GaugeVectorMetricSpec{
-		&GaugeVectorMetricSpec{
-			MetricSpec: MetricSpec{
-				ServiceID: HEALTHCHECK_SERVICE_ID,
-				MetricID:  HEALTHCHECK_METRIC_ID,
-				Help:      "HealthChecks",
-			},
-			DynamicLabels: []string{HEALTHCHECK_METRIC_LABEL},
-		},
-		&GaugeVectorMetricSpec{
-			MetricSpec: MetricSpec{
-				ServiceID: HEALTHCHECK_SERVICE_ID,
-				MetricID:  HEALTHCHECK_RUN_DURATION_METRIC_ID,
-				Help:      "HealthCheck run durations",
-			},
-			DynamicLabels: []string{HEALTHCHECK_METRIC_LABEL},
-		},
-	}
-
-	for _, metricSpec := range metricSpecs {
-		if MetricRegistry.GaugeVector(metricSpec.ServiceID, metricSpec.MetricID) == nil {
-			metric := &GaugeVectorMetric{metricSpec, prometheus.NewGaugeVec(metricSpec.GaugeOpts(), metricSpec.DynamicLabels)}
-			metric.register()
-		}
-	}
-}
+type AppHealthChecks struct{}
 
 // HealthCheckSpec is used to configure the healthchecks. Configuration that is loaded will override any runtime configuration.
 // Consider runtime settings specified in the code as the default settings.
@@ -95,8 +68,67 @@ type HealthCheckSpec struct {
 type registeredHealthCheck struct {
 	*HealthCheckSpec
 	HealthCheck
-	prometheus.Gauge
+
 	HealthCheckResult
+
+	ResultGauge      prometheus.Gauge
+	RunDurationGauge prometheus.Gauge
+
+	// each healthcheck is scheduled to run in it own separate goroutine
+	// the tomb is used to stop an individual healthcheck
+	tomb.Tomb
+
+	// used to run the healthcheck on demand. The result is returned on the specified chan
+	RunOnDemandChan chan chan HealthCheckResult
+}
+
+func (a *registeredHealthCheck) run() {
+	healthcheckRunMutex.Lock()
+	defer healthcheckRunMutex.Unlock()
+
+	healthCheckService, err := Services.Service(HEALTHCHECK_SERVICE_ID)
+	if err != nil {
+		panic(fmt.Sprintf("HealthCheckService lookup failed : %v", err))
+	}
+	if healthCheckService == nil {
+		panic(ErrServiceNotRegistered)
+	}
+
+	cancel := make(chan struct{})
+	result := make(chan error, 1)
+
+	start := time.Now()
+	go a.HealthCheck(result, cancel)
+
+	timeoutTimer := time.NewTicker(a.Timeout)
+	defer timeoutTimer.Stop()
+
+	select {
+	case <-timeoutTimer.C:
+		a.HealthCheckResult.Err = NewHealthCheckTimeoutError(a.HealthCheckSpec.HealthCheckID)
+		a.HealthCheckResult.Duration = time.Now().Sub(start)
+		a.HealthCheckResult.ErrCount++
+		a.ResultGauge.Inc()
+		a.RunDurationGauge.Set(float64(a.HealthCheckResult.Duration))
+		close(cancel) // notifies the HealthCheck func that it has been cancelled
+	case err := <-result:
+		a.HealthCheckResult.Err = err
+		a.HealthCheckResult.Time = start
+		a.HealthCheckResult.Duration = time.Now().Sub(start)
+		if err != nil {
+			a.HealthCheckResult.ErrCount++
+		} else {
+			a.HealthCheckResult.ErrCount = 0
+		}
+		a.ResultGauge.Set(float64(a.HealthCheckResult.ErrCount))
+		a.RunDurationGauge.Set(float64(a.HealthCheckResult.Duration))
+	case <-a.Dying():
+		close(cancel) // notifies the HealthCheck func that it has been cancelled
+		return
+	case <-healthCheckService.Dying():
+		close(cancel) // notifies the HealthCheck func that it has been cancelled
+		return
+	}
 }
 
 // HealthCheck is used to run the health check.
@@ -110,90 +142,33 @@ type HealthCheckResult struct {
 	// why the health check failed
 	Err error
 
-	// when the health check start time
+	// when the health check started running
 	time.Time
 
 	// how long it took to run the health check
 	time.Duration
+
+	// how many times the health check has failed consecutively
+	ErrCount uint
 }
 
-type healthcheckService struct {
-	mutex        sync.Mutex
-	server       *CommandServer
-	config       map[HealthCheckID]*HealthCheckSpec
-	healthchecks map[HealthCheckID]*registeredHealthCheck
-}
-
-func (a *healthcheckService) init() {
-	a.mutex.Lock()
-	defer a.mutex.Unlock()
-	if a.server != nil && a.server.Alive() {
-		return
-	}
-	service := NewService(HEALTHCHECK_SERVICE_ID)
-	if err := Services.Register(service); err != nil {
-		SERVICE_STARTING.Log(Logger().Panic()).Err(err).Msg("Failed to register the HealthCheck service")
-	}
-	if server, err := NewCommandServer(service, 1, "healthchecks", nil, nil); err != nil {
-		SERVICE_STARTING.Log(Logger().Panic()).Err(err).Msg("Failed to create CommandServer")
-	} else {
-		a.server = server
-	}
-
-	a.healthchecks = make(map[HealthCheckID]*registeredHealthCheck)
-	registerHealthCheckGauges()
-	a.server.Submit(a.loadConfig)
-}
-
-func (a *healthcheckService) loadConfig() {
+func loadHealthCheckServiceSpec() config.HealthCheckServiceSpec {
 	cfg, err := Configs.Config(HEALTHCHECK_SERVICE_ID)
 	if err != nil {
-		CONFIG_LOADING_ERR.Log(a.server.Logger().Fatal()).Err(err).Msg("")
+		CONFIG_LOADING_ERR.Log(Logger().Fatal()).Err(err).Msg("config.HealthCheckServiceSpec")
 	}
 	if cfg == nil {
-		return
+		_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+		if err != nil {
+			CONFIG_LOADING_ERR.Log(Logger().Panic()).Err(err).Msg("capnp.NewMessage(capnp.SingleSegment(nil)) failed")
+		}
+		spec, err := config.NewRootHealthCheckServiceSpec(seg)
+		spec.SetCommandServerChanSize(1)
+		return spec
 	}
 	serviceSpec, err := config.ReadRootHealthCheckServiceSpec(cfg)
 	if err != nil {
-		CONFIG_LOADING_ERR.Log(a.server.Logger().Panic()).Err(err).Msg("config.ReadRootHealthCheckServiceSpec() failed")
+		CONFIG_LOADING_ERR.Log(Logger().Panic()).Err(err).Msg("config.ReadRootHealthCheckServiceSpec() failed")
 	}
-
-	healthcheckSpecs, err := serviceSpec.HealthCheckSpecs()
-	if err != nil {
-		CONFIG_LOADING_ERR.Log(a.server.Logger().Panic()).Err(err).Msg("Failed on HealthCheckSpecs")
-	}
-	if healthcheckSpecs.Len() == 0 {
-		ZERO_HEALTHCHECKS.Log(a.server.Logger().Warn()).Msg("No health checks")
-		return
-	}
-
-	a.config = make(map[HealthCheckID]*HealthCheckSpec, healthcheckSpecs.Len())
-	for i := 0; i < healthcheckSpecs.Len(); i++ {
-		spec := healthcheckSpecs.At(i)
-		a.config[HealthCheckID(spec.HealthCheckID())] = &HealthCheckSpec{
-			HealthCheckID: HealthCheckID(spec.HealthCheckID()),
-			RunInterval:   time.Duration(spec.RunIntervalSeconds()) * time.Second,
-			Timeout:       time.Duration(spec.TimeoutSeconds()) * time.Second,
-		}
-		a.server.Logger().Info()
-	}
-}
-
-func (a *healthcheckService) Register(id HealthCheckID, healthcheck HealthCheck) error {
-	// TODO
-	return nil
-}
-
-func (a *healthcheckService) RegisteredHealthCheckIDs() []HealthCheckID {
-	// TODO
-	return nil
-}
-
-func (a *healthcheckService) Run(id HealthCheckID) (HealthCheckResult, bool) {
-	//TODO
-	return HealthCheckResult{}, false
-}
-
-func (a *healthcheckService) LastResult(id HealthCheckID) (HealthCheckResult, bool) {
-	return HealthCheckResult{}, false
+	return serviceSpec
 }

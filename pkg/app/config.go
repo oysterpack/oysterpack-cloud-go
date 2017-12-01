@@ -33,10 +33,25 @@ import (
 // AppConfig is used to group together config related functions
 type AppConfig struct{}
 
+// ConfigDir returns the config dir path
+func (a AppConfig) ConfigDir() string {
+	configDirMutex.RLock()
+	defer configDirMutex.RUnlock()
+	return configDir
+}
+
+// SetConfigDir is only exposed for testing purposes.
+// This enables tests to setup test configurations
+func (a AppConfig) SetConfigDir(dir string) {
+	configDirMutex.Lock()
+	defer configDirMutex.Unlock()
+	configDir = dir
+}
+
 // ConfigServiceIDs returns the list of ServiceID(s) for which configs exist
 // The ServiceID is used as the config id.
 func (a AppConfig) ConfigServiceIDs() ([]ServiceID, error) {
-	dir, err := os.Open(configDir)
+	dir, err := os.Open(a.ConfigDir())
 	if err != nil {
 		if err == os.ErrNotExist {
 			return []ServiceID{}, nil
@@ -49,7 +64,7 @@ func (a AppConfig) ConfigServiceIDs() ([]ServiceID, error) {
 		return nil, NewConfigError(err)
 	}
 	if !dirStat.IsDir() {
-		return nil, NewConfigError(fmt.Errorf("Config dir is not a dir : %s", configDir))
+		return nil, NewConfigError(fmt.Errorf("Config dir is not a dir : %s", a.ConfigDir()))
 	}
 
 	names, err := dir.Readdirnames(0)
@@ -83,14 +98,9 @@ func (a AppConfig) ServiceConfigExists(id ServiceID) bool {
 	return true
 }
 
-// ConfigDir returns the config dir path
-func (a AppConfig) ConfigDir() string {
-	return configDir
-}
-
 // ConfigDirExists returns true if the config dir exists
 func (a AppConfig) ConfigDirExists() bool {
-	dir, err := os.Open(configDir)
+	dir, err := os.Open(a.ConfigDir())
 	if err != nil {
 		return false
 	}
@@ -100,7 +110,7 @@ func (a AppConfig) ConfigDirExists() bool {
 
 // ServiceConfigPath returns the service config file path
 func (a AppConfig) ServiceConfigPath(id ServiceID) string {
-	return fmt.Sprintf("%s/%s", configDir, a.ServiceConfigID(id))
+	return fmt.Sprintf("%s/%s", a.ConfigDir(), a.ServiceConfigID(id))
 }
 
 // Config returns the config message for the specified ServiceID.

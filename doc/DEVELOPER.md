@@ -79,5 +79,3 @@ Execute the following commands from this directory:
     
 # go generate
 https://blog.carlmjohnson.net/post/2016-11-27-how-to-use-go-generate/
-
-

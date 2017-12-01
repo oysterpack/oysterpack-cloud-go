@@ -29,6 +29,8 @@ import (
 
 	"strconv"
 
+	"sync"
+
 	"github.com/nats-io/nuid"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -61,7 +63,8 @@ var (
 	services    = make(map[ServiceID]*Service)
 	rpcServices = make(map[ServiceID]*RPCService)
 
-	configDir string
+	configDirMutex sync.RWMutex
+	configDir      string
 )
 
 // app framework
@@ -70,6 +73,7 @@ var (
 	RPC            AppRPCServices
 	Configs        AppConfig
 	MetricRegistry AppMetricRegistry
+	HealthChecks   AppHealthChecks
 )
 
 type AppServices struct{}
@@ -397,7 +401,7 @@ func init() {
 
 	flag.Parse()
 
-	domainID = DomainID(domainID)
+	domainID = DomainID(domainIDVar)
 	appID = AppID(appIDVar)
 	releaseID = ReleaseID(releaseIDVar)
 
@@ -407,7 +411,6 @@ func init() {
 	runAppServer()
 	runRPCAppServer()
 	startMetricsHttpReporter()
-	healthchecks.init()
 }
 
 func initZerolog(logLevel string) {

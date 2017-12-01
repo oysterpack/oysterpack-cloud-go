@@ -83,6 +83,7 @@ type GaugeMetric struct {
 	prometheus.Gauge
 }
 
+// critical section that must be synchronized via metricsServiceMutex
 func (a *GaugeMetric) register() {
 	metrics := gauges[a.ServiceID]
 	if metrics == nil {
@@ -102,6 +103,7 @@ type GaugeVectorMetric struct {
 	*prometheus.GaugeVec
 }
 
+// critical section that must be synchronized via metricsServiceMutex
 func (a *GaugeVectorMetric) register() {
 	metrics := gaugeVectors[a.ServiceID]
 	if metrics == nil {

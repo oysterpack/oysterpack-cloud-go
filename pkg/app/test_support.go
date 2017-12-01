@@ -28,13 +28,15 @@ func Reset() {
 
 	resetMetrics()
 	startMetricsHttpReporter()
-	healthchecks.init()
+
+	registerHealthCheckGauges()
+	registerHealthCheckService()
 
 	APP_RESET.Log(logger.Info()).Msg("reset")
 }
 
-func ResetWithConfigDir(configDirPath string) {
-	configDir = configDirPath
+func ResetWithConfigDir(configDir string) {
+	Configs.SetConfigDir(configDir)
 	Reset()
 }
 

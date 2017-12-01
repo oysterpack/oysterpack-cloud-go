@@ -28,12 +28,12 @@ import (
 )
 
 func TestConfigServiceIDs(t *testing.T) {
-	previousConfigDir := configDir
-	defer func() { configDir = previousConfigDir }()
-	configDir = "testdata/TestConfigServiceIDs"
+	previousConfigDir := Configs.ConfigDir()
+	defer func() { Configs.SetConfigDir(previousConfigDir) }()
+	Configs.SetConfigDir("testdata/TestConfigServiceIDs")
 
 	// Given that the config dir does not exist
-	os.RemoveAll(configDir)
+	os.RemoveAll(Configs.ConfigDir())
 
 	// When config service ids are looked up
 	if _, err := Configs.ConfigServiceIDs(); err == nil {
@@ -49,7 +49,7 @@ func TestConfigServiceIDs(t *testing.T) {
 	}
 
 	// Given the config dir does exist
-	if err := os.MkdirAll(configDir, 0755); err != nil {
+	if err := os.MkdirAll(Configs.ConfigDir(), 0755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -66,10 +66,10 @@ func TestConfigServiceIDs(t *testing.T) {
 
 	// Given configs exist
 	for i := 0; i < 10; i++ {
-		ioutil.WriteFile(fmt.Sprintf("%s/0x%x", configDir, uint64(APP_RPC_SERVICE_ID)+uint64(i)), []byte{}, 0444)
+		ioutil.WriteFile(fmt.Sprintf("%s/0x%x", Configs.ConfigDir(), uint64(APP_RPC_SERVICE_ID)+uint64(i)), []byte{}, 0444)
 	}
 	for i := 10; i < 20; i++ {
-		ioutil.WriteFile(fmt.Sprintf("%s/%d", configDir, uint64(APP_RPC_SERVICE_ID)+uint64(i)), []byte{}, 0444)
+		ioutil.WriteFile(fmt.Sprintf("%s/%d", Configs.ConfigDir(), uint64(APP_RPC_SERVICE_ID)+uint64(i)), []byte{}, 0444)
 	}
 	if serviceIds, err := Configs.ConfigServiceIDs(); err != nil {
 		t.Error(err)
@@ -83,12 +83,12 @@ func TestConfigServiceIDs(t *testing.T) {
 }
 
 func TestConfig(t *testing.T) {
-	previousConfigDir := configDir
-	defer func() { configDir = previousConfigDir }()
-	configDir = "testdata/TestConfig"
+	previousConfigDir := Configs.ConfigDir()
+	defer func() { Configs.SetConfigDir(previousConfigDir) }()
+	Configs.SetConfigDir("testdata/TestConfig")
 
-	os.RemoveAll(configDir)
-	if err := os.MkdirAll(configDir, 0755); err != nil {
+	os.RemoveAll(Configs.ConfigDir())
+	if err := os.MkdirAll(Configs.ConfigDir(), 0755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -151,7 +151,7 @@ func TestConfig(t *testing.T) {
 
 	checkConfig(spec)
 
-	configFile, err := os.Create(fmt.Sprintf("%s/0x%x", configDir, APP_RPC_SERVICE_ID))
+	configFile, err := os.Create(fmt.Sprintf("%s/0x%x", Configs.ConfigDir(), APP_RPC_SERVICE_ID))
 	storeAppRPCServerSpec(configFile)
 	configFile.Close()
 

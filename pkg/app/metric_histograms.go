@@ -124,6 +124,7 @@ type HistogramMetric struct {
 	prometheus.Histogram
 }
 
+// critical section that must be synchronized via metricsServiceMutex
 func (a *HistogramMetric) register() {
 	metrics := histograms[a.ServiceID]
 	if metrics == nil {
@@ -142,7 +143,8 @@ type HistogramVectorMetric struct {
 	*prometheus.HistogramVec
 }
 
-func (a *HistogramVectorMetric) Register() {
+// critical section that must be synchronized via metricsServiceMutex
+func (a *HistogramVectorMetric) register() {
 	metrics := histogramVectors[a.ServiceID]
 	if metrics == nil {
 		metrics = make(map[MetricID]*HistogramVectorMetric)
