@@ -17,20 +17,25 @@ package app
 import "gopkg.in/tomb.v2"
 
 // Reset is exposed only for testing purposes.
-// Reset will kill the app, and then restart the app server.
+// Reset will :
+// 	1. kill the app and then resurrect it with a new Tomb
+// 	2. start the app server.
+//	3. start the app RPC server
+//	4. reset metrics
+//	5. start the metrics HTTP reporter
+//	6. reset healthchecks
 func Reset() {
 	app.Kill(nil)
 	app.Wait()
 
-	app = tomb.Tomb{}
+	app = tomb.Tomb{} // resurrection
 	runAppServer()
 	runRPCAppServer()
 
 	resetMetrics()
 	startMetricsHttpReporter()
 
-	registerHealthCheckGauges()
-	registerHealthCheckService()
+	initHealthCheckService()
 
 	APP_RESET.Log(logger.Info()).Msg("reset")
 }

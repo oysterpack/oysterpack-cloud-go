@@ -189,3 +189,16 @@ type HealthCheckTimeoutError struct {
 func (a HealthCheckTimeoutError) Error() string {
 	return fmt.Sprintf("%x : HealthCheck timed out : %x", a.ErrorID, a.HealthCheckID)
 }
+
+func NewHealthCheckKillTimeoutError(id HealthCheckID) HealthCheckKillTimeoutError {
+	return HealthCheckKillTimeoutError{ErrorID(0xf4ad6052397f6858), id}
+}
+
+type HealthCheckKillTimeoutError struct {
+	ErrorID
+	HealthCheckID
+}
+
+func (a HealthCheckKillTimeoutError) Error() string {
+	return fmt.Sprintf("%x : HealthCheck timed out while dying : %x", a.ErrorID, a.HealthCheckID)
+}

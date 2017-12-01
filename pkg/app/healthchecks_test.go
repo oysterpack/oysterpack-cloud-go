@@ -136,5 +136,27 @@ func TestHealthcheckService(t *testing.T) {
 			}
 		}()
 		wg.Wait()
+
+		paused := HealthChecks.PausedHealthChecks()
+		if len(paused) > 0 {
+			t.Errorf("No healthchecks should be paused : %v", paused)
+		}
+		if !HealthChecks.PauseHealthCheck(HEALTHCHECK_1) {
+			t.Error("Should have paused")
+		}
+		paused = HealthChecks.PausedHealthChecks()
+		t.Logf("paused : %v", paused)
+		if len(paused) != 1 {
+			t.Errorf("HEALTHCHECK_1 should be paused : %v", paused)
+		}
+		if err := HealthChecks.ResumeHealthCheck(HEALTHCHECK_1); err != nil {
+			t.Error(err)
+		}
+		paused = HealthChecks.PausedHealthChecks()
+		t.Logf("paused : %v", paused)
+		if len(paused) != 0 {
+			t.Errorf("No healthchecks should be paused : %v", paused)
+		}
+
 	})
 }

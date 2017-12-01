@@ -17,8 +17,6 @@ package app
 import (
 	"time"
 
-	"fmt"
-
 	"github.com/oysterpack/oysterpack.go/pkg/app/config"
 	"github.com/prometheus/client_golang/prometheus"
 	"gopkg.in/tomb.v2"
@@ -35,6 +33,8 @@ const (
 
 	DEFAULT_HEALTHCHECK_RUN_INTERVAL = 5 * time.Minute
 	DEFAULT_HEALTHCHECK_RUN_TIMEOUT  = 5 * time.Second
+
+	HEALTHCHECK_ID_LOG_FIELD = "healthcheck"
 )
 
 type AppHealthChecks struct{}
@@ -74,6 +74,7 @@ type registeredHealthCheck struct {
 	ResultGauge      prometheus.Gauge
 	RunDurationGauge prometheus.Gauge
 
+	HealthCheckService *Service
 	// each healthcheck is scheduled to run in it own separate goroutine
 	// the tomb is used to stop an individual healthcheck
 	tomb.Tomb
@@ -86,12 +87,8 @@ func (a *registeredHealthCheck) run() {
 	healthcheckRunMutex.Lock()
 	defer healthcheckRunMutex.Unlock()
 
-	healthCheckService, err := Services.Service(HEALTHCHECK_SERVICE_ID)
-	if err != nil {
-		panic(fmt.Sprintf("HealthCheckService lookup failed : %v", err))
-	}
-	if healthCheckService == nil {
-		panic(ErrServiceNotRegistered)
+	if !a.Alive() || !a.HealthCheckService.Alive() {
+		return
 	}
 
 	cancel := make(chan struct{})
@@ -111,6 +108,7 @@ func (a *registeredHealthCheck) run() {
 		a.ResultGauge.Inc()
 		a.RunDurationGauge.Set(float64(a.HealthCheckResult.Duration))
 		close(cancel) // notifies the HealthCheck func that it has been cancelled
+		a.logHealthCheckResult()
 	case err := <-result:
 		a.HealthCheckResult.Err = err
 		a.HealthCheckResult.Time = start
@@ -122,12 +120,31 @@ func (a *registeredHealthCheck) run() {
 		}
 		a.ResultGauge.Set(float64(a.HealthCheckResult.ErrCount))
 		a.RunDurationGauge.Set(float64(a.HealthCheckResult.Duration))
+		a.logHealthCheckResult()
 	case <-a.Dying():
 		close(cancel) // notifies the HealthCheck func that it has been cancelled
 		return
-	case <-healthCheckService.Dying():
+	case <-a.HealthCheckService.Dying():
 		close(cancel) // notifies the HealthCheck func that it has been cancelled
 		return
+	}
+}
+
+func (a *registeredHealthCheck) logHealthCheckResult() {
+	if a.HealthCheckResult.Err != nil {
+		HEALTHCHECK_RESULT.Log(a.HealthCheckService.Logger().Error()).
+			Err(a.HealthCheckResult.Err).
+			Uint64(HEALTHCHECK_ID_LOG_FIELD, uint64(a.HealthCheckID)).
+			Time("start", a.Time).
+			Dur("duration", a.Duration).
+			Uint("err-count", a.ErrCount).
+			Msg("")
+	} else {
+		HEALTHCHECK_RESULT.Log(a.HealthCheckService.Logger().Info()).
+			Uint64(HEALTHCHECK_ID_LOG_FIELD, uint64(a.HealthCheckID)).
+			Time("start", a.Time).
+			Dur("duration", a.Duration).
+			Msg("")
 	}
 }
 

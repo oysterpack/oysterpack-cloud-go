@@ -22,6 +22,7 @@ import (
 	"fmt"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/rs/zerolog"
 	"gopkg.in/tomb.v2"
 )
 
@@ -29,13 +30,14 @@ var (
 	// used to ensure that healtchecks are concurrency safe
 	healthchecksMutex      sync.RWMutex
 	healthCheckSpecs       map[HealthCheckID]*HealthCheckSpec
-	registeredHealthChecks = make(map[HealthCheckID]*registeredHealthCheck)
+	registeredHealthChecks map[HealthCheckID]*registeredHealthCheck
 
 	// used to ensure that only 1 healthcheck at a time can be run
 	healthcheckRunMutex sync.Mutex
 )
 
-func init() {
+func initHealthCheckService() {
+	registeredHealthChecks = make(map[HealthCheckID]*registeredHealthCheck)
 	registerHealthCheckGauges()
 	registerHealthCheckService()
 	initHealthCheckSpecs()
@@ -182,36 +184,44 @@ func (a AppHealthChecks) Register(id HealthCheckID, healthCheckFunc HealthCheck)
 			}
 		}
 		healthcheckEntry = &registeredHealthCheck{
-			HealthCheckSpec:  spec,
-			ResultGauge:      MetricRegistry.GaugeVector(HEALTHCHECK_SERVICE_ID, HEALTHCHECK_METRIC_ID).GaugeVec.WithLabelValues(id.Hex()),
-			RunDurationGauge: MetricRegistry.GaugeVector(HEALTHCHECK_SERVICE_ID, HEALTHCHECK_RUN_DURATION_METRIC_ID).GaugeVec.WithLabelValues(id.Hex()),
-			HealthCheck:      healthCheckFunc,
-			RunOnDemandChan:  make(chan chan HealthCheckResult),
+			HealthCheckSpec:    spec,
+			ResultGauge:        MetricRegistry.GaugeVector(HEALTHCHECK_SERVICE_ID, HEALTHCHECK_METRIC_ID).GaugeVec.WithLabelValues(id.Hex()),
+			RunDurationGauge:   MetricRegistry.GaugeVector(HEALTHCHECK_SERVICE_ID, HEALTHCHECK_RUN_DURATION_METRIC_ID).GaugeVec.WithLabelValues(id.Hex()),
+			HealthCheck:        healthCheckFunc,
+			RunOnDemandChan:    make(chan chan HealthCheckResult),
+			HealthCheckService: healthCheckService,
 		}
 		registeredHealthChecks[id] = healthcheckEntry
+		HEALTHCHECK_REGISTERED.Log(healthCheckService.Logger().Info()).
+			Uint64(HEALTHCHECK_ID_LOG_FIELD, uint64(id)).
+			Dict("spec", zerolog.Dict().Dur("run-interval", spec.RunInterval).Dur("timeout", spec.Timeout)).
+			Msg("registered")
 	}
 
-	// schedule the healthcheck to run
-	healthcheckEntry.Go(func() error {
-		ticker := time.NewTicker(healthcheckEntry.HealthCheckSpec.RunInterval)
+	scheduleHealthCheck(healthcheckEntry)
+
+	return nil
+}
+
+func scheduleHealthCheck(healthcheck *registeredHealthCheck) {
+	healthcheck.Go(func() error {
+		ticker := time.NewTicker(healthcheck.HealthCheckSpec.RunInterval)
 		defer ticker.Stop()
 
 		for {
 			select {
-			case <-healthcheckEntry.Dying():
+			case <-healthcheck.Dying():
 				return nil
-			case <-healthCheckService.Dying():
+			case <-healthcheck.HealthCheckService.Dying():
 				return nil
 			case <-ticker.C:
-				healthcheckEntry.run()
-			case resultChan := <-healthcheckEntry.RunOnDemandChan:
-				healthcheckEntry.run()
-				resultChan <- healthcheckEntry.HealthCheckResult
+				healthcheck.run()
+			case resultChan := <-healthcheck.RunOnDemandChan:
+				healthcheck.run()
+				resultChan <- healthcheck.HealthCheckResult
 			}
 		}
 	})
-
-	return nil
 }
 
 // HealthCheckIDs returns the HealthCheckID(s) for the healthchecks that are currently registered.
@@ -304,4 +314,80 @@ func (a AppHealthChecks) HealthCheckResults() map[HealthCheckID]HealthCheckResul
 	}
 
 	return results
+}
+
+// PausedHealthChecks returns HealthCheckID(s) for registered healthchecks that are not currently scheduled to run, i.e., not alive.
+func (a AppHealthChecks) PausedHealthChecks() []HealthCheckID {
+	healthchecksMutex.RLock()
+	defer healthchecksMutex.RUnlock()
+	ids := []HealthCheckID{}
+	for _, healthcheck := range registeredHealthChecks {
+		if !healthcheck.Alive() {
+			ids = append(ids, healthcheck.HealthCheckID)
+		}
+	}
+	return ids
+}
+
+// PauseHealthCheck will kill the healthcheck goroutine.
+// false is returned if no HealthCheck is registered for the specified HealthCheckID
+func (a AppHealthChecks) PauseHealthCheck(id HealthCheckID) bool {
+	healthchecksMutex.Lock()
+	defer healthchecksMutex.Unlock()
+	healthCheck := registeredHealthChecks[id]
+	if healthCheck == nil {
+		return false
+	}
+	healthCheck.Kill(nil)
+	HEALTHCHECK_PAUSED.Log(healthCheck.HealthCheckService.Logger().Info()).Uint64(HEALTHCHECK_ID_LOG_FIELD, uint64(id)).Msg("paused")
+	return true
+}
+
+// ResumeHealthCheck will schedule the healthcheck to run, if it is currently pause.
+//
+// errors
+//	- ErrHealthCheckNotRegistered
+//	- ErrServiceNotAlive
+//	- ErrAppNotAlive
+//	- HealthCheckKillTimeoutError
+func (a AppHealthChecks) ResumeHealthCheck(id HealthCheckID) error {
+	healthchecksMutex.Lock()
+	defer healthchecksMutex.Unlock()
+	healthcheck := registeredHealthChecks[id]
+	if healthcheck == nil {
+		return ErrHealthCheckNotRegistered
+	}
+	if healthcheck.Alive() {
+		return nil
+	}
+
+	if !healthcheck.HealthCheckService.Alive() {
+		return ErrServiceNotAlive
+	}
+	if !app.Alive() {
+		return ErrAppNotAlive
+	}
+
+	ticker := time.NewTicker(time.Second * 10)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-healthcheck.Dead():
+			registeredHealthChecks[id] = &registeredHealthCheck{
+				HealthCheckSpec:    healthcheck.HealthCheckSpec,
+				ResultGauge:        healthcheck.ResultGauge,
+				RunDurationGauge:   healthcheck.RunDurationGauge,
+				HealthCheck:        healthcheck.HealthCheck,
+				RunOnDemandChan:    healthcheck.RunOnDemandChan,
+				HealthCheckService: healthcheck.HealthCheckService,
+			}
+			scheduleHealthCheck(registeredHealthChecks[id])
+			HEALTHCHECK_RESUMED.Log(healthcheck.HealthCheckService.Logger().Info()).Uint64(HEALTHCHECK_ID_LOG_FIELD, uint64(id)).Msg("resumed")
+			return nil
+		case <-healthcheck.HealthCheckService.Dying():
+			return ErrServiceNotAlive
+		case <-ticker.C:
+			return NewHealthCheckKillTimeoutError(id)
+		}
+	}
 }
