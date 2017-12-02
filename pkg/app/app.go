@@ -286,6 +286,7 @@ func (a AppServices) ServiceIDs() ([]ServiceID, error) {
 //
 // errors:
 //	- ErrAppNotAlive
+//	- ErrServiceNotRegistered
 func (a AppServices) Service(id ServiceID) (*Service, error) {
 	c := make(chan *Service, 1)
 

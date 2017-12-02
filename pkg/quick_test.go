@@ -109,6 +109,7 @@ func TestTimeUnix(t *testing.T) {
 	t.Logf("time.Unix(now.Unix(),now.UnixNano()) -> %v", time.Unix(now.Unix(), now.UnixNano()))
 	t.Logf("time.Unix(0,now.UnixNano()) -> %v", time.Unix(0, now.UnixNano()))
 	t.Logf("time.Unix(now.Unix(),now.UnixNano()).Equal(now) -> %v", time.Unix(now.Unix(), now.UnixNano()).Equal(now))
+	t.Logf("time.Unix(now.Unix(), 0).Equal(now) -> %v", time.Unix(now.Unix(), 0).Equal(now))
 	t.Logf("time.Unix(0,now.UnixNano()).Equal(now) -> %v", time.Unix(0, now.UnixNano()).Equal(now))
 
 }

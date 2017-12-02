@@ -263,7 +263,7 @@
 			"path": "zombiezen.com/go/capnproto2",
 			"revision": "243bfedb776812540b7e2fb8d4e5c19814ab1ed8",
 			"revisionTime": "2017-11-03T18:02:50Z",
-			"version": "v2.17.0",
+			"version": "v2",
 			"versionExact": "v2.17.0"
 		},
 		{
@@ -271,7 +271,7 @@
 			"path": "zombiezen.com/go/capnproto2/encoding/text",
 			"revision": "243bfedb776812540b7e2fb8d4e5c19814ab1ed8",
 			"revisionTime": "2017-11-03T18:02:50Z",
-			"version": "v2.17.0",
+			"version": "v2",
 			"versionExact": "v2.17.0"
 		},
 		{
@@ -279,7 +279,7 @@
 			"path": "zombiezen.com/go/capnproto2/internal/fulfiller",
 			"revision": "243bfedb776812540b7e2fb8d4e5c19814ab1ed8",
 			"revisionTime": "2017-11-03T18:02:50Z",
-			"version": "v2.17.0",
+			"version": "v2",
 			"versionExact": "v2.17.0"
 		},
 		{
@@ -287,7 +287,7 @@
 			"path": "zombiezen.com/go/capnproto2/internal/nodemap",
 			"revision": "243bfedb776812540b7e2fb8d4e5c19814ab1ed8",
 			"revisionTime": "2017-11-03T18:02:50Z",
-			"version": "v2.17.0",
+			"version": "v2",
 			"versionExact": "v2.17.0"
 		},
 		{
@@ -295,7 +295,7 @@
 			"path": "zombiezen.com/go/capnproto2/internal/packed",
 			"revision": "243bfedb776812540b7e2fb8d4e5c19814ab1ed8",
 			"revisionTime": "2017-11-03T18:02:50Z",
-			"version": "v2.17.0",
+			"version": "v2",
 			"versionExact": "v2.17.0"
 		},
 		{
@@ -303,7 +303,7 @@
 			"path": "zombiezen.com/go/capnproto2/internal/queue",
 			"revision": "243bfedb776812540b7e2fb8d4e5c19814ab1ed8",
 			"revisionTime": "2017-11-03T18:02:50Z",
-			"version": "v2.17.0",
+			"version": "v2",
 			"versionExact": "v2.17.0"
 		},
 		{
@@ -311,7 +311,7 @@
 			"path": "zombiezen.com/go/capnproto2/internal/schema",
 			"revision": "243bfedb776812540b7e2fb8d4e5c19814ab1ed8",
 			"revisionTime": "2017-11-03T18:02:50Z",
-			"version": "v2.17.0",
+			"version": "v2",
 			"versionExact": "v2.17.0"
 		},
 		{
@@ -319,7 +319,7 @@
 			"path": "zombiezen.com/go/capnproto2/internal/strquote",
 			"revision": "243bfedb776812540b7e2fb8d4e5c19814ab1ed8",
 			"revisionTime": "2017-11-03T18:02:50Z",
-			"version": "v2.17.0",
+			"version": "v2",
 			"versionExact": "v2.17.0"
 		},
 		{
@@ -327,7 +327,7 @@
 			"path": "zombiezen.com/go/capnproto2/rpc",
 			"revision": "243bfedb776812540b7e2fb8d4e5c19814ab1ed8",
 			"revisionTime": "2017-11-03T18:02:50Z",
-			"version": "v2.17.0",
+			"version": "v2",
 			"versionExact": "v2.17.0"
 		},
 		{
@@ -335,7 +335,7 @@
 			"path": "zombiezen.com/go/capnproto2/rpc/internal/refcount",
 			"revision": "243bfedb776812540b7e2fb8d4e5c19814ab1ed8",
 			"revisionTime": "2017-11-03T18:02:50Z",
-			"version": "v2.17.0",
+			"version": "v2",
 			"versionExact": "v2.17.0"
 		},
 		{
@@ -343,7 +343,7 @@
 			"path": "zombiezen.com/go/capnproto2/schemas",
 			"revision": "243bfedb776812540b7e2fb8d4e5c19814ab1ed8",
 			"revisionTime": "2017-11-03T18:02:50Z",
-			"version": "v2.17.0",
+			"version": "v2",
 			"versionExact": "v2.17.0"
 		},
 		{
@@ -351,7 +351,7 @@
 			"path": "zombiezen.com/go/capnproto2/server",
 			"revision": "243bfedb776812540b7e2fb8d4e5c19814ab1ed8",
 			"revisionTime": "2017-11-03T18:02:50Z",
-			"version": "v2.17.0",
+			"version": "v2",
 			"versionExact": "v2.17.0"
 		},
 		{
@@ -359,7 +359,7 @@
 			"path": "zombiezen.com/go/capnproto2/std/capnp/rpc",
 			"revision": "243bfedb776812540b7e2fb8d4e5c19814ab1ed8",
 			"revisionTime": "2017-11-03T18:02:50Z",
-			"version": "v2.17.0",
+			"version": "v2",
 			"versionExact": "v2.17.0"
 		}
 	],

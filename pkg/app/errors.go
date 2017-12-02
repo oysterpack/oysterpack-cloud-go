@@ -67,6 +67,19 @@ var (
 	ErrHealthCheckNotAlive          = &Err{ErrorID: ErrorID(0xe1972916f1c18dae), Err: errors.New("HealthCheck is not alive")}
 )
 
+func NewServiceInitError(serviceId ServiceID, err error) ServiceInitError {
+	return ServiceInitError{ServiceID: serviceId, Err: &Err{ErrorID: ErrorID(0xec1bf26105c1a895), Err: err}}
+}
+
+type ServiceInitError struct {
+	ServiceID
+	*Err
+}
+
+func (a ServiceInitError) Error() string {
+	return fmt.Sprintf("%x : ServiceID(0x%x) : %v", a.ErrorID, a.ServiceID, a.Err)
+}
+
 // NewListenerFactoryError wraps the specified error as a ListenerFactoryError
 func NewListenerFactoryError(err error) ListenerFactoryError {
 	return ListenerFactoryError{

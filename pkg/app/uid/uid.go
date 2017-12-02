@@ -12,32 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package app
+package uid
 
-import "sync"
+import (
+	"hash/fnv"
 
-// NewSequence creates a new Sequence using n as the current sequence value.
-func NewSequence(n uint64) *Sequence {
-	return &Sequence{n: n}
+	"github.com/nats-io/nuid"
+)
+
+type UID string
+
+type UIDHash uint64
+
+type UIDHashProducer func() UIDHash
+
+func NextUID() UID {
+	return UID(nuid.Next())
 }
 
-// Sequence is used to get an incrementing sequence number
-type Sequence struct {
-	m sync.Mutex
-	n uint64
-}
-
-// Next returns the next sequence value
-func (a *Sequence) Next() uint64 {
-	a.m.Lock()
-	defer a.m.Unlock()
-	a.n++
-	return a.n
-}
-
-// Value returns the current sequence value
-func (a *Sequence) Value() uint64 {
-	a.m.Lock()
-	defer a.m.Unlock()
-	return a.n
+func NextUIDHash() UIDHash {
+	hasher := fnv.New64()
+	hasher.Write([]byte(nuid.Next()))
+	return UIDHash(hasher.Sum64())
 }

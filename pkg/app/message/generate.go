@@ -12,32 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package app
-
-import "sync"
-
-// NewSequence creates a new Sequence using n as the current sequence value.
-func NewSequence(n uint64) *Sequence {
-	return &Sequence{n: n}
-}
-
-// Sequence is used to get an incrementing sequence number
-type Sequence struct {
-	m sync.Mutex
-	n uint64
-}
-
-// Next returns the next sequence value
-func (a *Sequence) Next() uint64 {
-	a.m.Lock()
-	defer a.m.Unlock()
-	a.n++
-	return a.n
-}
-
-// Value returns the current sequence value
-func (a *Sequence) Value() uint64 {
-	a.m.Lock()
-	defer a.m.Unlock()
-	return a.n
-}
+//go:generate capnp compile -I$GOPATH/src/zombiezen.com/go/capnproto2/std -ogo message.capnp
+package message
