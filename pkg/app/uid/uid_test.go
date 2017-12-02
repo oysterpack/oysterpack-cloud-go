@@ -37,6 +37,11 @@ func TestNextUID(t *testing.T) {
 }
 
 func TestNextUIDHash(t *testing.T) {
+	uidHash := uid.NextUIDHash()
+	if uint64(uidHash) != uidHash.Uint64() {
+		t.Fatal("values do not match : %v != %v", uint64(uidHash), uidHash.Uint64())
+	}
+
 	size := 1 * 1000 * 1000
 	hashes := make(map[uid.UIDHash]struct{}, size)
 
@@ -49,9 +54,13 @@ func TestNextUIDHash(t *testing.T) {
 	}
 }
 
+// BenchmarkUID/uidGen.Next()-8            20000000                98.8 ns/op            32 B/op          1 allocs/op
+// BenchmarkUID/nuid.Next()-8              10000000               250 ns/op              72 B/op          3 allocs/op
+// BenchmarkUID/NextUID-8                  10000000               129 ns/op              32 B/op          1 allocs/op
+// BenchmarkUID/NextUIDHash-8               5000000               289 ns/op              72 B/op          3 allocs/op
 func BenchmarkUID(b *testing.B) {
 	uidGen := nuid.New()
-	b.Run("nuid.Next()", func(b *testing.B) {
+	b.Run("uidGen.Next()", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			uidGen.Next()
 		}

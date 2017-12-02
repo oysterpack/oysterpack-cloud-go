@@ -12,34 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package uid
+package net_test
 
 import (
-	"hash/fnv"
+	"testing"
 
-	"github.com/nats-io/nuid"
+	"github.com/oysterpack/oysterpack.go/pkg/app"
+	opnet "github.com/oysterpack/oysterpack.go/pkg/app/net"
+	"github.com/oysterpack/oysterpack.go/pkg/app/uid"
 )
 
-type UID string
+func TestStartServer(t *testing.T) {
 
-func (a UID) Hash() UIDHash {
-	hasher := fnv.New64()
-	hasher.Write([]byte(a))
-	return UIDHash(hasher.Sum64())
-}
+	t.Run("Valid settings", func(t *testing.T) {
+		app.Reset()
+		defer app.Reset()
 
-type UIDHash uint64
+		SERVICE_ID := app.ServiceID(uid.NextUIDHash().Uint64())
+		service := app.NewService(SERVICE_ID)
+		app.Services.Register(service)
 
-func (a UIDHash) Uint64() uint64 {
-	return uint64(a)
-}
-
-type UIDHashProducer func() UIDHash
-
-func NextUID() UID {
-	return UID(nuid.Next())
-}
-
-func NextUIDHash() UIDHash {
-	return NextUID().Hash()
+		settings := opnet.ServerSettings{
+			Service: service,
+			Name:    "CAPNP-POC",
+		}
+	})
 }

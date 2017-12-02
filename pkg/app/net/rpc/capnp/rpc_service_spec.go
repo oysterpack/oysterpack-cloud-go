@@ -24,16 +24,19 @@ import (
 	"errors"
 
 	"github.com/oysterpack/oysterpack.go/pkg/app/config"
+	opnet "github.com/oysterpack/oysterpack.go/pkg/app/net"
 	"zombiezen.com/go/capnproto2"
 	"zombiezen.com/go/capnproto2/rpc"
+
+	"github.com/oysterpack/oysterpack.go/pkg/app"
 )
 
 // NewRPCServiceSpec converts a config.RPCServiceSpec to a RPCServiceSpec
 func NewRPCServiceSpec(spec config.RPCServiceSpec) (*RPCServiceSpec, error) {
 	serviceSpec := &RPCServiceSpec{
-		DomainID(spec.DomainID()),
-		AppID(spec.AppId()),
-		ServiceID(spec.ServiceId()),
+		app.DomainID(spec.DomainID()),
+		app.AppID(spec.AppId()),
+		app.ServiceID(spec.ServiceId()),
 		RPCPort(spec.Port()),
 	}
 	if err := serviceSpec.Validate(); err != nil {
@@ -44,21 +47,16 @@ func NewRPCServiceSpec(spec config.RPCServiceSpec) (*RPCServiceSpec, error) {
 
 // RPCServiceSpec is the common RPCService spec shared by the RPC server and client
 type RPCServiceSpec struct {
-	DomainID
-	AppID
-	ServiceID
+	app.DomainID
+	app.AppID
+	app.ServiceID
 
 	RPCPort
 }
 
-// ServerCN returns the CN for the service server
-func ServerCN(domain DomainID, app AppID, service ServiceID) string {
-	return fmt.Sprintf("%x.%x.%x", service, app, domain)
-}
-
 // CN returns the x509 CN - this used by client TLS to set the x509.Config.ServerName
 func (a *RPCServiceSpec) CN() string {
-	return ServerCN(a.DomainID, a.AppID, a.ServiceID)
+	return opnet.ServerCN(a.DomainID, a.AppID, a.ServiceID)
 }
 
 // NetworkAddr returns the service network address, which is used by the client to connect to the service.
@@ -84,14 +82,14 @@ func (a *RPCServiceSpec) ToCapnp(s *capnp.Segment) (config.RPCServiceSpec, error
 }
 
 func (a *RPCServiceSpec) Validate() error {
-	if a.DomainID == DomainID(0) {
-		return ErrDomainIDZero
+	if a.DomainID == app.DomainID(0) {
+		return app.ErrDomainIDZero
 	}
-	if a.AppID == AppID(0) {
-		return ErrAppIDZero
+	if a.AppID == app.AppID(0) {
+		return app.ErrAppIDZero
 	}
-	if a.ServiceID == ServiceID(0) {
-		return ErrServiceIDZero
+	if a.ServiceID == app.ServiceID(0) {
+		return app.ErrServiceIDZero
 	}
 	if a.RPCPort == RPCPort(0) {
 		return ErrRPCPortZero
@@ -99,7 +97,7 @@ func (a *RPCServiceSpec) Validate() error {
 	return nil
 }
 
-// RPCPort represents an RPC port
+// ServerPort represents an RPC port
 type RPCPort uint16
 
 func CheckRPCServerSpec(spec config.RPCServerSpec) error {
@@ -165,13 +163,13 @@ func NewRPCServerSpec(spec config.RPCServerSpec) (*RPCServerSpec, error) {
 		return nil, err
 	}
 	if !serverSpec.ClientCAs.AppendCertsFromPEM(caCert) {
-		return nil, ErrPEMParsing
+		return nil, opnet.ErrPEMParsing
 	}
 
 	return serverSpec, nil
 }
 
-// RPCServerSpec is the server spec for the RPCService
+// ServerSpec is the server spec for the RPCService
 type RPCServerSpec struct {
 	*RPCServiceSpec
 	ClientCAs *x509.CertPool
@@ -227,7 +225,7 @@ func (a *RPCServerSpec) ListenerFactory() func() (net.Listener, error) {
 	}
 }
 
-func (a *RPCServerSpec) StartRPCService(service *Service, mainInterface RPCMainInterface) (*RPCService, error) {
+func (a *RPCServerSpec) StartRPCService(service *app.Service, mainInterface RPCMainInterface) (*RPCService, error) {
 	return StartRPCService(service, a.ListenerFactory(), a.TLSConfigProvider(), mainInterface, uint(a.MaxConns))
 }
 
@@ -292,7 +290,7 @@ func NewRPCClientSpec(spec config.RPCClientSpec) (*RPCClientSpec, error) {
 		return nil, err
 	}
 	if !clientSpec.RootCAs.AppendCertsFromPEM(caCert) {
-		return nil, ErrPEMParsing
+		return nil, opnet.ErrPEMParsing
 	}
 
 	return clientSpec, nil
@@ -322,7 +320,7 @@ func (a *RPCClientSpec) TLSConfig() *tls.Config {
 // Conn returns an RPC conn using the service's standard network address - see NetworkAddr()
 func (a *RPCClientSpec) Conn() (*rpc.Conn, error) {
 	networkAddr := a.NetworkAddr()
-	Logger().Debug().
+	app.Logger().Debug().
 		Uint64("service", uint64(a.ServiceID)).
 		Str("NetworkAddr", networkAddr).
 		Msg("RPCClientSpec")

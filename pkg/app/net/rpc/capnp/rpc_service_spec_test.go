@@ -48,7 +48,7 @@ func TestNewRPCServerSpec(t *testing.T) {
 		CLIENT_CN = "client.dev.oysterpack.com"
 	)
 
-	// Given an RPCServerSpec for the app RPCService
+	// Given an ServerSpec for the app RPCService
 	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
 	if err != nil {
 		t.Fatal(err)
@@ -263,7 +263,7 @@ func TestMarshallingUnmarshallingConfig(t *testing.T) {
 		//}
 		//
 		//// Then we are able to connect to the RPC server
-		//addr := fmt.Sprintf(":%d", clientSpecConfig.RPCPort)
+		//addr := fmt.Sprintf(":%d", clientSpecConfig.ServerPort)
 		//clientConn, err := tls.Dial("tcp", addr, clientSpecConfig.TLSConfig())
 		//if err != nil {
 		//	t.Fatal(err)

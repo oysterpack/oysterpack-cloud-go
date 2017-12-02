@@ -27,3 +27,45 @@ var (
 	ErrRPCServiceUnknownMessageType = &app.Err{ErrorID: app.ErrorID(0xdff7dbf6f092058e), Err: errors.New("Unknown message type")}
 	ErrRPCListenerNotStarted        = &app.Err{ErrorID: app.ErrorID(0xdb45f1d3176ecad3), Err: errors.New("RPC server listener is not started")}
 )
+
+// NewRPCServerFactoryError wraps an error as an RPCServerFactoryError
+func NewRPCServerFactoryError(err error) RPCServerFactoryError {
+	return RPCServerFactoryError{
+		&app.Err{ErrorID: app.ErrorID(0x954d1590f06ffee5), Err: err},
+	}
+}
+
+// RPCServerFactoryError indicates an error trying to create an RPC server
+type RPCServerFactoryError struct {
+	*app.Err
+}
+
+func (a RPCServerFactoryError) UnrecoverableError() {}
+
+// NewRPCServerSpecError wraps the error as an RPCServerSpecError
+func NewRPCServerSpecError(err error) RPCServerSpecError {
+	return RPCServerSpecError{
+		&app.Err{ErrorID: app.ErrorID(0x9394e42b4cf30b1b), Err: err},
+	}
+}
+
+// RPCServerSpecError indicates the ServerSpec is invalid
+type RPCServerSpecError struct {
+	*app.Err
+}
+
+func (a RPCServerSpecError) UnrecoverableError() {}
+
+// NewRPCClientSpecError wraps the error as an RPCClientSpecError
+func NewRPCClientSpecError(err error) RPCClientSpecError {
+	return RPCClientSpecError{
+		&app.Err{ErrorID: app.ErrorID(0xebcb20d1b8ffd569), Err: err},
+	}
+}
+
+// RPCClientSpecError indicates the RPCClientSpec is invalid
+type RPCClientSpecError struct {
+	*app.Err
+}
+
+func (a RPCClientSpecError) UnrecoverableError() {}

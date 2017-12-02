@@ -12,34 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package uid
+package net
 
 import (
-	"hash/fnv"
+	"fmt"
 
-	"github.com/nats-io/nuid"
+	"github.com/oysterpack/oysterpack.go/pkg/app"
 )
 
-type UID string
-
-func (a UID) Hash() UIDHash {
-	hasher := fnv.New64()
-	hasher.Write([]byte(a))
-	return UIDHash(hasher.Sum64())
-}
-
-type UIDHash uint64
-
-func (a UIDHash) Uint64() uint64 {
-	return uint64(a)
-}
-
-type UIDHashProducer func() UIDHash
-
-func NextUID() UID {
-	return UID(nuid.Next())
-}
-
-func NextUIDHash() UIDHash {
-	return NextUID().Hash()
+// ServerCN returns the CN for the service server
+func ServerCN(domain app.DomainID, app app.AppID, service app.ServiceID) string {
+	return fmt.Sprintf("%x.%x.%x", service, app, domain)
 }

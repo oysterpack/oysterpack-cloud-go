@@ -61,10 +61,7 @@ func StartServer(settings ServerSettings) (*Server, error) {
 type ServerSettings struct {
 	*app.Service
 
-	Name string
-
-	ListenerProvider  func() (net.Listener, error)
-	TLSConfigProvider func() (*tls.Config, error)
+	*ServerSpec
 
 	MaxConns uint
 
@@ -78,6 +75,7 @@ type ServerSettings struct {
 //	- app.ErrServiceNotAlive
 //	- ErrListenerProviderNil
 //	- ErrTLSConfigProviderNil
+//	- ErrServerNameBlank
 func (a *ServerSettings) Validate() error {
 	if a.Service == nil {
 		return app.ErrServiceNil
@@ -85,26 +83,24 @@ func (a *ServerSettings) Validate() error {
 	if !a.Service.Alive() {
 		return app.ErrServiceNotAlive
 	}
-	if a.ListenerProvider == nil {
-		return ErrListenerProviderNil
-	}
-	if a.TLSConfigProvider == nil {
-		return ErrTLSConfigProviderNil
+	if a.ServerSpec == nil {
+		return ErrServerSpecNil
 	}
 	if a.ConnHandler == nil {
 		return ErrConnHandlerNil
 	}
+
 	return nil
 }
 
 func (a *ServerSettings) newListener() (net.Listener, error) {
 	// starting for the first time
-	l, err := a.ListenerProvider()
+	l, err := a.ServerSpec.ListenerProvider()()
 	if err != nil {
 		return nil, NewListenerProviderError(err)
 	}
 
-	tlsConfig, err := a.TLSConfigProvider()
+	tlsConfig, err := a.TLSConfigProvider()()
 	if err != nil {
 		return nil, NewTLSConfigError(err)
 	}

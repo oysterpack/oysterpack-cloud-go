@@ -27,3 +27,4 @@ vendor/*/
 /cmd/demos/appclient/testdata/run/secrets/
 /cmd/demos/appdemo/testdata/run/secrets/
 /cmd/demos/appdemo/appdemo
+/pkg/app/net/testdata/.easypki/pki/

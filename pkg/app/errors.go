@@ -52,8 +52,6 @@ var (
 
 	ErrUnknownLogLevel = &Err{ErrorID(0x814a17666a94fe39), errors.New("Unknown log level")}
 
-	ErrPEMParsing = &Err{ErrorID: ErrorID(0xa7b59b95250c2789), Err: errors.New("Failed to parse PEM encoded cert(s)")}
-
 	ErrHealthCheckAlreadyRegistered = &Err{ErrorID: ErrorID(0xdbfd6d9ab0049876), Err: errors.New("HealthCheck already registered")}
 	ErrHealthCheckNil               = &Err{ErrorID: ErrorID(0xf3a9b5c8afb8a698), Err: errors.New("HealthCheck is nil")}
 	ErrHealthCheckNotRegistered     = &Err{ErrorID: ErrorID(0xefb3ffddac690f37), Err: errors.New("HealthCheck is not registered")}
@@ -72,48 +70,6 @@ type ServiceInitError struct {
 func (a ServiceInitError) Error() string {
 	return fmt.Sprintf("%x : ServiceID(0x%x) : %v", a.ErrorID, a.ServiceID, a.Err)
 }
-
-// NewRPCServerFactoryError wraps an error as an RPCServerFactoryError
-func NewRPCServerFactoryError(err error) RPCServerFactoryError {
-	return RPCServerFactoryError{
-		&Err{ErrorID: ErrorID(0x954d1590f06ffee5), Err: err},
-	}
-}
-
-// RPCServerFactoryError indicates an error trying to create an RPC server
-type RPCServerFactoryError struct {
-	*Err
-}
-
-func (a RPCServerFactoryError) UnrecoverableError() {}
-
-// NewRPCServerSpecError wraps the error as an RPCServerSpecError
-func NewRPCServerSpecError(err error) RPCServerSpecError {
-	return RPCServerSpecError{
-		&Err{ErrorID: ErrorID(0x9394e42b4cf30b1b), Err: err},
-	}
-}
-
-// RPCServerSpecError indicates the RPCServerSpec is invalid
-type RPCServerSpecError struct {
-	*Err
-}
-
-func (a RPCServerSpecError) UnrecoverableError() {}
-
-// NewRPCClientSpecError wraps the error as an RPCClientSpecError
-func NewRPCClientSpecError(err error) RPCClientSpecError {
-	return RPCClientSpecError{
-		&Err{ErrorID: ErrorID(0xebcb20d1b8ffd569), Err: err},
-	}
-}
-
-// RPCClientSpecError indicates the RPCClientSpec is invalid
-type RPCClientSpecError struct {
-	*Err
-}
-
-func (a RPCClientSpecError) UnrecoverableError() {}
 
 // NewConfigError wraps an error as a ConfigError
 func NewConfigError(err error) ConfigError {
