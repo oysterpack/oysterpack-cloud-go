@@ -19,10 +19,12 @@ import (
 	"sync"
 	"testing"
 
-	"hash/fnv"
+	"time"
 
-	"github.com/nats-io/nuid"
+	"fmt"
+
 	"github.com/oysterpack/oysterpack.go/pkg/app/message"
+	"github.com/oysterpack/oysterpack.go/pkg/app/uid"
 	"github.com/rs/zerolog/log"
 	"gopkg.in/tomb.v2"
 	"zombiezen.com/go/capnproto2"
@@ -40,36 +42,69 @@ func TestRPCMessaging(t *testing.T) {
 	listenerTomb := tomb.Tomb{}
 
 	listenerTomb.Go(func() error {
+		listenerRunning.Done()
+		defer log.Info().Msg("Listener handler is dead")
+		log.Info().Msg("Listener handler is alive")
 		for {
 			select {
 			case <-listenerTomb.Dying():
 				return nil
 			default:
 				conn, err := l.Accept()
+				log.Info().Msg("New connection")
 				if err != nil {
 					t.Error(err)
 					return err
 				}
 
 				listenerTomb.Go(func() error {
+					defer log.Info().Msg("Connection handler is dead")
+					log.Info().Msg("Connection handler is alive")
 					defer conn.Close()
 
 					decoder := capnp.NewPackedDecoder(conn)
 					decoder.ReuseBuffer()
+					encoder := capnp.NewPackedEncoder(conn)
 
+					msgCounter := 0
+
+					log.Info().Msg("Connection handler is initialized")
 					for {
 						select {
 						case <-listenerTomb.Dying():
 							return nil
 						default:
-							if msg, err := decoder.Decode(); err != nil {
+							if msg, err := decoder.Decode(); err == nil {
+								msgCounter++
+								log.Info().Msgf("Received message #%d", msgCounter)
+
 								m, err := message.ReadRootMessage(msg)
 								if err != nil {
 									log.Error().Err(err).Msg("message.ReadRootMessage(msg) failed")
 									return err
 								}
 
-								t.Logf("id : %d", m.Id())
+								log.Info().Msgf("MSG#%d : parsed", msgCounter)
+
+								data, err := m.Data()
+								if err != nil {
+									log.Error().Err(err).Msg("Message.Data() failed")
+									return err
+								}
+								log.Info().Msgf("request message : id = 0x%x : type = 0x%x, timestamp = %v, correlationId = 0x%x, len(data) = %d",
+									m.Id(),
+									m.Type(),
+									time.Unix(0, int64(m.Timestamp())),
+									m.CorrelationID(),
+									len(data),
+								)
+
+								// echo back the message
+								encoder.Encode(msg)
+								log.Info().Msgf("MSG#%d : response sent", msgCounter)
+							} else {
+								log.Error().Err(err).Msg("decoder.Decode() failed")
+								return err
 							}
 						}
 					}
@@ -79,67 +114,70 @@ func TestRPCMessaging(t *testing.T) {
 			}
 		}
 	})
-}
 
-func BenchmarkHash(b *testing.B) {
+	listenerRunning.Wait()
 
-	b.Run("uid.Next", func(b *testing.B) {
-		uid := nuid.New()
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			uid.Next()
-		}
-	})
-
-	b.Run("nuid.Next", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			nuid.Next()
-		}
-	})
-
-	hashes := make(map[uint64]struct{}, 1000*1000*3)
-	hasher := fnv.New64()
-	count := 0
-	b.Run("nuid hash - checking for dups", func(b *testing.B) {
-		ids := make([]string, b.N)
-		for i := 0; i < b.N; i++ {
-			ids[i] = nuid.Next()
-		}
-		count = count + b.N
-
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			hasher.Reset()
-			hasher.Write([]byte(ids[i]))
-			hashes[hasher.Sum64()] = struct{}{}
-		}
-	})
-
-	b.Logf("count = %d, len(hashes) = %d", count, len(hashes))
-	if len(hashes) != count {
-		b.Errorf("Dups occurrec : %d - %d = %d", count, len(hashes), count-len(hashes))
+	if !listenerTomb.Alive() {
+		t.Fatal("listener server is not alive")
 	}
 
-	b.Run("hash", func(b *testing.B) {
-		ids := make([]string, b.N)
-		for i := 0; i < b.N; i++ {
-			ids[i] = nuid.Next()
+	log.Info().Msgf("listener address : %s:%s", l.Addr().Network(), l.Addr().String())
+	conn, err := net.Dial(l.Addr().Network(), l.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	log.Info().Msg("client is connected")
+
+	encoder := capnp.NewPackedEncoder(conn)
+	decoder := capnp.NewPackedDecoder(conn)
+	decoder.ReuseBuffer()
+
+	const REQ_COUNT = 10
+
+	for i := 0; i < REQ_COUNT; i++ {
+		msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+		if err != nil {
+			t.Fatal(err)
 		}
 
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			hasher.Reset()
-			hasher.Write([]byte(ids[i]))
+		req, err := message.NewRootMessage(seg)
+		if err != nil {
+			t.Fatal(err)
 		}
-	})
 
-	b.Run("nuid hash", func(b *testing.B) {
-		uid := nuid.New()
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			hasher.Reset()
-			hasher.Write([]byte(uid.Next()))
+		req.SetId(uint64(uid.NextUIDHash()))
+		req.SetType(uint64(uid.NextUIDHash()))
+		req.SetCorrelationID(uint64(uid.NextUIDHash()))
+		req.SetTimestamp(uint64(time.Now().UnixNano()))
+		if err := req.SetData([]byte(fmt.Sprintf("REQ #%d", i))); err != nil {
+			t.Fatal(err)
 		}
-	})
+
+		// write request
+		encoder.Encode(msg)
+
+		// read response
+		responseMsg, err := decoder.Decode()
+		if err != nil {
+			t.Fatal(err)
+		}
+		m, err := message.ReadRootMessage(responseMsg)
+		if err != nil {
+			t.Fatal(err)
+		}
+		data, err := m.Data()
+		if err != nil {
+			t.Fatal(err)
+		}
+		log.Info().Msgf("response message : id = 0x%x : type = 0x%x, timestamp = %v, correlationId = 0x%x, len(data) = %d, data = %s",
+			m.Id(),
+			m.Type(),
+			time.Unix(0, int64(m.Timestamp())),
+			m.CorrelationID(),
+			len(data),
+			string(data),
+		)
+	}
 
 }
