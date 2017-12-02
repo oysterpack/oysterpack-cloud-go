@@ -52,13 +52,6 @@ var (
 
 	ErrUnknownLogLevel = &Err{ErrorID(0x814a17666a94fe39), errors.New("Unknown log level")}
 
-	ErrListenerFactoryNil           = &Err{ErrorID: ErrorID(0xbded147157abdee4), Err: errors.New("ListenerFactory is nil")}
-	ErrRPCMainInterfaceNil          = &Err{ErrorID: ErrorID(0x9730bacf079fb410), Err: errors.New("RPCMainInterface is nil")}
-	ErrRPCPortZero                  = &Err{ErrorID: ErrorID(0x9580be146625218d), Err: errors.New("RPC port cannot be 0")}
-	ErrRPCServiceMaxConnsZero       = &Err{ErrorID: ErrorID(0xea3df278b2992429), Err: errors.New("The max number of connection must be > 0")}
-	ErrRPCServiceUnknownMessageType = &Err{ErrorID: ErrorID(0xdff7dbf6f092058e), Err: errors.New("Unknown message type")}
-	ErrRPCListenerNotStarted        = &Err{ErrorID: ErrorID(0xdb45f1d3176ecad3), Err: errors.New("RPC server listener is not started")}
-
 	ErrPEMParsing = &Err{ErrorID: ErrorID(0xa7b59b95250c2789), Err: errors.New("Failed to parse PEM encoded cert(s)")}
 
 	ErrHealthCheckAlreadyRegistered = &Err{ErrorID: ErrorID(0xdbfd6d9ab0049876), Err: errors.New("HealthCheck already registered")}
@@ -79,50 +72,6 @@ type ServiceInitError struct {
 func (a ServiceInitError) Error() string {
 	return fmt.Sprintf("%x : ServiceID(0x%x) : %v", a.ErrorID, a.ServiceID, a.Err)
 }
-
-// NewListenerFactoryError wraps the specified error as a ListenerFactoryError
-func NewListenerFactoryError(err error) ListenerFactoryError {
-	return ListenerFactoryError{
-		&Err{ErrorID: ErrorID(0x828e2024b2a12526), Err: err},
-	}
-}
-
-// ListenerFactoryError for ListenerFactory related errors
-type ListenerFactoryError struct {
-	*Err
-}
-
-// UnrecoverableError - if we can't start a listener, then that is something we cannot recover from automatically.
-func (a ListenerFactoryError) UnrecoverableError() {}
-
-// NewTLSConfigError wraps the specified error as a ListenerFactoryError
-func NewTLSConfigError(err error) ListenerFactoryError {
-	return ListenerFactoryError{
-		&Err{ErrorID: ErrorID(0xb67cbd821c0ab946), Err: err},
-	}
-}
-
-// TLSConfigError for TLS configuration related issues
-type TLSConfigError struct {
-	*Err
-}
-
-// UnrecoverableError required manual intervention to resolve the misconfiguration
-func (a TLSConfigError) UnrecoverableError() {}
-
-// NewNetListenError wraps the specified error as a NetListenError
-func NewNetListenError(err error) NetListenError {
-	return NetListenError{
-		&Err{ErrorID: ErrorID(0xa1dcc954855732fc), Err: err},
-	}
-}
-
-// NetListenError indicates there was an error when trying to start a network listener
-type NetListenError struct {
-	*Err
-}
-
-func (a NetListenError) UnrecoverableError() {}
 
 // NewRPCServerFactoryError wraps an error as an RPCServerFactoryError
 func NewRPCServerFactoryError(err error) RPCServerFactoryError {

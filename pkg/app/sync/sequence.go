@@ -12,28 +12,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package app
+package sync
 
-// NewCountingSemaphore returns a new CountingSemaphore with specified resource count
-func NewCountingSemaphore(tokenCount uint) CountingSemaphore {
-	if tokenCount == 0 {
-		tokenCount = 1
-	}
-	c := make(chan struct{}, tokenCount)
-	token := struct{}{}
-	for i := 0; i < cap(c); i++ {
-		c <- token
-	}
-	return c
+import "sync"
+
+// NewSequence creates a new Sequence using n as the current sequence value.
+func NewSequence(n uint64) *Sequence {
+	return &Sequence{n: n}
 }
 
-// CountingSemaphore which allow an arbitrary resource count
-type CountingSemaphore chan struct{}
+// Sequence is used to get an incrementing sequence number
+type Sequence struct {
+	m sync.Mutex
+	n uint64
+}
 
-// ReturnToken returns a token back
-func (a CountingSemaphore) ReturnToken() {
-	select {
-	case a <- struct{}{}:
-	default:
-	}
+// Next returns the next sequence value
+func (a *Sequence) Next() uint64 {
+	a.m.Lock()
+	defer a.m.Unlock()
+	a.n++
+	return a.n
+}
+
+// Value returns the current sequence value
+func (a *Sequence) Value() uint64 {
+	a.m.Lock()
+	defer a.m.Unlock()
+	return a.n
 }

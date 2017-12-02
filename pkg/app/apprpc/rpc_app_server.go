@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package app
+package apprpc
 
 import (
 	"runtime"
@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"compress/zlib"
 
+	"github.com/oysterpack/oysterpack.go/pkg/app"
 	"github.com/oysterpack/oysterpack.go/pkg/app/capnprpc"
 	"github.com/oysterpack/oysterpack.go/pkg/app/config"
 	"github.com/rs/zerolog"

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package app_test
+package capnp
 
 // this file is used to put shared testing util code
 

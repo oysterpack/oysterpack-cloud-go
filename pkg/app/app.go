@@ -60,8 +60,7 @@ var (
 	appLogLevel      zerolog.Level
 	serviceLogLevels map[ServiceID]zerolog.Level
 
-	services    = make(map[ServiceID]*Service)
-	rpcServices = make(map[ServiceID]*RPCService)
+	services = make(map[ServiceID]*Service)
 
 	configDirMutex sync.RWMutex
 	configDir      string
@@ -70,15 +69,12 @@ var (
 // app framework
 var (
 	Services       AppServices
-	RPC            AppRPCServices
 	Configs        AppConfig
 	MetricRegistry AppMetricRegistry
 	HealthChecks   AppHealthChecks
 )
 
 type AppServices struct{}
-
-type AppRPCServices struct{}
 
 func submitCommand(f func()) error {
 	select {
@@ -307,61 +303,6 @@ func (a AppServices) Service(id ServiceID) (*Service, error) {
 	}
 }
 
-// ServiceIDs returns ServiceID(s) for registered RPCService(s)
-//
-// errors:
-//	- ErrAppNotAlive
-func (a AppRPCServices) ServiceIDs() ([]ServiceID, error) {
-	c := make(chan []ServiceID, 1)
-
-	if err := submitCommand(func() {
-		ids := make([]ServiceID, len(rpcServices))
-		i := 0
-		for id := range rpcServices {
-			ids[i] = id
-			i++
-		}
-		c <- ids
-	}); err != nil {
-		return nil, err
-	}
-
-	select {
-	case <-app.Dying():
-		return nil, ErrAppNotAlive
-	case ids := <-c:
-		return ids, nil
-	}
-}
-
-// Get returns the registered *RPCService
-//
-// errors :
-// - ErrAppNotAlive
-// - ErrServiceNotRegistered
-func (a AppRPCServices) Service(id ServiceID) (*RPCService, error) {
-	c := make(chan *RPCService, 1)
-
-	submitCommand(func() {
-		service, ok := rpcServices[id]
-		if !ok {
-			close(c)
-			return
-		}
-		c <- service
-	})
-
-	select {
-	case <-app.Dying():
-		return nil, ErrAppNotAlive
-	case svc := <-c:
-		if svc == nil {
-			return nil, ErrServiceNotRegistered
-		}
-		return svc, nil
-	}
-}
-
 // Alive returns true if the app is still alive
 func Alive() bool {
 	return app.Alive()
@@ -410,7 +351,6 @@ func init() {
 	initServiceLogLevels(serviceLogLevelsVar)
 
 	runAppServer()
-	runRPCAppServer()
 	startMetricsHttpReporter()
 	initHealthCheckService()
 }
@@ -519,5 +459,4 @@ SERVICE_LOOP:
 	}
 
 	services = make(map[ServiceID]*Service)
-	rpcServices = make(map[ServiceID]*RPCService)
 }

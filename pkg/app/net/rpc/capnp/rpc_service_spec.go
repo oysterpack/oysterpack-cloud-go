@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package app
+package capnp
 
 import (
 	"crypto/tls"
@@ -215,13 +215,13 @@ func (a *RPCServerSpec) TLSConfig() *tls.Config {
 	return tlsConfig
 }
 
-func (a *RPCServerSpec) TLSConfigProvider() TLSConfigProvider {
+func (a *RPCServerSpec) TLSConfigProvider() func() (*tls.Config, error) {
 	return func() (*tls.Config, error) {
 		return a.TLSConfig(), nil
 	}
 }
 
-func (a *RPCServerSpec) ListenerFactory() ListenerFactory {
+func (a *RPCServerSpec) ListenerFactory() func() (net.Listener, error) {
 	return func() (net.Listener, error) {
 		return net.Listen("tcp", fmt.Sprintf(":%d", a.RPCPort))
 	}

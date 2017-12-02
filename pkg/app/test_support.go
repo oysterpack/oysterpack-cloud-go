@@ -30,7 +30,6 @@ func Reset() {
 
 	app = tomb.Tomb{} // resurrection
 	runAppServer()
-	runRPCAppServer()
 
 	resetMetrics()
 	startMetricsHttpReporter()

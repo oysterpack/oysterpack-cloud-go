@@ -66,10 +66,10 @@ func TestConfigServiceIDs(t *testing.T) {
 
 	// Given configs exist
 	for i := 0; i < 10; i++ {
-		ioutil.WriteFile(fmt.Sprintf("%s/0x%x", Configs.ConfigDir(), uint64(APP_RPC_SERVICE_ID)+uint64(i)), []byte{}, 0444)
+		ioutil.WriteFile(fmt.Sprintf("%s/0x%x", Configs.ConfigDir(), uint64(METRICS_SERVICE_ID)+uint64(i)), []byte{}, 0444)
 	}
 	for i := 10; i < 20; i++ {
-		ioutil.WriteFile(fmt.Sprintf("%s/%d", Configs.ConfigDir(), uint64(APP_RPC_SERVICE_ID)+uint64(i)), []byte{}, 0444)
+		ioutil.WriteFile(fmt.Sprintf("%s/%d", Configs.ConfigDir(), uint64(METRICS_SERVICE_ID)+uint64(i)), []byte{}, 0444)
 	}
 	if serviceIds, err := Configs.ConfigServiceIDs(); err != nil {
 		t.Error(err)
@@ -108,7 +108,7 @@ func TestConfig(t *testing.T) {
 		}
 		rpcServiceSpec.SetDomainID(0xe1b1125eac639831)
 		rpcServiceSpec.SetAppId(0x81644b17b1ff35e3)
-		rpcServiceSpec.SetServiceId(uint64(APP_RPC_SERVICE_ID))
+		rpcServiceSpec.SetServiceId(uint64(METRICS_SERVICE_ID))
 		rpcServiceSpec.SetPort(uint16(44222))
 		rpcServerSpec.SetRpcServiceSpec(rpcServiceSpec)
 
@@ -141,7 +141,7 @@ func TestConfig(t *testing.T) {
 		if rpcServiceSpec.AppId() != 0x81644b17b1ff35e3 {
 			t.Errorf("AppId did not match : %x", rpcServiceSpec.AppId())
 		}
-		if rpcServiceSpec.ServiceId() != uint64(APP_RPC_SERVICE_ID) {
+		if rpcServiceSpec.ServiceId() != uint64(METRICS_SERVICE_ID) {
 			t.Errorf("ServiceId did not match : %x", rpcServiceSpec.ServiceId())
 		}
 		if rpcServiceSpec.Port() != uint16(44222) {
@@ -151,7 +151,7 @@ func TestConfig(t *testing.T) {
 
 	checkConfig(spec)
 
-	configFile, err := os.Create(fmt.Sprintf("%s/0x%x", Configs.ConfigDir(), APP_RPC_SERVICE_ID))
+	configFile, err := os.Create(fmt.Sprintf("%s/0x%x", Configs.ConfigDir(), METRICS_SERVICE_ID))
 	storeAppRPCServerSpec(configFile)
 	configFile.Close()
 
@@ -166,7 +166,7 @@ func TestConfig(t *testing.T) {
 		}
 	}
 
-	appRPCServiceSpec, err := Configs.Config(APP_RPC_SERVICE_ID)
+	appRPCServiceSpec, err := Configs.Config(METRICS_SERVICE_ID)
 	if err != nil {
 		t.Fatal(err)
 	}

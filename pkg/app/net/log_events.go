@@ -12,32 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package app
+package net
 
-import "sync"
+import "github.com/oysterpack/oysterpack.go/pkg/app"
 
-// NewSequence creates a new Sequence using n as the current sequence value.
-func NewSequence(n uint64) *Sequence {
-	return &Sequence{n: n}
-}
+const (
+	SERVER_LISTENER_STARTED = app.LogEventID(0x982731754b2ce950)
 
-// Sequence is used to get an incrementing sequence number
-type Sequence struct {
-	m sync.Mutex
-	n uint64
-}
-
-// Next returns the next sequence value
-func (a *Sequence) Next() uint64 {
-	a.m.Lock()
-	defer a.m.Unlock()
-	a.n++
-	return a.n
-}
-
-// Value returns the current sequence value
-func (a *Sequence) Value() uint64 {
-	a.m.Lock()
-	defer a.m.Unlock()
-	return a.n
-}
+	SERVER_LISTENER_RESTART  = app.LogEventID(0xbf8353ac06579256)
+	SERVER_NEW_CONN          = app.LogEventID(0xf4b3ea46a3a5f988)
+	SERVER_CONN_CLOSED       = app.LogEventID(0xf5610a189674584b)
+	SERVER_MAX_CONNS_REACHED = app.LogEventID(0xa982a966f9be952b)
+)

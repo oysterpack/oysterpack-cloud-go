@@ -12,18 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package app
+package capnp
 
 import (
 	"context"
 	"net"
 
-	"sync"
-
 	"fmt"
 
-	"crypto/tls"
-
+	"github.com/oysterpack/oysterpack.go/pkg/app"
+	opnet "github.com/oysterpack/oysterpack.go/pkg/app/net"
+	opsync "github.com/oysterpack/oysterpack.go/pkg/app/sync"
 	"github.com/rs/zerolog"
 	"gopkg.in/tomb.v2"
 	"zombiezen.com/go/capnproto2"
@@ -39,7 +38,7 @@ import (
 //		- ErrListenerFactoryNil
 //		- ErrRPCMainInterfaceNil
 //		- ErrRPCServiceMaxConnsZero
-func StartRPCService(service *Service, listenerFactory ListenerFactory, tlsConfigProvider TLSConfigProvider, server RPCMainInterface, maxConns uint) (*RPCService, error) {
+func StartRPCService(service *Service, listenerFactory opnet.ListenerFactory, tlsConfigProvider opnet.TLSConfigProvider, server RPCMainInterface, maxConns uint) (*RPCService, error) {
 	if service == nil {
 		return nil, ErrServiceNil
 	}
@@ -65,7 +64,7 @@ func StartRPCService(service *Service, listenerFactory ListenerFactory, tlsConfi
 		ServiceCommandChannel: serviceCommandChannel,
 		server:                server,
 		startedChan:           make(chan struct{}),
-		connSemaphore:         NewCountingSemaphore(maxConns),
+		connSemaphore:         opsync.NewCountingSemaphore(maxConns),
 		conns:                 make(map[uint64]*rpc.Conn),
 		logger:                NewConnLogger(service.logger),
 		listener:              &listener{factory: listenerFactory, tlsConfigProvider: tlsConfigProvider},
@@ -74,13 +73,6 @@ func StartRPCService(service *Service, listenerFactory ListenerFactory, tlsConfi
 
 	return rpcService, nil
 }
-
-// ListenerFactory provides a way to start a new listener.
-// It abstracts away how the listener is created and what network address it listens on.
-type ListenerFactory func() (net.Listener, error)
-
-// TLSConfigProvider provides a tls.Config
-type TLSConfigProvider func() (*tls.Config, error)
 
 // RPCService provides the infrastructure to run a capnp RPC based server.
 //
@@ -134,80 +126,18 @@ type TLSConfigProvider func() (*tls.Config, error)
 // - ErrServiceNotAlive
 // - ErrRPCListenerNotStarted - on ListenerAddress()
 type RPCService struct {
-	*ServiceCommandChannel
+	*app.ServiceCommandChannel
 
 	listener    *listener
 	server      RPCMainInterface
 	startedChan chan struct{}
 
-	connSemaphore CountingSemaphore
-	connSeq       Sequence
+	connSemaphore opsync.CountingSemaphore
+	connSeq       opsync.Sequence
 	conns         map[uint64]*rpc.Conn
 
 	// wraps the service logger
 	logger rpc.Logger
-}
-
-type listener struct {
-	tomb.Tomb
-	factory           ListenerFactory
-	tlsConfigProvider TLSConfigProvider
-
-	m         sync.Mutex
-	l         net.Listener
-	addr      net.Addr
-	tlsConfig *tls.Config
-}
-
-func (a *listener) get() net.Listener {
-	a.m.Lock()
-	l := a.l
-	a.m.Unlock()
-	return l
-}
-
-func (a *listener) start() (net.Listener, error) {
-	a.m.Lock()
-	defer a.m.Unlock()
-	if a.l == nil && a.addr == nil {
-		// starting for the first time
-		l, err := a.factory()
-		if err != nil {
-			return nil, NewListenerFactoryError(err)
-		}
-
-		if a.tlsConfigProvider != nil && a.tlsConfig == nil {
-			tlsConfig, err := a.tlsConfigProvider()
-			if err != nil {
-				return nil, NewTLSConfigError(err)
-			}
-			a.tlsConfig = tlsConfig
-		}
-
-		if a.tlsConfig != nil {
-			a.l = tls.NewListener(l, a.tlsConfig)
-		} else {
-			a.l = l
-		}
-	} else {
-		// restarting using same address as before
-		if a.tlsConfig != nil {
-			if l, err := tls.Listen(a.addr.Network(), a.addr.String(), a.tlsConfig); err != nil {
-				return nil, NewNetListenError(err)
-			} else {
-				a.l = l
-			}
-		} else {
-			if l, err := net.Listen(a.addr.Network(), a.addr.String()); err != nil {
-				return nil, NewNetListenError(err)
-			} else {
-				a.l = l
-			}
-		}
-	}
-
-	a.addr = a.l.Addr()
-	return a.l, nil
 }
 
 // RPCMainInterface provides the RPC server main interface
@@ -215,9 +145,9 @@ type RPCMainInterface func() (capnp.Client, error)
 
 func (a *RPCService) start() {
 	a.Go(func() error {
-		SERVICE_STARTING.Log(a.Logger().Info()).Msg("starting")
+		app.SERVICE_STARTING.Log(a.Logger().Info()).Msg("starting")
 		a.startListener()
-		SERVICE_STARTED.Log(a.Logger().Info()).Msg("started")
+		app.SERVICE_STARTED.Log(a.Logger().Info()).Msg("started")
 
 		a.registerRPCService()
 
@@ -422,7 +352,7 @@ func (a *RPCService) TotalConnsCreated() uint64 {
 func (a *RPCService) ListenerAddress() (net.Addr, error) {
 	select {
 	case <-a.Dying():
-		return nil, ErrServiceNotAlive
+		return nil, app.ErrServiceNotAlive
 	default:
 		if l := a.listener.get(); l != nil {
 			return l.Addr(), nil
