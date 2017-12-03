@@ -31,6 +31,8 @@ import (
 
 	"sync"
 
+	"fmt"
+
 	"github.com/nats-io/nuid"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -247,6 +249,7 @@ func logServiceDeath(service *Service) {
 	logEvent := SERVICE_STOPPED.Log(service.Logger().Info())
 	if err := service.Err(); err != nil {
 		logEvent.Err(err)
+		logEvent.Str("err-type", fmt.Sprintf("%T", err))
 	}
 	logEvent.Msg("stopped")
 }

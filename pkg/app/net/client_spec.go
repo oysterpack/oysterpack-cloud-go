@@ -93,7 +93,7 @@ func CheckClientSpec(spec config.ClientSpec) error {
 	return nil
 }
 
-// RPCClientSpec is the client spec for the RPCService
+// ClientSpec is the client spec used to connect to the Server
 type ClientSpec struct {
 	*ServerServiceSpec
 	RootCAs *x509.CertPool
@@ -114,18 +114,18 @@ func (a *ClientSpec) TLSConfig() *tls.Config {
 	return tlsConfig
 }
 
-// Conn returns an RPC conn using the service's standard network address - see NetworkAddr()
+// Conn returns a network conn using the service's standard network address - see NetworkAddr()
 func (a *ClientSpec) Conn() (net.Conn, error) {
 	networkAddr := a.NetworkAddr()
 	app.Logger().Debug().
 		Uint64("service", uint64(a.ServiceID)).
 		Str("NetworkAddr", networkAddr).
-		Msg("RPCClientSpec")
+		Msg("ClientSpec")
 	addr := fmt.Sprintf("%s:%d", networkAddr, a.ServerPort)
 	return tls.Dial("tcp", addr, a.TLSConfig())
 }
 
-// ConnForAddr returns an RPC conn using the specified network address
+// ConnForAddr returns a network conn using the specified network address
 // This mainly intended for testing purposes to connect locally
 func (a *ClientSpec) ConnForAddr(networkAddr string) (net.Conn, error) {
 	addr := fmt.Sprintf("%s:%d", networkAddr, a.ServerPort)

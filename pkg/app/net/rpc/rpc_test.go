@@ -62,14 +62,15 @@ func TestRPCMessaging(t *testing.T) {
 					log.Info().Msg("Connection handler is alive")
 					defer conn.Close()
 
+					encoder := capnp.NewPackedEncoder(conn)
 					decoder := capnp.NewPackedDecoder(conn)
 					decoder.ReuseBuffer()
-					encoder := capnp.NewPackedEncoder(conn)
 
 					msgCounter := 0
 
 					log.Info().Msg("Connection handler is initialized")
 					for {
+
 						select {
 						case <-listenerTomb.Dying():
 							return nil
@@ -159,6 +160,7 @@ func TestRPCMessaging(t *testing.T) {
 
 		// read response
 		responseMsg, err := decoder.Decode()
+
 		if err != nil {
 			t.Fatal(err)
 		}

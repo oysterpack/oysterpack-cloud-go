@@ -18,7 +18,6 @@ import (
 	"testing"
 
 	"github.com/oysterpack/oysterpack.go/pkg/app"
-	opnet "github.com/oysterpack/oysterpack.go/pkg/app/net"
 	"github.com/oysterpack/oysterpack.go/pkg/app/uid"
 )
 
@@ -32,9 +31,5 @@ func TestStartServer(t *testing.T) {
 		service := app.NewService(SERVICE_ID)
 		app.Services.Register(service)
 
-		settings := opnet.ServerSettings{
-			Service: service,
-			Name:    "CAPNP-POC",
-		}
 	})
 }
