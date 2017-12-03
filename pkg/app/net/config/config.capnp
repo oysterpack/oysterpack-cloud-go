@@ -4,10 +4,12 @@ $Go.package("config");
 $Go.import("github.com/oysterpack/oysterpack.go/pkg/app/net/config");
 
 struct ServerSpec @0xe57b76fedcda1734 {
-    serviceSpec     @0 :ServiceSpec;
-    serverCert      @1 :X509KeyPair;
-    caCert          @2 :Data;
-    maxConns        @3 :UInt32;
+    serviceSpec             @0 :ServiceSpec;
+    serverCert              @1 :X509KeyPair;
+    caCert                  @2 :Data;
+
+    maxConns                @3 :UInt32 = 64;    # must be  > 0
+    keepAlivePeriodSecs     @4 :UInt8 = 15;     # must be  > 0
 }
 
 struct ClientSpec @0x853a22bea61af6f5 {

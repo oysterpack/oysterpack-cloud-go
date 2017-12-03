@@ -22,6 +22,8 @@ import (
 
 	"sync"
 
+	"time"
+
 	"github.com/oysterpack/oysterpack.go/pkg/app"
 	"github.com/oysterpack/oysterpack.go/pkg/app/net/config"
 	opsync "github.com/oysterpack/oysterpack.go/pkg/app/sync"
@@ -240,6 +242,11 @@ func (a *Server) run() (err error) {
 					return nil
 				}
 				return err
+			}
+
+			if tcpConn, ok := conn.(*net.TCPConn); ok {
+				tcpConn.SetKeepAlive(true)
+				tcpConn.SetKeepAlivePeriod(time.Second * time.Duration(a.settings.KeepAlivePeriodSecs))
 			}
 
 			go func() {

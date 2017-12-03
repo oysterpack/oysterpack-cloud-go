@@ -21,12 +21,14 @@ import (
 )
 
 var (
-	ErrServerSpecNil        = &app.Err{ErrorID: app.ErrorID(0x8cfd35df21d5dea5), Err: errors.New("ServerSpec is nil")}
-	ErrListenerProviderNil  = &app.Err{ErrorID: app.ErrorID(0xbded147157abdee4), Err: errors.New("net.Listener provider is nil")}
-	ErrTLSConfigProviderNil = &app.Err{ErrorID: app.ErrorID(0xfde67413e94bf34c), Err: errors.New("tls.Config provider is nil")}
-	ErrConnHandlerNil       = &app.Err{ErrorID: app.ErrorID(0xff3042c0c093461b), Err: errors.New("Conn handler is nil")}
-	ErrListenerDown         = &app.Err{ErrorID: app.ErrorID(0xed6320923d7ac51e), Err: errors.New("Listener is down")}
-	ErrServerNameBlank      = &app.Err{ErrorID: app.ErrorID(0x82ba8744c43fe673), Err: errors.New("Server name is blank")}
+	ErrServerSpecNil                 = &app.Err{ErrorID: app.ErrorID(0x8cfd35df21d5dea5), Err: errors.New("ServerSpec is nil")}
+	ErrListenerProviderNil           = &app.Err{ErrorID: app.ErrorID(0xbded147157abdee4), Err: errors.New("net.Listener provider is nil")}
+	ErrTLSConfigProviderNil          = &app.Err{ErrorID: app.ErrorID(0xfde67413e94bf34c), Err: errors.New("tls.Config provider is nil")}
+	ErrConnHandlerNil                = &app.Err{ErrorID: app.ErrorID(0xff3042c0c093461b), Err: errors.New("Conn handler is nil")}
+	ErrListenerDown                  = &app.Err{ErrorID: app.ErrorID(0xed6320923d7ac51e), Err: errors.New("Listener is down")}
+	ErrServerNameBlank               = &app.Err{ErrorID: app.ErrorID(0x82ba8744c43fe673), Err: errors.New("Server name is blank")}
+	ErrServerMaxConnsZero            = &app.Err{ErrorID: app.ErrorID(0x999e5626a881b99b), Err: errors.New("Server max conns must be > 0")}
+	ErrServerConnKeepAlivePeriodZero = &app.Err{ErrorID: app.ErrorID(0xb25783843b427f53), Err: errors.New("Server conn keep alive period must be > 0")}
 
 	ErrPEMParsing = &app.Err{ErrorID: app.ErrorID(0xa7b59b95250c2789), Err: errors.New("Failed to parse PEM encoded cert(s)")}
 

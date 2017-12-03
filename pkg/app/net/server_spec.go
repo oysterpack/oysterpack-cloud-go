@@ -40,10 +40,12 @@ func NewServerSpec(spec config.ServerSpec) (*ServerSpec, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	serverSpec := &ServerSpec{
-		ServerServiceSpec: serverServiceSpec,
-		ClientCAs:         x509.NewCertPool(),
-		MaxConns:          spec.MaxConns(),
+		ServerServiceSpec:   serverServiceSpec,
+		ClientCAs:           x509.NewCertPool(),
+		MaxConns:            spec.MaxConns(),
+		KeepAlivePeriodSecs: spec.KeepAlivePeriodSecs(),
 	}
 
 	serverCert, err := spec.ServerCert()
@@ -93,15 +95,24 @@ func CheckServerSpec(spec config.ServerSpec) error {
 		return NewServerSpecError(errors.New("CaCert is required"))
 	}
 
+	if spec.MaxConns() == 0 {
+		return ErrServerMaxConnsZero
+	}
+
+	if spec.KeepAlivePeriodSecs() == 0 {
+		return ErrServerConnKeepAlivePeriodZero
+	}
+
 	return nil
 }
 
 // ServerSpec is the server spec for the Service
 type ServerSpec struct {
 	*ServerServiceSpec
-	ClientCAs *x509.CertPool
-	Cert      tls.Certificate
-	MaxConns  uint32
+	ClientCAs           *x509.CertPool
+	Cert                tls.Certificate
+	MaxConns            uint32
+	KeepAlivePeriodSecs uint8
 }
 
 func (a *ServerSpec) ToCapnp(s *capnp.Segment) (config.ServerSpec, error) {
@@ -123,6 +134,9 @@ func (a *ServerSpec) ToCapnp(s *capnp.Segment) (config.ServerSpec, error) {
 }
 
 func (a *ServerSpec) TLSConfig() *tls.Config {
+	// Caveat, all these recommended settings apply only to the amd64 architecture, for which fast, constant time
+	// implementations of the crypto primitives (AES-GCM, ChaCha20-Poly1305, P256) are available.
+
 	tlsConfig := &tls.Config{
 		MinVersion: tls.VersionTLS12,
 
@@ -138,6 +152,25 @@ func (a *ServerSpec) TLSConfig() *tls.Config {
 
 		// TODO: PFS because we can but this will reject client with RSA certificates
 		//CipherSuites:             []uint16{tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384},
+
+		CurvePreferences: []tls.CurveID{
+			tls.CurveP256,
+			tls.X25519, // Go 1.8 only
+		},
+
+		CipherSuites: []uint16{
+			tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+			tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+			tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305, // Go 1.8 only
+			tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,   // Go 1.8 only
+			tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+			tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+
+			// Best disabled, as they don't provide Forward Secrecy,
+			// but might be necessary for some clients
+			// tls.TLS_RSA_WITH_AES_256_GCM_SHA384,
+			// tls.TLS_RSA_WITH_AES_128_GCM_SHA256,
+		},
 	}
 	tlsConfig.BuildNameToCertificate()
 	return tlsConfig
