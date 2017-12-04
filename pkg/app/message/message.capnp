@@ -7,7 +7,7 @@ struct Message @0xc768aaf640842a35 {
     id              @0 :UInt64;
     type            @1 :UInt64;
     correlationID   @2 :UInt64;
-    timestamp       @3 :UInt64;
+    timestamp       @3 :Int64;
     data            @4 :Data;
 }
 

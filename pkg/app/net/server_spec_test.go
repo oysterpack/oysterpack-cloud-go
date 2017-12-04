@@ -68,7 +68,10 @@ func TestNewServerSpec(t *testing.T) {
 	app.Services.Register(service)
 	serverSettings, err := opnet.NewServerSettings(service, serverSpec, func(conn net.Conn) {
 		defer conn.Close()
-		service.Logger().Info().Msg("New Connection")
+		service.Logger().Info().
+			Str("remote-addr", conn.RemoteAddr().String()).
+			Str("local-addr", conn.LocalAddr().String()).
+			Msg("New Connection")
 
 		encoder := capnp.NewPackedEncoder(conn)
 		decoder := capnp.NewPackedDecoder(conn)
@@ -187,8 +190,8 @@ WAIT_FOR_SERVER_RUNNING:
 
 		req.SetId(uint64(uid.NextUIDHash()))
 		req.SetType(uint64(uid.NextUIDHash()))
+		req.SetTimestamp(time.Now().UnixNano())
 		req.SetCorrelationID(uint64(uid.NextUIDHash()))
-		req.SetTimestamp(uint64(time.Now().UnixNano()))
 		if err := req.SetData([]byte(fmt.Sprintf("REQ #%d", i))); err != nil {
 			t.Fatal(err)
 		}
