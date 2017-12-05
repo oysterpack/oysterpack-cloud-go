@@ -17,6 +17,7 @@ package app_test
 import (
 	"fmt"
 	"testing"
+	"time"
 )
 
 type HexID uint64
@@ -49,4 +50,16 @@ func TestPointers(t *testing.T) {
 	t.Log(*a, *b, s)
 	s = "CIAO"
 	t.Log(*a, *b, s)
+}
+
+func TestDurationZero(t *testing.T) {
+	d := time.Duration(0)
+	if d != 0 {
+		t.Error("duration should be zero")
+	}
+
+	d = time.Second
+	if !(d > 0) {
+		t.Error("duration should be > 0")
+	}
 }

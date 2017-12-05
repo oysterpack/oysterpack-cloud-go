@@ -28,21 +28,21 @@ import (
 )
 
 const (
-	APP_RPC_SERVICE_ID = ServiceID(0xe49214fa20b35ba8)
+	APP_RPC_SERVICE_ID = app.ServiceID(0xe49214fa20b35ba8)
 )
 
 // if the app RPC server fails to start, then this is considered a fatal error, which will terminate the process.
 func runRPCAppServer() {
-	msg, err := Configs.Config(APP_RPC_SERVICE_ID)
+	msg, err := app.Configs.Config(APP_RPC_SERVICE_ID)
 	if err != nil {
-		APP_RPC_START_ERR.Log(Logger().Panic()).Err(err).Msg("")
+		app.CONFIG_LOADING_ERR.Log(app.Logger().Panic()).Err(err).Msg("")
 	}
 	if msg == nil {
 		return
 	}
 	spec, err := config.ReadRootRPCServerSpec(msg)
 	if err != nil {
-		APP_RPC_START_ERR.Log(Logger().Panic()).Err(err).Msg("")
+		app.CONFIG_LOADING_ERR.Log(app.Logger().Panic()).Err(err).Msg("")
 		return
 	}
 	serverSpec, err := NewRPCServerSpec(spec)

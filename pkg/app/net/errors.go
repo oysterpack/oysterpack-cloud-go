@@ -29,6 +29,7 @@ var (
 	ErrServerNameBlank               = &app.Err{ErrorID: app.ErrorID(0x82ba8744c43fe673), Err: errors.New("Server name is blank")}
 	ErrServerMaxConnsZero            = &app.Err{ErrorID: app.ErrorID(0x999e5626a881b99b), Err: errors.New("Server max conns must be > 0")}
 	ErrServerConnKeepAlivePeriodZero = &app.Err{ErrorID: app.ErrorID(0xb25783843b427f53), Err: errors.New("Server conn keep alive period must be > 0")}
+	ErrConnBuffersNotConfigurable    = &app.Err{ErrorID: app.ErrorID(0xf6cd72498eb50225), Err: errors.New("Server conn buffers are not configurable")}
 
 	ErrPEMParsing = &app.Err{ErrorID: app.ErrorID(0xa7b59b95250c2789), Err: errors.New("Failed to parse PEM encoded cert(s)")}
 

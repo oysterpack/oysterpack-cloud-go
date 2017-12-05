@@ -28,3 +28,4 @@ vendor/*/
 /cmd/demos/appdemo/testdata/run/secrets/
 /cmd/demos/appdemo/appdemo
 /pkg/app/net/testdata/.easypki/pki/
+/pkg/app/net/testdata/server_spec_test/

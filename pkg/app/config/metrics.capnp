@@ -4,7 +4,7 @@ $Go.package("config");
 $Go.import("github.com/oysterpack/oysterpack.go/pkg/app/config");
 
 struct MetricsServiceSpec @0xb9780f65d5146efb {
-    httpPort    @0 :UInt16;
+    httpPort    @0 :UInt16 = 4444;
     metricSpecs @1 :MetricSpecs;
 }
 

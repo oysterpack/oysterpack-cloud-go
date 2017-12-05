@@ -19,7 +19,10 @@ import (
 
 	"io/ioutil"
 
+	"os"
+
 	"github.com/oysterpack/oysterpack.go/pkg/app"
+	appconfig "github.com/oysterpack/oysterpack.go/pkg/app/config"
 	opnet "github.com/oysterpack/oysterpack.go/pkg/app/net"
 	"github.com/oysterpack/oysterpack.go/pkg/app/net/config"
 	"zombiezen.com/go/capnproto2"
@@ -132,4 +135,53 @@ func (a EasyPKI) ClientSpec(seg *capnp.Segment, domainID app.DomainID, appID app
 	}
 	clientSpec.SetClientCert(x509KeyPai)
 	return clientSpec, nil
+}
+
+func initConfigDir(configDir string) {
+	app.Configs.SetConfigDir(configDir)
+	os.RemoveAll(configDir)
+	os.MkdirAll(configDir, 0755)
+}
+
+func initServerMetricsConfig(serviceID app.ServiceID) error {
+	msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err != nil {
+		return err
+	}
+	metricsServiceSpec, err := appconfig.NewRootMetricsServiceSpec(seg)
+	if err != nil {
+		return err
+	}
+	metricsSpecs, err := appconfig.NewMetricSpecs(seg)
+	if err != nil {
+		return err
+	}
+	metricsServiceSpec.SetMetricSpecs(metricsSpecs)
+
+	// configure gauge specs
+	gauges, err := metricsSpecs.NewGaugeSpecs(1)
+	if err != nil {
+		return err
+	}
+	gauge, err := appconfig.NewGaugeMetricSpec(seg)
+	if err != nil {
+		return err
+	}
+	gauge.SetServiceId(serviceID.UInt64())
+	gauge.SetMetricId(opnet.SERVER_CONN_COUNT_METRIC_ID.UInt64())
+	if err := gauge.SetHelp("Server connection count"); err != nil {
+		return err
+	}
+	gauges.Set(0, gauge)
+
+	// store the config
+	serviceConfigPath := app.Configs.ServiceConfigPath(app.METRICS_SERVICE_ID)
+	configFile, err := os.Create(serviceConfigPath)
+	if err != nil {
+		return err
+	}
+	app.MarshalCapnpMessage(msg, configFile)
+	configFile.Close()
+
+	return nil
 }

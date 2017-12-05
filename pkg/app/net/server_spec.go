@@ -23,6 +23,8 @@ import (
 
 	"errors"
 
+	"time"
+
 	"github.com/oysterpack/oysterpack.go/pkg/app/net/config"
 	"zombiezen.com/go/capnproto2"
 )
@@ -113,6 +115,64 @@ type ServerSpec struct {
 	Cert                tls.Certificate
 	MaxConns            uint32
 	KeepAlivePeriodSecs uint8
+
+	// If > 0, sets the size of the operating system's receive buffer associated with the connection.
+	ReadBufferSize uint
+	// If > 0, sets the size of the operating system's transmit buffer associated with the connection.
+	WriteBufferSize uint
+
+	// The ReadTimeout is to protect the server from connections that are idle for an extended period
+	// of time. It also protects the server from very slow clients, which could potentially be intentionally slow as a
+	// for of Ddos attack.
+	//
+	// if > 0, then used to set the connection read deadline
+	ReadTimeout time.Duration
+
+	// The WriteTimeout is to protect the server from very slow clients, which could potentially be intentionally slow as a
+	// for of DDos attack. It may also be a sign og an unhealthy client. We want to protect server connection resources,
+	// and close slow connections.
+	//
+	// if > 0, then used to set the connection write deadline
+	WriteTimeout time.Duration
+}
+
+// ConfigureConnBuffers configures the conn read and write buffer sizes.
+func (a *ServerSpec) ConfigureConnBuffers(conn net.Conn) error {
+	if a.ReadBufferSize == 0 && a.WriteBufferSize == 0 {
+		return nil
+	}
+	type BufferedConn interface {
+		SetReadBuffer(bytes int) error
+		SetWriteBuffer(bytes int) error
+	}
+
+	c, ok := conn.(BufferedConn)
+	if !ok {
+		return ErrConnBuffersNotConfigurable
+	}
+	if a.ReadBufferSize > 0 {
+		c.SetReadBuffer(int(a.ReadBufferSize))
+	}
+	if a.WriteBufferSize > 0 {
+		c.SetWriteBuffer(int(a.WriteBufferSize))
+	}
+	return nil
+}
+
+// ConfigureConnReadDeadline is meant to be used within the connection handler.
+// The deadline needs to be reset after each successful read.
+func (a *ServerSpec) ConfigureConnReadDeadline(conn net.Conn) {
+	if a.ReadTimeout > 0 {
+		conn.SetReadDeadline(time.Now().Add(a.ReadTimeout))
+	}
+}
+
+// ConfigureConnWriteDeadline is meant to be used within the connection handler.
+// The deadline needs to be reset after each successful write.
+func (a *ServerSpec) ConfigureConnWriteDeadline(conn net.Conn) {
+	if a.WriteTimeout > 0 {
+		conn.SetWriteDeadline(time.Now().Add(a.WriteTimeout))
+	}
 }
 
 func (a *ServerSpec) ToCapnp(s *capnp.Segment) (config.ServerSpec, error) {

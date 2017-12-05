@@ -43,9 +43,6 @@ import (
 // 	- that translates to ~26K/sec RPC calls - and that's with TLS !!!
 // 	- the message marshalling overhead was ~1.76%
 func BenchmarkServer(b *testing.B) {
-	app.Reset()
-	defer app.Reset()
-
 	const (
 		// *** THE EASYPKI CA AND CERTS NEED TO PREEXIST ***
 		// For now, use the testdata/.easypki/generate-certs.sh script to bootstrap
@@ -60,6 +57,12 @@ func BenchmarkServer(b *testing.B) {
 
 		MAX_CONNS = 16
 	)
+
+	configDir := "./testdata/server_spec_test/TestNewServerSpec"
+	initConfigDir(configDir)
+	initServerMetricsConfig(SERVICE_ID)
+	app.ResetWithConfigDir(configDir)
+	defer app.Reset()
 
 	// Given an ServerSpec for the app RPCService
 	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
@@ -417,7 +420,7 @@ func BenchmarkServer_Pipeline(b *testing.B) {
 							connTomb.Kill(nil)
 							return nil
 						}
-						if service.Alive() || app.Alive() {
+						if service.Alive() {
 							service.Logger().Error().Err(err).Msgf("decoder.Decode() failed : %T", err)
 						}
 						return err
@@ -509,7 +512,7 @@ func BenchmarkServer_Pipeline(b *testing.B) {
 				case msg := <-responseChan:
 					// echo back the message
 					if err := encoder.Encode(msg); err != nil {
-						if service.Alive() || app.Alive() {
+						if service.Alive() {
 							service.Logger().Error().Err(err).Msgf("decoder.Decode() failed : %T", err)
 						}
 						return err

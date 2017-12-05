@@ -14,12 +14,12 @@ type Message struct{ capnp.Struct }
 const Message_TypeID = 0xc768aaf640842a35
 
 func NewMessage(s *capnp.Segment) (Message, error) {
-	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 32, PointerCount: 1})
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 40, PointerCount: 1})
 	return Message{st}, err
 }
 
 func NewRootMessage(s *capnp.Segment) (Message, error) {
-	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 32, PointerCount: 1})
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 40, PointerCount: 1})
 	return Message{st}, err
 }
 
@@ -65,6 +65,14 @@ func (s Message) SetTimestamp(v int64) {
 	s.Struct.SetUint64(24, uint64(v))
 }
 
+func (s Message) Compression() Message_Compression {
+	return Message_Compression(s.Struct.Uint16(32) ^ 1)
+}
+
+func (s Message) SetCompression(v Message_Compression) {
+	s.Struct.SetUint16(32, uint16(v)^1)
+}
+
 func (s Message) Data() ([]byte, error) {
 	p, err := s.Struct.Ptr(0)
 	return []byte(p.Data()), err
@@ -84,7 +92,7 @@ type Message_List struct{ capnp.List }
 
 // NewMessage creates a new list of Message.
 func NewMessage_List(s *capnp.Segment, sz int32) (Message_List, error) {
-	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 32, PointerCount: 1}, sz)
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 40, PointerCount: 1}, sz)
 	return Message_List{l}, err
 }
 
@@ -103,6 +111,61 @@ type Message_Promise struct{ *capnp.Pipeline }
 func (p Message_Promise) Struct() (Message, error) {
 	s, err := p.Pipeline.Struct()
 	return Message{s}, err
+}
+
+type Message_Compression uint16
+
+// Message_Compression_TypeID is the unique identifier for the type Message_Compression.
+const Message_Compression_TypeID = 0xf8f433c185247295
+
+// Values of Message_Compression.
+const (
+	Message_Compression_none Message_Compression = 0
+	Message_Compression_zlib Message_Compression = 1
+)
+
+// String returns the enum's constant name.
+func (c Message_Compression) String() string {
+	switch c {
+	case Message_Compression_none:
+		return "none"
+	case Message_Compression_zlib:
+		return "zlib"
+
+	default:
+		return ""
+	}
+}
+
+// Message_CompressionFromString returns the enum value with a name,
+// or the zero value if there's no such value.
+func Message_CompressionFromString(c string) Message_Compression {
+	switch c {
+	case "none":
+		return Message_Compression_none
+	case "zlib":
+		return Message_Compression_zlib
+
+	default:
+		return 0
+	}
+}
+
+type Message_Compression_List struct{ capnp.List }
+
+func NewMessage_Compression_List(s *capnp.Segment, sz int32) (Message_Compression_List, error) {
+	l, err := capnp.NewUInt16List(s, sz)
+	return Message_Compression_List{l.List}, err
+}
+
+func (l Message_Compression_List) At(i int) Message_Compression {
+	ul := capnp.UInt16List{List: l.List}
+	return Message_Compression(ul.At(i))
+}
+
+func (l Message_Compression_List) Set(i int, v Message_Compression) {
+	ul := capnp.UInt16List{List: l.List}
+	ul.Set(i, uint16(v))
 }
 
 type Ping struct{ capnp.Struct }
@@ -207,30 +270,37 @@ func (p Pong_Promise) Struct() (Pong, error) {
 	return Pong{s}, err
 }
 
-const schema_aa44738dedfed9a1 = "x\xdal\x8f1K\xeb`\x18\x85\xcfy\xbf\xe4\x96\x0e" +
-	"m\xefG2\xdd\xabt\xb1 \x1d\x14\x11\x17\xa7\x0e\x1d" +
-	"t\x10\xf2\xf9\x0fB\x1bj\xc46\xa1\xc9\xa0\xa0\x83P" +
-	"A\xc1B\x17A\xaa\x8bk\xdd\xfc\x13\xdd\xdc\xfd\x11]" +
-	"\x1c:\x1a\x89\xa2\x82\xba\xbd\xe7\xe1\xbc\x07\x9e\xbf\xf7\x0d" +
-	"Y\xb3#\x01\xcc\x82\xfd'\xbb\xc8\x96\xa6\xff\xfd\xc7\x1b" +
-	"\xe82\xb3\xbb\xa7\x97\xd90iN`\x15\x00g\x91c" +
-	"\xa7\xc6\x02T\xb6Q\x1f4\xe6\x93\xbd)L\x99\xd6W" +
-	"\xcbf^#\x1f\x9cb~\xad\xdb\xac\x12\xcc\xe6\xcf\xb3" +
-	"hy\x7fk\xfe\xdb\xa4\x8c\x9d\x9a\x14\xb0\x9au\x83$" +
-	"\xf1;\xc1\x0a[~\xdc\x8b7\xbdP\xf5:\x1e\xf9\x9d" +
-	"\xef\x04\xd5\xb7\xec\x91\xc6U\x16`\x11\xd0'\xff\x00s" +
-	"\xa8h\x06BM\xba\xcc\xe1i\x1d0\xc7\x8a\xe6\\\xa8" +
-	"E\\\x0a\xa0\xcf\xfa\x80\x19(\x9a\x91P+\xe5R\x01" +
-	"z\xb8\x0b\x98KEs-\xa4\xe5\xd2\x02\xf4U\xfe=" +
-	"R4\xb7B\x15\xb6Y\x84\xb0\x08V\xd2\xa38\xf8\x08" +
-	"Y+\xea\xf7\x83\x03?E5\x8cz\xdb\xcdO\x9e\x86" +
-	"\xdd I\xfd.\x18\xd3\x86\xd0\x06+m?\xf5Y\x82" +
-	"\xb0\x84\x1fV^\xf4n\xfb\x1a\x00\x00\xff\xff\xc4\x87a" +
-	"\xb1"
+const schema_aa44738dedfed9a1 = "x\xdal\x90\xb1k\x13q\x1c\xc5\xdf\xfb\xfe\xeeg\xcc" +
+	"\xd0^\x7f\xe6P\xd1\xa1\x0e\x1d$PAB\x11\x9c*" +
+	"v\xb0\x83\x90\xaf\x8b\xf3\xa5=\xeaIsw\xdc\xdd\xa2" +
+	"\xe0\xa6C\x87n\x0a\xb6\"4\xe0\xa0\xc5A\xa5\x8b\xe0" +
+	"\xa0S6\xf7\xfe\x11]D\x82\x93'\x17\x89)\xb5\xe3" +
+	"{<>\xf0>s\x87\xcbr\xdd\x0e\x05\xd0+\xf6L" +
+	"\xb5U-\x0c/\x87\xdf_\xc1\xcd\xb2\x1a\x1c\xfe>\xda" +
+	".V\xf6\xe15\x80\xd6*w[\xca\x06L\xb5\xd4~" +
+	"\xba<\xda\x7f0\x84\xce\xd2NW\x96\xf5l\x91\x9fZ" +
+	"K\xbc\x00tn\xf1>\xc1j\xf4\xe3(\xbd\xfa\xf0\xce" +
+	"\xe8\x14\xe4\x8e\xec\xb6\x06R#_\xe4\x0b\xcf\xbeu~" +
+	"\xfe\x82;/S>\xd8y\"\xe7\xd8\xda\x96z\xbd%" +
+	"7\xb0X\xf5\xa3\xa2\x087\xa2k\\\x0b\xb3$\xbb\xd9" +
+	"\x8dM\xb2\xd1%O\xf6w\xa3\xf9qV\x8f<Fg" +
+	"\xaf\xba\x9d\xf6\xb3<*\x0a4\xe24\xd1\x8b\xc6\x03<" +
+	"\x02n\xe7\x12\xa0\xcf\x0duO\xe8\xc8\x80u\xf9\xba\x0d" +
+	"\xe8KC}#t\"\x01\x05p\x83\x1c\xd0=C}" +
+	"/t\xc6\x044\x80{w\x0f\xd0\xb7\x86z t\xde" +
+	"\\@\x8ft\x1f{\x80~0\xd4/B\xda\x80\x16p" +
+	"\x9fk\xe4\x81\xa1~\x15\x9ax\x9dM\x08\x9b\xa0_>" +
+	"\xca\xa2I\xa8\xd6\xd2<\x8f6\xc3\x12\xf3q\x9a\xac\xae" +
+	"\xfc\xeb\xcb\xb8\x1f\x15e\xd8\x073Z\x08\xedx{\xec" +
+	"\x10\xfd\xe9[\xd0\xfa\x04\xfd\xf5\xb0\x0c9\x03\xe1\x0c\xfe" +
+	"\xf3\xd4MO\xf83\x13\x7f\x7f\xe3\xc4V\x9c2\xe9\x92" +
+	"zvl\xc0\xb5\x01\xd25\xdb\x80\x9f\xa4I\xe4?\xde" +
+	"\x8c{\x7f\x02\x00\x00\xff\xff\x9aE\xa0E"
 
 func init() {
 	schemas.Register(schema_aa44738dedfed9a1,
 		0x9bce611bc724ff89,
 		0xc768aaf640842a35,
-		0xf6486a286fedf2f6)
+		0xf6486a286fedf2f6,
+		0xf8f433c185247295)
 }

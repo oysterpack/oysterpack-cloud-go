@@ -31,9 +31,6 @@ import (
 )
 
 func TestNewServerSpec(t *testing.T) {
-	app.Reset()
-	defer app.Reset()
-
 	const (
 		// *** THE EASYPKI CA AND CERTS NEED TO PREEXIST ***
 		// For now, use the testdata/.easypki/generate-certs.sh script to bootstrap
@@ -48,6 +45,12 @@ func TestNewServerSpec(t *testing.T) {
 
 		MAX_CONNS = 16
 	)
+
+	configDir := "./testdata/server_spec_test/TestNewServerSpec"
+	initConfigDir(configDir)
+	initServerMetricsConfig(SERVICE_ID)
+	app.ResetWithConfigDir(configDir)
+	defer app.Reset()
 
 	// Given an ServerSpec for the app RPCService
 	_, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
@@ -81,9 +84,10 @@ func TestNewServerSpec(t *testing.T) {
 
 		service.Logger().Info().Msg("Connection handler is initialized")
 		for {
+
 			msg, err := decoder.Decode()
 			if err != nil {
-				if service.Alive() || app.Alive() {
+				if service.Alive() {
 					service.Logger().Error().Err(err).Msgf("decoder.Decode() failed : %T", err)
 				}
 				return

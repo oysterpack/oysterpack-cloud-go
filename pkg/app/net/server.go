@@ -27,7 +27,7 @@ import (
 	"github.com/oysterpack/oysterpack.go/pkg/app"
 	"github.com/oysterpack/oysterpack.go/pkg/app/net/config"
 	opsync "github.com/oysterpack/oysterpack.go/pkg/app/sync"
-	"gopkg.in/tomb.v2"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 // TODO: Server registry
@@ -43,6 +43,12 @@ func StartServer(settings ServerSettings) (*Server, error) {
 		return nil, err
 	}
 
+	connCountGauge := app.MetricRegistry.Gauge(settings.Service.ID(), SERVER_CONN_COUNT_METRIC_ID)
+	if connCountGauge == nil {
+		err := fmt.Errorf("Server conn count gauge metric missing : ServiceID(0x%x) : MetricID(0x%x)", settings.Service.ID(), SERVER_CONN_COUNT_METRIC_ID)
+		return nil, app.NewConfigError(err)
+	}
+
 	l, err := settings.newListener()
 	if err != nil {
 		return nil, err
@@ -54,17 +60,16 @@ func StartServer(settings ServerSettings) (*Server, error) {
 		connSemaphore: opsync.NewCountingSemaphore(uint(settings.MaxConns)),
 		listener:      l,
 		running:       make(chan struct{}),
+		connCount:     connCountGauge,
 	}
 
 	server.Service.Go(server.run)
 	server.Service.Go(func() error {
 		select {
 		case <-server.Service.Dying():
-			server.Kill(nil)
 			server.closeListener()
 			return nil
 		case <-app.Dying():
-			server.Kill(nil)
 			server.closeListener()
 			return nil
 		}
@@ -149,12 +154,11 @@ func (a *ServerSettings) newListener() (net.Listener, error) {
 // Listener abstracts away how the net.Listener is provided.
 //
 // Design:
-//	- every server belongs to a Service
+//	- every server maps to a Service, i.e., the server lifecycle aligns with the service lifecycle
 //	-
 type Server struct {
 	settings ServerSettings
 
-	tomb.Tomb
 	*app.Service
 	connSemaphore *opsync.CountingSemaphore
 
@@ -166,6 +170,9 @@ type Server struct {
 
 	// signal
 	running chan struct{}
+
+	// metrics
+	connCount prometheus.Gauge
 }
 
 // Running is used to signal when the server is running.
@@ -192,19 +199,20 @@ func (a *Server) getListener() (l net.Listener, err error) {
 		if err != nil {
 			return nil, err
 		}
-		a.logListenerRestart()
+		SERVER_LISTENER_RESTART.Log(a.Logger().Warn()).Msg("restarting listener")
 	}
 	return a.listener, nil
 }
 
 // TODO: metrics :
-// 	- connection count
+// 	- connection count - gauge
 func (a *Server) run() (err error) {
 	conns := connMap{conns: make(map[uint64]net.Conn)}
 
 	defer func() {
 		a.closeListener()
 		conns.closeAll()
+		a.connCount.Set(0)
 		SERVER_ALL_CONNS_CLOSED.Log(a.Service.Logger().Info()).Msg("All connections are closed")
 	}()
 
@@ -216,19 +224,18 @@ func (a *Server) run() (err error) {
 	SERVER_LISTENER_STARTED.Log(a.Logger().Info()).
 		Str("addr", fmt.Sprintf("%s://%s", l.Addr().Network(), l.Addr().String())).
 		Int("max-conns", a.connSemaphore.TotalTokens()).
+		Uint8("keep-alive-period-secs", a.settings.KeepAlivePeriodSecs).
 		Msg("listener started")
 
 	close(a.running)
 	for {
 		select {
-		case <-a.Dying():
-			return nil
 		case <-a.Service.Dying():
 			return nil
 		case <-a.connSemaphore.C:
 			l, err := a.getListener()
 			if err != nil {
-				if !a.Service.Alive() || !a.Alive() || !app.Alive() {
+				if !a.Service.Alive() || !app.Alive() {
 					// the error can be ignored because it means the server is being killed
 					return nil
 				}
@@ -237,11 +244,16 @@ func (a *Server) run() (err error) {
 
 			conn, err := l.Accept()
 			if err != nil {
-				if !a.Service.Alive() || !a.Alive() || !app.Alive() {
+				if !a.Service.Alive() || !app.Alive() {
 					// the error can be ignored because it means the server is being killed
 					return nil
 				}
 				return err
+			}
+			a.connCount.Inc()
+			if err := a.settings.ConfigureConnBuffers(conn); err != nil {
+				// should never happen
+				a.Logger().Warn().Err(err).Msg("Failed to configure conn buffers")
 			}
 
 			if tcpConn, ok := conn.(*net.TCPConn); ok {
@@ -256,6 +268,7 @@ func (a *Server) run() (err error) {
 				defer func() {
 					a.connSemaphore.ReturnToken()
 					conns.close(connKey)
+					a.connCount.Dec()
 					SERVER_CONN_CLOSED.Log(a.Logger().Debug()).Msg("conn closed")
 				}()
 				a.settings.ConnHandler(conn)
@@ -285,15 +298,6 @@ func (a *Server) MaxConnections() uint {
 
 func (a *Server) ConnectionCount() int {
 	return a.connSemaphore.TotalTokens() - a.connSemaphore.AvailableTokens()
-}
-
-func (a *Server) logListenerRestart() {
-	err := a.Err()
-	restartEvent := SERVER_LISTENER_RESTART.Log(a.Logger().Warn())
-	if err != nil {
-		restartEvent.Err(err)
-	}
-	restartEvent.Msg("restarting listener")
 }
 
 type connMap struct {
