@@ -45,9 +45,9 @@ func NewServerSpec(spec config.ServerSpec) (*ServerSpec, error) {
 
 	serverSpec := &ServerSpec{
 		ServerServiceSpec:   serverServiceSpec,
-		ClientCAs:           x509.NewCertPool(),
-		MaxConns:            spec.MaxConns(),
-		KeepAlivePeriodSecs: spec.KeepAlivePeriodSecs(),
+		clientCAs:           x509.NewCertPool(),
+		maxConns:            spec.MaxConns(),
+		keepAlivePeriodSecs: spec.KeepAlivePeriodSecs(),
 	}
 
 	serverCert, err := spec.ServerCert()
@@ -62,7 +62,7 @@ func NewServerSpec(spec config.ServerSpec) (*ServerSpec, error) {
 	if err != nil {
 		return nil, err
 	}
-	serverSpec.Cert, err = tls.X509KeyPair(cert, key)
+	serverSpec.cert, err = tls.X509KeyPair(cert, key)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +71,7 @@ func NewServerSpec(spec config.ServerSpec) (*ServerSpec, error) {
 	if err != nil {
 		return nil, err
 	}
-	if !serverSpec.ClientCAs.AppendCertsFromPEM(caCert) {
+	if !serverSpec.clientCAs.AppendCertsFromPEM(caCert) {
 		return nil, ErrPEMParsing
 	}
 
@@ -111,34 +111,66 @@ func CheckServerSpec(spec config.ServerSpec) error {
 // ServerSpec is the server spec for the Service
 type ServerSpec struct {
 	*ServerServiceSpec
-	ClientCAs           *x509.CertPool
-	Cert                tls.Certificate
-	MaxConns            uint32
-	KeepAlivePeriodSecs uint8
+	clientCAs           *x509.CertPool
+	cert                tls.Certificate
+	maxConns            uint32
+	keepAlivePeriodSecs uint8
 
 	// If > 0, sets the size of the operating system's receive buffer associated with the connection.
-	ReadBufferSize uint
+	readBufferSize uint
 	// If > 0, sets the size of the operating system's transmit buffer associated with the connection.
-	WriteBufferSize uint
+	writeBufferSize uint
 
 	// The ReadTimeout is to protect the server from connections that are idle for an extended period
 	// of time. It also protects the server from very slow clients, which could potentially be intentionally slow as a
 	// for of Ddos attack.
 	//
 	// if > 0, then used to set the connection read deadline
-	ReadTimeout time.Duration
+	readTimeout time.Duration
 
 	// The WriteTimeout is to protect the server from very slow clients, which could potentially be intentionally slow as a
 	// for of DDos attack. It may also be a sign og an unhealthy client. We want to protect server connection resources,
 	// and close slow connections.
 	//
 	// if > 0, then used to set the connection write deadline
-	WriteTimeout time.Duration
+	writeTimeout time.Duration
+}
+
+func (a *ServerSpec) ClientCAs() *x509.CertPool {
+	return a.clientCAs
+}
+
+func (a *ServerSpec) Cert() tls.Certificate {
+	return a.cert
+}
+
+func (a *ServerSpec) MaxConns() uint32 {
+	return a.maxConns
+}
+
+func (a *ServerSpec) KeepAlivePeriodSecs() uint8 {
+	return a.keepAlivePeriodSecs
+}
+
+func (a *ServerSpec) ReadBufferSize() uint {
+	return a.readBufferSize
+}
+
+func (a *ServerSpec) WriteBufferSize() uint {
+	return a.writeBufferSize
+}
+
+func (a *ServerSpec) ReadTimeout() time.Duration {
+	return a.readTimeout
+}
+
+func (a *ServerSpec) WriteTimeout() time.Duration {
+	return a.writeTimeout
 }
 
 // ConfigureConnBuffers configures the conn read and write buffer sizes.
 func (a *ServerSpec) ConfigureConnBuffers(conn net.Conn) error {
-	if a.ReadBufferSize == 0 && a.WriteBufferSize == 0 {
+	if a.readBufferSize == 0 && a.writeBufferSize == 0 {
 		return nil
 	}
 	type BufferedConn interface {
@@ -150,11 +182,11 @@ func (a *ServerSpec) ConfigureConnBuffers(conn net.Conn) error {
 	if !ok {
 		return ErrConnBuffersNotConfigurable
 	}
-	if a.ReadBufferSize > 0 {
-		c.SetReadBuffer(int(a.ReadBufferSize))
+	if a.readBufferSize > 0 {
+		c.SetReadBuffer(int(a.readBufferSize))
 	}
-	if a.WriteBufferSize > 0 {
-		c.SetWriteBuffer(int(a.WriteBufferSize))
+	if a.writeBufferSize > 0 {
+		c.SetWriteBuffer(int(a.writeBufferSize))
 	}
 	return nil
 }
@@ -162,16 +194,16 @@ func (a *ServerSpec) ConfigureConnBuffers(conn net.Conn) error {
 // ConfigureConnReadDeadline is meant to be used within the connection handler.
 // The deadline needs to be reset after each successful read.
 func (a *ServerSpec) ConfigureConnReadDeadline(conn net.Conn) {
-	if a.ReadTimeout > 0 {
-		conn.SetReadDeadline(time.Now().Add(a.ReadTimeout))
+	if a.readTimeout > 0 {
+		conn.SetReadDeadline(time.Now().Add(a.readTimeout))
 	}
 }
 
 // ConfigureConnWriteDeadline is meant to be used within the connection handler.
 // The deadline needs to be reset after each successful write.
 func (a *ServerSpec) ConfigureConnWriteDeadline(conn net.Conn) {
-	if a.WriteTimeout > 0 {
-		conn.SetWriteDeadline(time.Now().Add(a.WriteTimeout))
+	if a.writeTimeout > 0 {
+		conn.SetWriteDeadline(time.Now().Add(a.writeTimeout))
 	}
 }
 
@@ -187,7 +219,7 @@ func (a *ServerSpec) ToCapnp(s *capnp.Segment) (config.ServerSpec, error) {
 	}
 	serverSpec.SetServiceSpec(serviceSpec)
 
-	serverSpec.SetMaxConns(a.MaxConns)
+	serverSpec.SetMaxConns(a.maxConns)
 	// TODO: set server Cert and client CA Cert
 
 	return serverSpec, nil
@@ -204,9 +236,9 @@ func (a *ServerSpec) TLSConfig() *tls.Config {
 		ClientAuth: tls.RequireAndVerifyClientCert,
 
 		// Ensure that we only use our "CA" to validate certificates
-		ClientCAs: a.ClientCAs,
+		ClientCAs: a.clientCAs,
 		// Server cert
-		Certificates: []tls.Certificate{a.Cert},
+		Certificates: []tls.Certificate{a.cert},
 
 		PreferServerCipherSuites: true,
 
@@ -244,6 +276,6 @@ func (a *ServerSpec) TLSConfigProvider() func() (*tls.Config, error) {
 
 func (a *ServerSpec) ListenerProvider() func() (net.Listener, error) {
 	return func() (net.Listener, error) {
-		return net.Listen("tcp", fmt.Sprintf(":%d", a.ServerPort))
+		return net.Listen("tcp", fmt.Sprintf(":%d", a.serverPort))
 	}
 }

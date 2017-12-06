@@ -158,21 +158,59 @@ func initServerMetricsConfig(serviceID app.ServiceID) error {
 	}
 	metricsServiceSpec.SetMetricSpecs(metricsSpecs)
 
-	// configure gauge specs
+	// gauges
 	gauges, err := metricsSpecs.NewGaugeSpecs(1)
 	if err != nil {
 		return err
 	}
-	gauge, err := appconfig.NewGaugeMetricSpec(seg)
+	connCountGauge, err := appconfig.NewGaugeMetricSpec(seg)
 	if err != nil {
 		return err
 	}
-	gauge.SetServiceId(serviceID.UInt64())
-	gauge.SetMetricId(opnet.SERVER_CONN_COUNT_METRIC_ID.UInt64())
-	if err := gauge.SetHelp("Server connection count"); err != nil {
+	connCountGauge.SetServiceId(serviceID.UInt64())
+	connCountGauge.SetMetricId(opnet.SERVER_CONN_COUNT_METRIC_ID.UInt64())
+	if err := connCountGauge.SetHelp("Current number of server connections"); err != nil {
 		return err
 	}
-	gauges.Set(0, gauge)
+	gauges.Set(0, connCountGauge)
+
+	// counters
+	counters, err := metricsSpecs.NewCounterSpecs(3)
+	if err != nil {
+		return err
+	}
+	totalConnCreatedCounter, err := appconfig.NewCounterMetricSpec(seg)
+	if err != nil {
+		return err
+	}
+	totalConnCreatedCounter.SetServiceId(serviceID.UInt64())
+	totalConnCreatedCounter.SetMetricId(opnet.SERVER_CONN_TOTAL_CREATED_METRIC_ID.UInt64())
+	if err := totalConnCreatedCounter.SetHelp("Total number of connections created"); err != nil {
+		return err
+	}
+	counters.Set(0, totalConnCreatedCounter)
+
+	requestCounter, err := appconfig.NewCounterMetricSpec(seg)
+	if err != nil {
+		return err
+	}
+	requestCounter.SetServiceId(serviceID.UInt64())
+	requestCounter.SetMetricId(opnet.SERVER_REQUEST_COUNT_METRIC_ID.UInt64())
+	if err := requestCounter.SetHelp("Total number of requests received"); err != nil {
+		return err
+	}
+	counters.Set(1, requestCounter)
+
+	requestFailedCounter, err := appconfig.NewCounterMetricSpec(seg)
+	if err != nil {
+		return err
+	}
+	requestFailedCounter.SetServiceId(serviceID.UInt64())
+	requestFailedCounter.SetMetricId(opnet.SERVER_REQUEST_COUNT_METRIC_ID.UInt64())
+	if err := requestFailedCounter.SetHelp("Total number of failed requests"); err != nil {
+		return err
+	}
+	counters.Set(2, requestFailedCounter)
 
 	// store the config
 	serviceConfigPath := app.Configs.ServiceConfigPath(app.METRICS_SERVICE_ID)

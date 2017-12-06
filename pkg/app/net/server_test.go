@@ -24,6 +24,8 @@ import (
 
 	"io"
 
+	"context"
+
 	"github.com/oysterpack/oysterpack.go/pkg/app"
 	"github.com/oysterpack/oysterpack.go/pkg/app/message"
 	opnet "github.com/oysterpack/oysterpack.go/pkg/app/net"
@@ -81,7 +83,7 @@ func BenchmarkServer(b *testing.B) {
 	// Then the server can be started
 	service := app.NewService(SERVICE_ID)
 	app.Services.Register(service)
-	serverSettings, err := opnet.NewServerSettings(service, serverSpec, func(conn net.Conn) {
+	serverSettings, err := opnet.NewServerSettings(service, serverSpec, func(ctx context.Context, conn net.Conn) {
 		defer conn.Close()
 		service.Logger().Info().Msg("New Connection")
 
@@ -396,14 +398,14 @@ func BenchmarkServer_Pipeline(b *testing.B) {
 	// Then the server can be started
 	service := app.NewService(SERVICE_ID)
 	app.Services.Register(service)
-	serverSettings, err := opnet.NewServerSettings(service, serverSpec, func(conn net.Conn) {
+	serverSettings, err := opnet.NewServerSettings(service, serverSpec, func(ctx context.Context, conn net.Conn) {
 		defer conn.Close()
 		service.Logger().Info().Msg("New Connection")
 
 		connTomb := tomb.Tomb{}
-		routerChan := make(chan *capnp.Message, 10)
-		pingChan := make(chan *message.Message, 10)
-		responseChan := make(chan *capnp.Message, 10)
+		routerChan := make(chan *capnp.Message, 0)
+		pingChan := make(chan *message.Message, 0)
+		responseChan := make(chan *capnp.Message, 0)
 
 		// generator - decodes messages reading from the net.Conn
 		connTomb.Go(func() error {
@@ -448,6 +450,46 @@ func BenchmarkServer_Pipeline(b *testing.B) {
 					}
 
 					switch request.Type() {
+					case message.SupportedMessageTypes_Request_TypeID:
+						msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+						if err != nil {
+							return err
+						}
+						response, err := message.NewRootMessage(seg)
+						if err != nil {
+							return err
+						}
+						response.SetId(uid.NextUIDHash().Uint64())
+						response.SetCorrelationID(request.Id())
+						response.SetType(message.SupportedMessageTypes_Response_TypeID)
+						response.SetTimestamp(time.Now().UnixNano())
+
+						data, dataSeg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+						if err != nil {
+							return err
+						}
+						supportedMessageTypes, err := message.NewRootSupportedMessageTypes_Response(dataSeg)
+						if err != nil {
+							return err
+						}
+						types, err := supportedMessageTypes.NewTypes(2)
+						if err != nil {
+							return err
+						}
+						types.Set(0, message.SupportedMessageTypes_Request_TypeID)
+						types.Set(1, message.Ping_TypeID)
+
+						bytes, err := data.MarshalPacked()
+						if err != nil {
+							return err
+						}
+						response.SetData(bytes)
+
+						select {
+						case <-connTomb.Dying():
+						case responseChan <- msg:
+						}
+
 					case message.Ping_TypeID:
 						select {
 						case <-connTomb.Dying():
@@ -459,7 +501,6 @@ func BenchmarkServer_Pipeline(b *testing.B) {
 						case responseChan <- msg:
 						}
 					}
-
 				}
 			}
 		})
@@ -476,6 +517,9 @@ func BenchmarkServer_Pipeline(b *testing.B) {
 						return err
 					}
 					response, err := message.NewRootMessage(seg)
+					if err != nil {
+						return err
+					}
 					response.SetId(uid.NextUIDHash().Uint64())
 					response.SetCorrelationID(ping.Id())
 					response.SetType(message.Ping_TypeID)

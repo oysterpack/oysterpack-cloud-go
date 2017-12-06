@@ -30,3 +30,13 @@ struct Ping @0x9bce611bc724ff89 {}
 
 # used to reply to to a Ping
 struct Pong @0xf6486a286fedf2f6 {}
+
+struct SupportedMessageTypes @0xf56d6f421703b1f7 {
+
+    struct Request @0x80b38fdd614a8b73 {}
+
+    struct Response @0x87799f37b0d1886a {
+        types @0 :List(UInt64);
+    }
+
+}

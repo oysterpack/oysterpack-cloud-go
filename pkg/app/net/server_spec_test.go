@@ -23,6 +23,8 @@ import (
 
 	"fmt"
 
+	"context"
+
 	"github.com/oysterpack/oysterpack.go/pkg/app"
 	"github.com/oysterpack/oysterpack.go/pkg/app/message"
 	opnet "github.com/oysterpack/oysterpack.go/pkg/app/net"
@@ -69,8 +71,10 @@ func TestNewServerSpec(t *testing.T) {
 	// Then the server can be started
 	service := app.NewService(SERVICE_ID)
 	app.Services.Register(service)
-	serverSettings, err := opnet.NewServerSettings(service, serverSpec, func(conn net.Conn) {
+	serverSettings, err := opnet.NewServerSettings(service, serverSpec, func(ctx context.Context, conn net.Conn) {
 		defer conn.Close()
+		serverSpec := opnet.Context.ServerSpec(ctx)
+		serverSpec.ConfigureConnBuffers(conn)
 		service.Logger().Info().
 			Str("remote-addr", conn.RemoteAddr().String()).
 			Str("local-addr", conn.LocalAddr().String()).
@@ -84,7 +88,6 @@ func TestNewServerSpec(t *testing.T) {
 
 		service.Logger().Info().Msg("Connection handler is initialized")
 		for {
-
 			msg, err := decoder.Decode()
 			if err != nil {
 				if service.Alive() {

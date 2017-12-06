@@ -24,6 +24,8 @@ import (
 
 	"time"
 
+	"context"
+
 	"github.com/oysterpack/oysterpack.go/pkg/app"
 	"github.com/oysterpack/oysterpack.go/pkg/app/net/config"
 	opsync "github.com/oysterpack/oysterpack.go/pkg/app/sync"
@@ -48,6 +50,11 @@ func StartServer(settings ServerSettings) (*Server, error) {
 		err := fmt.Errorf("Server conn count gauge metric missing : ServiceID(0x%x) : MetricID(0x%x)", settings.Service.ID(), SERVER_CONN_COUNT_METRIC_ID)
 		return nil, app.NewConfigError(err)
 	}
+	totalConnCreatedCount := app.MetricRegistry.Counter(settings.Service.ID(), SERVER_CONN_TOTAL_CREATED_METRIC_ID)
+	if totalConnCreatedCount == nil {
+		err := fmt.Errorf("Server total conn created counter metric missing : ServiceID(0x%x) : MetricID(0x%x)", settings.Service.ID(), SERVER_CONN_TOTAL_CREATED_METRIC_ID)
+		return nil, app.NewConfigError(err)
+	}
 
 	l, err := settings.newListener()
 	if err != nil {
@@ -55,12 +62,13 @@ func StartServer(settings ServerSettings) (*Server, error) {
 	}
 
 	server := &Server{
-		Service:       settings.Service,
-		settings:      settings,
-		connSemaphore: opsync.NewCountingSemaphore(uint(settings.MaxConns)),
-		listener:      l,
-		running:       make(chan struct{}),
-		connCount:     connCountGauge,
+		Service:               settings.Service,
+		settings:              settings,
+		connSemaphore:         opsync.NewCountingSemaphore(uint(settings.maxConns)),
+		listener:              l,
+		running:               make(chan struct{}),
+		connCount:             connCountGauge,
+		totalConnCreatedCount: totalConnCreatedCount,
 	}
 
 	server.Service.Go(server.run)
@@ -85,7 +93,7 @@ func StartServer(settings ServerSettings) (*Server, error) {
 //	- app.ErrServiceNotAlive
 //	- ErrConnHandlerNil
 //	- errors from NewServerSpec()
-func NewServerSettings(service *app.Service, spec config.ServerSpec, handler func(conn net.Conn)) (ServerSettings, error) {
+func NewServerSettings(service *app.Service, spec config.ServerSpec, handler ConnHandler) (ServerSettings, error) {
 	if service == nil {
 		return ServerSettings{}, app.ErrServiceNil
 	}
@@ -109,7 +117,7 @@ type ServerSettings struct {
 
 	*ServerSpec
 
-	ConnHandler func(conn net.Conn)
+	ConnHandler ConnHandler
 }
 
 // Validate validates the settings
@@ -172,7 +180,8 @@ type Server struct {
 	running chan struct{}
 
 	// metrics
-	connCount prometheus.Gauge
+	connCount             prometheus.Gauge
+	totalConnCreatedCount prometheus.Counter
 }
 
 // Running is used to signal when the server is running.
@@ -224,7 +233,7 @@ func (a *Server) run() (err error) {
 	SERVER_LISTENER_STARTED.Log(a.Logger().Info()).
 		Str("addr", fmt.Sprintf("%s://%s", l.Addr().Network(), l.Addr().String())).
 		Int("max-conns", a.connSemaphore.TotalTokens()).
-		Uint8("keep-alive-period-secs", a.settings.KeepAlivePeriodSecs).
+		Uint8("keep-alive-period-secs", a.settings.keepAlivePeriodSecs).
 		Msg("listener started")
 
 	close(a.running)
@@ -251,6 +260,7 @@ func (a *Server) run() (err error) {
 				return err
 			}
 			a.connCount.Inc()
+			a.totalConnCreatedCount.Inc()
 			if err := a.settings.ConfigureConnBuffers(conn); err != nil {
 				// should never happen
 				a.Logger().Warn().Err(err).Msg("Failed to configure conn buffers")
@@ -258,7 +268,7 @@ func (a *Server) run() (err error) {
 
 			if tcpConn, ok := conn.(*net.TCPConn); ok {
 				tcpConn.SetKeepAlive(true)
-				tcpConn.SetKeepAlivePeriod(time.Second * time.Duration(a.settings.KeepAlivePeriodSecs))
+				tcpConn.SetKeepAlivePeriod(time.Second * time.Duration(a.settings.keepAlivePeriodSecs))
 			}
 
 			go func() {
@@ -271,7 +281,9 @@ func (a *Server) run() (err error) {
 					a.connCount.Dec()
 					SERVER_CONN_CLOSED.Log(a.Logger().Debug()).Msg("conn closed")
 				}()
-				a.settings.ConnHandler(conn)
+				ctx := context.WithValue(context.Background(), CTX_SERVER_SPEC, a.settings.ServerSpec)
+				ctx = context.WithValue(ctx, CTX_SERVICE, a.Service)
+				a.settings.ConnHandler(ctx, conn)
 			}()
 
 			if a.connSemaphore.AvailableTokens() == 0 {
@@ -281,6 +293,12 @@ func (a *Server) run() (err error) {
 			}
 		}
 	}
+}
+
+func (a *Server) newContext() context.Context {
+	ctx := context.WithValue(context.Background(), CTX_SERVER_SPEC, a.settings.ServerSpec)
+	ctx = context.WithValue(ctx, CTX_SERVICE, a.Service)
+	return ctx
 }
 
 func (a *Server) Address() (net.Addr, error) {
@@ -293,7 +311,7 @@ func (a *Server) Address() (net.Addr, error) {
 }
 
 func (a *Server) MaxConnections() uint {
-	return uint(a.settings.MaxConns)
+	return uint(a.settings.maxConns)
 }
 
 func (a *Server) ConnectionCount() int {

@@ -18,5 +18,15 @@ import "github.com/oysterpack/oysterpack.go/pkg/app"
 
 // server metrics
 const (
+	// gauges
+
+	// the current number of connections
 	SERVER_CONN_COUNT_METRIC_ID = app.MetricID(0xaa8b66726c359b98)
+
+	// counters
+
+	// the total number of connections created since the server started
+	SERVER_CONN_TOTAL_CREATED_METRIC_ID   = app.MetricID(0xc33ede6c39ca8a07)
+	SERVER_REQUEST_COUNT_METRIC_ID        = app.MetricID(0xc33ede6c39ca8a07)
+	SERVER_REQUEST_FAILED_COUNT_METRIC_ID = app.MetricID(0xc33ede6c39ca8a07)
 )

@@ -40,7 +40,7 @@ func NewClientSpec(spec config.ClientSpec) (*ClientSpec, error) {
 	}
 	clientSpec := &ClientSpec{
 		ServerServiceSpec: serverServiceSpec,
-		RootCAs:           x509.NewCertPool(),
+		rootCAs:           x509.NewCertPool(),
 	}
 
 	clientCert, err := spec.ClientCert()
@@ -55,7 +55,7 @@ func NewClientSpec(spec config.ClientSpec) (*ClientSpec, error) {
 	if err != nil {
 		return nil, err
 	}
-	clientSpec.Cert, err = tls.X509KeyPair(cert, key)
+	clientSpec.cert, err = tls.X509KeyPair(cert, key)
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +64,7 @@ func NewClientSpec(spec config.ClientSpec) (*ClientSpec, error) {
 	if err != nil {
 		return nil, err
 	}
-	if !clientSpec.RootCAs.AppendCertsFromPEM(caCert) {
+	if !clientSpec.rootCAs.AppendCertsFromPEM(caCert) {
 		return nil, ErrPEMParsing
 	}
 
@@ -96,8 +96,16 @@ func CheckClientSpec(spec config.ClientSpec) error {
 // ClientSpec is the client spec used to connect to the Server
 type ClientSpec struct {
 	*ServerServiceSpec
-	RootCAs *x509.CertPool
-	Cert    tls.Certificate
+	rootCAs *x509.CertPool
+	cert    tls.Certificate
+}
+
+func (a *ClientSpec) RootCAs() *x509.CertPool {
+	return a.rootCAs
+}
+
+func (a *ClientSpec) Cert() tls.Certificate {
+	return a.cert
 }
 
 func (a *ClientSpec) TLSConfig() *tls.Config {
@@ -105,9 +113,9 @@ func (a *ClientSpec) TLSConfig() *tls.Config {
 		MinVersion: tls.VersionTLS12,
 
 		// Ensure that we only use our "CA" to validate certificates
-		RootCAs: a.RootCAs,
+		RootCAs: a.rootCAs,
 		// Server cert
-		Certificates: []tls.Certificate{a.Cert},
+		Certificates: []tls.Certificate{a.cert},
 		ServerName:   a.CN(),
 	}
 	tlsConfig.BuildNameToCertificate()
@@ -118,16 +126,16 @@ func (a *ClientSpec) TLSConfig() *tls.Config {
 func (a *ClientSpec) Conn() (net.Conn, error) {
 	networkAddr := a.NetworkAddr()
 	app.Logger().Debug().
-		Uint64("service", uint64(a.ServiceID)).
+		Uint64("service", uint64(a.serviceID)).
 		Str("NetworkAddr", networkAddr).
 		Msg("ClientSpec")
-	addr := fmt.Sprintf("%s:%d", networkAddr, a.ServerPort)
+	addr := fmt.Sprintf("%s:%d", networkAddr, a.serverPort)
 	return tls.Dial("tcp", addr, a.TLSConfig())
 }
 
 // ConnForAddr returns a network conn using the specified network address
 // This mainly intended for testing purposes to connect locally
 func (a *ClientSpec) ConnForAddr(networkAddr string) (net.Conn, error) {
-	addr := fmt.Sprintf("%s:%d", networkAddr, a.ServerPort)
+	addr := fmt.Sprintf("%s:%d", networkAddr, a.serverPort)
 	return tls.Dial("tcp", addr, a.TLSConfig())
 }

@@ -332,49 +332,253 @@ func (p Pong_Promise) Struct() (Pong, error) {
 	return Pong{s}, err
 }
 
-const schema_aa44738dedfed9a1 = "x\xda\x9c\x92\xcfKTQ\x1c\xc5\xcf\xb9\xf7\xbd\x19\x85" +
-	"t\xba\xbe\x97Ai\xe3\xc2\x85\xce\"\x12\x93\xa4\x8dF" +
-	".*\x90\xbcJ\xd0*x\xce\\\xec\x85\xf3\xde03" +
-	"\xa6\xb9\xce\x85A\xb4\x886\x16\x84\xcb\\\xf5s\x11(" +
-	"\xe4B\xacE\xed\x0a\xfa\x1fr\x13*\x12\xe4\x8d\xa7\xe9" +
-	"\x98\xb5j\xf9=\xf7r\xbe\xf7~\xf8\x9c\xe9b\xbf\xe8" +
-	"r'%\xa0;\xdc\x94\x9d\xb5\xed\xab'\x83O\x8f\xa1" +
-	"\x1ai\xe7\xbfn\xaf\xdd\xaf\x0c,\xc0I\x03\xde<\xe7" +
-	"\xbcgLC\xda\x9e\xdb\xcb\x1b\xa7z_=\x81nf" +
-	"\xca\xf6\xe4\xee\xf6o.\xdc\\\xc55\xa6)\xd8\xe4\xcd" +
-	"\xf0\x07\xe8\xcdr\x12\xac\x1d\xeaF\xa6j\x85.\x93\xc6" +
-	"c\xe2\xa5\xd7*\x8e\x03\xdd\x9d\xe2\x01A\xbb\xf9}-" +
-	"\xee\xb8ui\xf3\x1f\xdb?\xca9\xef\xb3L\xb6?*" +
-	"\xb7\xcf,w\xafoA5\x8bZ?\xd8\xfdB6\xd1" +
-	"[\x96\xc9\xed%y\x0e\xbd\xb6h*\x95`\xcc\x9cf" +
-	">(E\xa5\xf3C\xa1\x8c\xc6\x86\xc8\xfd\\\xec\xe6\x83" +
-	"\xbf\xc7\x82\xe9\x0b\x0a\xe3adt\x9dtZ\xacU>" +
-	"S\x80\xea\x1cM\xd8H\xea\xb3\x82\xad\xdc\xb6\xae\x9f<" +
-	"^u\x0d\xab\x9e\xac\xbe.\xa9\x0b\x82\xb6\x1a\x16M<" +
-	"Q\x1dDz\xc4\xe4\x99\x86`\x1a\xb4f\xaa\x14\x96M" +
-	"\xe5*\x18i\x87\xc2\xdex\xf8T/}\xb9\xb7\x02\xed" +
-	"\x08^\xf0\xc9#\x80\xe2\xb4\x9d\x88\xc2\xa9\xb6(\x88\xd0" +
-	"\x17\xb7%M\x00]\x08\xba\xe0\xe1?\x0c\x9a\xec\xce\xac" +
-	"\x1d\xf2\x00\x09\x8e\xda\x8bq\xb1T6\x95\x0a\xd2a\x1c" +
-	"\xe9\x16\xe9\x00\x0e\x01\xf5\xe6\x04\xa0\x9fK\xeaEAE" +
-	"\xfaL\xc2\xb79@\xbf\x96\xd4\xef\x04\x95\x10>\x05\xa0" +
-	"\x96\xca\x80^\x94\xd4\xef\x05\x95\x94>%\xa0V\x86\xd5" +
-	"\x87\xac\xfe&\xa9\xb7\x04\x95s\xd4\xa7C\xaa\x8d\x84\xc9" +
-	"\xba\xe40\x05\xe9\xfat\x01\xf53\xe9\xdc\x92\x1cq\x92" +
-	"0E\xd6<\xf1\xc8+\x102,\xb0\x1e\x82\xf5`\xa6" +
-	"z\xa7d\xf6\x06\x9b\x8f\xcbe3\x1eT\x91\x0d\xe3\xe8" +
-	"\xf2\xc0~\x9e\xa0\xa8T\x83\"X\xfa_|\xf9\x83T" +
-	"\x98\xa9!\x03\xdd\x0c\xc1L!\xa8\x06l\x80`\x03h" +
-	"\x0bfW\x00\x00\x7f\xc9\x13\x1f\x92G\xfe)\xcf\x1e\xfe" +
-	"0f4D\xea\xba\x1d\xa4*\x07\x90\xaa>\x07d\xa2" +
-	"82\x99\xe9\xf1p\xf4W\x00\x00\x00\xff\xff_\x95\xf6" +
-	"\x86"
+type SupportedMessageTypes struct{ capnp.Struct }
+
+// SupportedMessageTypes_TypeID is the unique identifier for the type SupportedMessageTypes.
+const SupportedMessageTypes_TypeID = 0xf56d6f421703b1f7
+
+func NewSupportedMessageTypes(s *capnp.Segment) (SupportedMessageTypes, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return SupportedMessageTypes{st}, err
+}
+
+func NewRootSupportedMessageTypes(s *capnp.Segment) (SupportedMessageTypes, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return SupportedMessageTypes{st}, err
+}
+
+func ReadRootSupportedMessageTypes(msg *capnp.Message) (SupportedMessageTypes, error) {
+	root, err := msg.RootPtr()
+	return SupportedMessageTypes{root.Struct()}, err
+}
+
+func (s SupportedMessageTypes) String() string {
+	str, _ := text.Marshal(0xf56d6f421703b1f7, s.Struct)
+	return str
+}
+
+// SupportedMessageTypes_List is a list of SupportedMessageTypes.
+type SupportedMessageTypes_List struct{ capnp.List }
+
+// NewSupportedMessageTypes creates a new list of SupportedMessageTypes.
+func NewSupportedMessageTypes_List(s *capnp.Segment, sz int32) (SupportedMessageTypes_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
+	return SupportedMessageTypes_List{l}, err
+}
+
+func (s SupportedMessageTypes_List) At(i int) SupportedMessageTypes {
+	return SupportedMessageTypes{s.List.Struct(i)}
+}
+
+func (s SupportedMessageTypes_List) Set(i int, v SupportedMessageTypes) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s SupportedMessageTypes_List) String() string {
+	str, _ := text.MarshalList(0xf56d6f421703b1f7, s.List)
+	return str
+}
+
+// SupportedMessageTypes_Promise is a wrapper for a SupportedMessageTypes promised by a client call.
+type SupportedMessageTypes_Promise struct{ *capnp.Pipeline }
+
+func (p SupportedMessageTypes_Promise) Struct() (SupportedMessageTypes, error) {
+	s, err := p.Pipeline.Struct()
+	return SupportedMessageTypes{s}, err
+}
+
+type SupportedMessageTypes_Request struct{ capnp.Struct }
+
+// SupportedMessageTypes_Request_TypeID is the unique identifier for the type SupportedMessageTypes_Request.
+const SupportedMessageTypes_Request_TypeID = 0x80b38fdd614a8b73
+
+func NewSupportedMessageTypes_Request(s *capnp.Segment) (SupportedMessageTypes_Request, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return SupportedMessageTypes_Request{st}, err
+}
+
+func NewRootSupportedMessageTypes_Request(s *capnp.Segment) (SupportedMessageTypes_Request, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return SupportedMessageTypes_Request{st}, err
+}
+
+func ReadRootSupportedMessageTypes_Request(msg *capnp.Message) (SupportedMessageTypes_Request, error) {
+	root, err := msg.RootPtr()
+	return SupportedMessageTypes_Request{root.Struct()}, err
+}
+
+func (s SupportedMessageTypes_Request) String() string {
+	str, _ := text.Marshal(0x80b38fdd614a8b73, s.Struct)
+	return str
+}
+
+// SupportedMessageTypes_Request_List is a list of SupportedMessageTypes_Request.
+type SupportedMessageTypes_Request_List struct{ capnp.List }
+
+// NewSupportedMessageTypes_Request creates a new list of SupportedMessageTypes_Request.
+func NewSupportedMessageTypes_Request_List(s *capnp.Segment, sz int32) (SupportedMessageTypes_Request_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
+	return SupportedMessageTypes_Request_List{l}, err
+}
+
+func (s SupportedMessageTypes_Request_List) At(i int) SupportedMessageTypes_Request {
+	return SupportedMessageTypes_Request{s.List.Struct(i)}
+}
+
+func (s SupportedMessageTypes_Request_List) Set(i int, v SupportedMessageTypes_Request) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s SupportedMessageTypes_Request_List) String() string {
+	str, _ := text.MarshalList(0x80b38fdd614a8b73, s.List)
+	return str
+}
+
+// SupportedMessageTypes_Request_Promise is a wrapper for a SupportedMessageTypes_Request promised by a client call.
+type SupportedMessageTypes_Request_Promise struct{ *capnp.Pipeline }
+
+func (p SupportedMessageTypes_Request_Promise) Struct() (SupportedMessageTypes_Request, error) {
+	s, err := p.Pipeline.Struct()
+	return SupportedMessageTypes_Request{s}, err
+}
+
+type SupportedMessageTypes_Response struct{ capnp.Struct }
+
+// SupportedMessageTypes_Response_TypeID is the unique identifier for the type SupportedMessageTypes_Response.
+const SupportedMessageTypes_Response_TypeID = 0x87799f37b0d1886a
+
+func NewSupportedMessageTypes_Response(s *capnp.Segment) (SupportedMessageTypes_Response, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
+	return SupportedMessageTypes_Response{st}, err
+}
+
+func NewRootSupportedMessageTypes_Response(s *capnp.Segment) (SupportedMessageTypes_Response, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
+	return SupportedMessageTypes_Response{st}, err
+}
+
+func ReadRootSupportedMessageTypes_Response(msg *capnp.Message) (SupportedMessageTypes_Response, error) {
+	root, err := msg.RootPtr()
+	return SupportedMessageTypes_Response{root.Struct()}, err
+}
+
+func (s SupportedMessageTypes_Response) String() string {
+	str, _ := text.Marshal(0x87799f37b0d1886a, s.Struct)
+	return str
+}
+
+func (s SupportedMessageTypes_Response) Types() (capnp.UInt64List, error) {
+	p, err := s.Struct.Ptr(0)
+	return capnp.UInt64List{List: p.List()}, err
+}
+
+func (s SupportedMessageTypes_Response) HasTypes() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s SupportedMessageTypes_Response) SetTypes(v capnp.UInt64List) error {
+	return s.Struct.SetPtr(0, v.List.ToPtr())
+}
+
+// NewTypes sets the types field to a newly
+// allocated capnp.UInt64List, preferring placement in s's segment.
+func (s SupportedMessageTypes_Response) NewTypes(n int32) (capnp.UInt64List, error) {
+	l, err := capnp.NewUInt64List(s.Struct.Segment(), n)
+	if err != nil {
+		return capnp.UInt64List{}, err
+	}
+	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	return l, err
+}
+
+// SupportedMessageTypes_Response_List is a list of SupportedMessageTypes_Response.
+type SupportedMessageTypes_Response_List struct{ capnp.List }
+
+// NewSupportedMessageTypes_Response creates a new list of SupportedMessageTypes_Response.
+func NewSupportedMessageTypes_Response_List(s *capnp.Segment, sz int32) (SupportedMessageTypes_Response_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
+	return SupportedMessageTypes_Response_List{l}, err
+}
+
+func (s SupportedMessageTypes_Response_List) At(i int) SupportedMessageTypes_Response {
+	return SupportedMessageTypes_Response{s.List.Struct(i)}
+}
+
+func (s SupportedMessageTypes_Response_List) Set(i int, v SupportedMessageTypes_Response) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s SupportedMessageTypes_Response_List) String() string {
+	str, _ := text.MarshalList(0x87799f37b0d1886a, s.List)
+	return str
+}
+
+// SupportedMessageTypes_Response_Promise is a wrapper for a SupportedMessageTypes_Response promised by a client call.
+type SupportedMessageTypes_Response_Promise struct{ *capnp.Pipeline }
+
+func (p SupportedMessageTypes_Response_Promise) Struct() (SupportedMessageTypes_Response, error) {
+	s, err := p.Pipeline.Struct()
+	return SupportedMessageTypes_Response{s}, err
+}
+
+const schema_aa44738dedfed9a1 = "x\xda\x9c\x94\xc1k\x1dU\x14\xc6\xbf\xef\xdc;\x99\x04" +
+	"L\x9e\xb7\xf3lA\xab\xafH\x8am\x16\xc1\xfa\x1a\xda" +
+	"\x0a\x92Z\xbb\xd0@07\xb1\xe0Fa\x92w\xa9\x13" +
+	"\xf2f\xc67\x13m\x0aR\x0b\x8aV\x91R\xc4M\x15" +
+	"\x8a\xdb\xae\xaa\xd5\x85\xd0\x82]\x94\xda\x8d\xd0\x8d\xe0\xa2" +
+	"\xff\x81\xddH\x13\x83`\xaf\xcc\x8b\xc9{\xb5\x0a\xe2n" +
+	"\xee\x993\xdf9\xf3}?\xee\xd3\xa7yX\xf6\x05\xa7" +
+	"4`\xf7\x07\x03\xbe\xf8x*\xbe}\xf6\xf2\xbb0\xa3" +
+	"\xf4\xbf}\xa5v\x1c\xc9\xda\xab\xd0!\xd0\xdc-\xf3\x8c" +
+	"\x0eI\x08\xe5\x17?\xbcu\xe9\xc0\x85\x95\x0f\xee\xef\x0a" +
+	"X\xb5=\"\x8b\x8c\xf6J\x08D\xbbe\x12\xf4g\xfc" +
+	"\xe8\x8d\xc7\xe2\x1f?\x87\x19\xa1\xff\xf2\xe7{w>)" +
+	"\x8e^\xecJF\xc7\xe4|\xf4ZWq\xe2\xadk\xab" +
+	"O\x1c\xbc\xfc\x05\xecv\x0e\xf8\x89\xb1\xf7\x0e\xaf]|" +
+	"\xe3\x06\x8e1\xa4p[tH~\x07\xa3\xe7\xe4m\xb0" +
+	"\xf7\xd2\x8ep\xa0'\xd8\x9d\x1e\xdd\x94\xaf\xa3[\xb2\x03" +
+	"h\xde\x96\xb3D\xdfv\x0fLo\x9e\xd6O2:\xa7" +
+	"\x9f\x82\xf2k\xbf\xde\xc9\xf6,\xbe\xb8\xf6\x0f;\x9e\xd1" +
+	"\xe7\xa3s\xba\xda\xf1\xb3\xce\xe8\xfb\xd7\x9aw\xd7a\xb6" +
+	"Ko\x0b\xb0\xd9\xd6\xdb\x18\xbd\xd3\xed^\xd1\x07p\xd0" +
+	"\xb7]Q\xc4\xc7\xdd\xb8^\x88\xf34\x7fvn9\xcf" +
+	"\xb3N\xe9Z\xd3\x1b\xf5WVrW\x8c\xcf\xba7\x97" +
+	"CW\x943\xe4\x7f\xfd\xa0\xc8kYZ\xb8\x19\xd2j" +
+	"\xa5\x01M\xc0\x0c?\x03\xd8AE;*l\x94U'" +
+	"G\xc0\x19E\x0eA\xaa\xc7-un\xa8\xcf$*=" +
+	"\xde?U6\xea\x7f\x0d\x1bo\xb9\xc9\xb8\xb5\x94\xa4\xce" +
+	"\x0e*\xbd\xd3{S\xe7\x00`\xf6\xce\x03v\x8f\xa2\xdd" +
+	"/|\x9c\xf7|P\xaf\x1c7\xfbf\xcdD\xc3\xbe\xaa" +
+	"h[B_&m\x97-\x97\xd3\x08\xe7\xdc\x02C\x08" +
+	"C\xd0\xbb\x13y\xd2q\xc5\xcb`j5\xc5\xbf\xfe\xe9" +
+	"\x05{\xf5\xa7\x8f\xae\xc3j\xe1\xf3u\xf2!\xc0\xf0\xa4" +
+	"_N\x93\x13\xbb\xd28\xc5d\xb6\xabR\x02\x18@\x18" +
+	"<\xf8\x0f\xd3\xae\xd1=[M\xf6\x05\xc3y\xffB\xd6" +
+	"\xce;\xae(\x10&Yjwn\xd9\xf4\xed\xa3\x80\xbd" +
+	"\xa4h\xaf\x08\x0dYgU\xfcn\x0c\xb0\xdf(\xda\xef" +
+	"\x85F\xa4N\x01\xcc\xd5\x0e`\xaf(\xda\x1f\x84F\xa9" +
+	":\x15`\xae\xcf\x9a\x9b\x0d\xfb\x8b\xa2]\x17\x1a\xfdp" +
+	"\x9d\x9a4\xab\x95'w\x15g)dPg\x00\x98?" +
+	"*\xcdu\xc59]\x15\x07\xc8\x1e\xdc\x119\x05QI" +
+	"\xab\x1b\xcd\x10X\xab\xf2\xda<\xf8\x85\xac\xd3qKq" +
+	"\x89F\x92\xa5/\x1d\xdd\xaaWV\x14e\xdc\x06\xf3\xff" +
+	"k\xdfB\xbf+\xac\xf5,\x03\x83\x1a\xc1Z+.c" +
+	"\x0eC8\x0c\xfa\x96\xdb\x00\x00\xc0\x96\xf1\xea\xdf\xd0\x0c" +
+	"sW\xd8A\xb2\xef\xee\x18:\xd2wE\x04S\xa7*" +
+	"\xd4]Q\xfa\x8a\xe0\x0a\xe0~\xddM(\xb3\xbfA\xa9" +
+	"\xee\x87r3\xd6$cZ\xf1?\xd8\x8d\xca\x8c\x01\xa4" +
+	"\x19\x1a\x03ji\x96\xba\xda\xc9\xa5d\xfe\xcf\x00\x00\x00" +
+	"\xff\xff\x8d@f\xed"
 
 func init() {
 	schemas.Register(schema_aa44738dedfed9a1,
+		0x80b38fdd614a8b73,
+		0x87799f37b0d1886a,
 		0x9bce611bc724ff89,
 		0x9cb3381ef5c17635,
 		0xc768aaf640842a35,
+		0xf56d6f421703b1f7,
 		0xf6486a286fedf2f6,
 		0xf8f433c185247295)
 }

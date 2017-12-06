@@ -38,16 +38,32 @@ func NewServerServiceSpec(spec config.ServiceSpec) (*ServerServiceSpec, error) {
 
 // ServerServiceSpec is the common Service spec shared by the  server and client
 type ServerServiceSpec struct {
-	app.DomainID
-	app.AppID
-	app.ServiceID
+	domainID  app.DomainID
+	appID     app.AppID
+	serviceID app.ServiceID
 
-	ServerPort
+	serverPort ServerPort
+}
+
+func (a *ServerServiceSpec) DomainID() app.DomainID {
+	return a.domainID
+}
+
+func (a *ServerServiceSpec) AppID() app.AppID {
+	return a.appID
+}
+
+func (a *ServerServiceSpec) ServiceID() app.ServiceID {
+	return a.serviceID
+}
+
+func (a *ServerServiceSpec) ServerPort() ServerPort {
+	return a.serverPort
 }
 
 // CN returns the x509 CN - this used by client TLS to set the x509.Config.ServerName
 func (a *ServerServiceSpec) CN() string {
-	return ServerCN(a.DomainID, a.AppID, a.ServiceID)
+	return ServerCN(a.domainID, a.appID, a.serviceID)
 }
 
 // NetworkAddr returns the service network address, which is used by the client to connect to the service.
@@ -57,7 +73,7 @@ func (a *ServerServiceSpec) CN() string {
 //
 //		e.g. ed5cf026e8734361-d113a2e016e12f0f
 func (a *ServerServiceSpec) NetworkAddr() string {
-	return fmt.Sprintf("%x_%x", a.DomainID, a.AppID)
+	return fmt.Sprintf("%x_%x", a.domainID, a.appID)
 }
 
 func (a *ServerServiceSpec) ToCapnp(s *capnp.Segment) (config.ServiceSpec, error) {
@@ -65,24 +81,24 @@ func (a *ServerServiceSpec) ToCapnp(s *capnp.Segment) (config.ServiceSpec, error
 	if err != nil {
 		return spec, err
 	}
-	spec.SetDomainID(uint64(a.DomainID))
-	spec.SetAppId(uint64(a.AppID))
-	spec.SetServiceId(uint64(a.ServiceID))
-	spec.SetPort(uint16(a.ServerPort))
+	spec.SetDomainID(uint64(a.domainID))
+	spec.SetAppId(uint64(a.appID))
+	spec.SetServiceId(uint64(a.serviceID))
+	spec.SetPort(uint16(a.serverPort))
 	return spec, nil
 }
 
 func (a *ServerServiceSpec) Validate() error {
-	if a.DomainID == app.DomainID(0) {
+	if a.domainID == app.DomainID(0) {
 		return app.ErrDomainIDZero
 	}
-	if a.AppID == app.AppID(0) {
+	if a.appID == app.AppID(0) {
 		return app.ErrAppIDZero
 	}
-	if a.ServiceID == app.ServiceID(0) {
+	if a.serviceID == app.ServiceID(0) {
 		return app.ErrServiceIDZero
 	}
-	if a.ServerPort == ServerPort(0) {
+	if a.serverPort == ServerPort(0) {
 		return ErrServerPortZero
 	}
 	return nil
