@@ -3,23 +3,44 @@
 package message
 
 import (
+	strconv "strconv"
+
 	capnp "zombiezen.com/go/capnproto2"
 	text "zombiezen.com/go/capnproto2/encoding/text"
 	schemas "zombiezen.com/go/capnproto2/schemas"
 )
 
 type Message struct{ capnp.Struct }
+type Message_deadline Message
+type Message_deadline_Which uint16
+
+const (
+	Message_deadline_Which_timeoutMSec Message_deadline_Which = 0
+	Message_deadline_Which_expiresOn   Message_deadline_Which = 1
+)
+
+func (w Message_deadline_Which) String() string {
+	const s = "timeoutMSecexpiresOn"
+	switch w {
+	case Message_deadline_Which_timeoutMSec:
+		return s[0:11]
+	case Message_deadline_Which_expiresOn:
+		return s[11:20]
+
+	}
+	return "Message_deadline_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
+}
 
 // Message_TypeID is the unique identifier for the type Message.
 const Message_TypeID = 0xc768aaf640842a35
 
 func NewMessage(s *capnp.Segment) (Message, error) {
-	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 40, PointerCount: 1})
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 48, PointerCount: 1})
 	return Message{st}, err
 }
 
 func NewRootMessage(s *capnp.Segment) (Message, error) {
-	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 40, PointerCount: 1})
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 48, PointerCount: 1})
 	return Message{st}, err
 }
 
@@ -87,12 +108,41 @@ func (s Message) SetData(v []byte) error {
 	return s.Struct.SetData(0, v)
 }
 
+func (s Message) Deadline() Message_deadline { return Message_deadline(s) }
+
+func (s Message_deadline) Which() Message_deadline_Which {
+	return Message_deadline_Which(s.Struct.Uint16(36))
+}
+func (s Message_deadline) TimeoutMSec() uint16 {
+	if s.Struct.Uint16(36) != 0 {
+		panic("Which() != timeoutMSec")
+	}
+	return s.Struct.Uint16(34)
+}
+
+func (s Message_deadline) SetTimeoutMSec(v uint16) {
+	s.Struct.SetUint16(36, 0)
+	s.Struct.SetUint16(34, v)
+}
+
+func (s Message_deadline) ExpiresOn() int64 {
+	if s.Struct.Uint16(36) != 1 {
+		panic("Which() != expiresOn")
+	}
+	return int64(s.Struct.Uint64(40))
+}
+
+func (s Message_deadline) SetExpiresOn(v int64) {
+	s.Struct.SetUint16(36, 1)
+	s.Struct.SetUint64(40, uint64(v))
+}
+
 // Message_List is a list of Message.
 type Message_List struct{ capnp.List }
 
 // NewMessage creates a new list of Message.
 func NewMessage_List(s *capnp.Segment, sz int32) (Message_List, error) {
-	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 40, PointerCount: 1}, sz)
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 48, PointerCount: 1}, sz)
 	return Message_List{l}, err
 }
 
@@ -111,6 +161,18 @@ type Message_Promise struct{ *capnp.Pipeline }
 func (p Message_Promise) Struct() (Message, error) {
 	s, err := p.Pipeline.Struct()
 	return Message{s}, err
+}
+
+func (p Message_Promise) Deadline() Message_deadline_Promise {
+	return Message_deadline_Promise{p.Pipeline}
+}
+
+// Message_deadline_Promise is a wrapper for a Message_deadline promised by a client call.
+type Message_deadline_Promise struct{ *capnp.Pipeline }
+
+func (p Message_deadline_Promise) Struct() (Message_deadline, error) {
+	s, err := p.Pipeline.Struct()
+	return Message_deadline{s}, err
 }
 
 type Message_Compression uint16
@@ -270,36 +332,48 @@ func (p Pong_Promise) Struct() (Pong, error) {
 	return Pong{s}, err
 }
 
-const schema_aa44738dedfed9a1 = "x\xdal\x90\xb1k\x13q\x1c\xc5\xdf\xfb\xfe\xeeg\xcc" +
-	"\xd0^\x7f\xe6P\xd1\xa1\x0e\x1d$PAB\x11\x9c*" +
-	"v\xb0\x83\x90\xaf\x8b\xf3\xa5=\xeaIsw\xdc\xdd\xa2" +
-	"\xe0\xa6C\x87n\x0a\xb6\"4\xe0\xa0\xc5A\xa5\x8b\xe0" +
-	"\xa0S6\xf7\xfe\x11]D\x82\x93'\x17\x89)\xb5\xe3" +
-	"{<>\xf0>s\x87\xcbr\xdd\x0e\x05\xd0+\xf6L" +
-	"\xb5U-\x0c/\x87\xdf_\xc1\xcd\xb2\x1a\x1c\xfe>\xda" +
-	".V\xf6\xe15\x80\xd6*w[\xca\x06L\xb5\xd4~" +
-	"\xba<\xda\x7f0\x84\xce\xd2NW\x96\xf5l\x91\x9fZ" +
-	"K\xbc\x00tn\xf1>\xc1j\xf4\xe3(\xbd\xfa\xf0\xce" +
-	"\xe8\x14\xe4\x8e\xec\xb6\x06R#_\xe4\x0b\xcf\xbeu~" +
-	"\xfe\x82;/S>\xd8y\"\xe7\xd8\xda\x96z\xbd%" +
-	"7\xb0X\xf5\xa3\xa2\x087\xa2k\\\x0b\xb3$\xbb\xd9" +
-	"\x8dM\xb2\xd1%O\xf6w\xa3\xf9qV\x8f<Fg" +
-	"\xaf\xba\x9d\xf6\xb3<*\x0a4\xe24\xd1\x8b\xc6\x03<" +
-	"\x02n\xe7\x12\xa0\xcf\x0duO\xe8\xc8\x80u\xf9\xba\x0d" +
-	"\xe8KC}#t\"\x01\x05p\x83\x1c\xd0=C}" +
-	"/t\xc6\x044\x80{w\x0f\xd0\xb7\x86z t\xde" +
-	"\\@\x8ft\x1f{\x80~0\xd4/B\xda\x80\x16p" +
-	"\x9fk\xe4\x81\xa1~\x15\x9ax\x9dM\x08\x9b\xa0_>" +
-	"\xca\xa2I\xa8\xd6\xd2<\x8f6\xc3\x12\xf3q\x9a\xac\xae" +
-	"\xfc\xeb\xcb\xb8\x1f\x15e\xd8\x073Z\x08\xedx{\xec" +
-	"\x10\xfd\xe9[\xd0\xfa\x04\xfd\xf5\xb0\x0c9\x03\xe1\x0c\xfe" +
-	"\xf3\xd4MO\xf83\x13\x7f\x7f\xe3\xc4V\x9c2\xe9\x92" +
-	"zvl\xc0\xb5\x01\xd25\xdb\x80\x9f\xa4I\xe4?\xde" +
-	"\x8c{\x7f\x02\x00\x00\xff\xff\x9aE\xa0E"
+const schema_aa44738dedfed9a1 = "x\xda\x9c\x92\xcfKTQ\x1c\xc5\xcf\xb9\xf7\xbd\x19\x85" +
+	"t\xba\xbe\x97Ai\xe3\xc2\x85\xce\"\x12\x93\xa4\x8dF" +
+	".*\x90\xbcJ\xd0*x\xce\\\xec\x85\xf3\xde03" +
+	"\xa6\xb9\xce\x85A\xb4\x886\x16\x84\xcb\\\xf5s\x11(" +
+	"\xe4B\xacE\xed\x0a\xfa\x1fr\x13*\x12\xe4\x8d\xa7\xe9" +
+	"\x98\xb5j\xf9=\xf7r\xbe\xf7~\xf8\x9c\xe9b\xbf\xe8" +
+	"r'%\xa0;\xdc\x94\x9d\xb5\xed\xab'\x83O\x8f\xa1" +
+	"\x1ai\xe7\xbfn\xaf\xdd\xaf\x0c,\xc0I\x03\xde<\xe7" +
+	"\xbcgLC\xda\x9e\xdb\xcb\x1b\xa7z_=\x81nf" +
+	"\xca\xf6\xe4\xee\xf6o.\xdc\\\xc55\xa6)\xd8\xe4\xcd" +
+	"\xf0\x07\xe8\xcdr\x12\xac\x1d\xeaF\xa6j\x85.\x93\xc6" +
+	"c\xe2\xa5\xd7*\x8e\x03\xdd\x9d\xe2\x01A\xbb\xf9}-" +
+	"\xee\xb8ui\xf3\x1f\xdb?\xca9\xef\xb3L\xb6?*" +
+	"\xb7\xcf,w\xafoA5\x8bZ?\xd8\xfdB6\xd1" +
+	"[\x96\xc9\xed%y\x0e\xbd\xb6h*\x95`\xcc\x9cf" +
+	">(E\xa5\xf3C\xa1\x8c\xc6\x86\xc8\xfd\\\xec\xe6\x83" +
+	"\xbf\xc7\x82\xe9\x0b\x0a\xe3adt\x9dtZ\xacU>" +
+	"S\x80\xea\x1cM\xd8H\xea\xb3\x82\xad\xdc\xb6\xae\x9f<" +
+	"^u\x0d\xab\x9e\xac\xbe.\xa9\x0b\x82\xb6\x1a\x16M<" +
+	"Q\x1dDz\xc4\xe4\x99\x86`\x1a\xb4f\xaa\x14\x96M" +
+	"\xe5*\x18i\x87\xc2\xdex\xf8T/}\xb9\xb7\x02\xed" +
+	"\x08^\xf0\xc9#\x80\xe2\xb4\x9d\x88\xc2\xa9\xb6(\x88\xd0" +
+	"\x17\xb7%M\x00]\x08\xba\xe0\xe1?\x0c\x9a\xec\xce\xac" +
+	"\x1d\xf2\x00\x09\x8e\xda\x8bq\xb1T6\x95\x0a\xd2a\x1c" +
+	"\xe9\x16\xe9\x00\x0e\x01\xf5\xe6\x04\xa0\x9fK\xeaEAE" +
+	"\xfaL\xc2\xb79@\xbf\x96\xd4\xef\x04\x95\x10>\x05\xa0" +
+	"\x96\xca\x80^\x94\xd4\xef\x05\x95\x94>%\xa0V\x86\xd5" +
+	"\x87\xac\xfe&\xa9\xb7\x04\x95s\xd4\xa7C\xaa\x8d\x84\xc9" +
+	"\xba\xe40\x05\xe9\xfat\x01\xf53\xe9\xdc\x92\x1cq\x92" +
+	"0E\xd6<\xf1\xc8+\x102,\xb0\x1e\x82\xf5`\xa6" +
+	"z\xa7d\xf6\x06\x9b\x8f\xcbe3\x1eT\x91\x0d\xe3\xe8" +
+	"\xf2\xc0~\x9e\xa0\xa8T\x83\"X\xfa_|\xf9\x83T" +
+	"\x98\xa9!\x03\xdd\x0c\xc1L!\xa8\x06l\x80`\x03h" +
+	"\x0bfW\x00\x00\x7f\xc9\x13\x1f\x92G\xfe)\xcf\x1e\xfe" +
+	"0f4D\xea\xba\x1d\xa4*\x07\x90\xaa>\x07d\xa2" +
+	"82\x99\xe9\xf1p\xf4W\x00\x00\x00\xff\xff_\x95\xf6" +
+	"\x86"
 
 func init() {
 	schemas.Register(schema_aa44738dedfed9a1,
 		0x9bce611bc724ff89,
+		0x9cb3381ef5c17635,
 		0xc768aaf640842a35,
 		0xf6486a286fedf2f6,
 		0xf8f433c185247295)

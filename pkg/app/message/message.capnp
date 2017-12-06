@@ -13,9 +13,17 @@ struct Message @0xc768aaf640842a35 {
     id              @0 :UInt64;
     type            @1 :UInt64;
     correlationID   @2 :UInt64;
-    timestamp       @3 :Int64;
+    timestamp       @3 :Int64 $Go.doc("unix nano time");
     compression     @4 :Compression = zlib;
+
     data            @5 :Data;
+
+    # Deadline returns the time when work done on behalf of this message should be canceled.
+    deadline :union {
+        # if not specified, then a zero timeout means no deadline
+        timeoutMSec @6 :UInt16;
+        expiresOn   @7 :Int64 $Go.doc("unix nano time");
+    }
 }
 
 struct Ping @0x9bce611bc724ff89 {}

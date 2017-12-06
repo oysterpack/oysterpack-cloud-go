@@ -100,8 +100,15 @@ func TestNewServerSpec(t *testing.T) {
 				service.Logger().Error().Err(err).Msg("message.ReadRootMessage(msg) failed")
 				return
 			}
-
 			service.Logger().Info().Msgf("MSG#%d : parsed", msgCounter)
+			switch m.Deadline().Which() {
+			case message.Message_deadline_Which_timeoutMSec:
+				service.Logger().Info().Msgf("MSG#%d : timeout : %v", msgCounter, time.Millisecond*time.Duration(m.Deadline().TimeoutMSec()))
+			case message.Message_deadline_Which_expiresOn:
+				service.Logger().Info().Msgf("MSG#%d : expires on : %v", msgCounter, time.Unix(0, m.Deadline().ExpiresOn()))
+			default:
+				t.Errorf("Unexpected deadline type : %v", m.Deadline().Which())
+			}
 
 			data, err := m.Data()
 			if err != nil {
