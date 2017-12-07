@@ -27,58 +27,60 @@ import (
 func TestData(t *testing.T) {
 	app.Reset()
 
-	_, msg, err := newMessage()
-	if err != nil {
-		t.Fatal(err)
-	}
+	t.Run("compression = zlib", func(t *testing.T) {
+		_, msg, err := newMessage()
+		if err != nil {
+			t.Fatal(err)
+		}
+		msg.SetCompression(message.Message_Compression_zlib)
 
-	capnpMsgData, msgData, err := newMessage()
-	if err != nil {
-		t.Fatal(err)
-	}
+		capnpMsgData, msgData, err := newMessage()
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	message.SetData(msg, capnpMsgData)
+		message.SetData(msg, capnpMsgData)
 
-	unmarshalledMsg, err := message.Data(msg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	msgData2, err := message.ReadRootMessage(unmarshalledMsg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if msgData.Id() != msgData2.Id() {
-		t.Error("message ids do not match")
-	}
-}
+		unmarshalledMsg, err := message.Data(msg)
+		if err != nil {
+			t.Fatal(err)
+		}
+		msgData2, err := message.ReadRootMessage(unmarshalledMsg)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if msgData.Id() != msgData2.Id() {
+			t.Error("message ids do not match")
+		}
+	})
 
-func TestData_NoCompression(t *testing.T) {
-	app.Reset()
+	t.Run("compression = none", func(t *testing.T) {
+		_, msg, err := newMessage()
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	_, msg, err := newMessage()
-	if err != nil {
-		t.Fatal(err)
-	}
+		capnpMsgData, msgData, err := newMessage()
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	capnpMsgData, msgData, err := newMessage()
-	if err != nil {
-		t.Fatal(err)
-	}
+		msg.SetCompression(message.Message_Compression_none)
+		message.SetData(msg, capnpMsgData)
 
-	msg.SetCompression(message.Message_Compression_none)
-	message.SetData(msg, capnpMsgData)
+		unmarshalledMsg, err := message.Data(msg)
+		if err != nil {
+			t.Fatal(err)
+		}
+		msgData2, err := message.ReadRootMessage(unmarshalledMsg)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if msgData.Id() != msgData2.Id() {
+			t.Error("message ids do not match")
+		}
+	})
 
-	unmarshalledMsg, err := message.Data(msg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	msgData2, err := message.ReadRootMessage(unmarshalledMsg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if msgData.Id() != msgData2.Id() {
-		t.Error("message ids do not match")
-	}
 }
 
 func newMessage() (*capnp.Message, *message.Message, error) {
@@ -97,47 +99,96 @@ func newMessage() (*capnp.Message, *message.Message, error) {
 	return capnpMsg, &msg, nil
 }
 
-func BenchmarkData_Zlib(b *testing.B) {
+func BenchmarkData(b *testing.B) {
 	app.Reset()
 
-	_, msg, err := newMessage()
-	if err != nil {
-		b.Fatal(err)
-	}
-	capnpMsgData, _, err := newMessage()
-	if err != nil {
-		b.Fatal(err)
-	}
-	message.SetData(msg, capnpMsgData)
-
-	for i := 0; i < b.N; i++ {
-		if _, err := message.Data(msg); err != nil {
+	b.Run("compression = zlib, packed = false", func(b *testing.B) {
+		capnpMsg, msg, err := newMessage()
+		if err != nil {
 			b.Fatal(err)
 		}
-	}
-
-}
-
-func BenchmarkData_NoCompression(b *testing.B) {
-	app.Reset()
-
-	capnpMsg, msg, err := newMessage()
-	if err != nil {
-		b.Fatal(err)
-	}
-	capnpMsg.TraverseLimit = 64 << 40
-	b.Logf("capnpMsg.TraverseLimit = %v, default = %v", capnpMsg.TraverseLimit/1024/1024, (64<<20)/1024/1024)
-	capnpMsgData, _, err := newMessage()
-	if err != nil {
-		b.Fatal(err)
-	}
-	msg.SetCompression(message.Message_Compression_none)
-	message.SetData(msg, capnpMsgData)
-
-	for i := 0; i < b.N; i++ {
-		if _, err := message.Data(msg); err != nil {
+		capnpMsg.TraverseLimit = 64 << 40
+		msg.SetCompression(message.Message_Compression_zlib)
+		msg.SetPacked(false)
+		capnpMsgData, _, err := newMessage()
+		if err != nil {
 			b.Fatal(err)
 		}
-	}
+		message.SetData(msg, capnpMsgData)
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			if _, err := message.Data(msg); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+
+	b.Run("compression = zlib, packed = true", func(b *testing.B) {
+		capnpMsg, msg, err := newMessage()
+		if err != nil {
+			b.Fatal(err)
+		}
+		capnpMsg.TraverseLimit = 64 << 40
+		msg.SetCompression(message.Message_Compression_zlib)
+		msg.SetPacked(true)
+		capnpMsgData, _, err := newMessage()
+		if err != nil {
+			b.Fatal(err)
+		}
+		message.SetData(msg, capnpMsgData)
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			if _, err := message.Data(msg); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+
+	b.Run("compression = none, packed = false", func(b *testing.B) {
+		capnpMsg, msg, err := newMessage()
+		if err != nil {
+			b.Fatal(err)
+		}
+		capnpMsg.TraverseLimit = 64 << 40
+		b.Logf("capnpMsg.TraverseLimit = %v, default = %v", capnpMsg.TraverseLimit/1024/1024, (64<<20)/1024/1024)
+		capnpMsgData, _, err := newMessage()
+		if err != nil {
+			b.Fatal(err)
+		}
+		msg.SetCompression(message.Message_Compression_none)
+		msg.SetPacked(false)
+		message.SetData(msg, capnpMsgData)
+
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			if _, err := message.Data(msg); err != nil {
+				b.Fatal(err)
+			}
+		}
+
+	})
+	b.Run("compression = none, packed = true", func(b *testing.B) {
+		capnpMsg, msg, err := newMessage()
+		if err != nil {
+			b.Fatal(err)
+		}
+		capnpMsg.TraverseLimit = 64 << 40
+		b.Logf("capnpMsg.TraverseLimit = %v, default = %v", capnpMsg.TraverseLimit/1024/1024, (64<<20)/1024/1024)
+		capnpMsgData, _, err := newMessage()
+		if err != nil {
+			b.Fatal(err)
+		}
+		msg.SetCompression(message.Message_Compression_none)
+		msg.SetPacked(true)
+		message.SetData(msg, capnpMsgData)
+
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			if _, err := message.Data(msg); err != nil {
+				b.Fatal(err)
+			}
+		}
+
+	})
 
 }

@@ -14,15 +14,19 @@ struct Message @0xc768aaf640842a35 {
     type            @1 :UInt64;
     correlationID   @2 :UInt64;
     timestamp       @3 :Int64 $Go.doc("unix nano time");
-    compression     @4 :Compression = zlib;
 
-    data            @5 :Data;
+    # data compression and packing
+    # *** NOTE *** turn on compression / packing only after proving that it is needed and provides benefit
+    compression     @4 :Compression = none;
+    packed          @5 :Bool = false;
+
+    data            @6 :Data;
 
     # Deadline returns the time when work done on behalf of this message should be canceled.
     deadline :union {
         # if not specified, then a zero timeout means no deadline
-        timeoutMSec @6 :UInt16;
-        expiresOn   @7 :Int64 $Go.doc("unix nano time");
+        timeoutMSec @7 :UInt16;
+        expiresOn   @8 :Int64 $Go.doc("unix nano time");
     }
 }
 

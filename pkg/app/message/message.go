@@ -41,7 +41,10 @@ func Data(msg *Message) (*capnp.Message, error) {
 	}
 	switch msg.Compression() {
 	case Message_Compression_none:
-		return capnp.UnmarshalPacked(data)
+		if msg.Packed() {
+			return capnp.UnmarshalPacked(data)
+		}
+		return capnp.Unmarshal(data)
 	case Message_Compression_zlib:
 		buf := bytes.NewBuffer(data)
 		reader, err := zlib.NewReader(buf)
@@ -52,7 +55,10 @@ func Data(msg *Message) (*capnp.Message, error) {
 		if err != nil {
 			return nil, err
 		}
-		return capnp.UnmarshalPacked(data)
+		if msg.Packed() {
+			return capnp.UnmarshalPacked(data)
+		}
+		return capnp.Unmarshal(data)
 	default:
 		return nil, NewUnsupportedCompressionError(msg.Compression())
 	}
@@ -63,7 +69,14 @@ func SetData(msg *Message, data *capnp.Message) error {
 	if msg == nil {
 		return ERR_MESSAGE_NIL
 	}
-	dataBytes, err := data.MarshalPacked()
+
+	var dataBytes []byte
+	var err error
+	if msg.Packed() {
+		dataBytes, err = data.MarshalPacked()
+	} else {
+		dataBytes, err = data.Marshal()
+	}
 	if err != nil {
 		return err
 	}
