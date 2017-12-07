@@ -18,6 +18,13 @@ import (
 	"testing"
 	"time"
 
+	"encoding/json"
+
+	"encoding/gob"
+
+	"bytes"
+
+	"github.com/json-iterator/go"
 	"github.com/oysterpack/oysterpack.go/pkg/app"
 	"github.com/oysterpack/oysterpack.go/pkg/app/message"
 	"github.com/oysterpack/oysterpack.go/pkg/app/uid"
@@ -189,6 +196,150 @@ func BenchmarkData(b *testing.B) {
 			}
 		}
 
+	})
+
+}
+
+// BenchmarkMarshalling/json.Marshal-8              1000000              2422 ns/op             688 B/op          4 allocs/op
+// BenchmarkMarshalling/json.Unmarshal-8            1000000              2244 ns/op             392 B/op          4 allocs/op
+//
+// BenchmarkMarshalling/jsoniter.Marshal-8          1000000              1490 ns/op             304 B/op          3 allocs/op
+// BenchmarkMarshalling/jsoniter.Unmarshal-8        3000000               378 ns/op              96 B/op          2 allocs/op
+//
+// BenchmarkMarshalling/gob_Encoder-8               1000000              1002 ns/op             179 B/op          1 allocs/op
+// BenchmarkMarshalling/gob_Decoder-8               2000000               643 ns/op               0 B/op          0 allocs/op
+//
+// BenchmarkMarshalling/capnp_Marshal-8            10000000               176 ns/op              84 B/op          2 allocs/op
+// BenchmarkMarshalling/capnp_Unmarshal-8          10000000               209 ns/op             208 B/op          3 allocs/op
+//
+// capnp is the winner
+func BenchmarkMarshalling(b *testing.B) {
+	type MessageJSON struct {
+		ID            uint64
+		Type          uint64
+		CorrelationID uint64
+		Timestamp     int64
+
+		Compression int16
+		Packed      bool
+
+		Data []byte
+
+		TimeoutMSec int16
+		ExpiresOn   int64
+	}
+
+	msg := MessageJSON{
+		ID:            uid.NextUIDHash().Uint64(),
+		Type:          uid.NextUIDHash().Uint64(),
+		CorrelationID: uid.NextUIDHash().Uint64(),
+		Timestamp:     time.Now().UnixNano(),
+		Compression:   int16(message.Message_Compression_none),
+		Packed:        false,
+		TimeoutMSec:   500,
+	}
+
+	jsonBytes, err := jsoniter.Marshal(msg)
+	if err != nil {
+		b.Fatal(err)
+	}
+	b.Log(string(jsonBytes))
+
+	b.Run("json.Marshal", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			json.Marshal(msg)
+		}
+	})
+
+	var msg2 MessageJSON
+	b.Run("json.Unmarshal", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			json.Unmarshal(jsonBytes, msg2)
+		}
+	})
+
+	b.Run("jsoniter.Marshal", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			jsoniter.Marshal(msg)
+		}
+	})
+
+	b.Run("jsoniter.Unmarshal", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			jsoniter.Unmarshal(jsonBytes, msg2)
+		}
+	})
+
+	b.Run("gob Encoder", func(b *testing.B) {
+		var network bytes.Buffer
+		enc := gob.NewEncoder(&network)
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			err := enc.Encode(msg)
+			if err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+
+	b.Run("gob Decoder", func(b *testing.B) {
+		var network bytes.Buffer
+		enc := gob.NewEncoder(&network)
+		for i := 0; i < b.N; i++ {
+			enc.Encode(msg)
+		}
+		dec := gob.NewDecoder(&network)
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			err := dec.Decode(&msg2)
+			if err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+
+	b.Run("capnp Marshal", func(b *testing.B) {
+		capnpMsg, msg, err := newMessage()
+		if err != nil {
+			b.Fatal(err)
+		}
+		capnpMsg.TraverseLimit = 64 << 40
+		msg.SetCompression(message.Message_Compression_none)
+		msg.SetPacked(false)
+
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			_, err := capnpMsg.Marshal()
+			if err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+
+	b.Run("capnp Unmarshal", func(b *testing.B) {
+		capnpMsg, msg, err := newMessage()
+		if err != nil {
+			b.Fatal(err)
+		}
+		capnpMsg.TraverseLimit = 64 << 40
+		msg.SetCompression(message.Message_Compression_none)
+		msg.SetPacked(false)
+
+		bytes, err := capnpMsg.Marshal()
+		if err != nil {
+			b.Fatal(err)
+		}
+		if _, err := capnp.Unmarshal(bytes); err != nil {
+			b.Fatal(err)
+		}
+
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			_, err := capnp.Unmarshal(bytes)
+			if err != nil {
+				b.Fatal(err)
+			}
+		}
 	})
 
 }

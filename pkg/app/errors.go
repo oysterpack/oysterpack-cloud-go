@@ -26,7 +26,7 @@ type Err struct {
 }
 
 func (a *Err) Error() string {
-	return fmt.Sprintf("%x : %v", a.ErrorID, a.Err)
+	return fmt.Sprintf("ErrorID(0x%x) : %v", a.ErrorID, a.Err)
 }
 
 // UnrecoverableError is a marker interface for errors that cannot be recovered from automatically, i.e., manual intervention is required
@@ -68,7 +68,7 @@ type ServiceInitError struct {
 }
 
 func (a ServiceInitError) Error() string {
-	return fmt.Sprintf("%x : ServiceID(0x%x) : %v", a.ErrorID, a.ServiceID, a.Err)
+	return fmt.Sprintf("ErrorID(0x%x)  : ServiceID(0x%x) : %v", a.ErrorID, a.ServiceID, a.Err)
 }
 
 // NewConfigError wraps an error as a ConfigError
