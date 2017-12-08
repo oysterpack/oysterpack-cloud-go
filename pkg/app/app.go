@@ -44,6 +44,15 @@ var (
 		METRICS_SERVICE_ID,
 		HEALTHCHECK_SERVICE_ID,
 	}
+
+	PID      = os.Getpid()
+	HOSTNAME = func() string {
+		name, err := os.Hostname()
+		if err != nil {
+			log.Panic().Err(err).Msg("os.Hostname() failed")
+		}
+		return name
+	}()
 )
 
 // app vars

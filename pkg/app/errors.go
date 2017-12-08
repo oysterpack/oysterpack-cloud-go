@@ -17,7 +17,169 @@ package app
 import (
 	"errors"
 	"fmt"
+	"time"
+
+	"runtime/debug"
+
+	"github.com/oysterpack/oysterpack.go/pkg/app/uid"
+	"github.com/rs/zerolog"
 )
+
+const (
+	// BUG is for "unknown" errors, i.e., for errors that we did not anticipate
+	ErrorID_BUG = ErrorID(0)
+
+	ERR_MSG_FORMAT = "ErrorID(0x%x) UID(0x%x) %s"
+)
+
+var (
+	ErrSpec_BUG = ErrSpec{ErrorID_BUG, ErrorType_BUG, ErrorSeverity_HIGH}
+)
+
+// ErrorType is used to classify error types
+type ErrorType uint8
+
+func (a ErrorType) UInt8() uint8 {
+	return uint8(a)
+}
+
+// ErrorType enum values
+const (
+	// for errors that have not been anticipated or not yet customized to your system
+	ErrorType_BUG = ErrorType(iota)
+	// e.g. broken network connections, IO errors, service not available, etc
+	ErrorType_KNOWN_EDGE_CASE
+)
+
+// ErrorSeverity is used to classify error severity levels
+type ErrorSeverity uint8
+
+func (a ErrorSeverity) UInt8() uint8 {
+	return uint8(a)
+}
+
+// ErrorSeverity enum values
+const (
+	ErrorSeverity_LOW = ErrorSeverity(iota)
+	ErrorSeverity_MEDIUM
+	ErrorSeverity_HIGH
+	// should cause the app to terminate
+	ErrorSeverity_FATAL
+)
+
+func NewError(cause error, message string, errSpec ErrSpec, serviceID ServiceID, ctx interface{}, tags ...string) *Error {
+	return &Error{
+		Cause:         cause,
+		Message:       message,
+		ErrorID:       errSpec.ErrorID,
+		ErrorType:     errSpec.ErrorType,
+		ErrorSeverity: errSpec.ErrorSeverity,
+		Stack:         debug.Stack(),
+		Tags:          tags,
+		Context:       ctx,
+		UIDHash:       uid.NextUIDHash(),
+		Time:          time.Now(),
+		DomainID:      Domain(),
+		AppID:         ID(),
+		ServiceID:     serviceID,
+		PID:           PID,
+		Hostname:      HOSTNAME,
+	}
+}
+
+func NewBug(cause error, message string, errSpec ErrSpec, serviceID ServiceID, ctx interface{}, tags ...string) *Error {
+	return NewError(cause, message, ErrSpec_BUG, serviceID, ctx, tags...)
+}
+
+type ErrSpec struct {
+	ErrorID
+	ErrorType
+	ErrorSeverity
+}
+
+type ServiceErrSpec struct {
+	ServiceID
+	ErrSpec
+}
+
+// Error is used to model all application errors purposely.
+//
+// Many developers make the mistake of error propagation as secondary to the flow of their system. Careful consideration
+// is given to how data flows through the system, but errors are something that are tolerated and ferried up the stack
+// without much thought, and ultimately dumped in front of the user. With just a little forethought, and minimal overhead,
+// you can make your error handling an asset to your system.
+//
+// Errors indicate that your system has entered a state in which it cannot fulfill an operation that a user explicitly or
+// implicitly  requested. because of this, it needs to relay a few pieces of critical information:
+//
+// 	- What happened
+//	- When and where it happened
+type Error struct {
+	////////////////////
+	// What happened //
+	//////////////////
+
+	Cause error
+	// user friendly message
+	Message string
+	// Used to identify the exact error type
+	ErrorID
+	ErrorType
+	ErrorSeverity
+	Stack []byte
+	// tags can be used to categorize errors, e.g., UI, DB, ES, SECURITY
+	Tags []string
+	// should support JSON marshalling - it will be stored as a JSON clob
+	Context interface{}
+
+	/////////////////////////////////
+	// When and where it happened //
+	///////////////////////////////
+
+	// used for error tracking, i.e., used to lookup this specific error
+	uid.UIDHash
+	time.Time
+	DomainID
+	AppID
+	ServiceID
+	// PID and Hostname are part of the error because errors need to be centrally reported
+	PID      int
+	Hostname string
+}
+
+func (a *Error) Error() string {
+	if a.Message != "" {
+		return fmt.Sprintf(ERR_MSG_FORMAT, a.ErrorID, a.UIDHash, a.Message)
+	}
+	return fmt.Sprintf(ERR_MSG_FORMAT, a.ErrorID, a.UIDHash, a.Cause.Error())
+}
+
+func (a *Error) Log(logger zerolog.Logger) {
+	var event *zerolog.Event
+	if a.ErrorSeverity == ErrorSeverity_FATAL {
+		event = logger.Error()
+	} else {
+		event = logger.Error()
+	}
+	dict := zerolog.Dict().
+		Uint64("id", a.ErrorID.UInt64()).
+		Time("time", a.Time).
+		Uint64("uid", a.UIDHash.UInt64()).
+		Uint8("type", a.ErrorType.UInt8()).
+		Uint8("sev", a.ErrorSeverity.UInt8()).
+		Uint64("domain", a.DomainID.UInt64()).
+		Uint64("app", a.AppID.UInt64()).
+		Uint64("service", a.ServiceID.UInt64())
+	if len(a.Stack) > 0 {
+		dict.Str("stack", string(a.Stack))
+	}
+	if len(a.Tags) > 0 {
+		dict.Strs("tags", a.Tags)
+	}
+	event.Dict("err", dict).Msg(a.Error())
+}
+
+//////////////////// DEPRECATED ////////////////////////////////
 
 // Err maps an ErrorID to an error
 type Err struct {

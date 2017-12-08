@@ -38,8 +38,8 @@ func TestNextUID(t *testing.T) {
 
 func TestNextUIDHash(t *testing.T) {
 	uidHash := uid.NextUIDHash()
-	if uint64(uidHash) != uidHash.Uint64() {
-		t.Fatal("values do not match : %v != %v", uint64(uidHash), uidHash.Uint64())
+	if uint64(uidHash) != uidHash.UInt64() {
+		t.Fatal("values do not match : %v != %v", uint64(uidHash), uidHash.UInt64())
 	}
 
 	size := 1 * 1000 * 1000

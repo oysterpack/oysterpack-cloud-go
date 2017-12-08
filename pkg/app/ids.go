@@ -25,10 +25,14 @@ type DomainID uint64
 
 func (a DomainID) Hex() string { return hex(uint64(a)) }
 
+func (a DomainID) UInt64() uint64 { return uint64(a) }
+
 // AppID unique application ID
 type AppID uint64
 
 func (a AppID) Hex() string { return hex(uint64(a)) }
+
+func (a AppID) UInt64() uint64 { return uint64(a) }
 
 // InstanceID is the unique id for an app instance. There may be multiple instances, i.e., processes,  of an app running.
 // The instance id is used to differentiate the different app instances. For examples, logs and metrics will contain the instance id.
@@ -50,6 +54,8 @@ func (a ServiceID) UInt64() uint64 { return uint64(a) }
 type ErrorID uint64
 
 func (a ErrorID) Hex() string { return hex(uint64(a)) }
+
+func (a ErrorID) UInt64() uint64 { return uint64(a) }
 
 // LogEventID
 type LogEventID uint64

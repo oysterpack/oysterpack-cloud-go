@@ -230,9 +230,9 @@ func BenchmarkMarshalling(b *testing.B) {
 	}
 
 	msg := MessageJSON{
-		ID:            uid.NextUIDHash().Uint64(),
-		Type:          uid.NextUIDHash().Uint64(),
-		CorrelationID: uid.NextUIDHash().Uint64(),
+		ID:            uid.NextUIDHash().UInt64(),
+		Type:          uid.NextUIDHash().UInt64(),
+		CorrelationID: uid.NextUIDHash().UInt64(),
 		Timestamp:     time.Now().UnixNano(),
 		Compression:   int16(message.Message_Compression_none),
 		Packed:        false,

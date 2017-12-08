@@ -30,7 +30,7 @@ func (a UID) Hash() UIDHash {
 
 type UIDHash uint64
 
-func (a UIDHash) Uint64() uint64 {
+func (a UIDHash) UInt64() uint64 {
 	return uint64(a)
 }
 

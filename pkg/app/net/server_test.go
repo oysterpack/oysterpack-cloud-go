@@ -117,7 +117,7 @@ func BenchmarkServer(b *testing.B) {
 					return
 				}
 				response, err := message.NewRootMessage(seg)
-				response.SetId(uid.NextUIDHash().Uint64())
+				response.SetId(uid.NextUIDHash().UInt64())
 				response.SetCorrelationID(request.Id())
 				response.SetType(message.Ping_TypeID)
 				response.SetTimestamp(time.Now().UnixNano())
@@ -459,7 +459,7 @@ func BenchmarkServer_Pipeline(b *testing.B) {
 						if err != nil {
 							return err
 						}
-						response.SetId(uid.NextUIDHash().Uint64())
+						response.SetId(uid.NextUIDHash().UInt64())
 						response.SetCorrelationID(request.Id())
 						response.SetType(message.SupportedMessageTypes_Response_TypeID)
 						response.SetTimestamp(time.Now().UnixNano())
@@ -520,7 +520,7 @@ func BenchmarkServer_Pipeline(b *testing.B) {
 					if err != nil {
 						return err
 					}
-					response.SetId(uid.NextUIDHash().Uint64())
+					response.SetId(uid.NextUIDHash().UInt64())
 					response.SetCorrelationID(ping.Id())
 					response.SetType(message.Ping_TypeID)
 					response.SetTimestamp(time.Now().UnixNano())
@@ -844,7 +844,7 @@ func BenchmarkServer_Pipeline_NoPacking(b *testing.B) {
 						if err != nil {
 							return err
 						}
-						response.SetId(uid.NextUIDHash().Uint64())
+						response.SetId(uid.NextUIDHash().UInt64())
 						response.SetCorrelationID(request.Id())
 						response.SetType(message.SupportedMessageTypes_Response_TypeID)
 						response.SetTimestamp(time.Now().UnixNano())
@@ -917,7 +917,7 @@ func BenchmarkServer_Pipeline_NoPacking(b *testing.B) {
 					if err != nil {
 						return err
 					}
-					pongResponse.SetId(uid.NextUIDHash().Uint64())
+					pongResponse.SetId(uid.NextUIDHash().UInt64())
 					pongResponse.SetCorrelationID(ping.Id())
 					pongResponse.SetType(message.Ping_TypeID)
 					pongResponse.SetTimestamp(time.Now().UnixNano())
