@@ -47,8 +47,10 @@ func registerHealthCheckService() {
 	healthchecksMutex.Lock()
 	defer healthchecksMutex.Unlock()
 	healthCheckService, err := Services.Service(HEALTHCHECK_SERVICE_ID)
-	if err != nil && err != ErrServiceNotRegistered {
-		Logger().Panic().Err(err).Msg("HealthCheckService lookup failed")
+	if err != nil {
+		if !IsError(err, ErrSpec_ServiceNotRegistered.ErrorID) {
+			Logger().Panic().Err(err).Msg("HealthCheckService is already registered")
+		}
 	}
 	if healthCheckService == nil {
 		healthCheckService = NewService(HEALTHCHECK_SERVICE_ID)
@@ -151,10 +153,10 @@ func (a AppHealthChecks) HealthCheckSpec(id HealthCheckID) *HealthCheckSpec {
 //	- ErrServiceNotAlive
 func (a AppHealthChecks) Register(id HealthCheckID, healthCheckFunc HealthCheck) error {
 	if id == HealthCheckID(0) {
-		return ErrHealthCheckIDZero
+		return IllegalArgumentError("HealthCheckID cannot be 0")
 	}
 	if healthCheckFunc == nil {
-		return ErrHealthCheckNil
+		return IllegalArgumentError("HealthCheck function is required")
 	}
 
 	healthCheckService, err := Services.Service(HEALTHCHECK_SERVICE_ID)
@@ -248,7 +250,7 @@ func (a AppHealthChecks) HealthCheckIDs() []HealthCheckID {
 //  - ErrHealthCheckNotRegistered
 func (a AppHealthChecks) Run(id HealthCheckID) (HealthCheckResult, error) {
 	if id == HealthCheckID(0) {
-		return HealthCheckResult{}, ErrHealthCheckIDZero
+		return HealthCheckResult{}, IllegalArgumentError("HealthCheckIS cannot be 0")
 	}
 
 	healthchecksMutex.Lock()
@@ -261,25 +263,25 @@ func (a AppHealthChecks) Run(id HealthCheckID) (HealthCheckResult, error) {
 
 	healthcheck := registeredHealthChecks[id]
 	if healthcheck == nil {
-		return HealthCheckResult{}, ErrHealthCheckNotRegistered
+		return HealthCheckResult{}, HealthCheckNotRegisteredError(id)
 	}
 
 	c := make(chan HealthCheckResult, 1)
 	select {
 	case healthcheck.RunOnDemandChan <- c:
 	case <-healthcheck.Dying():
-		return HealthCheckResult{}, ErrHealthCheckNotAlive
+		return HealthCheckResult{}, HealthCheckNotAliveError(id)
 	case <-healthCheckService.Dying():
-		return HealthCheckResult{}, ErrServiceNotAlive
+		return HealthCheckResult{}, ServiceNotAliveError(HEALTHCHECK_SERVICE_ID)
 	}
 
 	select {
 	case result := <-c:
 		return result, nil
 	case <-healthcheck.Dying():
-		return HealthCheckResult{}, ErrHealthCheckNotAlive
+		return HealthCheckResult{}, HealthCheckNotAliveError(id)
 	case <-healthCheckService.Dying():
-		return HealthCheckResult{}, ErrServiceNotAlive
+		return HealthCheckResult{}, ServiceNotAliveError(HEALTHCHECK_SERVICE_ID)
 	}
 }
 
@@ -289,7 +291,7 @@ func (a AppHealthChecks) Run(id HealthCheckID) (HealthCheckResult, error) {
 //  - ErrHealthCheckNotRegistered
 func (a AppHealthChecks) HealthCheckResult(id HealthCheckID) (HealthCheckResult, error) {
 	if id == HealthCheckID(0) {
-		return HealthCheckResult{}, ErrHealthCheckIDZero
+		return HealthCheckResult{}, IllegalArgumentError("HealthCheckIS cannot be 0")
 	}
 
 	healthchecksMutex.RLock()
@@ -297,7 +299,7 @@ func (a AppHealthChecks) HealthCheckResult(id HealthCheckID) (HealthCheckResult,
 
 	healthcheck := registeredHealthChecks[id]
 	if healthcheck == nil {
-		return HealthCheckResult{}, ErrHealthCheckNotRegistered
+		return HealthCheckResult{}, HealthCheckNotRegisteredError(id)
 	}
 
 	return healthcheck.HealthCheckResult, nil
@@ -355,17 +357,17 @@ func (a AppHealthChecks) ResumeHealthCheck(id HealthCheckID) error {
 	defer healthchecksMutex.Unlock()
 	healthcheck := registeredHealthChecks[id]
 	if healthcheck == nil {
-		return ErrHealthCheckNotRegistered
+		return HealthCheckNotRegisteredError(id)
 	}
 	if healthcheck.Alive() {
 		return nil
 	}
 
 	if !healthcheck.HealthCheckService.Alive() {
-		return ErrServiceNotAlive
+		return ServiceNotAliveError(HEALTHCHECK_SERVICE_ID)
 	}
 	if !app.Alive() {
-		return ErrAppNotAlive
+		return AppNotAliveError(HEALTHCHECK_SERVICE_ID)
 	}
 
 	ticker := time.NewTicker(time.Second * 10)
@@ -385,9 +387,9 @@ func (a AppHealthChecks) ResumeHealthCheck(id HealthCheckID) error {
 			HEALTHCHECK_RESUMED.Log(healthcheck.HealthCheckService.Logger().Info()).Uint64(HEALTHCHECK_ID_LOG_FIELD, uint64(id)).Msg("resumed")
 			return nil
 		case <-healthcheck.HealthCheckService.Dying():
-			return ErrServiceNotAlive
+			return ServiceNotAliveError(HEALTHCHECK_SERVICE_ID)
 		case <-ticker.C:
-			return NewHealthCheckKillTimeoutError(id)
+			return HealthCheckKillTimeoutError(id)
 		}
 	}
 }

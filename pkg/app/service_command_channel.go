@@ -16,11 +16,8 @@ package app
 
 // NewServiceCommandChannel creates a new ServiceCommandChannel with the specified channel buffer size.
 func NewServiceCommandChannel(service *Service, chanSize uint16) (*ServiceCommandChannel, error) {
-	if service == nil {
-		return nil, ErrServiceNil
-	}
 	if !service.Alive() {
-		return nil, ErrServiceNotAlive
+		return nil, ServiceNotAliveError(service.id)
 	}
 	return &ServiceCommandChannel{Service: service, c: make(chan func(), chanSize)}, nil
 }
@@ -72,7 +69,7 @@ func (a *ServiceCommandChannel) CommandChan() <-chan func() {
 func (a *ServiceCommandChannel) Submit(f func()) error {
 	select {
 	case <-a.Dying():
-		return ErrServiceNotAlive
+		return ServiceNotAliveError(a.Service.ID())
 	case a.c <- f:
 		return nil
 	}
@@ -123,7 +120,7 @@ type CommandServer struct {
 // - ErrServiceNotAlive - if trying to start after the service has been killed
 func (a *CommandServer) start() error {
 	if !a.Alive() {
-		return ErrServiceNotAlive
+		return ServiceNotAliveError(a.Service.ID())
 	}
 
 	a.Go(func() error {

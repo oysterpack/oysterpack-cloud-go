@@ -36,12 +36,16 @@ func (a AppID) UInt64() uint64 { return uint64(a) }
 
 // InstanceID is the unique id for an app instance. There may be multiple instances, i.e., processes,  of an app running.
 // The instance id is used to differentiate the different app instances. For examples, logs and metrics will contain the instance id.
-type InstanceID string
+type InstanceID uint64
+
+func (a InstanceID) UInt64() uint64 { return uint64(a) }
 
 // ReleaseID is a unique ID assigned to an application release
 type ReleaseID uint64
 
 func (a ReleaseID) Hex() string { return hex(uint64(a)) }
+
+func (a ReleaseID) UInt64() uint64 { return uint64(a) }
 
 // ServiceID unique service ID
 type ServiceID uint64

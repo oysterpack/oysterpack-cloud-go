@@ -33,10 +33,14 @@ import (
 
 	"fmt"
 
-	"github.com/nats-io/nuid"
+	"github.com/oysterpack/oysterpack.go/pkg/app/uid"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"gopkg.in/tomb.v2"
+)
+
+const (
+	APP_SERVICE = ServiceID(0)
 )
 
 var (
@@ -61,7 +65,7 @@ var (
 	appID     AppID
 	releaseID ReleaseID
 
-	appInstanceId = InstanceID(nuid.Next())
+	appInstanceId = InstanceID(uid.NextUIDHash())
 	startedOn     = time.Now()
 
 	app         = tomb.Tomb{}
@@ -90,7 +94,7 @@ type AppServices struct{}
 func submitCommand(f func()) error {
 	select {
 	case <-app.Dying():
-		return ErrAppNotAlive
+		return AppNotAliveError(APP_SERVICE)
 	case commandChan <- f:
 		return nil
 	}
@@ -166,17 +170,14 @@ func zerologLevel(logLevel string) zerolog.Level {
 //	- ErrAppNotAlive
 //	- ErrServiceAlreadyRegistered
 func (a AppServices) Register(s *Service) error {
-	if s == nil {
-		return ErrServiceNil
-	}
 	if !s.Alive() {
-		return ErrServiceNotAlive
+		return ServiceNotAliveError(s.id)
 	}
 
 	c := make(chan error, 1)
 	err := submitCommand(func() {
 		if _, ok := services[s.id]; ok {
-			c <- ErrServiceAlreadyRegistered
+			c <- ServiceAlreadyRegisteredError(s.ID())
 		}
 		services[s.id] = s
 		SERVICE_REGISTERED.Log(s.logger.Info()).Msg("registered")
@@ -208,7 +209,7 @@ func (a AppServices) Register(s *Service) error {
 
 	select {
 	case <-app.Dying():
-		return ErrAppNotAlive
+		return AppNotAliveError(s.ID())
 	case err := <-c:
 		return err
 	}
@@ -222,9 +223,10 @@ func (a AppServices) Register(s *Service) error {
 func (a AppServices) Unregister(id ServiceID) error {
 	c := make(chan error, 1)
 	if err := submitCommand(func() {
+		defer close(c)
 		service, exists := services[id]
 		if !exists {
-			c <- ErrServiceNotRegistered
+
 			return
 		}
 
@@ -241,14 +243,13 @@ func (a AppServices) Unregister(id ServiceID) error {
 
 		delete(services, id)
 		SERVICE_UNREGISTERED.Log(service.Logger().Info()).Msg("unregistered")
-		c <- nil
 	}); err != nil {
 		return err
 	}
 
 	select {
 	case <-app.Dying():
-		return ErrAppNotAlive
+		return AppNotAliveError(id)
 	case err := <-c:
 		return err
 	}
@@ -284,7 +285,7 @@ func (a AppServices) ServiceIDs() ([]ServiceID, error) {
 
 	select {
 	case <-app.Dying():
-		return nil, ErrAppNotAlive
+		return nil, AppNotAliveError(APP_SERVICE)
 	case ids := <-c:
 		return ids, nil
 	}
@@ -306,10 +307,10 @@ func (a AppServices) Service(id ServiceID) (*Service, error) {
 
 	select {
 	case <-app.Dying():
-		return nil, ErrAppNotAlive
+		return nil, AppNotAliveError(id)
 	case svc := <-c:
 		if svc == nil {
-			return nil, ErrServiceNotRegistered
+			return nil, ServiceNotRegisteredError(id)
 		}
 		return svc, nil
 	}
@@ -380,10 +381,10 @@ func initZerolog(logLevel string) {
 	stdlog.SetOutput(log.Logger)
 
 	loggerCtx := log.Logger.With().
-		Uint64("domain", uint64(domainID)).
-		Uint64("app", uint64(appID)).
-		Uint64("release", uint64(releaseID)).
-		Str("instance", string(appInstanceId))
+		Uint64("domain", domainID.UInt64()).
+		Uint64("app", appID.UInt64()).
+		Uint64("release", releaseID.UInt64()).
+		Uint64("instance", appInstanceId.UInt64())
 	if appLogLevel == zerolog.DebugLevel {
 		logger = loggerCtx.Logger().Level(zerolog.DebugLevel)
 	} else {

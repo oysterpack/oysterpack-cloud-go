@@ -65,7 +65,7 @@ func NewClientSpec(spec config.ClientSpec) (*ClientSpec, error) {
 		return nil, err
 	}
 	if !clientSpec.rootCAs.AppendCertsFromPEM(caCert) {
-		return nil, ErrPEMParsing
+		return nil, app.ConfigError(app.APP_SERVICE, errors.New("Failed to parse PEM encoded cert(s)"), "")
 	}
 
 	return clientSpec, nil
@@ -73,21 +73,21 @@ func NewClientSpec(spec config.ClientSpec) (*ClientSpec, error) {
 
 func CheckClientSpec(spec config.ClientSpec) error {
 	if !spec.HasClientCert() {
-		return NewClientSpecError(errors.New("Client cert is required"))
+		return app.IllegalArgumentError("Client cert is required")
 	}
 	serverCert, err := spec.ClientCert()
 	if err != nil {
 		return err
 	}
 	if !serverCert.HasCert() {
-		return NewClientSpecError(errors.New("Client cert is required"))
+		return app.IllegalArgumentError("Client cert is required")
 	}
 	if !serverCert.HasKey() {
-		return NewClientSpecError(errors.New("Client key is required"))
+		return app.IllegalArgumentError("Client key is required")
 	}
 
 	if !spec.HasCaCert() {
-		return NewClientSpecError(errors.New("CA cert is required"))
+		return app.IllegalArgumentError("CA cert is required")
 	}
 
 	return nil

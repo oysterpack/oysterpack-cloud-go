@@ -124,13 +124,13 @@ type metricSpec interface {
 
 func validateMetricSpec(spec metricSpec) (help string, err error) {
 	if !spec.HasHelp() {
-		return "", NewConfigError(errors.New("Help is required"))
+		return "", ConfigError(APP_SERVICE, errors.New("Help is required"), "")
 	}
 	if spec.ServiceId() == 0 {
-		return "", NewConfigError(errors.New("ServiceID must be > 0"))
+		return "", ConfigError(APP_SERVICE, errors.New("ServiceID must be > 0"), "")
 	}
 	if spec.MetricId() == 0 {
-		return "", NewConfigError(errors.New("MetricID must be > 0"))
+		return "", ConfigError(APP_SERVICE, errors.New("MetricID must be > 0"), "")
 	}
 
 	help, err = spec.Help()
@@ -139,7 +139,7 @@ func validateMetricSpec(spec metricSpec) (help string, err error) {
 	}
 	help = strings.TrimSpace(help)
 	if help == "" {
-		return "", NewConfigError(errors.New("Help is required"))
+		return "", ConfigError(APP_SERVICE, errors.New("Help is required"), "")
 	}
 
 	return help, nil
@@ -154,17 +154,17 @@ type metricVectorSpec interface {
 
 func validateMetricVectorSpec(spec metricVectorSpec) (labels []string, err error) {
 	if !spec.HasMetricSpec() {
-		return nil, NewConfigError(errors.New("MetricSpec is required"))
+		return nil, ConfigError(APP_SERVICE, errors.New("MetricSpec is required"), "")
 	}
 	if !spec.HasLabelNames() {
-		return nil, NewConfigError(errors.New("LabelNames is required"))
+		return nil, ConfigError(APP_SERVICE, errors.New("LabelNames is required"), "")
 	}
 	labelNamesList, err := spec.LabelNames()
 	if err != nil {
 		return nil, err
 	}
 	if labelNamesList.Len() == 0 {
-		return nil, NewConfigError(errors.New("At least 1 label name is required"))
+		return nil, ConfigError(APP_SERVICE, errors.New("At least 1 label name is required"), "")
 	}
 	labels = make([]string, labelNamesList.Len())
 	for i := 0; i < len(labels); i++ {

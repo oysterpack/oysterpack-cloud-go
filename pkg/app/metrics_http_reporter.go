@@ -82,7 +82,7 @@ type metricsHttpReporter struct {
 
 func (a *metricsHttpReporter) start() error {
 	if !a.Alive() {
-		return ErrServiceNotAlive
+		return ServiceNotAliveError(METRICS_SERVICE_ID)
 	}
 	a.Lock()
 	defer a.Unlock()
@@ -282,7 +282,7 @@ func (a *metricsHttpReporter) stop() {
 	defer cancel()
 	// try graceful shutdown
 	if err := a.httpServer.Shutdown(shutdownContext); err != nil {
-		METRICS_HTTP_REPORTER_SHUTDOWN_ERROR.Log(a.Logger().Warn()).Err(NewMetricsServiceError(err)).Msg("Error during HTTP server shutdown.")
+		METRICS_HTTP_REPORTER_SHUTDOWN_ERROR.Log(a.Logger().Warn()).Err(ServiceShutdownError(METRICS_SERVICE_ID, err)).Msg("Error during HTTP server shutdown.")
 	}
 	// always ensure the listener is closed
 	a.httpServer.Close()

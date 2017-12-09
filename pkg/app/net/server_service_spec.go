@@ -90,16 +90,16 @@ func (a *ServerServiceSpec) ToCapnp(s *capnp.Segment) (config.ServiceSpec, error
 
 func (a *ServerServiceSpec) Validate() error {
 	if a.domainID == app.DomainID(0) {
-		return app.ErrDomainIDZero
+		return app.IllegalArgumentError("DomainID cannot be 0")
 	}
 	if a.appID == app.AppID(0) {
-		return app.ErrAppIDZero
+		return app.IllegalArgumentError("AppID cannot be 0")
 	}
 	if a.serviceID == app.ServiceID(0) {
-		return app.ErrServiceIDZero
+		return app.IllegalArgumentError("ServiceID cannot be 0")
 	}
 	if a.serverPort == ServerPort(0) {
-		return ErrServerPortZero
+		return app.IllegalArgumentError("Server port cannot be 0")
 	}
 	return nil
 }

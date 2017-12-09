@@ -13,18 +13,3 @@
 // limitations under the License.
 
 package command
-
-import (
-	"fmt"
-
-	"github.com/oysterpack/oysterpack.go/pkg/app"
-)
-
-type CommandError struct {
-	CommandID
-	*app.Err
-}
-
-func (a CommandError) Error() string {
-	return fmt.Sprintf("ErrorID(0x%x) : CommandID(0x%x) : %v", a.ErrorID, a.CommandID, a.Err)
-}

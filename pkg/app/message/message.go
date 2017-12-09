@@ -19,6 +19,7 @@ import (
 	"compress/zlib"
 	"io/ioutil"
 
+	"github.com/oysterpack/oysterpack.go/pkg/app"
 	"zombiezen.com/go/capnproto2"
 )
 
@@ -28,11 +29,8 @@ import (
 //	- ERR_NODATA
 //	- capnp errors
 func Data(msg *Message) (*capnp.Message, error) {
-	if msg == nil {
-		return nil, ERR_MESSAGE_NIL
-	}
 	if !msg.HasData() {
-		return nil, ERR_NODATA
+		return nil, NoDataError(app.APP_SERVICE)
 	}
 
 	data, err := msg.Data()
@@ -60,16 +58,12 @@ func Data(msg *Message) (*capnp.Message, error) {
 		}
 		return capnp.Unmarshal(data)
 	default:
-		return nil, NewUnsupportedCompressionError(msg.Compression())
+		return nil, UnsupportedCompressionError(app.APP_SERVICE, msg.Compression())
 	}
 }
 
 // SetData will compress the data based on the message's compression setting
 func SetData(msg *Message, data *capnp.Message) error {
-	if msg == nil {
-		return ERR_MESSAGE_NIL
-	}
-
 	var dataBytes []byte
 	var err error
 	if msg.Packed() {
@@ -94,6 +88,6 @@ func SetData(msg *Message, data *capnp.Message) error {
 		}
 		return msg.SetData(buf.Bytes())
 	default:
-		return NewUnsupportedCompressionError(msg.Compression())
+		return UnsupportedCompressionError(app.APP_SERVICE, msg.Compression())
 	}
 }

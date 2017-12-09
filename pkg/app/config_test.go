@@ -40,10 +40,9 @@ func TestConfigServiceIDs(t *testing.T) {
 		t.Errorf("An error should have been returned when the config dir does not exist")
 	} else {
 		// Then a ConfigError should be returned
-		switch err := err.(type) {
-		case ConfigError:
+		if IsError(err, ErrSpec_ConfigFailure.ErrorID) {
 			t.Log(err)
-		default:
+		} else {
 			t.Errorf("Different error type was returned : %[1]T : %[1]v", err)
 		}
 	}

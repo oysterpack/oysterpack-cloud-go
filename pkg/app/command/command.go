@@ -40,11 +40,11 @@ const (
 	CTX_KEY_CMD_ERR = ContextKey(0)
 )
 
-func Error(ctx context.Context) (err CommandError, ok bool) {
-	err, ok = ctx.Value(CTX_KEY_CMD_ERR).(CommandError)
+func Error(ctx context.Context) (err *app.Error, ok bool) {
+	err, ok = ctx.Value(CTX_KEY_CMD_ERR).(*app.Error)
 	return
 }
 
-func SetError(ctx context.Context, commandID CommandID, err *app.Err) context.Context {
-	return context.WithValue(ctx, CTX_KEY_CMD_ERR, CommandError{commandID, err})
+func SetError(ctx context.Context, commandID CommandID, err *app.Error) context.Context {
+	return context.WithValue(ctx, CTX_KEY_CMD_ERR, err.WithTag(commandID.Hex()))
 }

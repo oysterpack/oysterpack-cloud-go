@@ -56,25 +56,25 @@ func (a AppConfig) ConfigServiceIDs() ([]ServiceID, error) {
 		if err == os.ErrNotExist {
 			return []ServiceID{}, nil
 		}
-		return nil, NewConfigError(err)
+		return nil, ConfigError(APP_SERVICE, err, fmt.Sprintf("Failed to open the config directory : %v", a.ConfigDir()))
 	}
 	defer dir.Close()
 	dirStat, err := dir.Stat()
 	if err != nil {
-		return nil, NewConfigError(err)
+		return nil, ConfigError(APP_SERVICE, err, fmt.Sprintf("Failed to stat the config directory : %v", a.ConfigDir()))
 	}
 	if !dirStat.IsDir() {
-		return nil, NewConfigError(fmt.Errorf("Config dir is not a dir : %s", a.ConfigDir()))
+		return nil, ConfigError(APP_SERVICE, fmt.Errorf("Config dir is not a dir : %s", a.ConfigDir()), "")
 	}
 
 	names, err := dir.Readdirnames(0)
 	if err != nil {
-		return nil, NewConfigError(err)
+		return nil, ConfigError(APP_SERVICE, err, "Failed to get directory listing")
 	}
 	serviceIds := make([]ServiceID, len(names))
 	for i, name := range names {
 		if id, err := strconv.ParseUint(name, 0, 64); err != nil {
-			return nil, NewConfigError(fmt.Errorf("Invalid ServiceID : %v : %v", name, err))
+			return nil, ConfigError(APP_SERVICE, fmt.Errorf("Invalid ServiceID : %v : %v", name, err), "")
 		} else {
 			serviceIds[i] = ServiceID(id)
 		}
@@ -132,13 +132,13 @@ func (a AppConfig) Config(id ServiceID) (*capnp.Message, error) {
 		case *os.PathError:
 			return nil, nil
 		default:
-			return nil, NewConfigError(err)
+			return nil, ConfigError(id, err, "Failed to read service config file")
 		}
 	}
 
 	msg, err := UnmarshalCapnpMessage(bytes.NewBuffer(c))
 	if err != nil {
-		return nil, NewConfigError(err)
+		return nil, ConfigError(id, err, "Failed to unmarshal service config file")
 	}
 	return msg, err
 }

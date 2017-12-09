@@ -46,7 +46,7 @@ func (a *FooCommandService) GetN1() (uint64, error) {
 	case n := <-c:
 		return n, nil
 	case <-a.Dying():
-		return 0, app.ErrServiceNotAlive
+		return 0, app.ServiceNotAliveError(a.Service.ID())
 	}
 }
 
@@ -63,7 +63,7 @@ func (a *FooCommandService) GetN0() (uint64, error) {
 	case n := <-c:
 		return n, nil
 	case <-a.Dying():
-		return 0, app.ErrServiceNotAlive
+		return 0, app.ServiceNotAliveError(a.Service.ID())
 	}
 }
 

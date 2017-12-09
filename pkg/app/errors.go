@@ -21,6 +21,8 @@ import (
 
 	"runtime/debug"
 
+	"sort"
+
 	"github.com/oysterpack/oysterpack.go/pkg/app/uid"
 	"github.com/rs/zerolog"
 )
@@ -28,8 +30,6 @@ import (
 const (
 	// BUG is for "unknown" errors, i.e., for errors that we did not anticipate
 	ErrorID_BUG = ErrorID(0)
-
-	ERR_MSG_FORMAT = "ErrorID(0x%x) UID(0x%x) %s"
 )
 
 var (
@@ -49,6 +49,8 @@ const (
 	ErrorType_BUG = ErrorType(iota)
 	// e.g. broken network connections, IO errors, service not available, etc
 	ErrorType_KNOWN_EDGE_CASE
+	// misconfiguration or missing configuration
+	ErrorType_Config
 )
 
 // ErrorSeverity is used to classify error severity levels
@@ -63,31 +65,49 @@ const (
 	ErrorSeverity_LOW = ErrorSeverity(iota)
 	ErrorSeverity_MEDIUM
 	ErrorSeverity_HIGH
-	// should cause the app to terminate
+	// should cause the app to terminate, i.e. trigger a panic
 	ErrorSeverity_FATAL
 )
 
 func NewError(cause error, message string, errSpec ErrSpec, serviceID ServiceID, ctx interface{}, tags ...string) *Error {
+	if len(tags) > 0 {
+		tagSet := make(map[string]struct{})
+		for _, t := range tags {
+			tagSet[t] = struct{}{}
+		}
+		if len(tagSet) != len(tags) {
+			i := 0
+			for t := range tagSet {
+				tags[i] = t
+				i++
+			}
+			tags = tags[0:i]
+		}
+		sort.Strings(tags)
+	}
+
 	return &Error{
 		Cause:         cause,
 		Message:       message,
 		ErrorID:       errSpec.ErrorID,
 		ErrorType:     errSpec.ErrorType,
 		ErrorSeverity: errSpec.ErrorSeverity,
-		Stack:         debug.Stack(),
+		Stack:         string(debug.Stack()),
 		Tags:          tags,
 		Context:       ctx,
 		UIDHash:       uid.NextUIDHash(),
 		Time:          time.Now(),
 		DomainID:      Domain(),
 		AppID:         ID(),
+		ReleaseID:     Release(),
+		InstanceID:    Instance(),
 		ServiceID:     serviceID,
 		PID:           PID,
 		Hostname:      HOSTNAME,
 	}
 }
 
-func NewBug(cause error, message string, errSpec ErrSpec, serviceID ServiceID, ctx interface{}, tags ...string) *Error {
+func NewBug(cause error, message string, serviceID ServiceID, ctx interface{}, tags ...string) *Error {
 	return NewError(cause, message, ErrSpec_BUG, serviceID, ctx, tags...)
 }
 
@@ -114,6 +134,8 @@ type ServiceErrSpec struct {
 //
 // 	- What happened
 //	- When and where it happened
+//
+// Even though the Error fields are directly exposed, Error should be treated as immutable - i.e., once created it should not be changed.
 type Error struct {
 	////////////////////
 	// What happened //
@@ -126,7 +148,7 @@ type Error struct {
 	ErrorID
 	ErrorType
 	ErrorSeverity
-	Stack []byte
+	Stack string
 	// tags can be used to categorize errors, e.g., UI, DB, ES, SECURITY
 	Tags []string
 	// should support JSON marshalling - it will be stored as a JSON clob
@@ -141,26 +163,37 @@ type Error struct {
 	time.Time
 	DomainID
 	AppID
-	ServiceID
+	InstanceID
+	ReleaseID
 	// PID and Hostname are part of the error because errors need to be centrally reported
 	PID      int
 	Hostname string
+
+	ServiceID
 }
 
 func (a *Error) Error() string {
 	if a.Message != "" {
-		return fmt.Sprintf(ERR_MSG_FORMAT, a.ErrorID, a.UIDHash, a.Message)
+		return a.Message
 	}
-	return fmt.Sprintf(ERR_MSG_FORMAT, a.ErrorID, a.UIDHash, a.Cause.Error())
+	return a.Cause.Error()
+}
+
+func (a *Error) ErrSpec() ErrSpec {
+	return ErrSpec{a.ErrorID, a.ErrorType, a.ErrorSeverity}
+}
+
+// WithTag returns a new Error instance with the specified tag added.
+// If this Error already has the tag, then the same Error is returned.
+func (a *Error) WithTag(tag string) *Error {
+	if a.HasTag(tag) {
+		return a
+	}
+	return NewError(a.Cause, a.Message, a.ErrSpec(), a.ServiceID, a.Context, append(a.Tags, tag)...)
 }
 
 func (a *Error) Log(logger zerolog.Logger) {
-	var event *zerolog.Event
-	if a.ErrorSeverity == ErrorSeverity_FATAL {
-		event = logger.Error()
-	} else {
-		event = logger.Error()
-	}
+	event := logger.Error()
 	dict := zerolog.Dict().
 		Uint64("id", a.ErrorID.UInt64()).
 		Time("time", a.Time).
@@ -169,7 +202,10 @@ func (a *Error) Log(logger zerolog.Logger) {
 		Uint8("sev", a.ErrorSeverity.UInt8()).
 		Uint64("domain", a.DomainID.UInt64()).
 		Uint64("app", a.AppID.UInt64()).
-		Uint64("service", a.ServiceID.UInt64())
+		Str("release", a.ReleaseID.Hex()).
+		Uint64("service", a.ServiceID.UInt64()).
+		Uint64("release", Release().UInt64()).
+		Uint64("instance", Instance().UInt64())
 	if len(a.Stack) > 0 {
 		dict.Str("stack", string(a.Stack))
 	}
@@ -179,106 +215,194 @@ func (a *Error) Log(logger zerolog.Logger) {
 	event.Dict("err", dict).Msg(a.Error())
 }
 
-//////////////////// DEPRECATED ////////////////////////////////
-
-// Err maps an ErrorID to an error
-type Err struct {
-	ErrorID ErrorID
-	Err     error
+func (a *Error) HasTag(tag string) bool {
+	for _, t := range a.Tags {
+		if t == tag {
+			return true
+		}
+	}
+	return false
 }
 
-func (a *Err) Error() string {
-	return fmt.Sprintf("ErrorID(0x%x) : %v", a.ErrorID, a.Err)
+// IsError returns true if the error type is *Error and the ErrorID matches.
+// Returns false if error is nil.
+func IsError(err error, errorID ErrorID) bool {
+	if err == nil {
+		return false
+	}
+	e, ok := err.(*Error)
+	if !ok {
+		return false
+	}
+	return e.ErrorID == errorID
 }
 
-// UnrecoverableError is a marker interface for errors that cannot be recovered from automatically, i.e., manual intervention is required
-type UnrecoverableError interface {
-	UnrecoverableError()
-}
-
-// Errors
 var (
-	ErrAppNotAlive = &Err{ErrorID: ErrorID(0xdf76e1927f240401), Err: errors.New("App is not alive")}
+	ErrSpec_AppNotAlive   = ErrSpec{ErrorID: ErrorID(0xdf76e1927f240401), ErrorType: ErrorType_KNOWN_EDGE_CASE, ErrorSeverity: ErrorSeverity_FATAL}
+	ErrSpec_ConfigFailure = ErrSpec{ErrorID: ErrorID(0xe75f1a73534f382d), ErrorType: ErrorType_Config, ErrorSeverity: ErrorSeverity_FATAL}
 
-	ErrServiceNotAlive      = &Err{ErrorID: ErrorID(0x9cb3a496d32894d2), Err: errors.New("Service is not alive")}
-	ErrServiceNotRegistered = &Err{ErrorID: (0xf34b64bac786f536), Err: errors.New("Service is not registered")}
-	ErrServiceNotAvailable  = &Err{ErrorID: ErrorID(0x8aae12f3016b7f50), Err: errors.New("Service is not available")}
+	ErrSpec_ServiceInitFailed        = ErrSpec{ErrorID: ErrorID(0xec1bf26105c1a895), ErrorType: ErrorType_KNOWN_EDGE_CASE, ErrorSeverity: ErrorSeverity_FATAL}
+	ErrSpec_ServiceShutdownFailed    = ErrSpec{ErrorID: ErrorID(0xc24ac892db47da9f), ErrorType: ErrorType_KNOWN_EDGE_CASE, ErrorSeverity: ErrorSeverity_MEDIUM}
+	ErrSpec_ServiceNotAlive          = ErrSpec{ErrorID: ErrorID(0x9cb3a496d32894d2), ErrorType: ErrorType_KNOWN_EDGE_CASE, ErrorSeverity: ErrorSeverity_HIGH}
+	ErrSpec_ServiceNotRegistered     = ErrSpec{ErrorID: ErrorID(0xf34b64bac786f536), ErrorType: ErrorType_KNOWN_EDGE_CASE, ErrorSeverity: ErrorSeverity_HIGH}
+	ErrSpec_ServiceNotAvailable      = ErrSpec{ErrorID: ErrorID(0x8aae12f3016b7f50), ErrorType: ErrorType_KNOWN_EDGE_CASE, ErrorSeverity: ErrorSeverity_HIGH}
+	ErrSpec_ServiceAlreadyRegistered = ErrSpec{ErrorID: ErrorID(0xcfd879a478f9c733), ErrorType: ErrorType_KNOWN_EDGE_CASE, ErrorSeverity: ErrorSeverity_HIGH}
+	ErrSpec_IllegalArgument          = ErrSpec{ErrorID: ErrorID(0x9d95c5fac078b82c), ErrorType: ErrorType_KNOWN_EDGE_CASE, ErrorSeverity: ErrorSeverity_HIGH}
 
-	ErrServiceAlreadyRegistered = &Err{ErrorID: ErrorID(0xcfd879a478f9c733), Err: errors.New("Service already registered")}
-	ErrServiceNil               = &Err{ErrorID: ErrorID(0x9d95c5fac078b82c), Err: errors.New("Service is nil")}
+	ErrSpec_InvalidLogLevel = ErrSpec{ErrorID: ErrorID(0x814a17666a94fe39), ErrorType: ErrorType_Config, ErrorSeverity: ErrorSeverity_HIGH}
 
-	ErrDomainIDZero      = &Err{ErrorID: ErrorID(0xb808d46722559577), Err: errors.New("DomainID(0) is not allowed")}
-	ErrAppIDZero         = &Err{ErrorID: ErrorID(0xd5f068b2636835bb), Err: errors.New("AppID(0) is not allowed")}
-	ErrServiceIDZero     = &Err{ErrorID: ErrorID(0xd33c54b382368d97), Err: errors.New("ServiceID(0) is not allowed")}
-	ErrHealthCheckIDZero = &Err{ErrorID: ErrorID(0x9e04840a7fbac5ae), Err: errors.New("HealthCheckID(0) is not allowed")}
-
-	ErrUnknownLogLevel = &Err{ErrorID(0x814a17666a94fe39), errors.New("Unknown log level")}
-
-	ErrHealthCheckAlreadyRegistered = &Err{ErrorID: ErrorID(0xdbfd6d9ab0049876), Err: errors.New("HealthCheck already registered")}
-	ErrHealthCheckNil               = &Err{ErrorID: ErrorID(0xf3a9b5c8afb8a698), Err: errors.New("HealthCheck is nil")}
-	ErrHealthCheckNotRegistered     = &Err{ErrorID: ErrorID(0xefb3ffddac690f37), Err: errors.New("HealthCheck is not registered")}
-	ErrHealthCheckNotAlive          = &Err{ErrorID: ErrorID(0xe1972916f1c18dae), Err: errors.New("HealthCheck is not alive")}
+	ErrSpec_HealthCheckAlreadyRegistered = ErrSpec{ErrorID: ErrorID(0xdbfd6d9ab0049876), ErrorType: ErrorType_KNOWN_EDGE_CASE, ErrorSeverity: ErrorSeverity_MEDIUM}
+	ErrSpec_HealthCheckNotRegistered     = ErrSpec{ErrorID: ErrorID(0xefb3ffddac690f37), ErrorType: ErrorType_KNOWN_EDGE_CASE, ErrorSeverity: ErrorSeverity_LOW}
+	ErrSpec_HealthCheckNotAlive          = ErrSpec{ErrorID: ErrorID(0xe1972916f1c18dae), ErrorType: ErrorType_KNOWN_EDGE_CASE, ErrorSeverity: ErrorSeverity_HIGH}
+	ErrSpec_HealthCheckKillTimeout       = ErrSpec{ErrorID: ErrorID(0xf4ad6052397f6858), ErrorType: ErrorType_KNOWN_EDGE_CASE, ErrorSeverity: ErrorSeverity_HIGH}
+	ErrSpec_HealthCheckTimeout           = ErrSpec{ErrorID: ErrorID(0x8257a572526e13f4), ErrorType: ErrorType_KNOWN_EDGE_CASE, ErrorSeverity: ErrorSeverity_HIGH}
 )
 
-func NewServiceInitError(serviceId ServiceID, err error) ServiceInitError {
-	return ServiceInitError{ServiceID: serviceId, Err: &Err{ErrorID: ErrorID(0xec1bf26105c1a895), Err: err}}
+func AppNotAliveError(serviceID ServiceID) *Error {
+	return NewError(
+		errors.New("App is not alive"),
+		"",
+		ErrSpec_AppNotAlive,
+		serviceID,
+		nil,
+	)
 }
 
-type ServiceInitError struct {
-	ServiceID
-	*Err
+func ConfigError(serviceID ServiceID, err error, message string) *Error {
+	return NewError(
+		err,
+		message,
+		ErrSpec_ConfigFailure,
+		serviceID,
+		nil,
+	)
 }
 
-func (a ServiceInitError) Error() string {
-	return fmt.Sprintf("ErrorID(0x%x)  : ServiceID(0x%x) : %v", a.ErrorID, a.ServiceID, a.Err)
+func ServiceInitError(serviceID ServiceID, err error) *Error {
+	return NewError(
+		err,
+		"Service failed to initialize",
+		ErrSpec_ServiceInitFailed,
+		serviceID,
+		nil,
+	)
 }
 
-// NewConfigError wraps an error as a ConfigError
-func NewConfigError(err error) ConfigError {
-	return ConfigError{
-		&Err{ErrorID: ErrorID(0xe75f1a73534f382d), Err: err},
-	}
+func ServiceShutdownError(serviceID ServiceID, err error) *Error {
+	return NewError(
+		err,
+		"An error occurred while shutting down the service",
+		ErrSpec_ServiceInitFailed,
+		serviceID,
+		nil,
+	)
 }
 
-// ConfigError indicates there was an error while trying to load a config
-type ConfigError struct {
-	*Err
+func ServiceNotAliveError(serviceID ServiceID) *Error {
+	return NewError(
+		errors.New("Service is not alive"),
+		"",
+		ErrSpec_ServiceNotAlive,
+		serviceID,
+		nil,
+	)
 }
 
-func (a ConfigError) UnrecoverableError() {}
-
-// NewMetricsServiceError wraps the error as a MetricsServiceError
-func NewMetricsServiceError(err error) MetricsServiceError {
-	return MetricsServiceError{&Err{ErrorID: ErrorID(0xc24ac892db47da9f), Err: err}}
+func ServiceNotRegisteredError(serviceID ServiceID) *Error {
+	return NewError(
+		errors.New("Service is not registered"),
+		"",
+		ErrSpec_ServiceNotRegistered,
+		serviceID,
+		nil,
+	)
 }
 
-// MetricsServiceError indicates an error occurred with in the MetricsHttpReporter
-type MetricsServiceError struct {
-	*Err
+func ServiceNotAvailableError(serviceID ServiceID) *Error {
+	return NewError(
+		errors.New("Service is not available"),
+		"",
+		ErrSpec_ServiceNotAvailable,
+		serviceID,
+		nil,
+	)
 }
 
-func NewHealthCheckTimeoutError(id HealthCheckID) HealthCheckTimeoutError {
-	return HealthCheckTimeoutError{ErrorID(0x8257a572526e13f4), id}
+func ServiceAlreadyRegisteredError(serviceID ServiceID) *Error {
+	return NewError(
+		errors.New("Service is already registered"),
+		"",
+		ErrSpec_ServiceAlreadyRegistered,
+		serviceID,
+		nil,
+	)
 }
 
-type HealthCheckTimeoutError struct {
-	ErrorID
-	HealthCheckID
+func IllegalArgumentError(message string) *Error {
+	return NewBug(
+		errors.New(message),
+		"",
+		APP_SERVICE,
+		nil,
+	)
 }
 
-func (a HealthCheckTimeoutError) Error() string {
-	return fmt.Sprintf("%x : HealthCheck timed out : %x", a.ErrorID, a.HealthCheckID)
+func InvalidLogLevelError(level string) *Error {
+	return NewError(
+		fmt.Errorf("Invalid log level : %q", level),
+		"",
+		ErrSpec_InvalidLogLevel,
+		APP_SERVICE,
+		nil,
+	)
 }
 
-func NewHealthCheckKillTimeoutError(id HealthCheckID) HealthCheckKillTimeoutError {
-	return HealthCheckKillTimeoutError{ErrorID(0xf4ad6052397f6858), id}
+func HealthCheckAlreadyRegisteredError(healthCheckID HealthCheckID) *Error {
+	return NewError(
+		fmt.Errorf("HealthCheck(0x%x) is already registered", healthCheckID),
+		"",
+		ErrSpec_HealthCheckAlreadyRegistered,
+		HEALTHCHECK_SERVICE_ID,
+		nil,
+	)
 }
 
-type HealthCheckKillTimeoutError struct {
-	ErrorID
-	HealthCheckID
+func HealthCheckNotRegisteredError(healthCheckID HealthCheckID) *Error {
+	return NewError(
+		fmt.Errorf("HealthCheck(0x%x) is not registered", healthCheckID),
+		"",
+		ErrSpec_HealthCheckNotRegistered,
+		HEALTHCHECK_SERVICE_ID,
+		nil,
+	)
 }
 
-func (a HealthCheckKillTimeoutError) Error() string {
-	return fmt.Sprintf("%x : HealthCheck timed out while dying : %x", a.ErrorID, a.HealthCheckID)
+func HealthCheckNotAliveError(healthCheckID HealthCheckID) *Error {
+	return NewError(
+		fmt.Errorf("HealthCheck(0x%x) is not alive", healthCheckID),
+		"",
+		ErrSpec_HealthCheckNotAlive,
+		HEALTHCHECK_SERVICE_ID,
+		nil,
+	)
+}
+
+func HealthCheckKillTimeoutError(healthCheckID HealthCheckID) *Error {
+	return NewError(
+		fmt.Errorf("Timed out waiting for HealthCheck(0x%x) to die", healthCheckID),
+		"",
+		ErrSpec_HealthCheckKillTimeout,
+		HEALTHCHECK_SERVICE_ID,
+		nil,
+	)
+}
+
+func HealthCheckTimeoutError(healthCheckID HealthCheckID) *Error {
+	return NewError(
+		fmt.Errorf("HealthCheck(0x%x) run timed out.", healthCheckID),
+		"",
+		ErrSpec_HealthCheckKillTimeout,
+		HEALTHCHECK_SERVICE_ID,
+		nil,
+	)
 }

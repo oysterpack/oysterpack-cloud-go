@@ -102,7 +102,7 @@ func (a *registeredHealthCheck) run() {
 
 	select {
 	case <-timeoutTimer.C:
-		a.HealthCheckResult.Err = NewHealthCheckTimeoutError(a.HealthCheckSpec.HealthCheckID)
+		a.HealthCheckResult.Err = HealthCheckTimeoutError(a.HealthCheckSpec.HealthCheckID)
 		a.HealthCheckResult.Duration = time.Now().Sub(start)
 		a.HealthCheckResult.ErrCount++
 		a.ResultGauge.Inc()

@@ -67,19 +67,22 @@ func TestApp(t *testing.T) {
 	if app.StartedOn().IsZero() {
 		t.Error("app.StartedOn() should not be the zero value")
 	}
-	if len(app.Instance()) == 0 {
+	if app.Instance() == 0 {
 		t.Error("app instance id should not be blank")
 	}
 
 	t.Logf("ReleaseID: %d", app.Release())
 
 	// When a nil service is registered
-	// Then app.RegisterService should return app.ErrServiceNil
-	if err := app.Services.Register(nil); err == nil {
-		t.Error("registering a nill service is not allowed")
-	} else if err != app.ErrServiceNil {
-		t.Errorf("Wrong error type was returned : %T", err)
-	}
+	// Then app.RegisterService a panic should be triggered
+	func() {
+		defer func() {
+			if p := recover(); p == nil {
+				t.Error("panic should have been triggered")
+			}
+		}()
+		app.Services.Register(nil)
+	}()
 
 	service := app.NewService(app.ServiceID(1))
 	service.Kill(nil)
@@ -87,8 +90,12 @@ func TestApp(t *testing.T) {
 	// Then app.RegisterService should return app.ErrServiceNil
 	if err := app.Services.Register(service); err == nil {
 		t.Error("registering a dead service is not allowed")
-	} else if err != app.ErrServiceNotAlive {
-		t.Errorf("Wrong error type was returned : %T", err)
+	} else {
+		if e, ok := err.(*app.Error); !ok {
+			t.Errorf("Wrong error type was returned : %T", err)
+		} else if e.ErrorID != app.ErrSpec_ServiceNotAlive.ErrorID {
+			t.Errorf("Wrong error was returned : %#v", err)
+		}
 	}
 
 	service = app.NewService(app.ServiceID(2))
@@ -105,28 +112,49 @@ func TestApp(t *testing.T) {
 	// Then app.RegisterService should return app.ErrAppNotAlive
 	if err := app.Services.Register(service); err == nil {
 		t.Error("registering a dead service is not allowed")
-	} else if err != app.ErrAppNotAlive {
-		t.Errorf("Wrong error type was returned : %[1]T : %[1]v", err)
+	} else {
+		e, ok := err.(*app.Error)
+		if !ok {
+			t.Errorf("Wrong error type was returned : %[1]T : %[1]v", err)
+		}
+		if e.ErrorID != app.ErrSpec_AppNotAlive.ErrorID {
+			t.Errorf("Wrong ErrorID : %v", err)
+		}
 	}
 
 	// When the app is dead
 	// Then all app functions should fail and return ErrAppNotAlive
 	if _, err := app.Services.ServiceIDs(); err == nil {
 		t.Error("should have failed because app is dead")
-	} else if err != app.ErrAppNotAlive {
-		t.Errorf("Wrong error ttype was returned : %T", err)
+	} else {
+		e, ok := err.(*app.Error)
+		if !ok {
+			t.Errorf("Wrong error type was returned : %[1]T : %[1]v", err)
+		}
+		if e.ErrorID != app.ErrSpec_AppNotAlive.ErrorID {
+			t.Errorf("Wrong ErrorID : %v", err)
+		}
 	}
 	if err := app.Services.Unregister(service.ID()); err == nil {
 		t.Error("should have failed because app is dead")
-	} else if err != app.ErrAppNotAlive {
-		t.Errorf("Wrong error ttype was returned : %T", err)
+	} else {
+		e, ok := err.(*app.Error)
+		if !ok {
+			t.Errorf("Wrong error type was returned : %[1]T : %[1]v", err)
+		}
+		if e.ErrorID != app.ErrSpec_AppNotAlive.ErrorID {
+			t.Errorf("Wrong ErrorID : %v", err)
+		}
 	}
 	if _, err := app.Services.Service(service.ID()); err == nil {
 		t.Error("should have failed because app is dead")
 	} else {
-		t.Log(err.Error())
-		if err != app.ErrAppNotAlive {
-			t.Errorf("Wrong error type was returned : %T", err)
+		e, ok := err.(*app.Error)
+		if !ok {
+			t.Errorf("Wrong error type was returned : %[1]T : %[1]v", err)
+		}
+		if e.ErrorID != app.ErrSpec_AppNotAlive.ErrorID {
+			t.Errorf("Wrong ErrorID : %v", err)
 		}
 	}
 
@@ -202,13 +230,15 @@ func TestRegisterService(t *testing.T) {
 	service.Wait()
 	// Then the app will automatically unregister the service
 	if service2, err := app.Services.Service(service.ID()); err != nil {
-		if err != app.ErrServiceNotRegistered {
+		if !app.IsError(err, app.ErrSpec_ServiceNotRegistered.ErrorID) {
 			t.Error(err)
 		}
 	} else if service2 != nil {
 		time.Sleep(time.Millisecond * 20)
 		if service2, err = app.Services.Service(service.ID()); err != nil {
-			t.Error(err)
+			if !app.IsError(err, app.ErrSpec_ServiceNotRegistered.ErrorID) {
+				t.Error(err)
+			}
 		} else if service2 != nil {
 			t.Error("service should have been unregistered by now")
 		}
@@ -232,8 +262,10 @@ func TestRegisterService(t *testing.T) {
 	}
 	if err := app.Services.Register(service); err == nil {
 		t.Error(err)
-	} else if err != app.ErrServiceAlreadyRegistered {
-		t.Errorf("the wrong error type was returned : %T", err)
+	} else {
+		if !app.IsError(err, app.ErrSpec_ServiceAlreadyRegistered.ErrorID) {
+			t.Errorf("the wrong error type was returned : %v", err)
+		}
 	}
 
 }
@@ -345,11 +377,11 @@ func (a *FooService) Foo() error {
 	request := fooRequest{make(chan struct{})}
 	select {
 	case <-a.Dying():
-		return app.ErrServiceNotAlive
+		return app.ServiceNotAliveError(a.Service.ID())
 	case a.fooRequestChan <- request:
 		select {
 		case <-a.Dying():
-			return app.ErrServiceNotAlive
+			return app.ServiceNotAliveError(a.Service.ID())
 		case <-request.response:
 			return nil
 		}
@@ -360,11 +392,11 @@ func (a *FooService) FooUsingCachedFooRequests() error {
 	request := <-a.fooRequests
 	select {
 	case <-a.Dying():
-		return app.ErrServiceNotAlive
+		return app.ServiceNotAliveError(a.Service.ID())
 	case a.fooRequestChan <- request:
 		select {
 		case <-a.Dying():
-			return app.ErrServiceNotAlive
+			return app.ServiceNotAliveError(a.Service.ID())
 		case <-request.response:
 			return nil
 		}
@@ -374,7 +406,7 @@ func (a *FooService) FooUsingCachedFooRequests() error {
 func (a *FooService) Bar() error {
 	select {
 	case <-a.Dying():
-		return app.ErrServiceNotAlive
+		return app.ServiceNotAliveError(a.Service.ID())
 	case a.barChan <- struct{}{}:
 		return nil
 	}
@@ -383,7 +415,7 @@ func (a *FooService) Bar() error {
 func (a *FooService) BarUsingBufferedChan() error {
 	select {
 	case <-a.Dying():
-		return app.ErrServiceNotAlive
+		return app.ServiceNotAliveError(a.Service.ID())
 	case a.barBufferedChan <- struct{}{}:
 		return nil
 	}

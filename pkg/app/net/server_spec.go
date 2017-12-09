@@ -21,10 +21,11 @@ import (
 
 	"net"
 
-	"errors"
-
 	"time"
 
+	"errors"
+
+	"github.com/oysterpack/oysterpack.go/pkg/app"
 	"github.com/oysterpack/oysterpack.go/pkg/app/net/config"
 	"zombiezen.com/go/capnproto2"
 )
@@ -72,7 +73,7 @@ func NewServerSpec(spec config.ServerSpec) (*ServerSpec, error) {
 		return nil, err
 	}
 	if !serverSpec.clientCAs.AppendCertsFromPEM(caCert) {
-		return nil, ErrPEMParsing
+		return nil, app.ConfigError(serverSpec.ServiceID(), errors.New("Failed to parse PEM encoded cert(s)"), "")
 	}
 
 	return serverSpec, nil
@@ -80,29 +81,29 @@ func NewServerSpec(spec config.ServerSpec) (*ServerSpec, error) {
 
 func CheckServerSpec(spec config.ServerSpec) error {
 	if !spec.HasServerCert() {
-		return NewServerSpecError(errors.New("ServerCert is required"))
+		return app.IllegalArgumentError("ServerCert is required")
 	}
 	serverCert, err := spec.ServerCert()
 	if err != nil {
 		return err
 	}
 	if !serverCert.HasCert() {
-		return NewServerSpecError(errors.New("ServerCert.Cert is required"))
+		return app.IllegalArgumentError("ServerCert.Cert is required")
 	}
 	if !serverCert.HasKey() {
-		return NewServerSpecError(errors.New("ServerCert.Key is required"))
+		return app.IllegalArgumentError("ServerCert.Key is required")
 	}
 
 	if !spec.HasCaCert() {
-		return NewServerSpecError(errors.New("CaCert is required"))
+		return app.IllegalArgumentError("CaCert is required")
 	}
 
 	if spec.MaxConns() == 0 {
-		return ErrServerMaxConnsZero
+		return app.IllegalArgumentError("Server max conn must be > 0")
 	}
 
 	if spec.KeepAlivePeriodSecs() == 0 {
-		return ErrServerConnKeepAlivePeriodZero
+		return app.IllegalArgumentError("Server conn keep alive period must be > 0")
 	}
 
 	return nil
@@ -180,7 +181,7 @@ func (a *ServerSpec) ConfigureConnBuffers(conn net.Conn) error {
 
 	c, ok := conn.(BufferedConn)
 	if !ok {
-		return ErrConnBuffersNotConfigurable
+		return app.ConfigError(a.ServiceID(), errors.New("Server conn buffers are not configurable"), "")
 	}
 	if a.readBufferSize > 0 {
 		c.SetReadBuffer(int(a.readBufferSize))

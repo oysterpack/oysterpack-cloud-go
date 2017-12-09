@@ -37,14 +37,14 @@ func NewHistogramMetricSpec(spec config.HistogramMetricSpec) (HistogramMetricSpe
 	}
 
 	if !spec.HasBuckets() {
-		return HistogramMetricSpec{}, NewConfigError(errors.New("HistogramMetricSpec : Buckets is required"))
+		return HistogramMetricSpec{}, ConfigError(METRICS_SERVICE_ID, errors.New("HistogramMetricSpec : Buckets is required"), "")
 	}
 	bucketList, err := spec.Buckets()
 	if err != nil {
 		return HistogramMetricSpec{}, err
 	}
 	if bucketList.Len() == 0 {
-		return HistogramMetricSpec{}, NewConfigError(errors.New("HistogramMetricSpec : At least 1 bucket is required"))
+		return HistogramMetricSpec{}, ConfigError(METRICS_SERVICE_ID, errors.New("HistogramMetricSpec : At least 1 bucket is required"), "")
 	}
 
 	buckets := make([]float64, bucketList.Len())

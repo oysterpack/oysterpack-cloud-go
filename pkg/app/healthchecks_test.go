@@ -65,7 +65,7 @@ func TestHealthcheckService(t *testing.T) {
 			t.Error("there should be no healthchecks registered")
 		}
 
-		if _, err := HealthChecks.HealthCheckResult(HEALTHCHECK_1); err != ErrHealthCheckNotRegistered {
+		if _, err := HealthChecks.HealthCheckResult(HEALTHCHECK_1); !IsError(err, ErrSpec_HealthCheckNotRegistered.ErrorID) {
 			t.Errorf("Expected ErrHealthCheckNotRegistered : %[1]T : %[1]v", err)
 		}
 
@@ -73,7 +73,7 @@ func TestHealthcheckService(t *testing.T) {
 			t.Error("there should be no healthchecks registered")
 		}
 
-		if _, err := HealthChecks.Run(HEALTHCHECK_1); err != ErrHealthCheckNotRegistered {
+		if _, err := HealthChecks.Run(HEALTHCHECK_1); !IsError(err, ErrSpec_HealthCheckNotRegistered.ErrorID) {
 			t.Errorf("Expected ErrHealthCheckNotRegistered : %[1]T : %[1]v", err)
 		}
 	})

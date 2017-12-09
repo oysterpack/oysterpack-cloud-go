@@ -14,12 +14,30 @@
 
 package command
 
+import "fmt"
+
 // CommandID is a global unique identifier for a command.
 // CommandID(s) must be registered.
 // The CommandID is used to track commands, e.g., metrics, errors
 type CommandID uint64
 
+func (a CommandID) Hex() string {
+	return fmt.Sprintf("%x", a)
+}
+
+func (a CommandID) UInt64() uint64 {
+	return uint64(a)
+}
+
 // PipelineID is a global unique identifier for a command
 // PipelineID(s) must be registered
 // The PipelineID is used to track pipelines, e.g., metrics, errors
 type PipelineID uint64
+
+func (a PipelineID) Hex() string {
+	return fmt.Sprintf("%x", a)
+}
+
+func (a PipelineID) UInt64() uint64 {
+	return uint64(a)
+}

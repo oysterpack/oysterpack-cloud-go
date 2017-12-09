@@ -48,12 +48,12 @@ func StartServer(settings ServerSettings) (*Server, error) {
 	connCountGauge := app.MetricRegistry.Gauge(settings.Service.ID(), SERVER_CONN_COUNT_METRIC_ID)
 	if connCountGauge == nil {
 		err := fmt.Errorf("Server conn count gauge metric missing : ServiceID(0x%x) : MetricID(0x%x)", settings.Service.ID(), SERVER_CONN_COUNT_METRIC_ID)
-		return nil, app.NewConfigError(err)
+		return nil, app.ConfigError(settings.ServiceID(), err, "")
 	}
 	totalConnCreatedCount := app.MetricRegistry.Counter(settings.Service.ID(), SERVER_CONN_TOTAL_CREATED_METRIC_ID)
 	if totalConnCreatedCount == nil {
 		err := fmt.Errorf("Server total conn created counter metric missing : ServiceID(0x%x) : MetricID(0x%x)", settings.Service.ID(), SERVER_CONN_TOTAL_CREATED_METRIC_ID)
-		return nil, app.NewConfigError(err)
+		return nil, app.ConfigError(settings.ServiceID(), err, "")
 	}
 
 	l, err := settings.newListener()
@@ -95,13 +95,13 @@ func StartServer(settings ServerSettings) (*Server, error) {
 //	- errors from NewServerSpec()
 func NewServerSettings(service *app.Service, spec config.ServerSpec, handler ConnHandler) (ServerSettings, error) {
 	if service == nil {
-		return ServerSettings{}, app.ErrServiceNil
+		return ServerSettings{}, app.IllegalArgumentError("Service cannot be nil")
 	}
 	if !service.Alive() {
-		return ServerSettings{}, app.ErrServiceNotAlive
+		return ServerSettings{}, app.ServiceNotAliveError(service.ID())
 	}
 	if handler == nil {
-		return ServerSettings{}, ErrConnHandlerNil
+		return ServerSettings{}, app.IllegalArgumentError("ConnHandler cannot be nil")
 	}
 
 	serverSpec, err := NewServerSpec(spec)
@@ -130,16 +130,16 @@ type ServerSettings struct {
 //	- ErrServerNameBlank
 func (a *ServerSettings) Validate() error {
 	if a.Service == nil {
-		return app.ErrServiceNil
+		return app.IllegalArgumentError("Service cannot be nil")
 	}
 	if !a.Service.Alive() {
-		return app.ErrServiceNotAlive
+		return app.ServiceNotAliveError(a.Service.ID())
 	}
 	if a.ServerSpec == nil {
-		return ErrServerSpecNil
+		return app.IllegalArgumentError("ServerSpec cannot be nil")
 	}
 	if a.ConnHandler == nil {
-		return ErrConnHandlerNil
+		return app.IllegalArgumentError("ConnHandler cannot be nil")
 	}
 
 	return nil
@@ -149,12 +149,12 @@ func (a *ServerSettings) newListener() (net.Listener, error) {
 	// starting for the first time
 	l, err := a.ServerSpec.ListenerProvider()()
 	if err != nil {
-		return nil, NewListenerProviderError(err)
+		return nil, ListenerProviderError(a.ServiceID(), err)
 	}
 
 	tlsConfig, err := a.TLSConfigProvider()()
 	if err != nil {
-		return nil, NewTLSConfigError(err)
+		return nil, TLSConfigError(a.ServiceID(), err)
 	}
 	return tls.NewListener(l, tlsConfig), nil
 }
@@ -307,7 +307,7 @@ func (a *Server) Address() (net.Addr, error) {
 	if a.listener != nil {
 		return a.listener.Addr(), nil
 	}
-	return nil, ErrListenerDown
+	return nil, ListenerDownError(a.Service.ID())
 }
 
 func (a *Server) MaxConnections() uint {

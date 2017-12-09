@@ -15,26 +15,34 @@
 package message
 
 import (
-	"errors"
-
 	"fmt"
+
+	"errors"
 
 	"github.com/oysterpack/oysterpack.go/pkg/app"
 )
 
 var (
-	ERR_NODATA      = &app.Err{ErrorID: app.ErrorID(0xdd05f420d972bcab), Err: errors.New("Message has no data")}
-	ERR_MESSAGE_NIL = &app.Err{ErrorID: app.ErrorID(0xdb9c6bc7777e1eb5), Err: errors.New("Message is nil")}
+	ErrSpec_NoData                 = app.ErrSpec{ErrorID: app.ErrorID(0xdd05f420d972bcab), ErrorType: app.ErrorType_KNOWN_EDGE_CASE, ErrorSeverity: app.ErrorSeverity_HIGH}
+	ErrSpec_UnsupportedCompression = app.ErrSpec{ErrorID: app.ErrorID(0x992d6f6806a5374f), ErrorType: app.ErrorType_KNOWN_EDGE_CASE, ErrorSeverity: app.ErrorSeverity_HIGH}
 )
 
-func NewUnsupportedCompressionError(compression Message_Compression) *UnsupportedCompressionError {
-	return &UnsupportedCompressionError{
-		Err:         &app.Err{ErrorID: app.ErrorID(0x992d6f6806a5374f), Err: fmt.Errorf("Unsupported compression : %v", compression)},
-		Compression: compression,
-	}
+func NoDataError(serviceID app.ServiceID) *app.Error {
+	return app.NewError(
+		errors.New("Message has no data"),
+		"",
+		ErrSpec_NoData,
+		serviceID,
+		nil,
+	)
 }
 
-type UnsupportedCompressionError struct {
-	*app.Err
-	Compression Message_Compression
+func UnsupportedCompressionError(serviceID app.ServiceID, compression Message_Compression) *app.Error {
+	return app.NewError(
+		fmt.Errorf("Unsupported compression : %v", compression),
+		"",
+		ErrSpec_UnsupportedCompression,
+		serviceID,
+		nil,
+	)
 }

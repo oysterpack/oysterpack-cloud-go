@@ -52,17 +52,17 @@ func TestCommandErr(t *testing.T) {
 	if _, ok := command.Error(ctx); ok {
 		t.Error("There should be no error returned")
 	}
-	ctx = command.SetError(ctx, command.CommandID(1), app.ErrAppNotAlive)
+	ctx = command.SetError(ctx, command.CommandID(1), app.AppNotAliveError(app.ServiceID(1)))
 	if err, ok := command.Error(ctx); !ok {
 		t.Error("There should be an error returned")
 	} else {
-		var err2 error = err
+		var err2 = err
 		t.Log(err2)
-		if err.CommandID != command.CommandID(1) {
-			t.Errorf("CommandError CommandID does not match : %v", err.CommandID)
+		if !err.HasTag(command.CommandID(1).Hex()) {
+			t.Errorf("CommandError CommandID does not match : %v", err.Tags)
 		}
-		if err.Err != app.ErrAppNotAlive {
-			t.Errorf("app.Err did not match : %v", err.Err)
+		if !app.IsError(err, app.ErrSpec_AppNotAlive.ErrorID) {
+			t.Errorf("app.Err did not match : %v", err)
 		}
 	}
 }

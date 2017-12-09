@@ -21,103 +21,84 @@ import (
 )
 
 var (
-	ErrServerSpecNil                 = &app.Err{ErrorID: app.ErrorID(0x8cfd35df21d5dea5), Err: errors.New("ServerSpec is nil")}
-	ErrListenerProviderNil           = &app.Err{ErrorID: app.ErrorID(0xbded147157abdee4), Err: errors.New("net.Listener provider is nil")}
-	ErrTLSConfigProviderNil          = &app.Err{ErrorID: app.ErrorID(0xfde67413e94bf34c), Err: errors.New("tls.Config provider is nil")}
-	ErrConnHandlerNil                = &app.Err{ErrorID: app.ErrorID(0xff3042c0c093461b), Err: errors.New("Conn handler is nil")}
-	ErrListenerDown                  = &app.Err{ErrorID: app.ErrorID(0xed6320923d7ac51e), Err: errors.New("Listener is down")}
-	ErrServerNameBlank               = &app.Err{ErrorID: app.ErrorID(0x82ba8744c43fe673), Err: errors.New("Server name is blank")}
-	ErrServerMaxConnsZero            = &app.Err{ErrorID: app.ErrorID(0x999e5626a881b99b), Err: errors.New("Server max conns must be > 0")}
-	ErrServerConnKeepAlivePeriodZero = &app.Err{ErrorID: app.ErrorID(0xb25783843b427f53), Err: errors.New("Server conn keep alive period must be > 0")}
-	ErrConnBuffersNotConfigurable    = &app.Err{ErrorID: app.ErrorID(0xf6cd72498eb50225), Err: errors.New("Server conn buffers are not configurable")}
+	ErrSpec_ListenerDown          = app.ErrSpec{ErrorID: app.ErrorID(0xed6320923d7ac51e), ErrorType: app.ErrorType_KNOWN_EDGE_CASE, ErrorSeverity: app.ErrorSeverity_HIGH}
+	ErrSpec_ListenerProviderError = app.ErrSpec{ErrorID: app.ErrorID(0x828e2024b2a12526), ErrorType: app.ErrorType_KNOWN_EDGE_CASE, ErrorSeverity: app.ErrorSeverity_FATAL}
+	ErrSpec_TLSConfigError        = app.ErrSpec{ErrorID: app.ErrorID(0xb67cbd821c0ab946), ErrorType: app.ErrorType_Config, ErrorSeverity: app.ErrorSeverity_FATAL}
+	ErrSpec_NetListenError        = app.ErrSpec{ErrorID: app.ErrorID(0xa1dcc954855732fc), ErrorType: app.ErrorType_KNOWN_EDGE_CASE, ErrorSeverity: app.ErrorSeverity_FATAL}
+	ErrSpec_ServerFactoryError    = app.ErrSpec{ErrorID: app.ErrorID(0x954d1590f06ffee5), ErrorType: app.ErrorType_KNOWN_EDGE_CASE, ErrorSeverity: app.ErrorSeverity_FATAL}
+	ErrSpec_ServerSpecError       = app.ErrSpec{ErrorID: app.ErrorID(0x9394e42b4cf30b1b), ErrorType: app.ErrorType_Config, ErrorSeverity: app.ErrorSeverity_FATAL}
+	ErrSpec_ClientSpecError       = app.ErrSpec{ErrorID: app.ErrorID(0xebcb20d1b8ffd569), ErrorType: app.ErrorType_Config, ErrorSeverity: app.ErrorSeverity_FATAL}
 
-	ErrPEMParsing = &app.Err{ErrorID: app.ErrorID(0xa7b59b95250c2789), Err: errors.New("Failed to parse PEM encoded cert(s)")}
+	//ErrServerNameBlank               = &app.Err{ErrorID: app.ErrorID(0x82ba8744c43fe673), Err: errors.New("Server name is blank")}
+	//ErrServerMaxConnsZero            = &app.Err{ErrorID: app.ErrorID(0x999e5626a881b99b), Err: errors.New("Server max conns must be > 0")}
+	//ErrServerConnKeepAlivePeriodZero = &app.Err{ErrorID: app.ErrorID(0xb25783843b427f53), Err: errors.New("Server conn keep alive period must be > 0")}
+	//ErrConnBuffersNotConfigurable    = &app.Err{ErrorID: app.ErrorID(0xf6cd72498eb50225), Err: errors.New("Server conn buffers are not configurable")}
 
-	ErrServerPortZero = &app.Err{ErrorID: app.ErrorID(0x9580be146625218d), Err: errors.New("Server port cannot be 0")}
+	//ErrPEMParsing = &app.Err{ErrorID: app.ErrorID(0xa7b59b95250c2789), Err: errors.New("Failed to parse PEM encoded cert(s)")}
+	//
+	//ErrServerPortZero = &app.Err{ErrorID: app.ErrorID(0x9580be146625218d), Err: errors.New("Server port cannot be 0")}
 )
 
-// NewListenerProviderError wraps the specified error as a ListenerProviderError
-func NewListenerProviderError(err error) ListenerProviderError {
-	return ListenerProviderError{
-		&app.Err{ErrorID: app.ErrorID(0x828e2024b2a12526), Err: err},
-	}
+// "Listener is down"
+func ListenerDownError(serviceID app.ServiceID) *app.Error {
+	return app.NewError(
+		errors.New("Listener is down"),
+		"",
+		ErrSpec_ListenerDown,
+		serviceID,
+		nil,
+	)
 }
 
-// ListenerProviderError for ListenerProvider related errors
-type ListenerProviderError struct {
-	*app.Err
+func ListenerProviderError(serviceID app.ServiceID, err error) *app.Error {
+	return app.NewError(
+		err,
+		"ListenerProvider failed",
+		ErrSpec_ListenerProviderError,
+		serviceID,
+		nil,
+	)
 }
 
-// UnrecoverableError - if we can't start a listener, then that is something we cannot recover from automatically.
-func (a ListenerProviderError) UnrecoverableError() {}
-
-// NewTLSConfigError wraps the specified error as a ListenerProviderError
-func NewTLSConfigError(err error) ListenerProviderError {
-	return ListenerProviderError{
-		&app.Err{ErrorID: app.ErrorID(0xb67cbd821c0ab946), Err: err},
-	}
+func TLSConfigError(serviceID app.ServiceID, err error) *app.Error {
+	return app.NewError(
+		err,
+		"TLS config is invalid",
+		ErrSpec_TLSConfigError,
+		serviceID,
+		nil,
+	)
 }
-
-// TLSConfigError for TLS configuration related issues
-type TLSConfigError struct {
-	*app.Err
-}
-
-// UnrecoverableError required manual intervention to resolve the misconfiguration
-func (a TLSConfigError) UnrecoverableError() {}
-
-// NewNetListenError wraps the specified error as a NetListenError
-func NewNetListenError(err error) NetListenError {
-	return NetListenError{
-		&app.Err{ErrorID: app.ErrorID(0xa1dcc954855732fc), Err: err},
-	}
-}
-
-// NetListenError indicates there was an error when trying to start a network listener
-type NetListenError struct {
-	*app.Err
-}
-
-func (a NetListenError) UnrecoverableError() {}
 
 // NewServerFactoryError wraps an error as an ServerFactoryError
-func NewServerFactoryError(err error) ServerFactoryError {
-	return ServerFactoryError{
-		&app.Err{ErrorID: app.ErrorID(0x954d1590f06ffee5), Err: err},
-	}
+func ServerFactoryError(serviceID app.ServiceID, err error) *app.Error {
+	return app.NewError(
+		err,
+		"Listener is down",
+		ErrSpec_ServerFactoryError,
+		serviceID,
+		nil,
+	)
 }
-
-// ServerFactoryError indicates an error trying to create an  server
-type ServerFactoryError struct {
-	*app.Err
-}
-
-func (a ServerFactoryError) UnrecoverableError() {}
 
 // NewServerSpecError wraps the error as an ServerSpecError
-func NewServerSpecError(err error) ServerSpecError {
-	return ServerSpecError{
-		&app.Err{ErrorID: app.ErrorID(0x9394e42b4cf30b1b), Err: err},
-	}
+func ServerSpecError(serviceID app.ServiceID, err error) *app.Error {
+	return app.NewError(
+		err,
+		"ServerSpec is invalid",
+		ErrSpec_ServerSpecError,
+		serviceID,
+		nil,
+	)
 }
-
-// ServerSpecError indicates the ServerServiceSpec is invalid
-type ServerSpecError struct {
-	*app.Err
-}
-
-func (a ServerSpecError) UnrecoverableError() {}
 
 // NewClientSpecError wraps the error as an ClientSpecError
-func NewClientSpecError(err error) ClientSpecError {
-	return ClientSpecError{
-		&app.Err{ErrorID: app.ErrorID(0xebcb20d1b8ffd569), Err: err},
-	}
+func ClientSpecError(serviceID app.ServiceID, err error) *app.Error {
+	return app.NewError(
+		errors.New("Listener is down"),
+		"",
+		ErrSpec_ClientSpecError,
+		serviceID,
+		nil,
+	)
 }
-
-// ClientSpecError indicates the ClientSpec is invalid
-type ClientSpecError struct {
-	*app.Err
-}
-
-func (a ClientSpecError) UnrecoverableError() {}
