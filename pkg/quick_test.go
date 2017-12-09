@@ -184,3 +184,22 @@ func TestDefer(t *testing.T) {
 func TestFmtSprint(t *testing.T) {
 	t.Log(fmt.Sprint("abc", 1))
 }
+
+func TestChanSelect(t *testing.T) {
+	c := make(chan interface{})
+	go func() {
+		defer close(c)
+		c <- 1
+	}()
+LOOP:
+	for {
+		select {
+		case v, ok := <-c:
+			t.Logf("v: %v, ok: %v", v, ok)
+			if !ok {
+				t.Log("chan was closed")
+				break LOOP
+			}
+		}
+	}
+}

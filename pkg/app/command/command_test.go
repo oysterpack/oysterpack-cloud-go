@@ -52,7 +52,7 @@ func TestCommandErr(t *testing.T) {
 	if err := command.Error(ctx); err != nil {
 		t.Error("There should be no error returned")
 	}
-	ctx = command.SetError(ctx, command.CommandID(1), app.AppNotAliveError())
+	ctx = command.WithError(ctx, command.CommandID(1), app.AppNotAliveError())
 	if err := command.Error(ctx); err == nil {
 		t.Error("There should be an error returned")
 	} else {

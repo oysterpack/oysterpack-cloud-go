@@ -280,7 +280,7 @@ func TestStartPipeline(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		ctx := context.WithValue(context.Background(), A, 1)
+		ctx := context.WithValue(command.NewContext(), A, 1)
 		ctx = context.WithValue(ctx, B, 2)
 		p.InputChan() <- ctx
 		ctx = <-p.OutputChan()
@@ -318,7 +318,7 @@ func TestStartPipeline(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		ctx := context.WithValue(context.Background(), N, 0)
+		ctx := context.WithValue(command.NewContext(), N, 0)
 		p.InputChan() <- ctx
 		ctx = <-p.OutputChan()
 		n := ctx.Value(N).(int)
@@ -326,5 +326,55 @@ func TestStartPipeline(t *testing.T) {
 		if n != 10 {
 			t.Errorf("The pipeline did not process the workflow correctly : n = %d", n)
 		}
+	})
+
+	t.Run("10 stage pipeline - with reply channel", func(t *testing.T) {
+		app.ResetWithConfigDir(configDir)
+		defer app.Reset()
+
+		service := app.NewService(SERVICE_ID)
+		type Key int
+
+		const (
+			N = Key(iota)
+		)
+		stage := command.NewStage(
+			SERVICE_ID,
+			command.NewCommand(command.CommandID(1), func(ctx context.Context) (context.Context, *app.Error) {
+				n := ctx.Value(N).(int)
+				return context.WithValue(ctx, N, n+1), nil
+			}),
+			1,
+		)
+
+		stages := []command.Stage{}
+		for i := 0; i < 10; i++ {
+			stages = append(stages, stage)
+		}
+		p, err := command.StartPipeline(service, stages...)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ctx := context.WithValue(command.NewContext(), N, 0)
+		p.InputChan() <- ctx
+		ctx = <-p.OutputChan()
+		n := ctx.Value(N).(int)
+		t.Logf("n = %d", n)
+		if n != 10 {
+			t.Errorf("The pipeline did not process the workflow correctly : n = %d", n)
+		}
+		if workflowID, ok := command.WorkflowID(ctx); !ok {
+			t.Error("output context should have a workflow id assigned")
+		} else {
+			t.Logf("workflowID = %x", workflowID)
+		}
+
+		timeStarted := command.PipelineWorkflowStartTime(ctx)
+		if timeStarted.IsZero() {
+			t.Error("the pipeline workflow start time is not in the context")
+		} else {
+			t.Logf("timeStarted : %v", timeStarted)
+		}
+
 	})
 }

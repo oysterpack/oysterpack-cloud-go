@@ -78,14 +78,20 @@ func StartPipeline(service *app.Service, stages ...Stage) (*Pipeline, error) {
 				if err != nil {
 					pipeline.failedCounter.Inc()
 					pipeline.processingFailedTime.Add(workflowTime)
-					result = SetError(result, stage.Command().id, err)
+					result = WithError(result, stage.Command().id, err)
 				}
+
+				out, ok := OutputChannel(ctx)
+				if !ok {
+					out = pipeline.out
+				}
+
 				select {
 				case <-service.Dying():
 					return
 				case <-result.Done():
 					pipelineContextExpired(ctx, pipeline, stage.Command().CommandID()).Log(pipeline.Service.Logger())
-				case pipeline.out <- result:
+				case out <- result:
 					deliveryTime := time.Now().Sub(processedTime).Seconds()
 					pipeline.channelDeliveryTime.Add(deliveryTime)
 				}
@@ -105,7 +111,7 @@ func StartPipeline(service *app.Service, stages ...Stage) (*Pipeline, error) {
 									pipelineContextExpired(ctx, pipeline, stage.Command().CommandID()).Log(pipeline.Service.Logger())
 								default:
 									// record the time when the context started the workflow, i.e., entered the first stage of the pipeline
-									ctx = PipelineWorkflowStarted(ctx)
+									ctx = StartPipelineWorkflowTimer(ctx)
 									pipeline.runCounter.Inc()
 									process(ctx)
 								}
@@ -142,7 +148,7 @@ func StartPipeline(service *app.Service, stages ...Stage) (*Pipeline, error) {
 			processedTime := time.Now()
 			if err != nil {
 				pipeline.failedCounter.Inc()
-				result = SetError(result, stage.Command().id, err)
+				result = WithError(result, stage.Command().id, err)
 				select {
 				case <-service.Dying():
 					return
@@ -178,7 +184,7 @@ func StartPipeline(service *app.Service, stages ...Stage) (*Pipeline, error) {
 								pipelineContextExpired(ctx, pipeline, stage.Command().CommandID()).Log(pipeline.Service.Logger())
 							default:
 								// record the time when the context started the workflow, i.e., entered the first stage of the pipeline
-								ctx = PipelineWorkflowStarted(ctx)
+								ctx = StartPipelineWorkflowTimer(ctx)
 								pipeline.runCounter.Inc()
 								process(ctx)
 							}
@@ -230,7 +236,7 @@ func StartPipeline(service *app.Service, stages ...Stage) (*Pipeline, error) {
 //  - The context is checked if it is expired when it is received on each stage and after the command runs.
 //
 // What happens if an error is returned by a pipeline stage command ?
-// 	- The error is added to the Context using CTX_KEY_CMD_ERR as the key. The workflow is aborted, and the context is
+// 	- The error is added to the Context using ctx_cmd_err as the key. The workflow is aborted, and the context is
 // 	  returned immediately on the pipeline output channel.
 type Pipeline struct {
 	*app.Service
