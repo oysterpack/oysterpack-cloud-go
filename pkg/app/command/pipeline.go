@@ -21,41 +21,152 @@ import (
 	"fmt"
 
 	"github.com/oysterpack/oysterpack.go/pkg/app"
-	"github.com/oysterpack/oysterpack.go/pkg/app/uid"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
 func StartPipeline(service *app.Service, stages ...Stage) (*Pipeline, error) {
-	if service == nil {
-		return nil, app.IllegalArgumentError("A pipeline requires a service to run")
-	}
-	if !service.Alive() {
-		return nil, app.ServiceNotAliveError(service.ID())
-	}
-	if len(stages) == 0 {
-		return nil, app.IllegalArgumentError("A pipeline must have at least 1 stage")
-	}
-	for _, stage := range stages {
-		if stage.Command().run == nil {
-			return nil, app.IllegalArgumentError(fmt.Sprintf("Stage Command run function was nil for : ServiceID(0x%x)", service.ID()))
+	checkArgs := func() *app.Error {
+		if service == nil {
+			return app.IllegalArgumentError("A pipeline requires a service to run")
 		}
+		if !service.Alive() {
+			return app.ServiceNotAliveError(service.ID())
+		}
+		if len(stages) == 0 {
+			return app.IllegalArgumentError("A pipeline must have at least 1 stage")
+		}
+		for _, stage := range stages {
+			if stage.Command().run == nil {
+				return app.IllegalArgumentError(fmt.Sprintf("Stage Command run function was nil for : ServiceID(0x%x)", service.ID()))
+			}
+		}
+		return nil
 	}
+
+	if err := checkArgs(); err != nil {
+		return nil, err
+	}
+
+	serviceID := service.ID()
 
 	pipeline := &Pipeline{
-		Service:    service,
-		instanceID: uid.NextUIDHash(),
-		startedOn:  time.Now(),
-		in:         make(chan context.Context),
-		out:        make(chan context.Context),
-		stages:     stages,
+		Service:   service,
+		startedOn: time.Now(),
+		in:        make(chan context.Context),
+		out:       make(chan context.Context),
+		stages:    stages,
+
+		runCounter:            app.MetricRegistry.Counter(serviceID, PIPELINE_RUN_COUNT),
+		failedCounter:         app.MetricRegistry.Counter(serviceID, PIPELINE_FAILED_COUNT),
+		contextExpiredCounter: app.MetricRegistry.Counter(serviceID, PIPELINE_CONTEXT_EXPIRED_COUNT),
+		processingTime:        app.MetricRegistry.Counter(serviceID, PIPELINE_PROCESSING_TIME_SEC),
+		processingFailedTime:  app.MetricRegistry.Counter(serviceID, PIPELINE_PROCESSING_TIME_SEC_FAILED),
+		channelDeliveryTime:   app.MetricRegistry.Counter(serviceID, PIPELINE_CHANNEL_DELIVERY_TIME_SEC),
 	}
 
+	firstStageCommandID := pipeline.stages[0].cmd.id
 	var build func(stages []Stage, in, out chan context.Context)
 	build = func(stages []Stage, in, out chan context.Context) {
 		if len(stages) == 1 {
 			stage := stages[0]
+
+			process := func(ctx context.Context) {
+				result, err := stage.run(ctx)
+				processedTime := time.Now()
+				workflowTime := time.Now().Sub(PipelineWorkflowStartTime(ctx)).Seconds()
+				pipeline.processingTime.Add(workflowTime)
+				if err != nil {
+					pipeline.failedCounter.Inc()
+					pipeline.processingFailedTime.Add(workflowTime)
+					result = SetError(result, stage.Command().id, err)
+				}
+				select {
+				case <-service.Dying():
+					return
+				case <-result.Done():
+					pipelineContextExpired(ctx, pipeline, stage.Command().CommandID()).Log(pipeline.Service.Logger())
+				case pipeline.out <- result:
+					deliveryTime := time.Now().Sub(processedTime).Seconds()
+					pipeline.channelDeliveryTime.Add(deliveryTime)
+				}
+			}
+
 			poolSize := int(stage.PoolSize())
 			for i := 0; i < poolSize; i++ {
+				if stage.cmd.id == firstStageCommandID {
+					service.Go(func() error {
+						for {
+							select {
+							case <-service.Dying():
+								return nil
+							case ctx := <-in:
+								select {
+								case <-ctx.Done():
+									pipelineContextExpired(ctx, pipeline, stage.Command().CommandID()).Log(pipeline.Service.Logger())
+								default:
+									// record the time when the context started the workflow, i.e., entered the first stage of the pipeline
+									ctx = PipelineWorkflowStarted(ctx)
+									pipeline.runCounter.Inc()
+									process(ctx)
+								}
+							}
+						}
+					})
+				} else {
+					service.Go(func() error {
+						for {
+							select {
+							case <-service.Dying():
+								return nil
+							case ctx := <-in:
+								select {
+								case <-ctx.Done():
+									pipelineContextExpired(ctx, pipeline, stage.Command().CommandID()).Log(pipeline.Service.Logger())
+								default:
+									process(ctx)
+								}
+							}
+						}
+					})
+				}
+
+			}
+			return
+		}
+
+		stage := stages[0]
+		poolSize := int(stage.PoolSize())
+
+		process := func(ctx context.Context) {
+			result, err := stage.run(ctx)
+			processedTime := time.Now()
+			if err != nil {
+				pipeline.failedCounter.Inc()
+				result = SetError(result, stage.Command().id, err)
+				select {
+				case <-service.Dying():
+					return
+				case <-result.Done():
+					pipelineContextExpired(ctx, pipeline, stage.Command().CommandID()).Log(pipeline.Service.Logger())
+				case pipeline.out <- result:
+					deliveryTime := time.Now().Sub(processedTime).Seconds()
+					pipeline.channelDeliveryTime.Add(deliveryTime)
+				}
+			} else {
+				select {
+				case <-service.Dying():
+					return
+				case <-result.Done():
+					pipelineContextExpired(ctx, pipeline, stage.Command().CommandID()).Log(pipeline.Service.Logger())
+				case out <- result:
+					deliveryTime := time.Now().Sub(processedTime).Seconds()
+					pipeline.channelDeliveryTime.Add(deliveryTime)
+				}
+			}
+		}
+
+		for i := 0; i < poolSize; i++ {
+			if stage.cmd.id == firstStageCommandID {
 				service.Go(func() error {
 					for {
 						select {
@@ -64,63 +175,34 @@ func StartPipeline(service *app.Service, stages ...Stage) (*Pipeline, error) {
 						case ctx := <-in:
 							select {
 							case <-ctx.Done():
-								PipelineContextExpired(ctx, pipeline, stage.Command().CommandID()).Log(pipeline.Service.Logger())
+								pipelineContextExpired(ctx, pipeline, stage.Command().CommandID()).Log(pipeline.Service.Logger())
 							default:
-								result, err := stage.Command().Run(ctx)
-								if err != nil {
-									result = SetError(result, stage.Command().id, err)
-								}
-								select {
-								case <-service.Dying():
-									return nil
-								case <-result.Done():
-									PipelineContextExpired(ctx, pipeline, stage.Command().CommandID()).Log(pipeline.Service.Logger())
-								case pipeline.out <- result:
-								}
+								// record the time when the context started the workflow, i.e., entered the first stage of the pipeline
+								ctx = PipelineWorkflowStarted(ctx)
+								pipeline.runCounter.Inc()
+								process(ctx)
+							}
+						}
+					}
+				})
+			} else {
+				service.Go(func() error {
+					for {
+						select {
+						case <-service.Dying():
+							return nil
+						case ctx := <-in:
+							select {
+							case <-ctx.Done():
+								pipelineContextExpired(ctx, pipeline, stage.Command().CommandID()).Log(pipeline.Service.Logger())
+							default:
+								process(ctx)
 							}
 						}
 					}
 				})
 			}
-			return
-		}
 
-		stage := stages[0]
-		poolSize := int(stage.PoolSize())
-		for i := 0; i < poolSize; i++ {
-			service.Go(func() error {
-				for {
-					select {
-					case <-service.Dying():
-						return nil
-					case ctx := <-in:
-						select {
-						case <-ctx.Done():
-							PipelineContextExpired(ctx, pipeline, stage.Command().CommandID()).Log(pipeline.Service.Logger())
-						default:
-							result, err := stage.Command().Run(ctx)
-							if err != nil {
-								result = SetError(result, stage.Command().id, err)
-								select {
-								case <-service.Dying():
-									return nil
-								case <-result.Done():
-									PipelineContextExpired(ctx, pipeline, stage.Command().CommandID()).Log(pipeline.Service.Logger())
-								case pipeline.out <- result:
-								}
-							} else {
-								select {
-								case <-service.Dying():
-									return nil
-								case <-result.Done():
-									PipelineContextExpired(ctx, pipeline, stage.Command().CommandID()).Log(pipeline.Service.Logger())
-								case out <- result:
-								}
-							}
-						}
-					}
-				}
-			})
 		}
 		build(stages[1:], out, make(chan context.Context))
 	}
@@ -153,21 +235,18 @@ func StartPipeline(service *app.Service, stages ...Stage) (*Pipeline, error) {
 type Pipeline struct {
 	*app.Service
 
-	instanceID uid.UIDHash
-	startedOn  time.Time
+	startedOn time.Time
 
 	in, out chan context.Context
 
 	stages []Stage
 
-	messageCounter        prometheus.CounterVec
-	errCounter            prometheus.CounterVec
-	contextExpiredCounter prometheus.CounterVec
-	processingTime        prometheus.CounterVec
-}
-
-func (a *Pipeline) InstanceID() uid.UIDHash {
-	return a.instanceID
+	runCounter            prometheus.Counter
+	failedCounter         prometheus.Counter
+	contextExpiredCounter prometheus.Counter
+	processingTime        prometheus.Counter
+	processingFailedTime  prometheus.Counter
+	channelDeliveryTime   prometheus.Counter
 }
 
 func (a *Pipeline) StartedOn() time.Time {
@@ -190,14 +269,25 @@ func (a *Pipeline) Stages() []Stage {
 	return stages
 }
 
-func NewStage(cmd Command, poolSize uint8) Stage {
-	return Stage{cmd, poolSize}
+func NewStage(serviceID app.ServiceID, cmd Command, poolSize uint8) Stage {
+	return Stage{cmd: cmd,
+		poolSize:             poolSize,
+		runCounter:           app.MetricRegistry.CounterVector(serviceID, COMMAND_RUN_COUNT).CounterVec.With(prometheus.Labels{LABEL_COMMAND: cmd.CommandID().Hex()}),
+		failedCounter:        app.MetricRegistry.CounterVector(serviceID, COMMAND_FAILED_COUNT).CounterVec.With(prometheus.Labels{LABEL_COMMAND: cmd.CommandID().Hex()}),
+		processingTime:       app.MetricRegistry.CounterVector(serviceID, COMMAND_PROCESSING_TIME_SEC).CounterVec.With(prometheus.Labels{LABEL_COMMAND: cmd.CommandID().Hex()}),
+		processingFailedTime: app.MetricRegistry.CounterVector(serviceID, COMMAND_PROCESSING_TIME_SEC_FAILED).CounterVec.With(prometheus.Labels{LABEL_COMMAND: cmd.CommandID().Hex()}),
+	}
 }
 
 // Stage represents a pipeline stage
 type Stage struct {
 	cmd      Command
 	poolSize uint8
+
+	runCounter           prometheus.Counter
+	failedCounter        prometheus.Counter
+	processingTime       prometheus.Counter
+	processingFailedTime prometheus.Counter
 }
 
 // Command returns the stage's command
@@ -211,4 +301,17 @@ func (a *Stage) PoolSize() uint8 {
 		return 1
 	}
 	return a.poolSize
+}
+
+func (a *Stage) run(in context.Context) (out context.Context, err *app.Error) {
+	a.runCounter.Inc()
+	start := time.Now()
+	out, err = a.cmd.Run(in)
+	runTime := time.Now().Sub(start).Seconds()
+	a.processingTime.Add(runTime)
+	if err != nil {
+		a.failedCounter.Inc()
+		a.processingFailedTime.Add(runTime)
+	}
+	return
 }

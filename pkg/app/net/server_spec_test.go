@@ -36,7 +36,7 @@ func TestNewServerSpec(t *testing.T) {
 	const (
 		// *** THE EASYPKI CA AND CERTS NEED TO PREEXIST ***
 		// For now, use the testdata/.easypki/generate-certs.sh script to bootstrap
-		// Ideally, we will want to to generate these on demand, i.e., programatically.
+		// Ideally, we will want to to generate these on demand, i.e., programmatically.
 		DOMAIN_ID  = app.DomainID(0xed5cf026e8734361)
 		APP_ID     = app.AppID(0xd113a2e016e12f0f)
 		SERVICE_ID = app.ServiceID(0xe49214fa20b35ba8)

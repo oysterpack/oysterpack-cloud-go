@@ -24,6 +24,8 @@ var (
 	ErrSpec_ContextExpired = app.ErrSpec{app.ErrorID(0xd56f1203ea740414), app.ErrorType_KNOWN_EDGE_CASE, app.ErrorSeverity_MEDIUM}
 )
 
-func PipelineContextExpired(ctx context.Context, pipeline *Pipeline, commandID CommandID) *app.Error {
+// pipelineContextExpired will increment the pipeline context expired counter as a side effect
+func pipelineContextExpired(ctx context.Context, pipeline *Pipeline, commandID CommandID) *app.Error {
+	pipeline.contextExpiredCounter.Inc()
 	return app.NewError(ctx.Err(), "Context expired on Pipeline", ErrSpec_ContextExpired, pipeline.Service.ID(), nil, commandID.Hex())
 }

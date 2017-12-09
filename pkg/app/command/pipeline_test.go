@@ -18,16 +18,241 @@ import (
 	"context"
 	"testing"
 
+	"os"
+
 	"github.com/oysterpack/oysterpack.go/pkg/app"
 	"github.com/oysterpack/oysterpack.go/pkg/app/command"
+	appconfig "github.com/oysterpack/oysterpack.go/pkg/app/config"
 	"github.com/oysterpack/oysterpack.go/pkg/app/uid"
+	"zombiezen.com/go/capnproto2"
 )
+
+func initConfigDir(configDir string) {
+	app.Configs.SetConfigDir(configDir)
+	os.RemoveAll(configDir)
+	os.MkdirAll(configDir, 0755)
+}
+
+func initMetricsConfig(serviceID app.ServiceID) error {
+	msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err != nil {
+		return err
+	}
+	metricsServiceSpec, err := appconfig.NewRootMetricsServiceSpec(seg)
+	if err != nil {
+		return err
+	}
+	metricsSpecs, err := appconfig.NewMetricSpecs(seg)
+	if err != nil {
+		return err
+	}
+	metricsServiceSpec.SetMetricSpecs(metricsSpecs)
+
+	createCounters := func() error {
+		counters, err := metricsSpecs.NewCounterSpecs(6)
+		if err != nil {
+			return err
+		}
+
+		////////////
+		pipelineRunCount, err := appconfig.NewCounterMetricSpec(seg)
+		if err != nil {
+			return err
+		}
+		pipelineRunCount.SetServiceId(serviceID.UInt64())
+		pipelineRunCount.SetMetricId(command.PIPELINE_RUN_COUNT.UInt64())
+		if err := pipelineRunCount.SetHelp("Total number of times the pipeline was run"); err != nil {
+			return err
+		}
+		counters.Set(0, pipelineRunCount)
+
+		////////////
+		pipelineFailureCount, err := appconfig.NewCounterMetricSpec(seg)
+		if err != nil {
+			return err
+		}
+		pipelineFailureCount.SetServiceId(serviceID.UInt64())
+		pipelineFailureCount.SetMetricId(command.PIPELINE_FAILED_COUNT.UInt64())
+		if err := pipelineFailureCount.SetHelp("Total number of failed pipeline workflows"); err != nil {
+			return err
+		}
+		counters.Set(1, pipelineFailureCount)
+
+		////////////
+		pipelineContextExpiredCount, err := appconfig.NewCounterMetricSpec(seg)
+		if err != nil {
+			return err
+		}
+		pipelineContextExpiredCount.SetServiceId(serviceID.UInt64())
+		pipelineContextExpiredCount.SetMetricId(command.PIPELINE_CONTEXT_EXPIRED_COUNT.UInt64())
+		if err := pipelineContextExpiredCount.SetHelp("Total number of Context expirations, i.e., workflows that were either cancelled or timeout."); err != nil {
+			return err
+		}
+		counters.Set(2, pipelineContextExpiredCount)
+
+		////////////
+		pipelineProcessingTime, err := appconfig.NewCounterMetricSpec(seg)
+		if err != nil {
+			return err
+		}
+		pipelineProcessingTime.SetServiceId(serviceID.UInt64())
+		pipelineProcessingTime.SetMetricId(command.PIPELINE_PROCESSING_TIME_SEC.UInt64())
+		if err := pipelineProcessingTime.SetHelp("Total pipeline processing time in seconds"); err != nil {
+			return err
+		}
+		counters.Set(3, pipelineProcessingTime)
+
+		////////////
+		pipelineFailedProcessingTime, err := appconfig.NewCounterMetricSpec(seg)
+		if err != nil {
+			return err
+		}
+		pipelineFailedProcessingTime.SetServiceId(serviceID.UInt64())
+		pipelineFailedProcessingTime.SetMetricId(command.PIPELINE_PROCESSING_TIME_SEC_FAILED.UInt64())
+		if err := pipelineFailedProcessingTime.SetHelp("Total pipeline processing time in seconds for failed workflows"); err != nil {
+			return err
+		}
+		counters.Set(4, pipelineFailedProcessingTime)
+
+		pipelineDeliveryTime, err := appconfig.NewCounterMetricSpec(seg)
+		if err != nil {
+			return err
+		}
+		pipelineDeliveryTime.SetServiceId(serviceID.UInt64())
+		pipelineDeliveryTime.SetMetricId(command.PIPELINE_CHANNEL_DELIVERY_TIME_SEC.UInt64())
+		if err := pipelineDeliveryTime.SetHelp("Total pipeline channel delivery time in seconds"); err != nil {
+			return err
+		}
+		counters.Set(5, pipelineDeliveryTime)
+
+		return nil
+	}
+
+	createCounterVectors := func() error {
+		counters, err := metricsSpecs.NewCounterVectorSpecs(4)
+		if err != nil {
+			return err
+		}
+
+		//////////
+		commandRunCountVector, err := appconfig.NewCounterVectorMetricSpec(seg)
+		if err != nil {
+			return err
+		}
+		commandRunCount, err := appconfig.NewCounterMetricSpec(seg)
+		if err != nil {
+			return err
+		}
+		commandRunCount.SetServiceId(serviceID.UInt64())
+		commandRunCount.SetMetricId(command.COMMAND_RUN_COUNT.UInt64())
+		if err := commandRunCount.SetHelp("Total number of times the pipeline was run"); err != nil {
+			return err
+		}
+		if err := commandRunCountVector.SetMetricSpec(commandRunCount); err != nil {
+			return err
+		}
+		labels, err := commandRunCountVector.NewLabelNames(1)
+		if err != nil {
+			return err
+		}
+		labels.Set(0, command.LABEL_COMMAND)
+		counters.Set(0, commandRunCountVector)
+
+		/////////
+		commandFailureCountVector, err := appconfig.NewCounterVectorMetricSpec(seg)
+		if err != nil {
+			return err
+		}
+		commandFailureCount, err := appconfig.NewCounterMetricSpec(seg)
+		if err != nil {
+			return err
+		}
+		commandFailureCount.SetServiceId(serviceID.UInt64())
+		commandFailureCount.SetMetricId(command.COMMAND_FAILED_COUNT.UInt64())
+		if err := commandFailureCount.SetHelp("Total number of failed pipeline workflows"); err != nil {
+			return err
+		}
+		if err := commandFailureCountVector.SetMetricSpec(commandFailureCount); err != nil {
+			return err
+		}
+		labels, err = commandFailureCountVector.NewLabelNames(1)
+		if err != nil {
+			return err
+		}
+		labels.Set(0, command.LABEL_COMMAND)
+		counters.Set(1, commandFailureCountVector)
+
+		//////////
+		commandProcessingTimeVector, err := appconfig.NewCounterVectorMetricSpec(seg)
+		commandProcessingTime, err := appconfig.NewCounterMetricSpec(seg)
+		if err != nil {
+			return err
+		}
+		commandProcessingTime.SetServiceId(serviceID.UInt64())
+		commandProcessingTime.SetMetricId(command.COMMAND_PROCESSING_TIME_SEC.UInt64())
+		if err := commandProcessingTime.SetHelp("Total pipeline processing time in nanoseconds"); err != nil {
+			return err
+		}
+		commandProcessingTimeVector.SetMetricSpec(commandProcessingTime)
+		labels, err = commandProcessingTimeVector.NewLabelNames(1)
+		if err != nil {
+			return err
+		}
+		labels.Set(0, command.LABEL_COMMAND)
+		counters.Set(2, commandProcessingTimeVector)
+
+		/////////////
+		commandFailedProcessingTimeVector, err := appconfig.NewCounterVectorMetricSpec(seg)
+		commandFailedProcessingTime, err := appconfig.NewCounterMetricSpec(seg)
+		if err != nil {
+			return err
+		}
+		commandFailedProcessingTime.SetServiceId(serviceID.UInt64())
+		commandFailedProcessingTime.SetMetricId(command.COMMAND_PROCESSING_TIME_SEC_FAILED.UInt64())
+		if err := commandFailedProcessingTime.SetHelp("Total pipeline processing time in nanoseconds for failed workflows"); err != nil {
+			return err
+		}
+		commandFailedProcessingTimeVector.SetMetricSpec(commandFailedProcessingTime)
+		commandProcessingTimeVector.SetMetricSpec(commandProcessingTime)
+		labels, err = commandFailedProcessingTimeVector.NewLabelNames(1)
+		if err != nil {
+			return err
+		}
+		labels.Set(0, command.LABEL_COMMAND)
+		counters.Set(3, commandFailedProcessingTimeVector)
+
+		return nil
+	}
+
+	if err := createCounters(); err != nil {
+		return err
+	}
+
+	if err := createCounterVectors(); err != nil {
+		return err
+	}
+
+	// store the config
+	serviceConfigPath := app.Configs.ServiceConfigPath(app.METRICS_SERVICE_ID)
+	configFile, err := os.Create(serviceConfigPath)
+	if err != nil {
+		return err
+	}
+	app.MarshalCapnpMessage(msg, configFile)
+	configFile.Close()
+
+	return nil
+}
 
 func TestStartPipeline(t *testing.T) {
 	SERVICE_ID := app.ServiceID(uid.NextUIDHash())
 
+	configDir := "./testdata/pipeline_test/TestStartPipeline"
+	initConfigDir(configDir)
+	initMetricsConfig(SERVICE_ID)
+
 	t.Run("single stage - no error", func(t *testing.T) {
-		app.Reset()
+		app.ResetWithConfigDir(configDir)
 		defer app.Reset()
 
 		service := app.NewService(SERVICE_ID)
@@ -42,6 +267,7 @@ func TestStartPipeline(t *testing.T) {
 
 		p, err := command.StartPipeline(service,
 			command.NewStage(
+				SERVICE_ID,
 				command.NewCommand(command.CommandID(1), func(ctx context.Context) (context.Context, *app.Error) {
 					a := ctx.Value(A).(int)
 					b := ctx.Value(B).(int)
@@ -66,7 +292,7 @@ func TestStartPipeline(t *testing.T) {
 	})
 
 	t.Run("10 stage pipeline", func(t *testing.T) {
-		app.Reset()
+		app.ResetWithConfigDir(configDir)
 		defer app.Reset()
 
 		service := app.NewService(SERVICE_ID)
@@ -76,6 +302,7 @@ func TestStartPipeline(t *testing.T) {
 			N = Key(iota)
 		)
 		stage := command.NewStage(
+			SERVICE_ID,
 			command.NewCommand(command.CommandID(1), func(ctx context.Context) (context.Context, *app.Error) {
 				n := ctx.Value(N).(int)
 				return context.WithValue(ctx, N, n+1), nil

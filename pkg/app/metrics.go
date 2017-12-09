@@ -90,14 +90,18 @@ func PrometheusName(metricSpec *MetricSpec) string {
 }
 
 // MetricSpecLabels returns the following labels:
-//	- domain : DomainID.Hex()
-//	- app 	 : AppID.Hex
-//	- svc 	 : ServiceID.Hex()
+//	- domain       : DomainID.Hex()
+//	- app 	       : AppID.Hex
+//	- svc 	       : ServiceID.Hex()
+//	- release      : Release().Hex()
+//	- instance     : Instance().Hex()
 func MetricSpecLabels(serviceID ServiceID) prometheus.Labels {
 	return prometheus.Labels{
-		"domain": Domain().Hex(),
-		"app":    ID().Hex(),
-		"svc":    serviceID.Hex(),
+		"domain":   Domain().Hex(),
+		"app":      ID().Hex(),
+		"svc":      serviceID.Hex(),
+		"release":  Release().Hex(),
+		"instance": Instance().Hex(),
 	}
 }
 

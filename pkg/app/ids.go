@@ -40,6 +40,8 @@ type InstanceID uint64
 
 func (a InstanceID) UInt64() uint64 { return uint64(a) }
 
+func (a InstanceID) Hex() string { return hex(uint64(a)) }
+
 // ReleaseID is a unique ID assigned to an application release
 type ReleaseID uint64
 

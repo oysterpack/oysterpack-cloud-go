@@ -29,3 +29,4 @@ vendor/*/
 /cmd/demos/appdemo/appdemo
 /pkg/app/net/testdata/.easypki/pki/
 /pkg/app/net/testdata/server_spec_test/
+/pkg/app/command/testdata/pipeline_test/
