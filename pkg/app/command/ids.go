@@ -14,7 +14,11 @@
 
 package command
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/oysterpack/oysterpack.go/pkg/app"
+)
 
 // CommandID is a global unique identifier for a command.
 // CommandID(s) must be registered.
@@ -30,14 +34,17 @@ func (a CommandID) UInt64() uint64 {
 }
 
 // PipelineID is a global unique identifier for a command
-// PipelineID(s) must be registered
-// The PipelineID is used to track pipelines, e.g., metrics, errors
+// PipelineID(s) must be registered.
+// The PipelineID is used to track pipelines, e.g., metrics, errors.
+// The PipelineID is used as the ServiceID.
 type PipelineID uint64
 
-func (a PipelineID) Hex() string {
-	return fmt.Sprintf("%x", a)
-}
-
+// UInt64 returns the underlying id number
 func (a PipelineID) UInt64() uint64 {
 	return uint64(a)
+}
+
+// ServiceID returns the PipelineID as a ServiceID
+func (a PipelineID) ServiceID() app.ServiceID {
+	return app.ServiceID(a)
 }

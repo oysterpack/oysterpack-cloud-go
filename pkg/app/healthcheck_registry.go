@@ -367,7 +367,7 @@ func (a AppHealthChecks) ResumeHealthCheck(id HealthCheckID) error {
 		return ServiceNotAliveError(HEALTHCHECK_SERVICE_ID)
 	}
 	if !app.Alive() {
-		return AppNotAliveError(HEALTHCHECK_SERVICE_ID)
+		return AppNotAliveError()
 	}
 
 	ticker := time.NewTicker(time.Second * 10)

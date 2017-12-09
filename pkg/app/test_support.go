@@ -31,8 +31,9 @@ func Reset() {
 	app = tomb.Tomb{} // resurrection
 	runAppServer()
 
+	initConfigService()
 	resetMetrics()
-	startMetricsHttpReporter()
+	initMetricsService()
 
 	initHealthCheckService()
 

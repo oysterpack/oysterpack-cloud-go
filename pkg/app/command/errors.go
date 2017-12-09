@@ -13,3 +13,17 @@
 // limitations under the License.
 
 package command
+
+import (
+	"github.com/oysterpack/oysterpack.go/pkg/app"
+
+	"context"
+)
+
+var (
+	ErrSpec_ContextExpired = app.ErrSpec{app.ErrorID(0xd56f1203ea740414), app.ErrorType_KNOWN_EDGE_CASE, app.ErrorSeverity_MEDIUM}
+)
+
+func PipelineContextExpired(ctx context.Context, pipeline *Pipeline, commandID CommandID) *app.Error {
+	return app.NewError(ctx.Err(), "Context expired on Pipeline", ErrSpec_ContextExpired, pipeline.Service.ID(), nil, commandID.Hex())
+}

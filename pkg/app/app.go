@@ -45,6 +45,7 @@ const (
 
 var (
 	INFRASTRUCTURE_SERVICE_IDS = []ServiceID{
+		CONFIG_SERVICE_ID,
 		METRICS_SERVICE_ID,
 		HEALTHCHECK_SERVICE_ID,
 	}
@@ -75,7 +76,8 @@ var (
 	appLogLevel      zerolog.Level
 	serviceLogLevels map[ServiceID]zerolog.Level
 
-	services = make(map[ServiceID]*Service)
+	servicesMutex sync.RWMutex
+	services      = make(map[ServiceID]*Service)
 
 	configDirMutex sync.RWMutex
 	configDir      string
@@ -94,7 +96,7 @@ type AppServices struct{}
 func submitCommand(f func()) error {
 	select {
 	case <-app.Dying():
-		return AppNotAliveError(APP_SERVICE)
+		return AppNotAliveError()
 	case commandChan <- f:
 		return nil
 	}
@@ -149,6 +151,7 @@ func (a AppServices) LogLevel(id ServiceID) zerolog.Level {
 	return LogLevel()
 }
 
+// if logLevel is not recognized, then WarnLevel will be returned
 func zerologLevel(logLevel string) zerolog.Level {
 	switch strings.ToUpper(logLevel) {
 	case "DEBUG":
@@ -160,6 +163,7 @@ func zerologLevel(logLevel string) zerolog.Level {
 	case "ERROR":
 		return zerolog.ErrorLevel
 	default:
+		InvalidLogLevelError(logLevel).Log(Logger())
 		return zerolog.WarnLevel
 	}
 }
@@ -170,49 +174,42 @@ func zerologLevel(logLevel string) zerolog.Level {
 //	- ErrAppNotAlive
 //	- ErrServiceAlreadyRegistered
 func (a AppServices) Register(s *Service) error {
+	if !app.Alive() {
+		return AppNotAliveError()
+	}
+
 	if !s.Alive() {
 		return ServiceNotAliveError(s.id)
 	}
 
-	c := make(chan error, 1)
-	err := submitCommand(func() {
-		if _, ok := services[s.id]; ok {
-			c <- ServiceAlreadyRegisteredError(s.ID())
-		}
-		services[s.id] = s
-		SERVICE_REGISTERED.Log(s.logger.Info()).Msg("registered")
-		// signal that the service registration was completed successfully
-		close(c)
+	servicesMutex.Lock()
+	defer servicesMutex.Unlock()
 
-		// watch the service
-		// when it dies, then unregister it
-		s.Go(func() error {
-			select {
-			case <-app.Dying():
-				return nil
-			case <-s.Dying():
-				if err := s.Err(); err != nil {
-					SERVICE_STOPPING.Log(s.Logger().Error()).Err(err).Msg("stopping")
-				} else {
-					SERVICE_STOPPING.Log(s.Logger().Info()).Msg("stopping")
-				}
+	if _, ok := services[s.id]; ok {
+		return ServiceAlreadyRegisteredError(s.ID())
+	}
+	services[s.id] = s
+	SERVICE_REGISTERED.Log(s.logger.Info()).Msg("registered")
 
-				a.Unregister(s.id)
-				return nil
+	// watch the service
+	// when it dies, then unregister it
+	s.Go(func() error {
+		select {
+		case <-app.Dying():
+			return nil
+		case <-s.Dying():
+			if err := s.Err(); err != nil {
+				SERVICE_STOPPING.Log(s.Logger().Error()).Err(err).Msg("stopping")
+			} else {
+				SERVICE_STOPPING.Log(s.Logger().Info()).Msg("stopping")
 			}
-		})
+
+			a.Unregister(s.id)
+			return nil
+		}
 	})
 
-	if err != nil {
-		return err
-	}
-
-	select {
-	case <-app.Dying():
-		return AppNotAliveError(s.ID())
-	case err := <-c:
-		return err
-	}
+	return nil
 }
 
 // Unregister will unregister the service for the specified ServiceID
@@ -221,38 +218,32 @@ func (a AppServices) Register(s *Service) error {
 //	- ErrAppNotAlive
 //  - ErrServiceNotRegistered
 func (a AppServices) Unregister(id ServiceID) error {
-	c := make(chan error, 1)
-	if err := submitCommand(func() {
-		defer close(c)
-		service, exists := services[id]
-		if !exists {
+	if !app.Alive() {
+		return AppNotAliveError()
+	}
 
-			return
+	servicesMutex.Lock()
+	defer servicesMutex.Unlock()
+
+	service, exists := services[id]
+	if !exists {
+		return nil
+	}
+
+	// log an event when the service is dead
+	app.Go(func() error {
+		select {
+		case <-app.Dying():
+			return nil
+		case <-service.Dead():
+			logServiceDeath(service)
+			return nil
 		}
+	})
 
-		// log an event when the service is dead
-		app.Go(func() error {
-			select {
-			case <-app.Dying():
-				return nil
-			case <-service.Dead():
-				logServiceDeath(service)
-				return nil
-			}
-		})
-
-		delete(services, id)
-		SERVICE_UNREGISTERED.Log(service.Logger().Info()).Msg("unregistered")
-	}); err != nil {
-		return err
-	}
-
-	select {
-	case <-app.Dying():
-		return AppNotAliveError(id)
-	case err := <-c:
-		return err
-	}
+	delete(services, id)
+	SERVICE_UNREGISTERED.Log(service.Logger().Info()).Msg("unregistered")
+	return nil
 }
 
 func logServiceDeath(service *Service) {
@@ -269,26 +260,20 @@ func logServiceDeath(service *Service) {
 // errors:
 //	- ErrAppNotAlive
 func (a AppServices) ServiceIDs() ([]ServiceID, error) {
-	c := make(chan []ServiceID, 1)
-
-	if err := submitCommand(func() {
-		ids := make([]ServiceID, len(services))
-		i := 0
-		for id := range services {
-			ids[i] = id
-			i++
-		}
-		c <- ids
-	}); err != nil {
-		return nil, err
+	if !app.Alive() {
+		return nil, AppNotAliveError()
 	}
 
-	select {
-	case <-app.Dying():
-		return nil, AppNotAliveError(APP_SERVICE)
-	case ids := <-c:
-		return ids, nil
+	servicesMutex.RLock()
+	defer servicesMutex.RUnlock()
+
+	ids := make([]ServiceID, len(services))
+	i := 0
+	for id := range services {
+		ids[i] = id
+		i++
 	}
+	return ids, nil
 }
 
 // Service will lookup the service for the specified ServiceID
@@ -297,23 +282,17 @@ func (a AppServices) ServiceIDs() ([]ServiceID, error) {
 //	- ErrAppNotAlive
 //	- ErrServiceNotRegistered
 func (a AppServices) Service(id ServiceID) (*Service, error) {
-	c := make(chan *Service, 1)
-
-	if err := submitCommand(func() {
-		c <- services[id]
-	}); err != nil {
-		return nil, err
+	if !app.Alive() {
+		return nil, AppNotAliveError()
 	}
 
-	select {
-	case <-app.Dying():
-		return nil, AppNotAliveError(id)
-	case svc := <-c:
-		if svc == nil {
-			return nil, ServiceNotRegisteredError(id)
-		}
-		return svc, nil
+	servicesMutex.RLock()
+	defer servicesMutex.RUnlock()
+	service, ok := services[id]
+	if !ok {
+		return nil, ServiceNotRegisteredError(id)
 	}
+	return service, nil
 }
 
 // Alive returns true if the app is still alive
@@ -364,7 +343,8 @@ func init() {
 	initServiceLogLevels(serviceLogLevelsVar)
 
 	runAppServer()
-	startMetricsHttpReporter()
+	initConfigService()
+	initMetricsService()
 	initHealthCheckService()
 }
 
@@ -402,13 +382,13 @@ func initServiceLogLevels(serviceLogLevelsFlag string) {
 	for _, serviceLogLevel := range strings.Split(serviceLogLevelsFlag, ",") {
 		tokens := strings.Split(serviceLogLevel, "=")
 		if len(tokens) != 2 {
-			logger.Warn().Str("service-log-level", serviceLogLevel).Msg("invalid service log level flag")
+			InvalidLogLevelError(fmt.Sprintf("invalid service log level flag : %v", serviceLogLevel)).Log(logger)
 			continue
 		}
 
 		serviceId, err := strconv.ParseUint(tokens[0], 0, 64)
 		if err != nil {
-			logger.Warn().Str("service-log-level", serviceLogLevel).Err(err).Msg("invalid service id")
+			InvalidLogLevelError(fmt.Sprintf("invalid service id : %v", serviceLogLevel)).Log(logger)
 			continue
 		}
 		serviceLogLevels[ServiceID(serviceId)] = zerologLevel(tokens[1])

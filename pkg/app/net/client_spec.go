@@ -65,7 +65,7 @@ func NewClientSpec(spec config.ClientSpec) (*ClientSpec, error) {
 		return nil, err
 	}
 	if !clientSpec.rootCAs.AppendCertsFromPEM(caCert) {
-		return nil, app.ConfigError(app.APP_SERVICE, errors.New("Failed to parse PEM encoded cert(s)"), "")
+		return nil, app.ConfigError(app.ServiceID(serviceSpec.ServiceId()), errors.New("Failed to parse PEM encoded cert(s)"), "")
 	}
 
 	return clientSpec, nil

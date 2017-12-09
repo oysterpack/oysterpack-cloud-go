@@ -26,7 +26,10 @@ func NewService(id ServiceID) *Service {
 		panic("ServiceID cannot be 0")
 	}
 	logLevel := Services.LogLevel(id)
-	return &Service{id: id, logger: Logger().With().Uint64("svc", uint64(id)).Logger().Level(logLevel), logLevel: logLevel}
+	return &Service{
+		id:     id,
+		logger: Logger().With().Uint64("svc", uint64(id)).Logger().Level(logLevel), logLevel: logLevel,
+	}
 }
 
 // Service represents an application service.

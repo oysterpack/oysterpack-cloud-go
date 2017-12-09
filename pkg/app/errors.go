@@ -136,6 +136,8 @@ type ServiceErrSpec struct {
 //	- When and where it happened
 //
 // Even though the Error fields are directly exposed, Error should be treated as immutable - i.e., once created it should not be changed.
+//
+// TODO: create capnp message
 type Error struct {
 	////////////////////
 	// What happened //
@@ -258,12 +260,12 @@ var (
 	ErrSpec_HealthCheckTimeout           = ErrSpec{ErrorID: ErrorID(0x8257a572526e13f4), ErrorType: ErrorType_KNOWN_EDGE_CASE, ErrorSeverity: ErrorSeverity_HIGH}
 )
 
-func AppNotAliveError(serviceID ServiceID) *Error {
+func AppNotAliveError() *Error {
 	return NewError(
 		errors.New("App is not alive"),
 		"",
 		ErrSpec_AppNotAlive,
-		serviceID,
+		APP_SERVICE,
 		nil,
 	)
 }
@@ -347,9 +349,9 @@ func IllegalArgumentError(message string) *Error {
 	)
 }
 
-func InvalidLogLevelError(level string) *Error {
+func InvalidLogLevelError(message string) *Error {
 	return NewError(
-		fmt.Errorf("Invalid log level : %q", level),
+		fmt.Errorf("Invalid log level : %v", message),
 		"",
 		ErrSpec_InvalidLogLevel,
 		APP_SERVICE,

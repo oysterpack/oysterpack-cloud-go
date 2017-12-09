@@ -30,6 +30,20 @@ import (
 	"zombiezen.com/go/capnproto2"
 )
 
+const (
+	CONFIG_SERVICE_ID = ServiceID(0x86813dd78fd207f5)
+)
+
+func initConfigService() {
+	service, err := Services.Service(CONFIG_SERVICE_ID)
+	if IsError(err, ErrSpec_ServiceNotRegistered.ErrorID) {
+		service = NewService(CONFIG_SERVICE_ID)
+		if err := Services.Register(service); err != nil {
+			panic(fmt.Sprintf("Failed to register Config service : %v", err))
+		}
+	}
+}
+
 // AppConfig is used to group together config related functions
 type AppConfig struct{}
 
@@ -56,25 +70,25 @@ func (a AppConfig) ConfigServiceIDs() ([]ServiceID, error) {
 		if err == os.ErrNotExist {
 			return []ServiceID{}, nil
 		}
-		return nil, ConfigError(APP_SERVICE, err, fmt.Sprintf("Failed to open the config directory : %v", a.ConfigDir()))
+		return nil, ConfigError(CONFIG_SERVICE_ID, err, fmt.Sprintf("Failed to open the config directory : %v", a.ConfigDir()))
 	}
 	defer dir.Close()
 	dirStat, err := dir.Stat()
 	if err != nil {
-		return nil, ConfigError(APP_SERVICE, err, fmt.Sprintf("Failed to stat the config directory : %v", a.ConfigDir()))
+		return nil, ConfigError(CONFIG_SERVICE_ID, err, fmt.Sprintf("Failed to stat the config directory : %v", a.ConfigDir()))
 	}
 	if !dirStat.IsDir() {
-		return nil, ConfigError(APP_SERVICE, fmt.Errorf("Config dir is not a dir : %s", a.ConfigDir()), "")
+		return nil, ConfigError(CONFIG_SERVICE_ID, fmt.Errorf("Config dir is not a dir : %s", a.ConfigDir()), "")
 	}
 
 	names, err := dir.Readdirnames(0)
 	if err != nil {
-		return nil, ConfigError(APP_SERVICE, err, "Failed to get directory listing")
+		return nil, ConfigError(CONFIG_SERVICE_ID, err, "Failed to get directory listing")
 	}
 	serviceIds := make([]ServiceID, len(names))
 	for i, name := range names {
 		if id, err := strconv.ParseUint(name, 0, 64); err != nil {
-			return nil, ConfigError(APP_SERVICE, fmt.Errorf("Invalid ServiceID : %v : %v", name, err), "")
+			return nil, ConfigError(CONFIG_SERVICE_ID, fmt.Errorf("Invalid ServiceID : %v : %v", name, err), "")
 		} else {
 			serviceIds[i] = ServiceID(id)
 		}

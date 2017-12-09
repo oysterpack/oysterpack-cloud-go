@@ -49,11 +49,11 @@ func TestContextKeyType(t *testing.T) {
 
 func TestCommandErr(t *testing.T) {
 	ctx := context.Background()
-	if _, ok := command.Error(ctx); ok {
+	if err := command.Error(ctx); err != nil {
 		t.Error("There should be no error returned")
 	}
-	ctx = command.SetError(ctx, command.CommandID(1), app.AppNotAliveError(app.ServiceID(1)))
-	if err, ok := command.Error(ctx); !ok {
+	ctx = command.SetError(ctx, command.CommandID(1), app.AppNotAliveError())
+	if err := command.Error(ctx); err == nil {
 		t.Error("There should be an error returned")
 	} else {
 		var err2 = err

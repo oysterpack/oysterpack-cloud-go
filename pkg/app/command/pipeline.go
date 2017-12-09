@@ -18,9 +18,117 @@ import (
 	"context"
 	"time"
 
+	"fmt"
+
+	"github.com/oysterpack/oysterpack.go/pkg/app"
 	"github.com/oysterpack/oysterpack.go/pkg/app/uid"
-	"gopkg.in/tomb.v2"
+	"github.com/prometheus/client_golang/prometheus"
 )
+
+func StartPipeline(service *app.Service, stages ...Stage) (*Pipeline, error) {
+	if service == nil {
+		return nil, app.IllegalArgumentError("A pipeline requires a service to run")
+	}
+	if !service.Alive() {
+		return nil, app.ServiceNotAliveError(service.ID())
+	}
+	if len(stages) == 0 {
+		return nil, app.IllegalArgumentError("A pipeline must have at least 1 stage")
+	}
+	for _, stage := range stages {
+		if stage.Command().run == nil {
+			return nil, app.IllegalArgumentError(fmt.Sprintf("Stage Command run function was nil for : ServiceID(0x%x)", service.ID()))
+		}
+	}
+
+	pipeline := &Pipeline{
+		Service:    service,
+		instanceID: uid.NextUIDHash(),
+		startedOn:  time.Now(),
+		in:         make(chan context.Context),
+		out:        make(chan context.Context),
+		stages:     stages,
+	}
+
+	var build func(stages []Stage, in, out chan context.Context)
+	build = func(stages []Stage, in, out chan context.Context) {
+		if len(stages) == 1 {
+			stage := stages[0]
+			poolSize := int(stage.PoolSize())
+			for i := 0; i < poolSize; i++ {
+				service.Go(func() error {
+					for {
+						select {
+						case <-service.Dying():
+							return nil
+						case ctx := <-in:
+							select {
+							case <-ctx.Done():
+								PipelineContextExpired(ctx, pipeline, stage.Command().CommandID()).Log(pipeline.Service.Logger())
+							default:
+								result, err := stage.Command().Run(ctx)
+								if err != nil {
+									result = SetError(result, stage.Command().id, err)
+								}
+								select {
+								case <-service.Dying():
+									return nil
+								case <-result.Done():
+									PipelineContextExpired(ctx, pipeline, stage.Command().CommandID()).Log(pipeline.Service.Logger())
+								case pipeline.out <- result:
+								}
+							}
+						}
+					}
+				})
+			}
+			return
+		}
+
+		stage := stages[0]
+		poolSize := int(stage.PoolSize())
+		for i := 0; i < poolSize; i++ {
+			service.Go(func() error {
+				for {
+					select {
+					case <-service.Dying():
+						return nil
+					case ctx := <-in:
+						select {
+						case <-ctx.Done():
+							PipelineContextExpired(ctx, pipeline, stage.Command().CommandID()).Log(pipeline.Service.Logger())
+						default:
+							result, err := stage.Command().Run(ctx)
+							if err != nil {
+								result = SetError(result, stage.Command().id, err)
+								select {
+								case <-service.Dying():
+									return nil
+								case <-result.Done():
+									PipelineContextExpired(ctx, pipeline, stage.Command().CommandID()).Log(pipeline.Service.Logger())
+								case pipeline.out <- result:
+								}
+							} else {
+								select {
+								case <-service.Dying():
+									return nil
+								case <-result.Done():
+									PipelineContextExpired(ctx, pipeline, stage.Command().CommandID()).Log(pipeline.Service.Logger())
+								case out <- result:
+								}
+							}
+						}
+					}
+				}
+			})
+		}
+		build(stages[1:], out, make(chan context.Context))
+	}
+
+	build(stages, pipeline.in, make(chan context.Context))
+
+	return pipeline, nil
+}
 
 // Pipeline is a series of stages connected by channels, where each stage is a group of goroutines running the same function.
 //
@@ -34,20 +142,28 @@ import (
 // or inbound channels, respectively. The first stage is sometimes called the source or producer; the last stage, the sink or consumer.
 //
 // For more background information on pipelines see https://blog.golang.org/pipelines
+//
+// How are context expirations handled on the pipeline ?
+//	- The context is dropped, i.e., it no longer continues on the pipeline. The expiration is logged.
+//  - The context is checked if it is expired when it is received on each stage and after the command runs.
+//
+// What happens if an error is returned by a pipeline stage command ?
+// 	- The error is added to the Context using CTX_KEY_CMD_ERR as the key. The workflow is aborted, and the context is
+// 	  returned immediately on the pipeline output channel.
 type Pipeline struct {
-	tomb.Tomb
+	*app.Service
 
-	id         PipelineID
 	instanceID uid.UIDHash
 	startedOn  time.Time
 
 	in, out chan context.Context
 
-	stages []*Stage
-}
+	stages []Stage
 
-func (a *Pipeline) ID() PipelineID {
-	return a.id
+	messageCounter        prometheus.CounterVec
+	errCounter            prometheus.CounterVec
+	contextExpiredCounter prometheus.CounterVec
+	processingTime        prometheus.CounterVec
 }
 
 func (a *Pipeline) InstanceID() uid.UIDHash {
@@ -64,6 +180,18 @@ func (a *Pipeline) InputChan() chan<- context.Context {
 
 func (a *Pipeline) OutputChan() <-chan context.Context {
 	return a.out
+}
+
+func (a *Pipeline) Stages() []Stage {
+	stages := make([]Stage, len(a.stages))
+	for i := 0; i < len(stages); i++ {
+		stages[i] = a.stages[i]
+	}
+	return stages
+}
+
+func NewStage(cmd Command, poolSize uint8) Stage {
+	return Stage{cmd, poolSize}
 }
 
 // Stage represents a pipeline stage
