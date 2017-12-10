@@ -500,6 +500,9 @@ func TestStartPipeline(t *testing.T) {
 		}
 
 		p := command.StartPipelineFromConfig(service)
+		if p = command.GetPipeline(p.ID()); p == nil {
+			t.Fatal("Pipeline is not registered")
+		}
 		ctx := context.WithValue(command.NewContext(), N, 0)
 		p.InputChan() <- ctx
 		ctx = <-p.OutputChan()

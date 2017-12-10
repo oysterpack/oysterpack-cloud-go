@@ -213,8 +213,6 @@ func (a *Server) getListener() (l net.Listener, err error) {
 	return a.listener, nil
 }
 
-// TODO: metrics :
-// 	- connection count - gauge
 func (a *Server) run() (err error) {
 	conns := connMap{conns: make(map[uint64]net.Conn)}
 

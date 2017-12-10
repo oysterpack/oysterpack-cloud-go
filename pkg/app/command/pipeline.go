@@ -20,11 +20,48 @@ import (
 
 	"fmt"
 
+	"sync"
+
 	"github.com/oysterpack/oysterpack.go/pkg/app"
 	"github.com/oysterpack/oysterpack.go/pkg/app/command/config"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+var (
+	pipelineMutex sync.RWMutex
+	pipelines     = make(map[PipelineID]*Pipeline)
+)
+
+func PipelineIDs() []PipelineID {
+	pipelineMutex.RLock()
+	defer pipelineMutex.RUnlock()
+	ids := make([]PipelineID, len(pipelines))
+	i := 0
+	for id := range pipelines {
+		ids[i] = id
+	}
+	return ids
+}
+
+func GetPipeline(id PipelineID) *Pipeline {
+	pipelineMutex.RLock()
+	defer pipelineMutex.RUnlock()
+	return pipelines[id]
+}
+
+func registerPipeline(pipeline *Pipeline) {
+	pipelineMutex.Lock()
+	defer pipelineMutex.Unlock()
+	pipelines[pipeline.ID()] = pipeline
+}
+
+func unregisterPipeline(id PipelineID) {
+	pipelineMutex.Lock()
+	defer pipelineMutex.Unlock()
+	delete(pipelines, id)
+}
+
+// StartPipelineFromConfig expects the service config type to be config.Pipeline.
 func StartPipelineFromConfig(service *app.Service) *Pipeline {
 	if service == nil {
 		panic("A pipeline requires a service to run")
@@ -32,6 +69,8 @@ func StartPipelineFromConfig(service *app.Service) *Pipeline {
 	if !service.Alive() {
 		panic(app.ServiceNotAliveError(service.ID()))
 	}
+
+	app.SERVICE_STARTING.Log(service.Logger().Info()).Msg("Pipeline starting")
 
 	cfg, err := app.Configs.Config(service.ID())
 	if err != nil {
@@ -164,6 +203,7 @@ func StartPipeline(service *app.Service, stages ...Stage) *Pipeline {
 				workflowTime := processingDuration.Seconds()
 				pipeline.processingTime.Add(workflowTime)
 				if err := Error(result); err != nil {
+					contextFailed(pipeline, ctx)
 					pipeline.failedCounter.Inc()
 					pipeline.processingFailedTime.Add(workflowTime)
 					result = WithError(result, stage.Command().id, err)
@@ -248,6 +288,7 @@ func StartPipeline(service *app.Service, stages ...Stage) *Pipeline {
 			result := stage.run(ctx)
 			processedTime := time.Now()
 			if err := Error(result); err != nil {
+				contextFailed(pipeline, ctx)
 				pipeline.failedCounter.Inc()
 				result = WithError(result, stage.Command().id, err)
 				pipeline.lastFailureTime.Set(float64(time.Now().Unix()))
@@ -317,6 +358,17 @@ func StartPipeline(service *app.Service, stages ...Stage) *Pipeline {
 
 	build(stages, pipeline.in, make(chan context.Context))
 
+	go func() {
+		defer unregisterPipeline(pipeline.ID())
+		select {
+		case <-service.Dying():
+		case <-app.Dying():
+		}
+	}()
+
+	registerPipeline(pipeline)
+	app.SERVICE_STARTED.Log(service.Logger().Info()).Msg("Pipeline started")
+
 	return pipeline
 }
 
@@ -366,6 +418,10 @@ type Pipeline struct {
 	lastExpiredTime     prometheus.Gauge
 	lastPingSuccessTime prometheus.Gauge
 	lastPingExpiredTime prometheus.Gauge
+}
+
+func (a *Pipeline) ID() PipelineID {
+	return PipelineID(a.Service.ID())
 }
 
 func (a *Pipeline) StartedOn() time.Time {

@@ -28,6 +28,7 @@ var (
 
 // as a side effect, update pipeline metrics will be updated
 func pipelineContextExpired(ctx context.Context, pipeline *Pipeline, commandID CommandID) *app.Error {
+	contextExpired(pipeline, ctx)
 	pipeline.contextExpiredCounter.Inc()
 	if IsPing(ctx) {
 		pipeline.lastPingExpiredTime.Set(float64(time.Now().Unix()))
