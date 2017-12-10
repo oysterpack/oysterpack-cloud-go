@@ -24,6 +24,10 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+func StartPipelieFromConfig(service *app.Service) {
+
+}
+
 // StartPipeline will start a new Pipeline and return it.
 // The following will trigger a panic:
 //	- if service is nil or not alive

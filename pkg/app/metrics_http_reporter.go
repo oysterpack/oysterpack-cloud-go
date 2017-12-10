@@ -30,9 +30,7 @@ import (
 // if the metrics HTTP server fails to start, then this is considered a fatal error, which will terminate the process.
 func initMetricsService() {
 	svc := NewService(METRICS_SERVICE_ID)
-	if err := Services.Register(svc); err != nil {
-		METRICS_HTTP_REPORTER_START_ERROR.Log(Logger().Panic()).Err(err).Msg("")
-	}
+	Services.Register(svc)
 
 	metricsService := &metricsHttpReporter{
 		Service: svc,

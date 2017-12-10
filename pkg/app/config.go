@@ -35,12 +35,9 @@ const (
 )
 
 func initConfigService() {
-	service, err := Services.Service(CONFIG_SERVICE_ID)
-	if IsError(err, ErrSpec_ServiceNotRegistered.ErrorID) {
-		service = NewService(CONFIG_SERVICE_ID)
-		if err := Services.Register(service); err != nil {
-			panic(fmt.Sprintf("Failed to register Config service : %v", err))
-		}
+	service := Services.Service(CONFIG_SERVICE_ID)
+	if service == nil {
+		Services.Register(NewService(CONFIG_SERVICE_ID))
 	}
 }
 

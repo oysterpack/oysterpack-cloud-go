@@ -173,20 +173,24 @@ func zerologLevel(logLevel string) zerolog.Level {
 // errors:
 //	- ErrAppNotAlive
 //	- ErrServiceAlreadyRegistered
-func (a AppServices) Register(s *Service) error {
+func (a AppServices) Register(s *Service) {
 	if !app.Alive() {
-		return AppNotAliveError()
+		panic("app is not alive")
+	}
+
+	if s == nil {
+		panic("service must nit be nil")
 	}
 
 	if !s.Alive() {
-		return ServiceNotAliveError(s.id)
+		panic("service is not alive")
 	}
 
 	servicesMutex.Lock()
 	defer servicesMutex.Unlock()
 
 	if _, ok := services[s.id]; ok {
-		return ServiceAlreadyRegisteredError(s.ID())
+		panic(fmt.Sprintf("service is already registered: ServiceID(0x%x)", s.ID()))
 	}
 	services[s.id] = s
 	SERVICE_REGISTERED.Log(s.logger.Info()).Msg("registered")
@@ -209,7 +213,6 @@ func (a AppServices) Register(s *Service) error {
 		}
 	})
 
-	return nil
 }
 
 // Unregister will unregister the service for the specified ServiceID
@@ -217,17 +220,13 @@ func (a AppServices) Register(s *Service) error {
 // errors:
 //	- ErrAppNotAlive
 //  - ErrServiceNotRegistered
-func (a AppServices) Unregister(id ServiceID) error {
-	if !app.Alive() {
-		return AppNotAliveError()
-	}
-
+func (a AppServices) Unregister(id ServiceID) {
 	servicesMutex.Lock()
 	defer servicesMutex.Unlock()
 
 	service, exists := services[id]
 	if !exists {
-		return nil
+		return
 	}
 
 	// log an event when the service is dead
@@ -243,7 +242,6 @@ func (a AppServices) Unregister(id ServiceID) error {
 
 	delete(services, id)
 	SERVICE_UNREGISTERED.Log(service.Logger().Info()).Msg("unregistered")
-	return nil
 }
 
 func logServiceDeath(service *Service) {
@@ -259,9 +257,9 @@ func logServiceDeath(service *Service) {
 //
 // errors:
 //	- ErrAppNotAlive
-func (a AppServices) ServiceIDs() ([]ServiceID, error) {
+func (a AppServices) ServiceIDs() []ServiceID {
 	if !app.Alive() {
-		return nil, AppNotAliveError()
+		panic("app is not alive")
 	}
 
 	servicesMutex.RLock()
@@ -273,7 +271,7 @@ func (a AppServices) ServiceIDs() ([]ServiceID, error) {
 		ids[i] = id
 		i++
 	}
-	return ids, nil
+	return ids
 }
 
 // Service will lookup the service for the specified ServiceID
@@ -281,18 +279,14 @@ func (a AppServices) ServiceIDs() ([]ServiceID, error) {
 // errors:
 //	- ErrAppNotAlive
 //	- ErrServiceNotRegistered
-func (a AppServices) Service(id ServiceID) (*Service, error) {
+func (a AppServices) Service(id ServiceID) *Service {
 	if !app.Alive() {
-		return nil, AppNotAliveError()
+		panic("app is not alive")
 	}
 
 	servicesMutex.RLock()
 	defer servicesMutex.RUnlock()
-	service, ok := services[id]
-	if !ok {
-		return nil, ServiceNotRegisteredError(id)
-	}
-	return service, nil
+	return services[id]
 }
 
 // Alive returns true if the app is still alive

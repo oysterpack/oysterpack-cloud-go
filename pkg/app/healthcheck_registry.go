@@ -19,8 +19,6 @@ import (
 
 	"time"
 
-	"fmt"
-
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/rs/zerolog"
 	"gopkg.in/tomb.v2"
@@ -46,17 +44,8 @@ func initHealthCheckService() {
 func registerHealthCheckService() {
 	healthchecksMutex.Lock()
 	defer healthchecksMutex.Unlock()
-	healthCheckService, err := Services.Service(HEALTHCHECK_SERVICE_ID)
-	if err != nil {
-		if !IsError(err, ErrSpec_ServiceNotRegistered.ErrorID) {
-			Logger().Panic().Err(err).Msg("HealthCheckService is already registered")
-		}
-	}
-	if healthCheckService == nil {
-		healthCheckService = NewService(HEALTHCHECK_SERVICE_ID)
-		if err := Services.Register(healthCheckService); err != nil {
-			panic(fmt.Sprintf("Failed to register HealthCheckService: %v", err))
-		}
+	if healthCheckService := Services.Service(HEALTHCHECK_SERVICE_ID); healthCheckService == nil {
+		Services.Register(NewService(HEALTHCHECK_SERVICE_ID))
 	}
 }
 
@@ -159,9 +148,9 @@ func (a AppHealthChecks) Register(id HealthCheckID, healthCheckFunc HealthCheck)
 		return IllegalArgumentError("HealthCheck function is required")
 	}
 
-	healthCheckService, err := Services.Service(HEALTHCHECK_SERVICE_ID)
-	if err != nil {
-		return err
+	healthCheckService := Services.Service(HEALTHCHECK_SERVICE_ID)
+	if healthCheckService == nil {
+		return ServiceNotRegisteredError(HEALTHCHECK_SERVICE_ID)
 	}
 
 	healthchecksMutex.Lock()
@@ -256,9 +245,9 @@ func (a AppHealthChecks) Run(id HealthCheckID) (HealthCheckResult, error) {
 	healthchecksMutex.Lock()
 	defer healthchecksMutex.Unlock()
 
-	healthCheckService, err := Services.Service(HEALTHCHECK_SERVICE_ID)
-	if err != nil {
-		return HealthCheckResult{}, err
+	healthCheckService := Services.Service(HEALTHCHECK_SERVICE_ID)
+	if healthCheckService == nil {
+		return HealthCheckResult{}, ServiceAlreadyRegisteredError(HEALTHCHECK_SERVICE_ID)
 	}
 
 	healthcheck := registeredHealthChecks[id]
