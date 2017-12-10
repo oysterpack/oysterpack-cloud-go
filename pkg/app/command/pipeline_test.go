@@ -20,8 +20,11 @@ import (
 
 	"os"
 
+	"math/rand"
+
 	"github.com/oysterpack/oysterpack.go/pkg/app"
 	"github.com/oysterpack/oysterpack.go/pkg/app/command"
+	"github.com/oysterpack/oysterpack.go/pkg/app/command/config"
 	appconfig "github.com/oysterpack/oysterpack.go/pkg/app/config"
 	"github.com/oysterpack/oysterpack.go/pkg/app/uid"
 	"zombiezen.com/go/capnproto2"
@@ -436,6 +439,73 @@ func TestStartPipeline(t *testing.T) {
 		n := ctx.Value(N).(int)
 		t.Logf("n = %d", n)
 		if n != 10 {
+			t.Errorf("The pipeline did not process the workflow correctly : n = %d", n)
+		}
+	})
+
+	t.Run("pipeline - from config", func(t *testing.T) {
+		const STAGE_COUNT = 10
+		storePipelineConfig := func() {
+			msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+			if err != nil {
+				panic(err)
+			}
+
+			pipelineConfig, err := config.NewRootPipeline(seg)
+			if err != nil {
+				panic(err)
+			}
+			pipelineConfig.SetServiceID(SERVICE_ID.UInt64())
+			stageList, err := pipelineConfig.NewStages(STAGE_COUNT)
+			if err != nil {
+				panic(err)
+			}
+
+			for i := 1; i <= STAGE_COUNT; i++ {
+				stage, err := config.NewPipeline_Stage(seg)
+				if err != nil {
+					panic(err)
+				}
+				stage.SetCommandID(command.CommandID(i).UInt64())
+				stage.SetPoolSize(uint8(1 + rand.Intn(4)))
+				stageList.Set(i-1, stage)
+			}
+
+			serviceConfigPath := app.Configs.ServiceConfigPath(SERVICE_ID)
+			configFile, err := os.Create(serviceConfigPath)
+			if err != nil {
+				panic(err)
+			}
+			app.MarshalCapnpMessage(msg, configFile)
+			configFile.Close()
+		}
+
+		storePipelineConfig()
+
+		app.ResetWithConfigDir(configDir)
+		defer app.Reset()
+
+		service := app.NewService(SERVICE_ID)
+		app.Services.Register(service)
+		type Key int
+
+		const (
+			N = Key(iota)
+		)
+		for i := 1; i <= STAGE_COUNT; i++ {
+			command.MustRegisterCommand(command.CommandID(i), func(ctx context.Context) context.Context {
+				n := ctx.Value(N).(int)
+				return context.WithValue(ctx, N, n+1)
+			})
+		}
+
+		p := command.StartPipelineFromConfig(service)
+		ctx := context.WithValue(command.NewContext(), N, 0)
+		p.InputChan() <- ctx
+		ctx = <-p.OutputChan()
+		n := ctx.Value(N).(int)
+		t.Logf("n = %d", n)
+		if n != STAGE_COUNT {
 			t.Errorf("The pipeline did not process the workflow correctly : n = %d", n)
 		}
 	})

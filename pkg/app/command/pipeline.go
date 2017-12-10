@@ -21,11 +21,46 @@ import (
 	"fmt"
 
 	"github.com/oysterpack/oysterpack.go/pkg/app"
+	"github.com/oysterpack/oysterpack.go/pkg/app/command/config"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-func StartPipelieFromConfig(service *app.Service) {
+func StartPipelineFromConfig(service *app.Service) *Pipeline {
+	if service == nil {
+		panic("A pipeline requires a service to run")
+	}
+	if !service.Alive() {
+		panic(app.ServiceNotAliveError(service.ID()))
+	}
 
+	cfg, err := app.Configs.Config(service.ID())
+	if err != nil {
+		panic(err)
+	}
+
+	pipeline, err := config.ReadRootPipeline(cfg)
+	if err != nil {
+		panic(err)
+	}
+	if pipeline.ServiceID() != service.ID().UInt64() {
+		panic(fmt.Errorf("The pipeline service id does not match : ServiceID(0x%x) != ServiceID(0x%x)", pipeline.ServiceID(), service.ID()))
+	}
+
+	stageList, err := pipeline.Stages()
+	if err != nil {
+		panic(err)
+	}
+	stages := make([]Stage, stageList.Len())
+	for i := 0; i < stageList.Len(); i++ {
+		s := stageList.At(i)
+		commandID := CommandID(s.CommandID())
+		command, ok := GetCommand(commandID)
+		if !ok {
+			panic(fmt.Sprintf("Command is not registered : CommandID(0x%x)", commandID))
+		}
+		stages[i] = NewStage(service.ID(), Command{commandID, command}, s.PoolSize())
+	}
+	return StartPipeline(service, stages...)
 }
 
 // StartPipeline will start a new Pipeline and return it.
