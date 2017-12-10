@@ -103,7 +103,7 @@ func StartPipeline(service *app.Service, stages ...Stage) *Pipeline {
 
 			process := func(ctx context.Context) {
 				if IsPing(ctx) {
-					ctx = WithPong(ctx)
+					ctx = withPong(ctx)
 					out, ok := OutputChannel(ctx)
 					if !ok {
 						out = pipeline.out
@@ -119,12 +119,12 @@ func StartPipeline(service *app.Service, stages ...Stage) *Pipeline {
 					return
 				}
 
-				result, err := stage.run(ctx)
+				result := stage.run(ctx)
 				processedTime := time.Now()
 				processingDuration := time.Now().Sub(WorkflowStartTime(ctx))
 				workflowTime := processingDuration.Seconds()
 				pipeline.processingTime.Add(workflowTime)
-				if err != nil {
+				if err := Error(result); err != nil {
 					pipeline.failedCounter.Inc()
 					pipeline.processingFailedTime.Add(workflowTime)
 					result = WithError(result, stage.Command().id, err)
@@ -163,7 +163,7 @@ func StartPipeline(service *app.Service, stages ...Stage) *Pipeline {
 									pipelineContextExpired(ctx, pipeline, stage.Command().CommandID()).Log(pipeline.Service.Logger())
 								default:
 									// record the time when the context started the workflow, i.e., entered the first stage of the pipeline
-									ctx = StartWorkflowTimer(ctx)
+									ctx = startWorkflowTimer(ctx)
 									pipeline.runCounter.Inc()
 									process(ctx)
 								}
@@ -206,9 +206,9 @@ func StartPipeline(service *app.Service, stages ...Stage) *Pipeline {
 				return
 			}
 
-			result, err := stage.run(ctx)
+			result := stage.run(ctx)
 			processedTime := time.Now()
-			if err != nil {
+			if err := Error(result); err != nil {
 				pipeline.failedCounter.Inc()
 				result = WithError(result, stage.Command().id, err)
 				pipeline.lastFailureTime.Set(float64(time.Now().Unix()))
@@ -247,7 +247,7 @@ func StartPipeline(service *app.Service, stages ...Stage) *Pipeline {
 								pipelineContextExpired(ctx, pipeline, stage.Command().CommandID()).Log(pipeline.Service.Logger())
 							default:
 								// record the time when the context started the workflow, i.e., entered the first stage of the pipeline
-								ctx = StartWorkflowTimer(ctx)
+								ctx = startWorkflowTimer(ctx)
 								pipeline.runCounter.Inc()
 								process(ctx)
 							}
@@ -383,15 +383,22 @@ func (a *Stage) PoolSize() uint8 {
 	return a.poolSize
 }
 
-func (a *Stage) run(in context.Context) (out context.Context, err *app.Error) {
+func (a *Stage) run(in context.Context) context.Context {
 	a.runCounter.Inc()
+	in = withStageCommandID(in, a.cmd.id)
 	start := time.Now()
-	out, err = a.cmd.Run(in)
+	out := a.cmd.Run(in)
 	runTime := time.Now().Sub(start).Seconds()
 	a.processingTime.Add(runTime)
-	if err != nil {
+	if err := Error(out); err != nil {
 		a.failedCounter.Inc()
 		a.processingFailedTime.Add(runTime)
 	}
-	return
+	if stageOutputChannel, ok := StageOutputChannel(in); ok {
+		select {
+		case stageOutputChannel <- out:
+		default:
+		}
+	}
+	return out
 }

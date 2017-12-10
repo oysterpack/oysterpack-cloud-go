@@ -16,11 +16,13 @@ package command
 
 import (
 	"context"
-
-	"github.com/oysterpack/oysterpack.go/pkg/app"
 )
 
-func NewCommand(id CommandID, f func(ctx context.Context) (context.Context, *app.Error)) Command {
+// CommandFunc will process the input context and return an outout Context.
+// Commands that fail should return a Context with an *app.Error - see WithError()
+type CommandFunc func(ctx context.Context) context.Context
+
+func NewCommand(id CommandID, f CommandFunc) Command {
 	if id == CommandID(0) {
 		panic("CommandID must not be 0")
 	}
@@ -32,13 +34,13 @@ func NewCommand(id CommandID, f func(ctx context.Context) (context.Context, *app
 
 type Command struct {
 	id  CommandID
-	run func(ctx context.Context) (context.Context, *app.Error)
+	run CommandFunc
 }
 
 func (a Command) CommandID() CommandID {
 	return a.id
 }
 
-func (a Command) Run(ctx context.Context) (context.Context, *app.Error) {
+func (a Command) Run(ctx context.Context) context.Context {
 	return a.run(ctx)
 }

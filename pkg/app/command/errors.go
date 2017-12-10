@@ -33,6 +33,12 @@ func pipelineContextExpired(ctx context.Context, pipeline *Pipeline, commandID C
 		pipeline.lastPingExpiredTime.Set(float64(time.Now().Unix()))
 	} else {
 		pipeline.lastExpiredTime.Set(float64(time.Now().Unix()))
+		if c, ok := ExpiredOutputChannel(ctx); ok {
+			select {
+			case c <- ctx:
+			default:
+			}
+		}
 	}
 
 	return app.NewError(ctx.Err(), "Context expired on Pipeline", ErrSpec_ContextExpired, pipeline.Service.ID(), commandID)

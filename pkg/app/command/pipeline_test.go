@@ -386,10 +386,10 @@ func TestStartPipeline(t *testing.T) {
 		p := command.StartPipeline(service,
 			command.NewStage(
 				SERVICE_ID,
-				command.NewCommand(command.CommandID(1), func(ctx context.Context) (context.Context, *app.Error) {
+				command.NewCommand(command.CommandID(1), func(ctx context.Context) context.Context {
 					a := ctx.Value(A).(int)
 					b := ctx.Value(B).(int)
-					return context.WithValue(ctx, SUM, a+b), nil
+					return context.WithValue(ctx, SUM, a+b)
 				}),
 				1,
 			),
@@ -418,9 +418,9 @@ func TestStartPipeline(t *testing.T) {
 		)
 		stage := command.NewStage(
 			SERVICE_ID,
-			command.NewCommand(command.CommandID(1), func(ctx context.Context) (context.Context, *app.Error) {
+			command.NewCommand(command.CommandID(1), func(ctx context.Context) context.Context {
 				n := ctx.Value(N).(int)
-				return context.WithValue(ctx, N, n+1), nil
+				return context.WithValue(ctx, N, n+1)
 			}),
 			1,
 		)
@@ -450,18 +450,20 @@ func TestStartPipeline(t *testing.T) {
 		const (
 			N = Key(iota)
 		)
-		stage := command.NewStage(
-			SERVICE_ID,
-			command.NewCommand(command.CommandID(1), func(ctx context.Context) (context.Context, *app.Error) {
-				n := ctx.Value(N).(int)
-				return context.WithValue(ctx, N, n+1), nil
-			}),
-			1,
-		)
+		stage := func(stageCommandID command.CommandID) command.Stage {
+			return command.NewStage(
+				SERVICE_ID,
+				command.NewCommand(stageCommandID, func(ctx context.Context) context.Context {
+					n := ctx.Value(N).(int)
+					return context.WithValue(ctx, N, n+1)
+				}),
+				1,
+			)
+		}
 
 		stages := []command.Stage{}
 		for i := 0; i < 10; i++ {
-			stages = append(stages, stage)
+			stages = append(stages, stage(command.CommandID(i+1)))
 		}
 		p := command.StartPipeline(service, stages...)
 
@@ -488,6 +490,87 @@ func TestStartPipeline(t *testing.T) {
 			t.Logf("timeStarted : %v", timeStarted)
 		}
 
+		if commandID, ok := command.StageCommandID(ctx); !ok {
+			t.Log("stage command id is not in the context")
+		} else if commandID != command.CommandID(10) {
+			t.Errorf("wrong stage CommandID : %v", commandID)
+		}
+
+	})
+
+	t.Run("10 stage pipeline - with reply channel - with stage output channel", func(t *testing.T) {
+		app.ResetWithConfigDir(configDir)
+		defer app.Reset()
+
+		service := app.NewService(SERVICE_ID)
+		type Key int
+
+		const (
+			N = Key(iota)
+		)
+		stage := func(stageCommandID command.CommandID) command.Stage {
+			return command.NewStage(
+				SERVICE_ID,
+				command.NewCommand(stageCommandID, func(ctx context.Context) context.Context {
+					n := ctx.Value(N).(int)
+					return context.WithValue(ctx, N, n+1)
+				}),
+				1,
+			)
+		}
+
+		stages := []command.Stage{}
+		for i := 0; i < 10; i++ {
+			stages = append(stages, stage(command.CommandID(i+1)))
+		}
+		p := command.StartPipeline(service, stages...)
+
+		ctx := context.WithValue(command.NewContext(), N, 0)
+		outputChan := make(chan context.Context)
+		ctx = command.WithOutputChannel(ctx, outputChan)
+		stageOutputChannel := make(chan context.Context, 10)
+		ctx = command.WithStageOutputChannel(ctx, stageOutputChannel)
+
+		stageListenerContext, cancelStageListener := context.WithCancel(context.Background())
+		go func() {
+			for {
+				select {
+				case <-stageListenerContext.Done():
+					return
+				case ctx := <-stageOutputChannel:
+					commandID, ok := command.StageCommandID(ctx)
+					t.Logf("stage output received: %v : %v", commandID, ok)
+				}
+			}
+		}()
+
+		p.InputChan() <- ctx
+		ctx = <-outputChan
+		n := ctx.Value(N).(int)
+		t.Logf("n = %d", n)
+		if n != 10 {
+			t.Errorf("The pipeline did not process the workflow correctly : n = %d", n)
+		}
+		if workflowID, ok := command.WorkflowID(ctx); !ok {
+			t.Error("output context should have a workflow id assigned")
+		} else {
+			t.Logf("workflowID = %x", workflowID)
+		}
+
+		timeStarted := command.WorkflowStartTime(ctx)
+		if timeStarted.IsZero() {
+			t.Error("the pipeline workflow start time is not in the context")
+		} else {
+			t.Logf("timeStarted : %v", timeStarted)
+		}
+
+		if commandID, ok := command.StageCommandID(ctx); !ok {
+			t.Log("stage command id is not in the context")
+		} else if commandID != command.CommandID(10) {
+			t.Errorf("wrong stage CommandID : %v", commandID)
+		}
+
+		cancelStageListener()
 	})
 
 	t.Run("ping-pong", func(t *testing.T) {
@@ -502,9 +585,9 @@ func TestStartPipeline(t *testing.T) {
 		)
 		stage := command.NewStage(
 			SERVICE_ID,
-			command.NewCommand(command.CommandID(1), func(ctx context.Context) (context.Context, *app.Error) {
+			command.NewCommand(command.CommandID(1), func(ctx context.Context) context.Context {
 				n := ctx.Value(N).(int)
-				return context.WithValue(ctx, N, n+1), nil
+				return context.WithValue(ctx, N, n+1)
 			}),
 			1,
 		)
