@@ -49,7 +49,7 @@ func initMetricsConfig(serviceID app.ServiceID) error {
 	metricsServiceSpec.SetMetricSpecs(metricsSpecs)
 
 	createCounters := func() error {
-		counters, err := metricsSpecs.NewCounterSpecs(6)
+		counters, err := metricsSpecs.NewCounterSpecs(10)
 		if err != nil {
 			return err
 		}
@@ -114,6 +114,7 @@ func initMetricsConfig(serviceID app.ServiceID) error {
 		}
 		counters.Set(4, pipelineFailedProcessingTime)
 
+		/////////////
 		pipelineDeliveryTime, err := appconfig.NewCounterMetricSpec(seg)
 		if err != nil {
 			return err
@@ -124,6 +125,54 @@ func initMetricsConfig(serviceID app.ServiceID) error {
 			return err
 		}
 		counters.Set(5, pipelineDeliveryTime)
+
+		/////////////
+		pipelinePingPongCounter, err := appconfig.NewCounterMetricSpec(seg)
+		if err != nil {
+			return err
+		}
+		pipelinePingPongCounter.SetServiceId(serviceID.UInt64())
+		pipelinePingPongCounter.SetMetricId(command.PIPELINE_PING_PONG_COUNT.UInt64())
+		if err := pipelinePingPongCounter.SetHelp("Total number of ping-pong requests that have succeeded"); err != nil {
+			return err
+		}
+		counters.Set(6, pipelinePingPongCounter)
+
+		/////////////
+		pipelinePingPongTime, err := appconfig.NewCounterMetricSpec(seg)
+		if err != nil {
+			return err
+		}
+		pipelinePingPongTime.SetServiceId(serviceID.UInt64())
+		pipelinePingPongTime.SetMetricId(command.PIPELINE_PING_PONG_TIME_SEC.UInt64())
+		if err := pipelinePingPongTime.SetHelp("Total time processing ping-pong requests"); err != nil {
+			return err
+		}
+		counters.Set(7, pipelinePingPongTime)
+
+		/////////////
+		pipelinePingExpiredCount, err := appconfig.NewCounterMetricSpec(seg)
+		if err != nil {
+			return err
+		}
+		pipelinePingExpiredCount.SetServiceId(serviceID.UInt64())
+		pipelinePingExpiredCount.SetMetricId(command.PIPELINE_PING_EXPIRED_COUNT.UInt64())
+		if err := pipelinePingExpiredCount.SetHelp("Total number of ping requests that have expired"); err != nil {
+			return err
+		}
+		counters.Set(8, pipelinePingExpiredCount)
+
+		/////////////
+		pipelinePingExpiredTime, err := appconfig.NewCounterMetricSpec(seg)
+		if err != nil {
+			return err
+		}
+		pipelinePingExpiredTime.SetServiceId(serviceID.UInt64())
+		pipelinePingExpiredTime.SetMetricId(command.PIPELINE_PING_EXPIRED_TIME_SEC.UInt64())
+		if err := pipelinePingExpiredTime.SetHelp("Total time processing pings that expired"); err != nil {
+			return err
+		}
+		counters.Set(9, pipelinePingExpiredTime)
 
 		return nil
 	}
@@ -224,11 +273,80 @@ func initMetricsConfig(serviceID app.ServiceID) error {
 		return nil
 	}
 
+	createGauges := func() error {
+		gauges, err := metricsSpecs.NewGaugeSpecs(5)
+
+		pipelineLastSuccessTime, err := appconfig.NewGaugeMetricSpec(seg)
+		if err != nil {
+			return err
+		}
+		pipelineLastSuccessTime.SetServiceId(serviceID.UInt64())
+		pipelineLastSuccessTime.SetMetricId(command.PIPELINE_LAST_SUCCESS_TIME.UInt64())
+		if err := pipelineLastSuccessTime.SetHelp("Last time a message was successfully processed"); err != nil {
+			return err
+		}
+		gauges.Set(0, pipelineLastSuccessTime)
+
+		/////////////
+		pipelineLastFailureTime, err := appconfig.NewGaugeMetricSpec(seg)
+		if err != nil {
+			return err
+		}
+		pipelineLastFailureTime.SetServiceId(serviceID.UInt64())
+		pipelineLastFailureTime.SetMetricId(command.PIPELINE_LAST_FAILURE_TIME.UInt64())
+		if err := pipelineLastFailureTime.SetHelp("Last time a message processing error occurred"); err != nil {
+			return err
+		}
+		gauges.Set(1, pipelineLastFailureTime)
+
+		/////////////
+		pipelineLastExpiredTime, err := appconfig.NewGaugeMetricSpec(seg)
+		if err != nil {
+			return err
+		}
+		pipelineLastExpiredTime.SetServiceId(serviceID.UInt64())
+		pipelineLastExpiredTime.SetMetricId(command.PIPELINE_LAST_EXPIRED_TIME.UInt64())
+		if err := pipelineLastExpiredTime.SetHelp("Last time a context expired on the pipeline"); err != nil {
+			return err
+		}
+		gauges.Set(2, pipelineLastExpiredTime)
+
+		/////////////
+		pipelineLastPingSuccessTime, err := appconfig.NewGaugeMetricSpec(seg)
+		if err != nil {
+			return err
+		}
+		pipelineLastPingSuccessTime.SetServiceId(serviceID.UInt64())
+		pipelineLastPingSuccessTime.SetMetricId(command.PIPELINE_LAST_PING_SUCCESS_TIME.UInt64())
+		if err := pipelineLastPingSuccessTime.SetHelp("Last time a ping-pong succeeded"); err != nil {
+			return err
+		}
+		gauges.Set(3, pipelineLastPingSuccessTime)
+
+		/////////////
+		pipelineLastPingExpiredTime, err := appconfig.NewGaugeMetricSpec(seg)
+		if err != nil {
+			return err
+		}
+		pipelineLastPingExpiredTime.SetServiceId(serviceID.UInt64())
+		pipelineLastPingExpiredTime.SetMetricId(command.PIPELINE_LAST_PING_EXPIRED_TIME.UInt64())
+		if err := pipelineLastPingExpiredTime.SetHelp("Last time a ping expired"); err != nil {
+			return err
+		}
+		gauges.Set(4, pipelineLastPingExpiredTime)
+
+		return nil
+	}
+
 	if err := createCounters(); err != nil {
 		return err
 	}
 
 	if err := createCounterVectors(); err != nil {
+		return err
+	}
+
+	if err := createGauges(); err != nil {
 		return err
 	}
 
@@ -265,7 +383,7 @@ func TestStartPipeline(t *testing.T) {
 			SUM
 		)
 
-		p, err := command.StartPipeline(service,
+		p := command.StartPipeline(service,
 			command.NewStage(
 				SERVICE_ID,
 				command.NewCommand(command.CommandID(1), func(ctx context.Context) (context.Context, *app.Error) {
@@ -276,9 +394,6 @@ func TestStartPipeline(t *testing.T) {
 				1,
 			),
 		)
-		if err != nil {
-			t.Fatal(err)
-		}
 
 		ctx := context.WithValue(command.NewContext(), A, 1)
 		ctx = context.WithValue(ctx, B, 2)
@@ -314,10 +429,7 @@ func TestStartPipeline(t *testing.T) {
 		for i := 0; i < 10; i++ {
 			stages = append(stages, stage)
 		}
-		p, err := command.StartPipeline(service, stages...)
-		if err != nil {
-			t.Fatal(err)
-		}
+		p := command.StartPipeline(service, stages...)
 		ctx := context.WithValue(command.NewContext(), N, 0)
 		p.InputChan() <- ctx
 		ctx = <-p.OutputChan()
@@ -351,13 +463,13 @@ func TestStartPipeline(t *testing.T) {
 		for i := 0; i < 10; i++ {
 			stages = append(stages, stage)
 		}
-		p, err := command.StartPipeline(service, stages...)
-		if err != nil {
-			t.Fatal(err)
-		}
+		p := command.StartPipeline(service, stages...)
+
 		ctx := context.WithValue(command.NewContext(), N, 0)
+		outputChan := make(chan context.Context)
+		ctx = command.WithOutputChannel(ctx, outputChan)
 		p.InputChan() <- ctx
-		ctx = <-p.OutputChan()
+		ctx = <-outputChan
 		n := ctx.Value(N).(int)
 		t.Logf("n = %d", n)
 		if n != 10 {
@@ -369,12 +481,46 @@ func TestStartPipeline(t *testing.T) {
 			t.Logf("workflowID = %x", workflowID)
 		}
 
-		timeStarted := command.PipelineWorkflowStartTime(ctx)
+		timeStarted := command.WorkflowStartTime(ctx)
 		if timeStarted.IsZero() {
 			t.Error("the pipeline workflow start time is not in the context")
 		} else {
 			t.Logf("timeStarted : %v", timeStarted)
 		}
 
+	})
+
+	t.Run("ping-pong", func(t *testing.T) {
+		app.ResetWithConfigDir(configDir)
+		defer app.Reset()
+
+		service := app.NewService(SERVICE_ID)
+		type Key int
+
+		const (
+			N = Key(iota)
+		)
+		stage := command.NewStage(
+			SERVICE_ID,
+			command.NewCommand(command.CommandID(1), func(ctx context.Context) (context.Context, *app.Error) {
+				n := ctx.Value(N).(int)
+				return context.WithValue(ctx, N, n+1), nil
+			}),
+			1,
+		)
+
+		stages := []command.Stage{}
+		for i := 0; i < 10; i++ {
+			stages = append(stages, stage)
+		}
+		p := command.StartPipeline(service, stages...)
+
+		p.InputChan() <- command.NewPingContext()
+		result := <-p.OutputChan()
+		if pongTime, ok := command.PongTime(result); !ok {
+			t.Error("no pong")
+		} else {
+			t.Logf("pong : [%v], workflow duration = %v", pongTime, pongTime.Sub(command.WorkflowStartTime(result)))
+		}
 	})
 }

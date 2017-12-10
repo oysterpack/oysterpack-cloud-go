@@ -203,3 +203,28 @@ LOOP:
 		}
 	}
 }
+
+// the goal was to see if there was any value in creating predefined variables for empty structs
+//
+// BenchmarkEmptyStruct/context.WithValue(a{},a{})-8               20000000                80.7 ns/op            48 B/op          1 allocs/op
+// BenchmarkEmptyStruct/context.WithValue(aa,aa)-8                 20000000                82.8 ns/op            48 B/op          1 allocs/op
+//
+// ANSWER : There was no value add, i.e., empty structs do not allocate memory - period.
+func BenchmarkEmptyStruct(b *testing.B) {
+	type Key struct{}
+	type a Key
+
+	b.Run("context.WithValue(a{},a{})", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			context.WithValue(context.Background(), a{}, a{})
+		}
+	})
+
+	aa := a{}
+
+	b.Run("context.WithValue(aa,aa)", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			context.WithValue(context.Background(), aa, aa)
+		}
+	})
+}

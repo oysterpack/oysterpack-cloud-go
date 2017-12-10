@@ -24,28 +24,48 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-func StartPipeline(service *app.Service, stages ...Stage) (*Pipeline, error) {
-	checkArgs := func() *app.Error {
+// StartPipeline will start a new Pipeline and return it.
+// The following will trigger a panic:
+//	- if service is nil or not alive
+//	- if there are no stages
+//	- if any of the stages run function is undefined, i.e., nil
+//	- if any required metrics are not registered
+func StartPipeline(service *app.Service, stages ...Stage) *Pipeline {
+	checkArgs := func() {
 		if service == nil {
-			return app.IllegalArgumentError("A pipeline requires a service to run")
+			panic("A pipeline requires a service to run")
 		}
 		if !service.Alive() {
-			return app.ServiceNotAliveError(service.ID())
+			panic(app.ServiceNotAliveError(service.ID()))
 		}
 		if len(stages) == 0 {
-			return app.IllegalArgumentError("A pipeline must have at least 1 stage")
+			panic("A pipeline must have at least 1 stage")
 		}
 		for _, stage := range stages {
 			if stage.Command().run == nil {
-				return app.IllegalArgumentError(fmt.Sprintf("Stage Command run function was nil for : ServiceID(0x%x)", service.ID()))
+				panic(fmt.Sprintf("Stage Command run function was nil for : ServiceID(0x%x)", service.ID()))
 			}
 		}
-		return nil
+
+		serviceID := service.ID()
+		for _, metricID := range COUNTER_METRIC_IDS {
+			if app.MetricRegistry.Counter(serviceID, metricID) == nil {
+				panic(fmt.Sprintf("Counter metric is missing : MetricID(0x%x)", metricID))
+			}
+		}
+		for _, metricID := range COUNTER_VECTOR_METRIC_IDS {
+			if app.MetricRegistry.CounterVector(serviceID, metricID) == nil {
+				panic(fmt.Sprintf("Counter vector metric is missing : MetricID(0x%x)", metricID))
+			}
+		}
+		for _, metricID := range GAUGE_METRIC_IDS {
+			if app.MetricRegistry.Gauge(serviceID, metricID) == nil {
+				panic(fmt.Sprintf("Gauge metric is missing : MetricID(0x%x)", metricID))
+			}
+		}
 	}
 
-	if err := checkArgs(); err != nil {
-		return nil, err
-	}
+	checkArgs()
 
 	serviceID := service.ID()
 
@@ -62,6 +82,17 @@ func StartPipeline(service *app.Service, stages ...Stage) (*Pipeline, error) {
 		processingTime:        app.MetricRegistry.Counter(serviceID, PIPELINE_PROCESSING_TIME_SEC),
 		processingFailedTime:  app.MetricRegistry.Counter(serviceID, PIPELINE_PROCESSING_TIME_SEC_FAILED),
 		channelDeliveryTime:   app.MetricRegistry.Counter(serviceID, PIPELINE_CHANNEL_DELIVERY_TIME_SEC),
+
+		pingPongCounter:    app.MetricRegistry.Counter(serviceID, PIPELINE_PING_PONG_COUNT),
+		pingPongTime:       app.MetricRegistry.Counter(serviceID, PIPELINE_PING_PONG_TIME_SEC),
+		pingExpiredCounter: app.MetricRegistry.Counter(serviceID, PIPELINE_PING_EXPIRED_COUNT),
+		pingExpiredTime:    app.MetricRegistry.Counter(serviceID, PIPELINE_PING_EXPIRED_TIME_SEC),
+
+		lastSuccessTime:     app.MetricRegistry.Gauge(serviceID, PIPELINE_LAST_SUCCESS_TIME),
+		lastFailureTime:     app.MetricRegistry.Gauge(serviceID, PIPELINE_LAST_FAILURE_TIME),
+		lastExpiredTime:     app.MetricRegistry.Gauge(serviceID, PIPELINE_LAST_EXPIRED_TIME),
+		lastPingSuccessTime: app.MetricRegistry.Gauge(serviceID, PIPELINE_LAST_PING_SUCCESS_TIME),
+		lastPingExpiredTime: app.MetricRegistry.Gauge(serviceID, PIPELINE_LAST_PING_EXPIRED_TIME),
 	}
 
 	firstStageCommandID := pipeline.stages[0].cmd.id
@@ -71,17 +102,38 @@ func StartPipeline(service *app.Service, stages ...Stage) (*Pipeline, error) {
 			stage := stages[0]
 
 			process := func(ctx context.Context) {
+				if IsPing(ctx) {
+					ctx = WithPong(ctx)
+					out, ok := OutputChannel(ctx)
+					if !ok {
+						out = pipeline.out
+					}
+
+					select {
+					case <-service.Dying():
+					case <-ctx.Done():
+						pipelineContextExpired(ctx, pipeline, stage.Command().CommandID()).Log(pipeline.Service.Logger())
+					case out <- ctx:
+						pipeline.lastPingSuccessTime.Set(float64(time.Now().Unix()))
+					}
+					return
+				}
+
 				result, err := stage.run(ctx)
 				processedTime := time.Now()
-				workflowTime := time.Now().Sub(PipelineWorkflowStartTime(ctx)).Seconds()
+				processingDuration := time.Now().Sub(WorkflowStartTime(ctx))
+				workflowTime := processingDuration.Seconds()
 				pipeline.processingTime.Add(workflowTime)
 				if err != nil {
 					pipeline.failedCounter.Inc()
 					pipeline.processingFailedTime.Add(workflowTime)
 					result = WithError(result, stage.Command().id, err)
+					pipeline.lastFailureTime.Set(float64(time.Now().Unix()))
+				} else {
+					pipeline.lastSuccessTime.Set(float64(time.Now().Unix()))
 				}
 
-				out, ok := OutputChannel(ctx)
+				out, ok := OutputChannel(result)
 				if !ok {
 					out = pipeline.out
 				}
@@ -90,7 +142,7 @@ func StartPipeline(service *app.Service, stages ...Stage) (*Pipeline, error) {
 				case <-service.Dying():
 					return
 				case <-result.Done():
-					pipelineContextExpired(ctx, pipeline, stage.Command().CommandID()).Log(pipeline.Service.Logger())
+					pipelineContextExpired(result, pipeline, stage.Command().CommandID()).Log(pipeline.Service.Logger())
 				case out <- result:
 					deliveryTime := time.Now().Sub(processedTime).Seconds()
 					pipeline.channelDeliveryTime.Add(deliveryTime)
@@ -111,7 +163,7 @@ func StartPipeline(service *app.Service, stages ...Stage) (*Pipeline, error) {
 									pipelineContextExpired(ctx, pipeline, stage.Command().CommandID()).Log(pipeline.Service.Logger())
 								default:
 									// record the time when the context started the workflow, i.e., entered the first stage of the pipeline
-									ctx = StartPipelineWorkflowTimer(ctx)
+									ctx = StartWorkflowTimer(ctx)
 									pipeline.runCounter.Inc()
 									process(ctx)
 								}
@@ -144,16 +196,27 @@ func StartPipeline(service *app.Service, stages ...Stage) (*Pipeline, error) {
 		poolSize := int(stage.PoolSize())
 
 		process := func(ctx context.Context) {
+			if IsPing(ctx) {
+				select {
+				case <-service.Dying():
+				case <-ctx.Done():
+					pipelineContextExpired(ctx, pipeline, stage.Command().CommandID()).Log(pipeline.Service.Logger())
+				case out <- ctx:
+				}
+				return
+			}
+
 			result, err := stage.run(ctx)
 			processedTime := time.Now()
 			if err != nil {
 				pipeline.failedCounter.Inc()
 				result = WithError(result, stage.Command().id, err)
+				pipeline.lastFailureTime.Set(float64(time.Now().Unix()))
 				select {
 				case <-service.Dying():
 					return
 				case <-result.Done():
-					pipelineContextExpired(ctx, pipeline, stage.Command().CommandID()).Log(pipeline.Service.Logger())
+					pipelineContextExpired(result, pipeline, stage.Command().CommandID()).Log(pipeline.Service.Logger())
 				case pipeline.out <- result:
 					deliveryTime := time.Now().Sub(processedTime).Seconds()
 					pipeline.channelDeliveryTime.Add(deliveryTime)
@@ -163,7 +226,7 @@ func StartPipeline(service *app.Service, stages ...Stage) (*Pipeline, error) {
 				case <-service.Dying():
 					return
 				case <-result.Done():
-					pipelineContextExpired(ctx, pipeline, stage.Command().CommandID()).Log(pipeline.Service.Logger())
+					pipelineContextExpired(result, pipeline, stage.Command().CommandID()).Log(pipeline.Service.Logger())
 				case out <- result:
 					deliveryTime := time.Now().Sub(processedTime).Seconds()
 					pipeline.channelDeliveryTime.Add(deliveryTime)
@@ -184,7 +247,7 @@ func StartPipeline(service *app.Service, stages ...Stage) (*Pipeline, error) {
 								pipelineContextExpired(ctx, pipeline, stage.Command().CommandID()).Log(pipeline.Service.Logger())
 							default:
 								// record the time when the context started the workflow, i.e., entered the first stage of the pipeline
-								ctx = StartPipelineWorkflowTimer(ctx)
+								ctx = StartWorkflowTimer(ctx)
 								pipeline.runCounter.Inc()
 								process(ctx)
 							}
@@ -215,7 +278,7 @@ func StartPipeline(service *app.Service, stages ...Stage) (*Pipeline, error) {
 
 	build(stages, pipeline.in, make(chan context.Context))
 
-	return pipeline, nil
+	return pipeline
 }
 
 // Pipeline is a series of stages connected by channels, where each stage is a group of goroutines running the same function.
@@ -253,6 +316,17 @@ type Pipeline struct {
 	processingTime        prometheus.Counter
 	processingFailedTime  prometheus.Counter
 	channelDeliveryTime   prometheus.Counter
+
+	pingPongCounter    prometheus.Counter
+	pingExpiredCounter prometheus.Counter
+	pingPongTime       prometheus.Counter
+	pingExpiredTime    prometheus.Counter
+
+	lastSuccessTime     prometheus.Gauge
+	lastFailureTime     prometheus.Gauge
+	lastExpiredTime     prometheus.Gauge
+	lastPingSuccessTime prometheus.Gauge
+	lastPingExpiredTime prometheus.Gauge
 }
 
 func (a *Pipeline) StartedOn() time.Time {

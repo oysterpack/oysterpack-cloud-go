@@ -39,6 +39,14 @@ type ctx_output_channel ContextKey
 // uid.UIDHash - used for tracking purposes.
 type ctx_workflow_id ContextKey
 
+// ping-pong is used to test how long does it take to traverse the pipeline - command functions are not run
+
+// struct{} - used to mark the context as a ping-pong context
+type ctx_ping ContextKey
+
+// time.Time - when the pong occurred
+type ctx_pong ContextKey
+
 var zero_time = time.Unix(0, 0)
 
 // NewContext returns a new Context with the following values :
@@ -49,6 +57,29 @@ func NewContext() context.Context {
 	return WithWorkflowID(ctx)
 }
 
+// NewPingContext
+func NewPingContext() context.Context {
+	ctx := context.WithValue(context.Background(), ctx_created_on{}, time.Now())
+	ctx = WithWorkflowID(ctx)
+	return context.WithValue(ctx, ctx_ping{}, struct{}{})
+}
+
+// IsPong returns true if this is a Ping Context, which tells the pipeline to send it through the workflow bypassing commands.
+func IsPing(ctx context.Context) bool {
+	return ctx.Value(ctx_ping{}) != nil
+}
+
+// WithPong puts the pong time in the context
+func WithPong(ctx context.Context) context.Context {
+	return context.WithValue(ctx, ctx_pong{}, time.Now())
+}
+
+func PongTime(ctx context.Context) (t time.Time, ok bool) {
+	t, ok = ctx.Value(ctx_pong{}).(time.Time)
+	return
+}
+
+// Error is used to communicate back any application errors.
 func Error(ctx context.Context) *app.Error {
 	err := ctx.Value(ctx_cmd_err{})
 	if err == nil {
@@ -62,8 +93,8 @@ func WithError(ctx context.Context, commandID CommandID, err *app.Error) context
 	return context.WithValue(ctx, ctx_cmd_err{}, err.WithTag(commandID.Hex()))
 }
 
-// PipelineWorkflowStartTime returns the time when the context workflow is started
-func PipelineWorkflowStartTime(ctx context.Context) time.Time {
+// WorkflowStartTime returns the time when the context workflow is started
+func WorkflowStartTime(ctx context.Context) time.Time {
 	start, ok := ctx.Value(ctx_pipeline_workflow_start_time{}).(time.Time)
 	if ok {
 		return start
@@ -71,8 +102,8 @@ func PipelineWorkflowStartTime(ctx context.Context) time.Time {
 	return zero_time
 }
 
-// StartPipelineWorkflowTimer returns a new Context with the pipeline start time set to now
-func StartPipelineWorkflowTimer(ctx context.Context) context.Context {
+// StartWorkflowTimer returns a new Context with the pipeline start time set to now
+func StartWorkflowTimer(ctx context.Context) context.Context {
 	return context.WithValue(ctx, ctx_pipeline_workflow_start_time{}, time.Now())
 }
 
@@ -92,7 +123,7 @@ func OutputChannel(ctx context.Context) (c chan<- context.Context, ok bool) {
 	return
 }
 
-func WithOutoutChannel(ctx context.Context, c chan<- context.Context) context.Context {
+func WithOutputChannel(ctx context.Context, c chan<- context.Context) context.Context {
 	return context.WithValue(ctx, ctx_output_channel{}, c)
 }
 

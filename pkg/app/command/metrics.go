@@ -41,4 +41,51 @@ const (
 	PIPELINE_PROCESSING_TIME_SEC_FAILED = app.MetricID(0xca8cbbbb26c8eac7)
 	// total accumulative time to deliver the message downstream on the pipeline once it has been processed by the command on the pipeline stage
 	PIPELINE_CHANNEL_DELIVERY_TIME_SEC = app.MetricID(0xca8cbbbb26c8eac7)
+
+	// ping-pong success counter
+	PIPELINE_PING_PONG_COUNT = app.MetricID(0xd6129832e634c841)
+	// total accumulative time for ping-pong messaging
+	PIPELINE_PING_PONG_TIME_SEC = app.MetricID(0x859177a262f568a6)
+	// number of ping requests that expired, i.e., did not make it through the entire pipeline
+	PIPELINE_PING_EXPIRED_COUNT = app.MetricID(0x8f3a48d571fd33b1)
+	// total accumulative time for ping-pong messaging
+	PIPELINE_PING_EXPIRED_TIME_SEC = app.MetricID(0xd431ade2dbd030d2)
+
+	// all times are in Unix time: the number of seconds elapsed since January 1, 1970 UTC.
+	PIPELINE_LAST_SUCCESS_TIME      = app.MetricID(0xbad3338b90169ac8)
+	PIPELINE_LAST_FAILURE_TIME      = app.MetricID(0x833978794af500be)
+	PIPELINE_LAST_EXPIRED_TIME      = app.MetricID(0x9f2c4e6187cf5aa9)
+	PIPELINE_LAST_PING_SUCCESS_TIME = app.MetricID(0xb110d5e8dc031a82)
+	PIPELINE_LAST_PING_EXPIRED_TIME = app.MetricID(0xc92a144a7fc2ead8)
+)
+
+var (
+	COUNTER_VECTOR_METRIC_IDS = []app.MetricID{
+		COMMAND_RUN_COUNT,
+		COMMAND_FAILED_COUNT,
+		COMMAND_PROCESSING_TIME_SEC,
+		COMMAND_PROCESSING_TIME_SEC_FAILED,
+	}
+
+	COUNTER_METRIC_IDS = []app.MetricID{
+		PIPELINE_RUN_COUNT,
+		PIPELINE_FAILED_COUNT,
+		PIPELINE_CONTEXT_EXPIRED_COUNT,
+		PIPELINE_PROCESSING_TIME_SEC,
+		PIPELINE_PROCESSING_TIME_SEC_FAILED,
+		PIPELINE_CHANNEL_DELIVERY_TIME_SEC,
+
+		PIPELINE_PING_PONG_COUNT,
+		PIPELINE_PING_PONG_TIME_SEC,
+		PIPELINE_PING_EXPIRED_COUNT,
+		PIPELINE_PING_EXPIRED_TIME_SEC,
+	}
+
+	GAUGE_METRIC_IDS = []app.MetricID{
+		PIPELINE_LAST_SUCCESS_TIME,
+		PIPELINE_LAST_FAILURE_TIME,
+		PIPELINE_LAST_EXPIRED_TIME,
+		PIPELINE_LAST_PING_SUCCESS_TIME,
+		PIPELINE_LAST_PING_EXPIRED_TIME,
+	}
 )

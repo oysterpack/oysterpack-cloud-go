@@ -18,14 +18,22 @@ import (
 	"github.com/oysterpack/oysterpack.go/pkg/app"
 
 	"context"
+	"time"
 )
 
+// ErrSpec(s)
 var (
 	ErrSpec_ContextExpired = app.ErrSpec{app.ErrorID(0xd56f1203ea740414), app.ErrorType_KNOWN_EDGE_CASE, app.ErrorSeverity_MEDIUM}
 )
 
-// pipelineContextExpired will increment the pipeline context expired counter as a side effect
+// as a side effect, update pipeline metrics will be updated
 func pipelineContextExpired(ctx context.Context, pipeline *Pipeline, commandID CommandID) *app.Error {
 	pipeline.contextExpiredCounter.Inc()
-	return app.NewError(ctx.Err(), "Context expired on Pipeline", ErrSpec_ContextExpired, pipeline.Service.ID(), nil, commandID.Hex())
+	if IsPing(ctx) {
+		pipeline.lastPingExpiredTime.Set(float64(time.Now().Unix()))
+	} else {
+		pipeline.lastExpiredTime.Set(float64(time.Now().Unix()))
+	}
+
+	return app.NewError(ctx.Err(), "Context expired on Pipeline", ErrSpec_ContextExpired, pipeline.Service.ID(), commandID)
 }
