@@ -76,6 +76,7 @@ func NewMessagePipelineConnHandler(pipelineID command.PipelineID) ConnHandler {
 		decoder := capnp.NewPackedDecoder(conn)
 		decoder.ReuseBuffer()
 
+		// sends messages back to the client on the conn
 		service.Go(func() error {
 			encoder := capnp.NewPackedEncoder(conn)
 			for {
@@ -92,7 +93,7 @@ func NewMessagePipelineConnHandler(pipelineID command.PipelineID) ConnHandler {
 						if responseMsg != nil {
 							if err := encoder.Encode(responseMsg); err != nil {
 								if service.Alive() {
-									service.Logger().Error().Err(err).Msgf("encoder.Encode(responseMsg) failed : %T", err)
+									MESSAGE_ENCODE_FAILED.Log(service.Logger().Error()).Err(err).Msg("message encoding failed")
 								}
 								return err
 							}
@@ -110,13 +111,14 @@ func NewMessagePipelineConnHandler(pipelineID command.PipelineID) ConnHandler {
 					return
 				}
 				if service.Alive() || app.Alive() {
-					service.Logger().Error().Err(err).Msgf("decoder.Decode() failed : %T", err)
+					MESSAGE_DECODE_FAILED.Log(service.Logger().Error()).Err(err).Msg("message decoding failed")
 				}
 				return
 			}
 			request, err := message.ReadRootMessage(msg)
 			if err != nil {
-				service.Logger().Error().Err(err).Msg("message.ReadRootMessage(msg) failed")
+				MESSAGE_READ_FAILED.Log(service.Logger().Error().Err(err)).Msg("failed to read message")
+				// TODO: return error response message, and then close the connection
 				return
 			}
 
@@ -124,11 +126,17 @@ func NewMessagePipelineConnHandler(pipelineID command.PipelineID) ConnHandler {
 
 			switch request.Deadline().Which() {
 			case message.Message_deadline_Which_timeoutMSec:
-				requestCtx, _ = context.WithDeadline(requestCtx, time.Unix(0, request.Deadline().ExpiresOn()))
+				timeoutMSec := request.Deadline().TimeoutMSec()
+				if timeoutMSec > 0 {
+					requestCtx, _ = context.WithTimeout(requestCtx, time.Millisecond*time.Duration(timeoutMSec))
+				}
 			case message.Message_deadline_Which_expiresOn:
-				requestCtx, _ = context.WithTimeout(requestCtx, time.Millisecond*time.Duration(request.Deadline().TimeoutMSec()))
+				expiresOn := request.Deadline().ExpiresOn()
+				if expiresOn > 0 {
+					requestCtx, _ = context.WithDeadline(requestCtx, time.Unix(0, expiresOn))
+				}
 			default:
-				service.Logger().Error().Msgf("Unexpected deadline type : %v", request.Deadline().Which())
+				MESSAGE_DEADLINE_UNKNOWN.Log(service.Logger().Error()).Int("deadline_type", int(request.Deadline().Which())).Msgf("deadline type is not supported")
 			}
 
 			select {
