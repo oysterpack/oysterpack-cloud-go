@@ -33,18 +33,12 @@ func (a CommandID) UInt64() uint64 {
 	return uint64(a)
 }
 
-// PipelineID is a global unique identifier for a command
-// PipelineID(s) must be registered.
-// The PipelineID is used to track pipelines, e.g., metrics, errors.
-// The PipelineID is used as the ServiceID.
-type PipelineID uint64
+// PipelineID is a type alias for ServiceID.
+// A Pipeline is a Service, i.e., each Pipeline maps to a Service 1:1.
+// PipelineID is simply a type alias for ServiceID - in order to provide more type safety.
+type PipelineID app.ServiceID
 
-// UInt64 returns the underlying id number
-func (a PipelineID) UInt64() uint64 {
-	return uint64(a)
-}
-
-// ServiceID returns the PipelineID as a ServiceID
+// ServiceID converts the PipelineID back to ServiceID
 func (a PipelineID) ServiceID() app.ServiceID {
 	return app.ServiceID(a)
 }

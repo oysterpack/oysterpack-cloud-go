@@ -120,28 +120,22 @@ func TestApp(t *testing.T) {
 	}()
 
 	// When the app is dead
-	// Then all app functions should fail and return ErrAppNotAlive
+	// Then services cannot be registered
 	func() {
 		defer func() {
 			if p := recover(); p == nil {
 				t.Error("should have panicked because app is dead")
 			}
 		}()
-		app.Services.ServiceIDs()
-	}()
-	func() {
-		defer func() {
-			if p := recover(); p == nil {
-				t.Error("should have panicked because app is dead")
-			}
-		}()
-		app.Services.Service(service.ID())
+		app.Services.Register(app.NewService(3))
 	}()
 
 	// And LogLevel() can be invoked without hanging
 	app.LogLevel()
 	// And services can be unregistered
 	app.Services.Unregister(service.ID())
+	app.Services.ServiceIDs()
+	app.Services.Service(service.ID())
 
 	// When the app is reset - after being killed
 	app.Reset()

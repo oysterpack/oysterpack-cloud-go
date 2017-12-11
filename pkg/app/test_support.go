@@ -28,7 +28,12 @@ func Reset() {
 	app.Kill(nil)
 	app.Wait()
 
-	app = tomb.Tomb{} // resurrection
+	func() { // resurrection
+		appMutex.Lock()
+		defer appMutex.Unlock()
+		app = tomb.Tomb{}
+	}()
+
 	runAppServer()
 
 	initConfigService()

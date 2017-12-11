@@ -30,6 +30,9 @@ import (
 var (
 	pipelineMutex sync.RWMutex
 	pipelines     = make(map[PipelineID]*Pipeline)
+
+	// used to ensure that pipelines are started serially
+	startPipelineMutex = sync.Mutex{}
 )
 
 func PipelineIDs() []PipelineID {
@@ -62,7 +65,13 @@ func unregisterPipeline(id PipelineID) {
 }
 
 // StartPipelineFromConfig expects the service config type to be config.Pipeline.
+// If a pipeline is already registered for the specified service, then the registered Pipeline is returned.
+// Otherwise, it will create the new Pipeline from the config and register it.
 func StartPipelineFromConfig(service *app.Service) *Pipeline {
+	if pipeline := GetPipeline(PipelineID(service.ID())); pipeline != nil {
+		return pipeline
+	}
+
 	if service == nil {
 		panic("A pipeline requires a service to run")
 	}
@@ -102,13 +111,22 @@ func StartPipelineFromConfig(service *app.Service) *Pipeline {
 	return StartPipeline(service, stages...)
 }
 
-// StartPipeline will start a new Pipeline and return it.
+// StartPipeline will start a new Pipeline and return it - if the pipeline is not registered.
+// If a pipeline is already registered for the specified service, then the registered Pipeline is returned.
+//
 // The following will trigger a panic:
 //	- if service is nil or not alive
 //	- if there are no stages
 //	- if any of the stages run function is undefined, i.e., nil
 //	- if any required metrics are not registered
 func StartPipeline(service *app.Service, stages ...Stage) *Pipeline {
+	startPipelineMutex.Lock()
+	defer startPipelineMutex.Unlock()
+
+	if pipeline := GetPipeline(PipelineID(service.ID())); pipeline != nil {
+		return pipeline
+	}
+
 	checkArgs := func() {
 		if service == nil {
 			panic("A pipeline requires a service to run")
@@ -176,11 +194,52 @@ func StartPipeline(service *app.Service, stages ...Stage) *Pipeline {
 	firstStageCommandID := pipeline.stages[0].cmd.id
 	var build func(stages []Stage, in, out chan context.Context)
 	build = func(stages []Stage, in, out chan context.Context) {
-		if len(stages) == 1 {
-			stage := stages[0]
+		createStageWorkers := func(stage Stage, process func(ctx context.Context)) {
+			for i := 0; i < int(stage.PoolSize()); i++ {
+				if stage.cmd.id == firstStageCommandID {
+					service.Go(func() error {
+						for {
+							select {
+							case <-service.Dying():
+								return nil
+							case ctx := <-in:
+								select {
+								case <-ctx.Done():
+									pipelineContextExpired(ctx, pipeline, stage.Command().CommandID()).Log(pipeline.Service.Logger())
+								default:
+									// record the time when the context started the workflow, i.e., entered the first stage of the pipeline
+									ctx = startWorkflowTimer(ctx)
+									pipeline.runCounter.Inc()
+									process(ctx)
+								}
+							}
+						}
+					})
+				} else {
+					service.Go(func() error {
+						for {
+							select {
+							case <-service.Dying():
+								return nil
+							case ctx := <-in:
+								select {
+								case <-ctx.Done():
+									pipelineContextExpired(ctx, pipeline, stage.Command().CommandID()).Log(pipeline.Service.Logger())
+								default:
+									process(ctx)
+								}
+							}
+						}
+					})
+				}
 
-			process := func(ctx context.Context) {
+			}
+		}
+		stage := stages[0]
+		if len(stages) == 1 {
+			createStageWorkers(stage, func(ctx context.Context) {
 				if IsPing(ctx) {
+					// reply with pong
 					ctx = withPong(ctx)
 					out, ok := OutputChannel(ctx)
 					if !ok {
@@ -226,56 +285,13 @@ func StartPipeline(service *app.Service, stages ...Stage) *Pipeline {
 					deliveryTime := time.Now().Sub(processedTime).Seconds()
 					pipeline.channelDeliveryTime.Add(deliveryTime)
 				}
-			}
-
-			poolSize := int(stage.PoolSize())
-			for i := 0; i < poolSize; i++ {
-				if stage.cmd.id == firstStageCommandID {
-					service.Go(func() error {
-						for {
-							select {
-							case <-service.Dying():
-								return nil
-							case ctx := <-in:
-								select {
-								case <-ctx.Done():
-									pipelineContextExpired(ctx, pipeline, stage.Command().CommandID()).Log(pipeline.Service.Logger())
-								default:
-									// record the time when the context started the workflow, i.e., entered the first stage of the pipeline
-									ctx = startWorkflowTimer(ctx)
-									pipeline.runCounter.Inc()
-									process(ctx)
-								}
-							}
-						}
-					})
-				} else {
-					service.Go(func() error {
-						for {
-							select {
-							case <-service.Dying():
-								return nil
-							case ctx := <-in:
-								select {
-								case <-ctx.Done():
-									pipelineContextExpired(ctx, pipeline, stage.Command().CommandID()).Log(pipeline.Service.Logger())
-								default:
-									process(ctx)
-								}
-							}
-						}
-					})
-				}
-
-			}
+			})
 			return
 		}
 
-		stage := stages[0]
-		poolSize := int(stage.PoolSize())
-
-		process := func(ctx context.Context) {
+		createStageWorkers(stage, func(ctx context.Context) {
 			if IsPing(ctx) {
+				// send the context downstream, i.e., to the next stage
 				select {
 				case <-service.Dying():
 				case <-ctx.Done():
@@ -312,47 +328,8 @@ func StartPipeline(service *app.Service, stages ...Stage) *Pipeline {
 					pipeline.channelDeliveryTime.Add(deliveryTime)
 				}
 			}
-		}
+		})
 
-		for i := 0; i < poolSize; i++ {
-			if stage.cmd.id == firstStageCommandID {
-				service.Go(func() error {
-					for {
-						select {
-						case <-service.Dying():
-							return nil
-						case ctx := <-in:
-							select {
-							case <-ctx.Done():
-								pipelineContextExpired(ctx, pipeline, stage.Command().CommandID()).Log(pipeline.Service.Logger())
-							default:
-								// record the time when the context started the workflow, i.e., entered the first stage of the pipeline
-								ctx = startWorkflowTimer(ctx)
-								pipeline.runCounter.Inc()
-								process(ctx)
-							}
-						}
-					}
-				})
-			} else {
-				service.Go(func() error {
-					for {
-						select {
-						case <-service.Dying():
-							return nil
-						case ctx := <-in:
-							select {
-							case <-ctx.Done():
-								pipelineContextExpired(ctx, pipeline, stage.Command().CommandID()).Log(pipeline.Service.Logger())
-							default:
-								process(ctx)
-							}
-						}
-					}
-				})
-			}
-
-		}
 		build(stages[1:], out, make(chan context.Context))
 	}
 
@@ -420,6 +397,7 @@ type Pipeline struct {
 	lastPingExpiredTime prometheus.Gauge
 }
 
+// ID return the PipelineID. PipelineID is simply a type alias for ServiceID - in order to provide more type safety.
 func (a *Pipeline) ID() PipelineID {
 	return PipelineID(a.Service.ID())
 }

@@ -69,7 +69,10 @@ var (
 	appInstanceId = InstanceID(uid.NextUIDHash())
 	startedOn     = time.Now()
 
-	app         = tomb.Tomb{}
+	// The app Tomb is protected by a mutex to support resetting it when the app is reset via tests.
+	appMutex sync.RWMutex
+	app      = tomb.Tomb{}
+
 	commandChan = make(chan func(), 32)
 
 	logger           zerolog.Logger
@@ -258,10 +261,6 @@ func logServiceDeath(service *Service) {
 // errors:
 //	- ErrAppNotAlive
 func (a AppServices) ServiceIDs() []ServiceID {
-	if !app.Alive() {
-		panic("app is not alive")
-	}
-
 	servicesMutex.RLock()
 	defer servicesMutex.RUnlock()
 
@@ -274,16 +273,22 @@ func (a AppServices) ServiceIDs() []ServiceID {
 	return ids
 }
 
-// Service will lookup the service for the specified ServiceID
-//
-// errors:
-//	- ErrAppNotAlive
-//	- ErrServiceNotRegistered
-func (a AppServices) Service(id ServiceID) *Service {
-	if !app.Alive() {
-		panic("app is not alive")
-	}
+// Services returns all currently registered services
+func (a AppServices) Services() []*Service {
+	servicesMutex.RLock()
+	defer servicesMutex.RUnlock()
 
+	registeredServices := make([]*Service, len(services))
+	i := 0
+	for _, service := range services {
+		registeredServices[i] = service
+		i++
+	}
+	return registeredServices
+}
+
+// Service will lookup the service for the specified ServiceID
+func (a AppServices) Service(id ServiceID) *Service {
 	servicesMutex.RLock()
 	defer servicesMutex.RUnlock()
 	return services[id]
@@ -291,21 +296,29 @@ func (a AppServices) Service(id ServiceID) *Service {
 
 // Alive returns true if the app is still alive
 func Alive() bool {
+	appMutex.RLock()
+	defer appMutex.RUnlock()
 	return app.Alive()
 }
 
 // Kill triggers app shutdown
 func Kill() {
+	appMutex.RLock()
+	defer appMutex.RUnlock()
 	app.Kill(nil)
 }
 
 // Dying returns a channel that is used to signal that the app has been killed and shutting down
 func Dying() <-chan struct{} {
+	appMutex.RLock()
+	defer appMutex.RUnlock()
 	return app.Dying()
 }
 
 // Dead returns a channel that signals the app has been shutdown
 func Dead() <-chan struct{} {
+	appMutex.RLock()
+	defer appMutex.RUnlock()
 	return app.Dead()
 }
 
@@ -414,8 +427,10 @@ func shutdown() {
 	APP_STOPPING.Log(logger.Info()).Msg("stopping")
 	defer APP_STOPPED.Log(logger.Info()).Msg("stopped")
 
+	registeredServices := Services.Services()
+
 	// Kill each registered service
-	for _, service := range services {
+	for _, service := range registeredServices {
 		service.Kill(nil)
 		SERVICE_KILLED.Log(service.Logger().Info()).Msg("killed")
 	}
@@ -426,8 +441,9 @@ func shutdown() {
 	// because we are waiting for a service to shutdown.
 	maxWaitTime := time.NewTicker(time.Minute * 2)
 	defer maxWaitTime.Stop()
+
 SERVICE_LOOP:
-	for _, service := range services {
+	for _, service := range registeredServices {
 		ticker := time.NewTicker(time.Second * 10)
 		defer ticker.Stop()
 		for {
@@ -445,5 +461,7 @@ SERVICE_LOOP:
 		}
 	}
 
+	servicesMutex.Lock()
 	services = make(map[ServiceID]*Service)
+	servicesMutex.Unlock()
 }
