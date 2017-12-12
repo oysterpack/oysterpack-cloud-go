@@ -30,6 +30,8 @@ var (
 func pipelineContextExpired(ctx context.Context, pipeline *Pipeline, commandID CommandID) *app.Error {
 	contextExpired(pipeline, ctx)
 	pipeline.contextExpiredCounter.Inc()
+	pipeline.consecutiveExpiredCounter.Inc()
+	pipeline.consecutiveSuccessCounter.Set(0)
 	if IsPing(ctx) {
 		pipeline.lastPingExpiredTime.Set(float64(time.Now().Unix()))
 	} else {

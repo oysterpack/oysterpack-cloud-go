@@ -184,6 +184,10 @@ func StartPipeline(service *app.Service, stages ...Stage) *Pipeline {
 		pingExpiredCounter: app.MetricRegistry.Counter(serviceID, PIPELINE_PING_EXPIRED_COUNT),
 		pingExpiredTime:    app.MetricRegistry.Counter(serviceID, PIPELINE_PING_EXPIRED_TIME_SEC),
 
+		consecutiveSuccessCounter: app.MetricRegistry.Gauge(serviceID, PIPELINE_CONSECUTIVE_SUCCESS_COUNT),
+		consecutiveFailureCounter: app.MetricRegistry.Gauge(serviceID, PIPELINE_CONSECUTIVE_FAILURE_COUNT),
+		consecutiveExpiredCounter: app.MetricRegistry.Gauge(serviceID, PIPELINE_CONSECUTIVE_EXPIRED_COUNT),
+
 		lastSuccessTime:     app.MetricRegistry.Gauge(serviceID, PIPELINE_LAST_SUCCESS_TIME),
 		lastFailureTime:     app.MetricRegistry.Gauge(serviceID, PIPELINE_LAST_FAILURE_TIME),
 		lastExpiredTime:     app.MetricRegistry.Gauge(serviceID, PIPELINE_LAST_EXPIRED_TIME),
@@ -267,8 +271,8 @@ func StartPipeline(service *app.Service, stages ...Stage) *Pipeline {
 					pipeline.processingFailedTime.Add(workflowTime)
 					result = WithError(result, stage.Command().id, err)
 					pipeline.lastFailureTime.Set(float64(time.Now().Unix()))
-				} else {
-					pipeline.lastSuccessTime.Set(float64(time.Now().Unix()))
+					pipeline.consecutiveFailureCounter.Inc()
+					pipeline.consecutiveSuccessCounter.Set(0)
 				}
 
 				out, ok := OutputChannel(result)
@@ -284,6 +288,13 @@ func StartPipeline(service *app.Service, stages ...Stage) *Pipeline {
 				case out <- result:
 					deliveryTime := time.Now().Sub(processedTime).Seconds()
 					pipeline.channelDeliveryTime.Add(deliveryTime)
+
+					if Error(result) == nil {
+						pipeline.lastSuccessTime.Set(float64(time.Now().Unix()))
+						pipeline.consecutiveSuccessCounter.Inc()
+						pipeline.consecutiveFailureCounter.Set(0)
+						pipeline.consecutiveExpiredCounter.Set(0)
+					}
 				}
 			})
 			return
@@ -378,8 +389,15 @@ type Pipeline struct {
 
 	stages []Stage
 
-	runCounter            prometheus.Counter
-	failedCounter         prometheus.Counter
+	runCounter    prometheus.Counter
+	failedCounter prometheus.Counter
+
+	// gets reset to 0 when either a Context fails or expires
+	consecutiveSuccessCounter prometheus.Gauge
+	// gets reset to zero when a Context is successfully processed by the pipeline
+	consecutiveFailureCounter prometheus.Gauge
+	consecutiveExpiredCounter prometheus.Gauge
+
 	contextExpiredCounter prometheus.Counter
 	processingTime        prometheus.Counter
 	processingFailedTime  prometheus.Counter

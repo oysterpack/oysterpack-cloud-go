@@ -19,6 +19,10 @@ import "github.com/oysterpack/oysterpack.go/pkg/app"
 const (
 	LABEL_COMMAND = "cmd"
 
+	//////////////////////
+	// Counter Vectors //
+	////////////////////
+
 	// number of times the command has been run
 	COMMAND_RUN_COUNT = app.MetricID(0xdccbcbcf9235211d)
 	// number of times the command has failed - includes context expirations
@@ -28,11 +32,16 @@ const (
 	// total accumulative command processing time for commands that failed
 	COMMAND_PROCESSING_TIME_SEC_FAILED = app.MetricID(0x86f01c622f5894c5)
 
+	////////////////
+	// Counters ///
+	//////////////
+
 	// number of times the pipeline ran, which corresponds to the number of messages were sent into the pipeline, i.e.,
 	// the number of messages that were received on the pipeline input channel
 	PIPELINE_RUN_COUNT = app.MetricID(0xdf381a0443622af1)
 	// number of times that a pipeline workflow failed - including context expirations
 	PIPELINE_FAILED_COUNT = app.MetricID(0xf02c810ad839d592)
+
 	// number of times contexts expired in a pipeline
 	PIPELINE_CONTEXT_EXPIRED_COUNT = app.MetricID(0xd1449438ff78383d)
 	// total accumulative pipeline processing time
@@ -51,12 +60,23 @@ const (
 	// total accumulative time for ping-pong messaging
 	PIPELINE_PING_EXPIRED_TIME_SEC = app.MetricID(0xd431ade2dbd030d2)
 
+	//////////////
+	// Gauges ///
+	////////////
+
 	// all times are in Unix time: the number of seconds elapsed since January 1, 1970 UTC.
 	PIPELINE_LAST_SUCCESS_TIME      = app.MetricID(0xbad3338b90169ac8)
 	PIPELINE_LAST_FAILURE_TIME      = app.MetricID(0x833978794af500be)
 	PIPELINE_LAST_EXPIRED_TIME      = app.MetricID(0x9f2c4e6187cf5aa9)
 	PIPELINE_LAST_PING_SUCCESS_TIME = app.MetricID(0xb110d5e8dc031a82)
 	PIPELINE_LAST_PING_EXPIRED_TIME = app.MetricID(0xc92a144a7fc2ead8)
+
+	// number of consecutive contexts that have been processed successfully
+	PIPELINE_CONSECUTIVE_SUCCESS_COUNT = app.MetricID(0xefe4574b6a907d06)
+	// number of consecutive failures
+	PIPELINE_CONSECUTIVE_FAILURE_COUNT = app.MetricID(0xee4fb31af48e1b6d)
+	// number of consecutive expired contexts
+	PIPELINE_CONSECUTIVE_EXPIRED_COUNT = app.MetricID(0x8720d50302cfcff7)
 )
 
 var (
@@ -70,6 +90,7 @@ var (
 	COUNTER_METRIC_IDS = []app.MetricID{
 		PIPELINE_RUN_COUNT,
 		PIPELINE_FAILED_COUNT,
+
 		PIPELINE_CONTEXT_EXPIRED_COUNT,
 		PIPELINE_PROCESSING_TIME_SEC,
 		PIPELINE_PROCESSING_TIME_SEC_FAILED,
@@ -87,5 +108,9 @@ var (
 		PIPELINE_LAST_EXPIRED_TIME,
 		PIPELINE_LAST_PING_SUCCESS_TIME,
 		PIPELINE_LAST_PING_EXPIRED_TIME,
+
+		PIPELINE_CONSECUTIVE_SUCCESS_COUNT,
+		PIPELINE_CONSECUTIVE_FAILURE_COUNT,
+		PIPELINE_CONSECUTIVE_EXPIRED_COUNT,
 	}
 )

@@ -277,7 +277,7 @@ func initMetricsConfig(serviceID app.ServiceID) error {
 	}
 
 	createGauges := func() error {
-		gauges, err := metricsSpecs.NewGaugeSpecs(5)
+		gauges, err := metricsSpecs.NewGaugeSpecs(8)
 
 		pipelineLastSuccessTime, err := appconfig.NewGaugeMetricSpec(seg)
 		if err != nil {
@@ -337,6 +337,42 @@ func initMetricsConfig(serviceID app.ServiceID) error {
 			return err
 		}
 		gauges.Set(4, pipelineLastPingExpiredTime)
+
+		/////////////
+		pipelineConsecutiveSuccessCount, err := appconfig.NewGaugeMetricSpec(seg)
+		if err != nil {
+			return err
+		}
+		pipelineConsecutiveSuccessCount.SetServiceId(serviceID.UInt64())
+		pipelineConsecutiveSuccessCount.SetMetricId(command.PIPELINE_CONSECUTIVE_SUCCESS_COUNT.UInt64())
+		if err := pipelineConsecutiveSuccessCount.SetHelp("The number of consecutive Context(s) successfully processed"); err != nil {
+			return err
+		}
+		gauges.Set(5, pipelineConsecutiveSuccessCount)
+
+		/////////////
+		pipelineConsecutiveFailureCount, err := appconfig.NewGaugeMetricSpec(seg)
+		if err != nil {
+			return err
+		}
+		pipelineConsecutiveFailureCount.SetServiceId(serviceID.UInt64())
+		pipelineConsecutiveFailureCount.SetMetricId(command.PIPELINE_CONSECUTIVE_FAILURE_COUNT.UInt64())
+		if err := pipelineConsecutiveFailureCount.SetHelp("The number of consecutive Context(s) that have failed."); err != nil {
+			return err
+		}
+		gauges.Set(6, pipelineConsecutiveFailureCount)
+
+		/////////////
+		pipelineConsecutiveExpiredCount, err := appconfig.NewGaugeMetricSpec(seg)
+		if err != nil {
+			return err
+		}
+		pipelineConsecutiveExpiredCount.SetServiceId(serviceID.UInt64())
+		pipelineConsecutiveExpiredCount.SetMetricId(command.PIPELINE_CONSECUTIVE_EXPIRED_COUNT.UInt64())
+		if err := pipelineConsecutiveExpiredCount.SetHelp("The number of consecutive Context(s) that have expired."); err != nil {
+			return err
+		}
+		gauges.Set(7, pipelineConsecutiveExpiredCount)
 
 		return nil
 	}
